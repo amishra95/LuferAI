@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# corp-hospitality-platform
 
-## Getting Started
+Three-sided marketplace for corporate hospitality in India — **corporates** book events, **venues** accept them, and the **platform** earns commission — with GST worked out automatically under **SAC 998596**.
 
-First, run the development server:
+Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Supabase
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # http://localhost:3000 — runs on built-in mock data, no setup needed
+npm test             # GST engine tests
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### With Supabase
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+npx supabase start   # needs Docker; prints the URL, anon key and service-role key
+npx supabase db reset  # applies supabase/migrations/* then supabase/seed.sql
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Put the printed values in `.env.local` and restart `npm run dev`. The header badge switches from **Mock data** to **Supabase**. For a hosted project, use `npx supabase link` then `npx supabase db push`.
 
-## Learn More
+## Portals
 
-To learn more about Next.js, take a look at the following resources:
+| Route | Who | What |
+| --- | --- | --- |
+| `/admin` | Platform ops | Total bookings, Gross Booking Value, Commission Earned, GST invoiced, venue onboarding queue, all bookings |
+| `/client` | Corporate admins / EAs | Event request builder with live GST preview, booking status table, 18% GST ITC savings calculator |
+| `/property` | Venue managers | Incoming requests with Approve / Decline, mark-completed, monthly payouts |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Until sign-in is built, switch the acting company or venue with `?company=<id>` / `?venue=<id>` (links are on each page).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project layout
 
-## Deploy on Vercel
+```
+app/
+  admin/  client/  property/     # one isolated segment per portal (own layout, actions)
+components/
+  ui/                            # shadcn components (button, card, badge, input, label, table, native-select)
+  portal/                        # portal shell, stat card, status badges
+lib/
+  gst-engine.ts                  # GST tax engine (see below)
+  data/index.ts                  # single data layer: Supabase or in-memory mock
+  data/mock-store.ts             # mirror of supabase/seed.sql
+  supabase/                      # browser, server (cookie) and service-role clients + DB types
+supabase/
+  migrations/                    # 4 migrations, applied in order
+  seed.sql
+tests/gst-engine.test.mjs
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Database (`supabase/migrations`)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **`…150000_gst_reference_and_validation`** — `gst_state_codes` reference table; `gstin_checksum()` and `is_valid_gstin()` (format + checksum digit).
+2. **`…150100_core_schema`** — `companies`, `venues`, `bookings`, enums `gst_type` and `booking_status`.
+   - `state_code` on companies and venues is **generated from the GSTIN**, so it can't drift.
+   - `bookings.gst_type` is **set by trigger** from company vs venue state code — callers can't get it wrong.
+   - Status changes are guarded: `PENDING → CONFIRMED | CANCELLED`, `CONFIRMED → COMPLETED | CANCELLED`; terminal states are locked.
+   - `total_amount_inr` is the **pre-GST taxable value**. Money is `numeric(14,2)`.
+3. **`…150200_onboarding_and_reporting_views`** — `venue_onboarding_requests`, plus views `booking_tax_breakdown`, `platform_metrics`, `venue_monthly_payouts`, `company_itc_summary`.
+4. **`…150300_portal_access_rls`** — `platform_users` maps each auth user to ADMIN / CLIENT (one company) / PROPERTY (one venue); RLS on every table enforces that isolation.
+
+## GST engine (`lib/gst-engine.ts`)
+
+```ts
+import { calculateGst } from "@/lib/gst-engine";
+
+calculateGst({ total_amount: 120000, company_gstin: "07AAECV6730M1ZX", venue_gstin: "29AAJCV2268L1ZN" });
+// → { document_type: "TAX_INVOICE", sac: { code: "998596", description: "Corporate Event & Hospitality Procurement Services" },
+//     supply_type: "INTER_STATE", gst_type: "IGST", taxable_value: 120000,
+//     tax_breakup: { cgst: {rate_percent: 0, amount: 0}, sgst: {…0}, igst: {rate_percent: 18, amount: 21600} },
+//     total_tax: 21600, invoice_total: 141600, supplier: {…}, recipient: {…}, place_of_supply: {…}, … }
+```
+
+- Validates both GSTINs (structure, known state code, checksum) and throws `GstEngineError` otherwise.
+- Same state → CGST 9% + SGST 9%; different states → IGST 18%.
+- Arithmetic is done in integer paise, rounded per tax head, matching the SQL view.
+
+## Seed data
+
+All GSTINs are synthetic but pass checksum validation.
+
+| Booking | Company → Venue | Treatment | Taxable | Tax |
+| --- | --- | --- | --- | --- |
+| #1 Confirmed | Nimbus Analytics (KA, 29) → The Copper Courtyard, Indiranagar | CGST + SGST | ₹1,00,000 | ₹9,000 + ₹9,000 |
+| #2 Completed | Vertex Capital (DL, 07) → The Vault at UB City | IGST | ₹1,20,000 | ₹21,600 |
+| #3 Pending | Nimbus Analytics (KA, 29) → Mosaic Kitchen & Bar, Koramangala | CGST + SGST | ₹1,08,000 | ₹9,720 + ₹9,720 |
+
+Five Bengaluru venues (Indiranagar ×2, Koramangala ×2, UB City) and three onboarding requests are also seeded.
+
+## Next steps
+
+- **Auth:** add Supabase Auth sign-in per portal, insert rows into `platform_users`, then move reads from `lib/supabase/admin.ts` (service role, bypasses RLS) to `lib/supabase/server.ts` (user session, RLS enforced).
+- **Tax review:** have a tax advisor confirm SAC 998596 and ITC eligibility for your exact supply model — ITC on food & beverage is restricted under Section 17(5) of the CGST Act, and who the supplier of record is (venue or platform) changes the invoicing.
