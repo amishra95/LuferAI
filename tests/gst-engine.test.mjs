@@ -8,6 +8,8 @@ import {
   validateGstin,
   determineGstType,
   todayInIndia,
+  stateName,
+  partyStateCode,
   splitCommission,
   sumInr,
   GstEngineError,
@@ -96,4 +98,12 @@ test("sums INR in paise without float drift", () => {
   assert.equal(0.1 + 0.2, 0.30000000000000004);
   assert.equal(sumInr([0.1, 0.2]), 0.3);
   assert.equal(sumInr([]), 0);
+});
+
+test("display helpers tolerate a null generated state_code", () => {
+  assert.equal(stateName(null), "Unknown");
+  assert.equal(stateName(undefined), "Unknown");
+  assert.equal(stateName("29"), "Karnataka");
+  assert.equal(partyStateCode({ gstin: KA_COMPANY, state_code: null }), "29");
+  assert.equal(partyStateCode({ gstin: DL_COMPANY, state_code: "07" }), "07");
 });

@@ -6,7 +6,7 @@ import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-bad
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { computeItcSummary, listBookings, listCompanies, listVenues } from "@/lib/data";
-import { stateName } from "@/lib/gst-engine";
+import { partyStateCode, stateName } from "@/lib/gst-engine";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { EventRequestForm } from "./_components/event-request-form";
 import { ItcCalculator } from "./_components/itc-calculator";
@@ -25,7 +25,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     <PortalShell
       portal="/client"
       title={company.legal_name}
-      subtitle={`GSTIN ${company.gstin} · ${stateName(company.state_code)} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
+      subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
     >
       {companies.length > 1 ? (
         <div className="-mt-4 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch company (demo)">
@@ -39,7 +39,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 c.id === company.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
               )}
             >
-              {c.legal_name.replace(" Private Limited", "")} ({c.state_code})
+              {c.legal_name.replace(" Private Limited", "")} ({partyStateCode(c)})
             </Link>
           ))}
         </div>

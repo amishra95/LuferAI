@@ -178,8 +178,18 @@ export function extractStateCode(gstin: string): string {
   return normalized.slice(0, 2);
 }
 
-export function stateName(stateCode: string): string {
-  return GST_STATE_CODES[stateCode] ?? "Unknown";
+export function stateName(stateCode: string | null | undefined): string {
+  return (stateCode && GST_STATE_CODES[stateCode]) || "Unknown";
+}
+
+/**
+ * State code of a stored company or venue, for display. The DB column is
+ * generated as the GSTIN's first two characters, but Postgres reports generated
+ * columns as nullable, so this falls back to the same derivation. Tax logic must
+ * use extractStateCode, which validates the GSTIN instead of trusting a stored value.
+ */
+export function partyStateCode(party: { gstin: string; state_code: string | null }): string {
+  return party.state_code ?? normalizeGstin(party.gstin).slice(0, 2);
 }
 
 export function determineGstType(companyGstin: string, venueGstin: string): GstType {
