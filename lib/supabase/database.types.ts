@@ -89,6 +89,8 @@ export type Database = {
           total_amount_inr: number;
           sac_code: string;
           gst_type: GstType;
+          /** Venue commission rate at booking time (0.15 = 15%). */
+          commission_rate: number;
           status: BookingStatus;
           event_date: string;
           notes: string | null;
@@ -105,6 +107,8 @@ export type Database = {
           sac_code?: string;
           /** Overwritten by the bookings_derive_gst_type trigger. */
           gst_type?: GstType;
+          /** Overwritten by the bookings_snapshot_commission_rate trigger. */
+          commission_rate?: number;
           status?: BookingStatus;
           event_date: string;
           notes?: string | null;

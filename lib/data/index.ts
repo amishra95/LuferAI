@@ -1,6 +1,6 @@
 import "server-only";
 
-import { calculateGst, type TaxInvoicePayload } from "@/lib/gst-engine";
+import { calculateGst, roundInr, splitCommission, sumInr, type TaxInvoicePayload } from "@/lib/gst-engine";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import type {
   Booking,
@@ -30,8 +30,6 @@ export interface BookingDetail extends Booking {
   venue_payout_inr: number;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 function enrich(
   b: Booking,
   company: BookingDetail["company"],
@@ -45,16 +43,19 @@ function enrich(
     booking_id: b.id,
     invoice_date: b.event_date,
   });
-  const commission = round2(total * Number(venue.commission_rate));
+  // The rate snapshotted on the booking, not the venue's current rate, so later
+  // rate changes never rewrite historical commission or payouts.
+  const split = splitCommission(total, Number(b.commission_rate));
   return {
     ...b,
     total_amount_inr: total,
     budget_per_head_inr: Number(b.budget_per_head_inr),
+    commission_rate: split.commission_rate,
     company,
     venue: { ...venue, commission_rate: Number(venue.commission_rate) },
     invoice,
-    commission_inr: commission,
-    venue_payout_inr: round2(total - commission),
+    commission_inr: split.commission,
+    venue_payout_inr: split.venue_payout,
   };
 }
 
@@ -140,9 +141,9 @@ export function computePlatformMetrics(bookings: BookingDetail[]): PlatformMetri
   return {
     totalBookings: bookings.length,
     pendingBookings: bookings.filter((b) => b.status === "PENDING").length,
-    grossBookingValue: round2(live.reduce((s, b) => s + b.total_amount_inr, 0)),
-    commissionEarned: round2(earned.reduce((s, b) => s + b.commission_inr, 0)),
-    gstCollected: round2(live.reduce((s, b) => s + b.invoice.total_tax, 0)),
+    grossBookingValue: sumInr(live.map((b) => b.total_amount_inr)),
+    commissionEarned: sumInr(earned.map((b) => b.commission_inr)),
+    gstCollected: sumInr(live.map((b) => b.invoice.total_tax)),
   };
 }
 
@@ -153,7 +154,7 @@ export interface ItcSummary {
 }
 
 export function computeItcSummary(bookings: BookingDetail[]): ItcSummary {
-  const sum = (xs: BookingDetail[], f: (b: BookingDetail) => number) => round2(xs.reduce((s, b) => s + f(b), 0));
+  const sum = (xs: BookingDetail[], f: (b: BookingDetail) => number) => sumInr(xs.map(f));
   return {
     reclaimed: sum(bookings.filter((b) => b.status === "COMPLETED"), (b) => b.invoice.total_tax),
     pipeline: sum(bookings.filter((b) => b.status === "PENDING" || b.status === "CONFIRMED"), (b) => b.invoice.total_tax),
@@ -177,9 +178,9 @@ export function computeMonthlyPayouts(bookings: BookingDetail[]): MonthlyPayout[
     const month = b.event_date.slice(0, 7);
     const row = byMonth.get(month) ?? { month, bookings: 0, taxableValue: 0, commission: 0, payout: 0, settled: true };
     row.bookings += 1;
-    row.taxableValue = round2(row.taxableValue + b.total_amount_inr);
-    row.commission = round2(row.commission + b.commission_inr);
-    row.payout = round2(row.payout + b.venue_payout_inr);
+    row.taxableValue = sumInr([row.taxableValue, b.total_amount_inr]);
+    row.commission = sumInr([row.commission, b.commission_inr]);
+    row.payout = sumInr([row.payout, b.venue_payout_inr]);
     row.settled &&= b.status === "COMPLETED";
     byMonth.set(month, row);
   }
@@ -200,9 +201,12 @@ export interface NewBookingInput {
 }
 
 export async function createBookingRequest(input: NewBookingInput): Promise<BookingDetail> {
-  const total = round2(input.party_size * input.budget_per_head_inr);
+  const total = roundInr(input.party_size * input.budget_per_head_inr);
 
   if (dataSource() === "mock") {
+    const c = mockDb.companies.find((x) => x.id === input.company_id);
+    const v = mockDb.venues.find((x) => x.id === input.venue_id);
+    if (!c || !v) throw new Error("Unknown company or venue");
     const now = new Date().toISOString();
     const booking: Booking = {
       id: crypto.randomUUID(),
@@ -211,16 +215,17 @@ export async function createBookingRequest(input: NewBookingInput): Promise<Book
       total_amount_inr: total,
       sac_code: "998596",
       gst_type: mockGstType(input.company_id, input.venue_id),
+      // Mock equivalent of the bookings_snapshot_commission_rate trigger.
+      commission_rate: v.commission_rate,
       status: "PENDING",
       created_at: now,
       updated_at: now,
     };
     mockDb.bookings.push(booking);
-    const c = mockDb.companies.find((x) => x.id === booking.company_id)!;
-    const v = mockDb.venues.find((x) => x.id === booking.venue_id)!;
     return enrich(booking, c, v);
   }
 
+  // commission_rate is snapshotted from the venue by the bookings_snapshot_commission_rate trigger.
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("bookings")

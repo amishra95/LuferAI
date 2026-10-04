@@ -46,7 +46,7 @@ lib/
   data/mock-store.ts             # mirror of supabase/seed.sql
   supabase/                      # browser, server (cookie) and service-role clients + DB types
 supabase/
-  migrations/                    # 4 migrations, applied in order
+  migrations/                    # 5 migrations, applied in order
   seed.sql
 tests/gst-engine.test.mjs
 ```
@@ -61,6 +61,7 @@ tests/gst-engine.test.mjs
    - `total_amount_inr` is the **pre-GST taxable value**. Money is `numeric(14,2)`.
 3. **`…150200_onboarding_and_reporting_views`** — `venue_onboarding_requests`, plus views `booking_tax_breakdown`, `platform_metrics`, `venue_monthly_payouts`, `company_itc_summary`.
 4. **`…150300_portal_access_rls`** — `platform_users` maps each auth user to ADMIN / CLIENT (one company) / PROPERTY (one venue); RLS on every table enforces that isolation.
+5. **`…150400_fix_gst_and_rls_issues`** — portal users can change only a booking's `status`; `gst_type` is always re-derived; clients book active venues under SAC 998596 only; `booking_tax_breakdown` keeps bookings at deactivated venues and hides commission/payout from clients.
 
 ## GST engine (`lib/gst-engine.ts`)
 

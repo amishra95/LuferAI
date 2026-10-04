@@ -190,10 +190,23 @@ export function determineGstType(companyGstin: string, venueGstin: string): GstT
 // Money helpers (integer paise)
 // ----------------------------------------------------------------------------
 
-const toPaise = (inr: number): number => Math.round(inr * 100);
+/** Largest value numeric(14,2) can hold — the bookings.total_amount_inr column type. */
+export const MAX_AMOUNT_INR = 999_999_999_999.99;
+
+/**
+ * INR → integer paise, rounded half-up like Postgres numeric(14,2).
+ * `inr * 100` alone carries binary float error (1.005 * 100 = 100.49999…), so it
+ * is snapped to 15 significant digits before rounding.
+ */
+const toPaise = (inr: number): number => Math.round(Number((inr * 100).toPrecision(15)));
 const toInr = (paise: number): number => paise / 100;
 /** Rate in whole percent applied to paise, rounded half-up to the nearest paisa. */
 const pct = (paise: number, ratePercent: number): number => Math.round((paise * ratePercent) / 100);
+
+/** Today's date in India (IST), as YYYY-MM-DD. A UTC date is a day behind until 05:30 IST. */
+export function todayInIndia(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+}
 
 // ----------------------------------------------------------------------------
 // Main entry point
@@ -202,6 +215,9 @@ const pct = (paise: number, ratePercent: number): number => Math.round((paise * 
 export function calculateGst(input: GstBookingInput): TaxInvoicePayload {
   if (!Number.isFinite(input.total_amount) || input.total_amount < 0) {
     throw new GstEngineError("INVALID_AMOUNT", "total_amount must be a non-negative finite number");
+  }
+  if (input.total_amount > MAX_AMOUNT_INR) {
+    throw new GstEngineError("INVALID_AMOUNT", `total_amount cannot exceed ₹${MAX_AMOUNT_INR}`);
   }
 
   const companyGstin = normalizeGstin(input.company_gstin);
@@ -221,7 +237,7 @@ export function calculateGst(input: GstBookingInput): TaxInvoicePayload {
   return {
     document_type: "TAX_INVOICE",
     invoice_number: input.invoice_number ?? null,
-    invoice_date: input.invoice_date ?? new Date().toISOString().slice(0, 10),
+    invoice_date: input.invoice_date ?? todayInIndia(),
     booking_id: input.booking_id ?? null,
     sac: { code: SAC_CODE, description: SAC_DESCRIPTION },
     supplier: { gstin: venueGstin, state_code: supplierState, state_name: stateName(supplierState) },
@@ -241,6 +257,51 @@ export function calculateGst(input: GstBookingInput): TaxInvoicePayload {
     invoice_total: toInr(taxablePaise + totalTaxPaise),
     itc_eligible_amount: toInr(totalTaxPaise),
   };
+}
+
+// ----------------------------------------------------------------------------
+// Commission / payout (mirrors booking_tax_breakdown)
+// ----------------------------------------------------------------------------
+
+export interface CommissionSplit {
+  commission_rate: number;
+  /** round(taxable × rate, 2), half-up — same as Postgres numeric round(). */
+  commission: number;
+  venue_payout: number;
+}
+
+/**
+ * Splits a taxable value into platform commission and venue payout.
+ * `commissionRate` is a fraction stored as numeric(5,4) (0.15 = 15%), so it is
+ * scaled to integer ten-thousandths and multiplied in BigInt — paise × 10 000
+ * can exceed Number.MAX_SAFE_INTEGER for large bookings.
+ */
+export function splitCommission(taxableInr: number, commissionRate: number): CommissionSplit {
+  if (!Number.isFinite(commissionRate) || commissionRate < 0 || commissionRate > 1) {
+    throw new GstEngineError("INVALID_AMOUNT", "commission rate must be between 0 and 1");
+  }
+  const taxablePaise = toPaise(taxableInr);
+  const rateUnits = Math.round(Number((commissionRate * 10_000).toPrecision(15)));
+  const commissionPaise = Number(
+    (BigInt(taxablePaise) * BigInt(rateUnits) + BigInt(5_000)) / BigInt(10_000)
+  );
+  return {
+    commission_rate: rateUnits / 10_000,
+    commission: toInr(commissionPaise),
+    venue_payout: toInr(taxablePaise - commissionPaise),
+  };
+}
+
+/** Rounds INR to the paisa, half-up, like a numeric(14,2) cast. */
+export function roundInr(inr: number): number {
+  return toInr(toPaise(inr));
+}
+
+/** Sums INR amounts in integer paise so long lists don't accumulate float error. */
+export function sumInr(amounts: Iterable<number>): number {
+  let paise = 0;
+  for (const a of amounts) paise += toPaise(a);
+  return toInr(paise);
 }
 
 /** GST at 18% on a taxable amount — used by the client-side ITC calculator. */

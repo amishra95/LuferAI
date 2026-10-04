@@ -7,6 +7,9 @@ import {
   extractStateCode,
   validateGstin,
   determineGstType,
+  todayInIndia,
+  splitCommission,
+  sumInr,
   GstEngineError,
 } from "../lib/gst-engine.ts";
 
@@ -62,4 +65,35 @@ test("rounds per tax head to the paisa without float drift", () => {
 test("determineGstType and amount validation", () => {
   assert.equal(determineGstType(DL_COMPANY, KA_VENUE), "IGST");
   assert.throws(() => calculateGst({ total_amount: -1, company_gstin: KA_COMPANY, venue_gstin: KA_VENUE }), GstEngineError);
+});
+
+test("converts INR to paise like numeric(14,2), not via raw float multiplication", () => {
+  // 1.005 * 100 === 100.49999999999999 in IEEE-754; Postgres stores 1.005 as 1.01.
+  const inv = calculateGst({ total_amount: 1.005, company_gstin: KA_COMPANY, venue_gstin: KA_VENUE });
+  assert.equal(inv.taxable_value, 1.01);
+  assert.throws(() => calculateGst({ total_amount: 1e12, company_gstin: KA_COMPANY, venue_gstin: KA_VENUE }), GstEngineError);
+});
+
+test("default invoice date is the Indian calendar date", () => {
+  // 2026-10-03 20:00 UTC is already 2026-10-04 01:30 IST.
+  assert.equal(todayInIndia(new Date("2026-10-03T20:00:00Z")), "2026-10-04");
+  assert.equal(todayInIndia(new Date("2026-10-03T18:00:00Z")), "2026-10-03");
+});
+
+test("commission rounds half-up in exact paise, matching Postgres round()", () => {
+  // 1000.10 × 0.15 = 150.015 → 150.02 in SQL; float maths gave 150.01.
+  assert.deepEqual(splitCommission(1000.1, 0.15), { commission_rate: 0.15, commission: 150.02, venue_payout: 850.08 });
+  assert.deepEqual(splitCommission(100000, 0.15), { commission_rate: 0.15, commission: 15000, venue_payout: 85000 });
+  // Paise × rate units exceeds Number.MAX_SAFE_INTEGER here — must still be exact.
+  // 999,999,999,999.99 × 0.1234 = 123,399,999,999.998766 → 123,400,000,000.00
+  assert.equal(splitCommission(999_999_999_999.99, 0.1234).commission, 123_400_000_000);
+  // 999,999,999,999.99 × 0.0001 = 99,999,999.999999 → 100,000,000.00
+  assert.equal(splitCommission(999_999_999_999.99, 0.0001).commission, 100_000_000);
+  assert.throws(() => splitCommission(1000, 1.5), GstEngineError);
+});
+
+test("sums INR in paise without float drift", () => {
+  assert.equal(0.1 + 0.2, 0.30000000000000004);
+  assert.equal(sumInr([0.1, 0.2]), 0.3);
+  assert.equal(sumInr([]), 0);
 });
