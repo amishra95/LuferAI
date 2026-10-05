@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { CheckCircle2, Hourglass, Loader2 } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { BadgePercent, CheckCircle2, Hourglass, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,14 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { calculateGst } from "@/lib/gst-engine";
 import type { Venue } from "@/lib/supabase/database.types";
-import { formatINR } from "@/lib/utils";
-import { submitBookingRequest, type BookingRequestState } from "../actions";
+import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
+import { formatDate, formatINR } from "@/lib/utils";
+import {
+  getUnavailableDates,
+  previewNegotiatedRate,
+  submitBookingRequest,
+  type BookingRequestState,
+} from "../actions";
 
 /** Values chosen elsewhere (e.g. an AI search result) to load into the form. */
 export interface VenuePrefill {
@@ -42,6 +48,7 @@ export function EventRequestForm({
   const [venueId, setVenueId] = useState("");
   const [partySize, setPartySize] = useState("");
   const [perHead, setPerHead] = useState("");
+  const [eventDate, setEventDate] = useState("");
 
   // Apply a new prefill while rendering rather than in an effect (React's
   // "adjusting state when a prop changes" pattern), so there's no flash of old values.
@@ -54,8 +61,41 @@ export function EventRequestForm({
   }
 
   const venue = venues.find((v) => v.id === venueId);
-  const total = Number(partySize) * Number(perHead);
 
+  // Server results are stored with the inputs they were fetched for and only
+  // used while those inputs are current, so a slow response never shows stale data.
+  const [locked, setLocked] = useState<{ venueId: string; dates: string[] }>();
+  useEffect(() => {
+    if (!venueId) return;
+    let current = true;
+    getUnavailableDates(venueId).then((dates) => current && setLocked({ venueId, dates }));
+    return () => {
+      current = false;
+    };
+    // Re-fetch after a submission too: the new booking's hold locks its date.
+  }, [venueId, state]);
+  const unavailableDates = locked?.venueId === venueId ? locked.dates : [];
+  const dateUnavailable = Boolean(eventDate) && unavailableDates.includes(eventDate);
+
+  const pricingKey = [companyId, venueId, eventDate, partySize, perHead].join("|");
+  const [rate, setRate] = useState<{ key: string; pricing: NegotiatedPricing | null }>();
+  useEffect(() => {
+    if (!venueId || !eventDate || !(Number(partySize) > 0) || !(Number(perHead) > 0)) return;
+    let current = true;
+    const timer = setTimeout(() => {
+      previewNegotiatedRate({ companyId, venueId, eventDate, partySize: Number(partySize), perHead: Number(perHead) }).then(
+        (pricing) => current && setRate({ key: pricingKey, pricing })
+      );
+    }, 300);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [pricingKey, companyId, venueId, eventDate, partySize, perHead]);
+  const pricing = rate?.key === pricingKey ? rate.pricing : null;
+
+  // GST is on what will actually be invoiced: the negotiated total once known.
+  const total = pricing?.taxableTotal ?? Number(partySize) * Number(perHead);
   const preview = useMemo(() => {
     if (!venue || !(total > 0)) return null;
     return calculateGst({ total_amount: total, company_gstin: companyGstin, venue_gstin: venue.gstin });
@@ -101,8 +141,24 @@ export function EventRequestForm({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="grid gap-2">
           <Label htmlFor="event_date">Event date</Label>
-          <Input id="event_date" name="event_date" type="date" min={minDate} required aria-invalid={Boolean(err.event_date)} />
-          {err.event_date ? <p className="text-destructive text-xs">{err.event_date}</p> : null}
+          <Input
+            id="event_date"
+            name="event_date"
+            type="date"
+            min={minDate}
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
+            required
+            aria-invalid={Boolean(err.event_date) || dateUnavailable}
+            aria-describedby={unavailableDates.length > 0 ? "unavailable-dates" : undefined}
+          />
+          {dateUnavailable ? (
+            <p className="text-destructive text-xs" role="alert">
+              {venue?.name ?? "This venue"} is unavailable on this date. Choose another.
+            </p>
+          ) : err.event_date ? (
+            <p className="text-destructive text-xs">{err.event_date}</p>
+          ) : null}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="party_size">Guests</Label>
@@ -138,10 +194,55 @@ export function EventRequestForm({
         </div>
       </div>
 
+      {unavailableDates.length > 0 ? (
+        <p id="unavailable-dates" className="text-muted-foreground -mt-2 text-xs">
+          Unavailable at {venue?.name}: {unavailableDates.slice(0, 8).map(formatDate).join(", ")}
+          {unavailableDates.length > 8 ? ` and ${unavailableDates.length - 8} more` : ""}
+        </p>
+      ) : null}
+
       <div className="grid gap-2">
         <Label htmlFor="notes">Notes for the venue</Label>
         <Input id="notes" name="notes" placeholder="Dietary needs, AV, seating, timings…" maxLength={500} />
       </div>
+
+      {pricing ? (
+        <div className="grid gap-1 rounded-lg border p-3 text-sm" aria-live="polite">
+          {pricing.source !== "list" ? (
+            <p className="flex items-center gap-1.5 font-medium">
+              <BadgePercent className="size-4" aria-hidden />
+              Your company&apos;s negotiated rate applies
+            </p>
+          ) : null}
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+            <dt className="text-muted-foreground">Per head</dt>
+            <dd className="tabular-nums">
+              {pricing.source !== "list" ? (
+                <>
+                  <s className="text-muted-foreground">{formatINR(pricing.listPerHead, true)}</s>{" "}
+                  {formatINR(pricing.negotiatedPerHead, true)}
+                </>
+              ) : (
+                formatINR(pricing.listPerHead, true)
+              )}
+            </dd>
+            <dt className="text-muted-foreground">Minimum spend</dt>
+            <dd className="tabular-nums">{formatINR(pricing.minimumSpend)}</dd>
+            {pricing.savings > 0 ? (
+              <>
+                <dt className="text-muted-foreground">You save</dt>
+                <dd className="text-success tabular-nums">{formatINR(pricing.savings, true)}</dd>
+              </>
+            ) : null}
+          </dl>
+          {!pricing.meetsMinimumSpend ? (
+            <p className="text-destructive text-xs">
+              {formatINR(pricing.taxableTotal)} is below the {formatINR(pricing.minimumSpend)} minimum spend. Add guests or raise
+              the budget.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {preview ? (
         <dl className="bg-muted/60 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg p-3 text-sm sm:grid-cols-4">
@@ -162,14 +263,15 @@ export function EventRequestForm({
           <div>
             <p className="font-medium">{state.message}</p>
             <p className="text-muted-foreground mt-0.5">
-              Sent to {state.approval.approverName} because {state.approval.reason}. The venue sees it once approved.
+              Sent to {state.approval.approverName} because {state.approval.reason}. The venue sees it once approved
+              {state.holdHours ? `; the date is held for ${state.holdHours} hours meanwhile` : ""}.
             </p>
           </div>
         </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || dateUnavailable}>
           {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
           Send request
         </Button>

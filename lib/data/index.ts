@@ -10,9 +10,12 @@ import type {
   BookingStatus,
   Company,
   CorporatePolicy,
+  CorporateRateCard,
+  InventoryHold,
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
+import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import { mockDb, mockGstType } from "./mock-store";
 
 /**
@@ -218,7 +221,30 @@ export interface NewApprovalRequest {
  * a booking_approvals row is raised for the approver; otherwise it goes straight
  * to the venue as PENDING.
  */
-export async function createBookingRequest(input: NewBookingInput, approval?: NewApprovalRequest): Promise<BookingDetail> {
+/** Thrown when another live hold already locks the venue on the event date. */
+export class HoldConflictError extends Error {
+  constructor(venueName: string, date: string) {
+    super(`${venueName} was just held for ${date} by another booking. Pick another date.`);
+    this.name = "HoldConflictError";
+  }
+}
+
+export interface NewHoldRequest {
+  hold_start: string;
+  hold_expires_at: string;
+}
+
+/**
+ * Creates a booking. With `approval`, the booking starts as PENDING_APPROVAL and
+ * a booking_approvals row is raised for the approver; otherwise it goes straight
+ * to the venue as PENDING. With `hold`, an ACTIVE inventory hold locks the venue
+ * on the event date; if the date is already held the whole booking is refused.
+ */
+export async function createBookingRequest(
+  input: NewBookingInput,
+  options: { approval?: NewApprovalRequest; hold?: NewHoldRequest } = {}
+): Promise<BookingDetail> {
+  const { approval, hold } = options;
   const total = roundInr(input.party_size * input.budget_per_head_inr);
   const status: BookingStatus = approval ? "PENDING_APPROVAL" : "PENDING";
 
@@ -227,6 +253,11 @@ export async function createBookingRequest(input: NewBookingInput, approval?: Ne
     const v = mockDb.venues.find((x) => x.id === input.venue_id);
     if (!c || !v) throw new Error("Unknown company or venue");
     const now = new Date().toISOString();
+    // Mock equivalent of the inventory_holds_before_insert conflict check.
+    if (hold && mockDb.holds.some((h) => h.venue_id === v.id && h.status === "ACTIVE" && h.hold_expires_at > now &&
+        mockDb.bookings.find((b) => b.id === h.booking_id)?.event_date === input.event_date)) {
+      throw new HoldConflictError(v.name, input.event_date);
+    }
     const booking: Booking = {
       id: crypto.randomUUID(),
       ...input,
@@ -254,6 +285,18 @@ export async function createBookingRequest(input: NewBookingInput, approval?: Ne
         updated_at: now,
       });
     }
+    if (hold) {
+      mockDb.holds.push({
+        id: crypto.randomUUID(),
+        venue_id: v.id,
+        tenant_id: c.id,
+        booking_id: booking.id,
+        ...hold,
+        status: "ACTIVE",
+        created_at: now,
+        updated_at: now,
+      });
+    }
     return enrich(booking, c, v);
   }
 
@@ -265,19 +308,47 @@ export async function createBookingRequest(input: NewBookingInput, approval?: Ne
     .select("id")
     .single();
   if (error) throw error;
+
+  // No multi-statement transactions over PostgREST: if a dependent row fails,
+  // delete the booking (approvals and holds cascade) so nothing is left half-made.
+  const undo = () => supabase.from("bookings").delete().eq("id", data.id);
   if (approval) {
     const { error: approvalError } = await supabase
       .from("booking_approvals")
       .insert({ tenant_id: input.company_id, booking_id: data.id, ...approval });
     if (approvalError) {
-      // No multi-statement transactions over PostgREST: undo the booking so it
-      // can't sit in PENDING_APPROVAL with nobody assigned to approve it.
-      await supabase.from("bookings").delete().eq("id", data.id);
+      await undo();
       throw approvalError;
+    }
+  }
+  if (hold) {
+    const { error: holdError } = await supabase
+      .from("inventory_holds")
+      .insert({ venue_id: input.venue_id, tenant_id: input.company_id, booking_id: data.id, ...hold });
+    if (holdError) {
+      await undo();
+      // 23P01: inventory_holds_before_insert found a live hold on this venue/date.
+      if (holdError.code === "23P01") {
+        const venue = (await listVenues()).find((v) => v.id === input.venue_id);
+        throw new HoldConflictError(venue?.name ?? "This venue", input.event_date);
+      }
+      throw holdError;
     }
   }
   const [created] = (await listBookings()).filter((b) => b.id === data.id);
   return created;
+}
+
+/** Mock equivalent of the bookings_sync_inventory_holds trigger. */
+function mockSyncHolds(bookingId: string, status: BookingStatus) {
+  if (status !== "CONFIRMED" && status !== "CANCELLED") return;
+  const now = new Date().toISOString();
+  for (const h of mockDb.holds) {
+    if (h.booking_id === bookingId && h.status === "ACTIVE") {
+      h.status = status === "CONFIRMED" ? "CONVERTED" : "RELEASED";
+      h.updated_at = now;
+    }
+  }
 }
 
 const ALLOWED_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
@@ -297,10 +368,12 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
     }
     b.status = next;
     b.updated_at = new Date().toISOString();
+    mockSyncHolds(b.id, next);
     return;
   }
 
-  // The DB trigger bookings_guard_status_transition enforces the same rules.
+  // The DB trigger bookings_guard_status_transition enforces the same rules, and
+  // bookings_sync_inventory_holds converts/releases the booking's live hold.
   let query = createAdminClient().from("bookings").update({ status: next }).eq("id", id);
   if (scope.venueId) query = query.eq("venue_id", scope.venueId);
   const { error } = await query;
@@ -460,6 +533,7 @@ export async function decideApproval(
     if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
       booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
       booking.updated_at = now;
+      mockSyncHolds(booking.id, booking.status);
     }
     return;
   }
@@ -474,4 +548,104 @@ export async function decideApproval(
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("This approval was not found or has already been decided.");
+}
+
+// ----------------------------------------------------------------------------
+// Inventory holds + corporate rate cards
+// ----------------------------------------------------------------------------
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export type HoldWithEventDate = InventoryHold & { event_date: string };
+
+/** A venue's ACTIVE holds that haven't expired, with each held booking's event date. */
+export async function listLiveHolds(venueId: string): Promise<HoldWithEventDate[]> {
+  const now = new Date().toISOString();
+  if (dataSource() === "mock") {
+    return mockDb.holds
+      .filter((h) => h.venue_id === venueId && h.status === "ACTIVE" && h.hold_expires_at > now)
+      .map((h) => ({ ...h, event_date: mockDb.bookings.find((b) => b.id === h.booking_id)!.event_date }));
+  }
+
+  // Two FKs reach bookings (booking_id alone and the consistency key), so name one.
+  const { data, error } = await createAdminClient()
+    .from("inventory_holds")
+    .select("*, booking:bookings!inventory_holds_booking_id_fkey(event_date)")
+    .eq("venue_id", venueId)
+    .eq("status", "ACTIVE")
+    .gt("hold_expires_at", now);
+  if (error) throw error;
+  type Row = InventoryHold & { booking: { event_date: string } };
+  return (data as unknown as Row[]).map(({ booking, ...h }) => ({ ...h, event_date: booking.event_date }));
+}
+
+/** CONFIRMED bookings at a venue with event dates in [from, to]. */
+export async function listConfirmedVenueBookings(
+  venueId: string,
+  range: { from: string; to: string }
+): Promise<Pick<Booking, "id" | "status" | "event_date">[]> {
+  if (dataSource() === "mock") {
+    return mockDb.bookings
+      .filter((b) => b.venue_id === venueId && b.status === "CONFIRMED" && b.event_date >= range.from && b.event_date <= range.to)
+      .map(({ id, status, event_date }) => ({ id, status, event_date }));
+  }
+  const { data, error } = await createAdminClient()
+    .from("bookings")
+    .select("id, status, event_date")
+    .eq("venue_id", venueId)
+    .eq("status", "CONFIRMED")
+    .gte("event_date", range.from)
+    .lte("event_date", range.to);
+  if (error) throw error;
+  return data;
+}
+
+/** The tenant's rate card for a venue covering eventDate, if any (ranges never overlap). */
+export async function getActiveRateCard(
+  tenantId: string,
+  venueId: string,
+  eventDate: string
+): Promise<CorporateRateCard | null> {
+  // eventDate is interpolated into the PostgREST .or() filter below; only allow a plain date.
+  if (!ISO_DATE.test(eventDate)) throw new Error(`Invalid event date: ${eventDate}`);
+  if (dataSource() === "mock") {
+    return mockDb.rateCards.find((c) => c.tenant_id === tenantId && c.venue_id === venueId && isRateCardActive(c, eventDate)) ?? null;
+  }
+  const { data, error } = await createAdminClient()
+    .from("corporate_rate_cards")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("venue_id", venueId)
+    .lte("effective_from", eventDate)
+    .or(`effective_to.is.null,effective_to.gte.${eventDate}`)
+    .maybeSingle();
+  if (error) throw error;
+  return (
+    data && {
+      ...data,
+      discount_percentage: Number(data.discount_percentage),
+      custom_per_head_rate: numOrNull(data.custom_per_head_rate),
+      minimum_spend_override: numOrNull(data.minimum_spend_override),
+    }
+  );
+}
+
+/** Releases a live hold early. Scoped to the venue so one property can't touch another's holds. */
+export async function releaseHold(holdId: string, scope: { venueId: string }) {
+  if (dataSource() === "mock") {
+    const h = mockDb.holds.find((x) => x.id === holdId && x.venue_id === scope.venueId && x.status === "ACTIVE");
+    if (!h) throw new Error("This hold was not found or is no longer active.");
+    h.status = "RELEASED";
+    h.updated_at = new Date().toISOString();
+    return;
+  }
+  const { data, error } = await createAdminClient()
+    .from("inventory_holds")
+    .update({ status: "RELEASED" })
+    .eq("id", holdId)
+    .eq("venue_id", scope.venueId)
+    .eq("status", "ACTIVE")
+    .select("id");
+  if (error) throw error;
+  if (data.length === 0) throw new Error("This hold was not found or is no longer active.");
 }

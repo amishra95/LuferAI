@@ -27,9 +27,19 @@ type BookingsTable = Omit<GeneratedBookings, "Insert"> & {
     Partial<Pick<GeneratedBookings["Insert"], TriggerFilledBookingColumn>>;
 };
 
+// inventory_holds.hold_expires_at is NOT NULL with no column default; the
+// inventory_holds_before_insert trigger defaults it to hold_start + 24h.
+type GeneratedHolds = GeneratedPublic["Tables"]["inventory_holds"];
+type HoldsTable = Omit<GeneratedHolds, "Insert"> & {
+  Insert: Omit<GeneratedHolds["Insert"], "hold_expires_at"> & { hold_expires_at?: string };
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GeneratedPublic, "Tables"> & {
-    Tables: Omit<GeneratedPublic["Tables"], "bookings"> & { bookings: BookingsTable };
+    Tables: Omit<GeneratedPublic["Tables"], "bookings" | "inventory_holds"> & {
+      bookings: BookingsTable;
+      inventory_holds: HoldsTable;
+    };
   };
 };
 
@@ -42,6 +52,7 @@ export type BookingStatus = Enums<"booking_status">;
 export type OnboardingStatus = Enums<"onboarding_status">;
 export type PortalRole = Enums<"portal_role">;
 export type ApprovalStatus = Enums<"approval_status">;
+export type HoldStatus = Enums<"hold_status">;
 
 export type Company = Tables<"companies">;
 export type Venue = Tables<"venues">;
@@ -51,3 +62,5 @@ export type CorporatePolicy = Tables<"corporate_policies">;
 export type ApprovalChain = Tables<"approval_chains">;
 export type BookingApproval = Tables<"booking_approvals">;
 export type PlatformUser = Tables<"platform_users">;
+export type InventoryHold = Tables<"inventory_holds">;
+export type CorporateRateCard = Tables<"corporate_rate_cards">;

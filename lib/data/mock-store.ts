@@ -6,6 +6,8 @@ import type {
   BookingApproval,
   Company,
   CorporatePolicy,
+  CorporateRateCard,
+  InventoryHold,
   PlatformUser,
   Venue,
   VenueOnboardingRequest,
@@ -249,6 +251,13 @@ const approvalChains: ApprovalChain[] = [
   { id: "ffffffff-0002-4000-8000-000000000002", tenant_id: VERTEX, approver_user_id: users[3].user_id, tier_level: 1, created_at: ts },
 ];
 
+// Demo negotiated terms: Nimbus gets 12% off at The Copper Courtyard, open-ended.
+const rateCards: CorporateRateCard[] = [
+  { id: "99999999-0001-4000-8000-000000000001", tenant_id: NIMBUS, venue_id: "aaaaaaaa-0001-4000-8000-000000000001",
+    discount_percentage: 12, custom_per_head_rate: null, minimum_spend_override: null,
+    effective_from: "2026-01-01", effective_to: null, created_at: ts, updated_at: ts },
+];
+
 interface MockDb {
   companies: Company[];
   venues: Venue[];
@@ -258,6 +267,8 @@ interface MockDb {
   policies: CorporatePolicy[];
   approvalChains: ApprovalChain[];
   approvals: BookingApproval[];
+  holds: InventoryHold[];
+  rateCards: CorporateRateCard[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -273,6 +284,8 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   policies,
   approvalChains,
   approvals: [],
+  holds: [],
+  rateCards,
   ...globalForMock.__corpHospitalityMockDb,
 });
 

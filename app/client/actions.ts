@@ -5,14 +5,19 @@ import { revalidatePath } from "next/cache";
 import {
   createBookingRequest,
   decideApproval,
+  HoldConflictError,
   listApprovalChain,
   listCompanies,
   listPortalUsers,
   listVenues,
   type NewApprovalRequest,
 } from "@/lib/data";
-import { roundInr, type TaxInvoicePayload } from "@/lib/gst-engine";
+import type { TaxInvoicePayload } from "@/lib/gst-engine";
+import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
+import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
+import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
+import { formatINR } from "@/lib/utils";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -21,6 +26,39 @@ export interface BookingRequestState {
   invoice?: TaxInvoicePayload;
   /** Set when the booking breached policy and is waiting on a manager. */
   approval?: { reason: string; approverName: string };
+  /** How long the venue/date is held for this booking. */
+  holdHours?: number;
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const AVAILABILITY_WINDOW_DAYS = 180;
+
+/**
+ * Dates in the next ~6 months on which a venue is locked (live hold or
+ * confirmed booking). Returns dates only: who holds them stays private.
+ */
+export async function getUnavailableDates(venueId: string): Promise<string[]> {
+  const venues = await listVenues();
+  if (!venues.some((v) => v.id === venueId)) return [];
+  const from = new Date().toISOString().slice(0, 10);
+  const to = new Date(Date.now() + AVAILABILITY_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const { locks } = await checkHoldAvailability({ venue_id: venueId, from, to });
+  return [...new Set(locks.map((l) => l.date))];
+}
+
+/** Live price preview for the request form: the tenant's negotiated terms at a venue. */
+export async function previewNegotiatedRate(input: {
+  companyId: string;
+  venueId: string;
+  eventDate: string;
+  partySize: number;
+  perHead: number;
+}): Promise<NegotiatedPricing | null> {
+  const { companyId, venueId, eventDate, partySize, perHead } = input;
+  if (!ISO_DATE.test(eventDate) || !Number.isInteger(partySize) || partySize < 1 || !(perHead > 0)) return null;
+  const [companies, venues] = await Promise.all([listCompanies(), listVenues()]);
+  if (!companies.some((c) => c.id === companyId) || !venues.some((v) => v.id === venueId)) return null;
+  return getNegotiatedRate({ tenant_id: companyId, venue_id: venueId, event_date: eventDate, party_size: partySize, per_head_amount: perHead });
 }
 
 export async function submitBookingRequest(
@@ -47,19 +85,35 @@ export async function submitBookingRequest(
   if (!Number.isInteger(partySize) || partySize < 1) fieldErrors.party_size = "Enter a whole number of guests";
   else if (venue && partySize > venue.capacity_max) fieldErrors.party_size = `${venue.name} seats up to ${venue.capacity_max}`;
   if (!Number.isFinite(budgetPerHead) || budgetPerHead <= 0) fieldErrors.budget_per_head_inr = "Enter a budget per head";
-  else if (venue && partySize > 0 && partySize * budgetPerHead < Number(venue.min_spend_inr)) {
-    fieldErrors.budget_per_head_inr = `Below ${venue.name}'s minimum spend of ₹${Number(venue.min_spend_inr).toLocaleString("en-IN")}`;
-  }
 
   if (!company) return { status: "error", message: "Unknown company account." };
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
 
   try {
+    // The server re-prices with the tenant's rate card; the form's preview is advisory.
+    const [pricing, availability] = await Promise.all([
+      getNegotiatedRate({
+        tenant_id: company.id,
+        venue_id: venue!.id,
+        event_date: eventDate,
+        party_size: partySize,
+        per_head_amount: budgetPerHead,
+      }),
+      checkHoldAvailability({ venue_id: venue!.id, from: eventDate, to: eventDate }),
+    ]);
+    if (!pricing.meetsMinimumSpend) {
+      const agreed = pricing.rateCardId && pricing.minimumSpend !== Number(venue!.min_spend_inr) ? " agreed with your company" : "";
+      fieldErrors.budget_per_head_inr = `${formatINR(pricing.taxableTotal)} is below ${venue!.name}'s minimum spend of ${formatINR(pricing.minimumSpend)}${agreed}`;
+    }
+    if (!availability.available) fieldErrors.event_date = `${venue!.name} isn't available on this date`;
+    if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
+
+    // Policy is checked against what the company will actually pay.
     const policy = await checkBookingPolicy({
       tenant_id: company.id,
-      total_amount: roundInr(partySize * budgetPerHead),
+      total_amount: pricing.taxableTotal,
       headcount: partySize,
-      per_head_amount: budgetPerHead,
+      per_head_amount: pricing.negotiatedPerHead,
     });
 
     let approval: NewApprovalRequest | undefined;
@@ -81,16 +135,17 @@ export async function submitBookingRequest(
       approverName = users.find((u) => u.id === tier.approver_user_id)?.name ?? "your approver";
     }
 
+    const { hours, ...hold } = planHold(Boolean(approval));
     const booking = await createBookingRequest(
       {
         company_id: company.id,
         venue_id: venue!.id,
         party_size: partySize,
-        budget_per_head_inr: budgetPerHead,
+        budget_per_head_inr: pricing.negotiatedPerHead,
         event_date: eventDate,
         notes,
       },
-      approval
+      { approval, hold }
     );
     revalidatePath("/client");
     revalidatePath("/property");
@@ -102,14 +157,19 @@ export async function submitBookingRequest(
         message: "Booking submitted — requires manager sign-off.",
         invoice: booking.invoice,
         approval: { reason: approval.reason, approverName },
+        holdHours: hours,
       };
     }
     return {
       status: "success",
-      message: `Request sent to ${venue!.name}. You'll see it update here once the venue responds.`,
+      message: `Request sent to ${venue!.name}. The date is held for ${hours} hours while they respond.`,
       invoice: booking.invoice,
+      holdHours: hours,
     };
   } catch (err) {
+    if (err instanceof HoldConflictError) {
+      return { status: "error", fieldErrors: { event_date: err.message }, message: "Please fix the highlighted fields." };
+    }
     return { status: "error", message: err instanceof Error ? err.message : "Could not create the booking." };
   }
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, CheckCheck, X } from "lucide-react";
+import { Check, CheckCheck, Lock, Unlock, X } from "lucide-react";
 
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { computeMonthlyPayouts, listBookings, listVenues } from "@/lib/data";
+import { computeMonthlyPayouts, listBookings, listLiveHolds, listVenues } from "@/lib/data";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { EventBrief } from "./_components/event-brief";
-import { respondToBooking } from "./actions";
+import { HoldCountdown } from "./_components/hold-countdown";
+import { convertVenueHold, releaseVenueHold, respondToBooking } from "./actions";
 
 const monthLabel = (ym: string) =>
   new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
@@ -24,7 +25,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
   if (!venue) notFound();
 
-  const bookings = await listBookings({ venueId: venue.id });
+  const [bookings, holds] = await Promise.all([listBookings({ venueId: venue.id }), listLiveHolds(venue.id)]);
+  const holdsByDate = [...holds].sort((a, b) => a.event_date.localeCompare(b.event_date));
   const incoming = bookings.filter((b) => b.status === "PENDING");
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
   const payouts = computeMonthlyPayouts(bookings);
@@ -61,6 +63,83 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           hint="Net of commission, before GST pass-through"
         />
       </section>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Inventory holds</CardTitle>
+          <CardDescription>
+            Dates locked for pending requests. A hold releases automatically when its timer runs out; confirm to convert it
+            into a booking, or release the date now.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {holdsByDate.length === 0 ? (
+            <p className="text-muted-foreground py-4 text-sm">No dates on hold.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event date</TableHead>
+                  <TableHead>Request</TableHead>
+                  <TableHead>Releases in</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {holdsByDate.map((h) => {
+                  // Bookings still awaiting the client's internal sign-off aren't visible to venues.
+                  const booking = bookings.find((b) => b.id === h.booking_id);
+                  return (
+                    <TableRow key={h.id}>
+                      <TableCell className="tabular-nums">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Lock className="text-muted-foreground size-3.5" aria-hidden />
+                          {formatDate(h.event_date)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {booking ? (
+                          <>
+                            <div className="font-medium">{booking.company.legal_name.replace(" Private Limited", "")}</div>
+                            <div className="text-muted-foreground text-xs">
+                              {booking.party_size} guests · {formatINR(booking.total_amount_inr)} taxable
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Awaiting the client&apos;s internal sign-off</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <HoldCountdown expiresAt={h.hold_expires_at} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          {booking?.status === "PENDING" ? (
+                            <form action={convertVenueHold}>
+                              <input type="hidden" name="booking_id" value={booking.id} />
+                              <input type="hidden" name="venue_id" value={venue.id} />
+                              <Button type="submit" size="sm">
+                                <Check aria-hidden /> Convert
+                              </Button>
+                            </form>
+                          ) : null}
+                          <form action={releaseVenueHold}>
+                            <input type="hidden" name="hold_id" value={h.id} />
+                            <input type="hidden" name="venue_id" value={venue.id} />
+                            <Button type="submit" size="sm" variant="outline">
+                              <Unlock aria-hidden /> Release
+                            </Button>
+                          </form>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>

@@ -294,6 +294,60 @@ export type Database = {
           },
         ]
       }
+      corporate_rate_cards: {
+        Row: {
+          created_at: string
+          custom_per_head_rate: number | null
+          discount_percentage: number
+          effective_from: string
+          effective_to: string | null
+          id: string
+          minimum_spend_override: number | null
+          tenant_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_per_head_rate?: number | null
+          discount_percentage?: number
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          minimum_spend_override?: number | null
+          tenant_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_per_head_rate?: number | null
+          discount_percentage?: number
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          minimum_spend_override?: number | null
+          tenant_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_rate_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_rate_cards_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gst_state_codes: {
         Row: {
           code: string
@@ -311,6 +365,71 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      inventory_holds: {
+        Row: {
+          booking_id: string
+          created_at: string
+          hold_expires_at: string
+          hold_start: string
+          id: string
+          status: Database["public"]["Enums"]["hold_status"]
+          tenant_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          hold_expires_at: string
+          hold_start?: string
+          id?: string
+          status?: Database["public"]["Enums"]["hold_status"]
+          tenant_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          hold_expires_at?: string
+          hold_start?: string
+          id?: string
+          status?: Database["public"]["Enums"]["hold_status"]
+          tenant_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_holds_booking_consistency_fkey"
+            columns: ["booking_id", "tenant_id", "venue_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id", "venue_id"]
+          },
+          {
+            foreignKeyName: "inventory_holds_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_holds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_holds_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_users: {
         Row: {
@@ -572,6 +691,7 @@ export type Database = {
         | "COMPLETED"
         | "CANCELLED"
       gst_type: "CGST_SGST" | "IGST"
+      hold_status: "ACTIVE" | "RELEASED" | "CONVERTED"
       onboarding_status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED"
       portal_role: "ADMIN" | "CLIENT" | "PROPERTY"
     }
@@ -713,6 +833,7 @@ export const Constants = {
         "CANCELLED",
       ],
       gst_type: ["CGST_SGST", "IGST"],
+      hold_status: ["ACTIVE", "RELEASED", "CONVERTED"],
       onboarding_status: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
       portal_role: ["ADMIN", "CLIENT", "PROPERTY"],
     },
