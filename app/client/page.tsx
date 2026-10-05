@@ -18,7 +18,7 @@ import {
 import { partyStateCode, stateName } from "@/lib/gst-engine";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "./_components/approval-decision-form";
-import { EventRequestForm } from "./_components/event-request-form";
+import { RequestEventPanel } from "./_components/request-event-panel";
 import { ItcCalculator } from "./_components/itc-calculator";
 
 export default async function ClientPage({ searchParams }: PageProps<"/client">) {
@@ -164,7 +164,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <EventRequestForm
+                <RequestEventPanel
                   key={`${company.id}:${user?.id ?? ""}`}
                   companyId={company.id}
                   userId={user?.id}

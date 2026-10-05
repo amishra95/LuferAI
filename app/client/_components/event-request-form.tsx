@@ -12,6 +12,13 @@ import type { Venue } from "@/lib/supabase/database.types";
 import { formatINR } from "@/lib/utils";
 import { submitBookingRequest, type BookingRequestState } from "../actions";
 
+/** Values chosen elsewhere (e.g. an AI search result) to load into the form. */
+export interface VenuePrefill {
+  venueId: string;
+  partySize: number;
+  perHead: number;
+}
+
 type VenueOption = Pick<Venue, "id" | "name" | "neighborhood" | "city" | "gstin" | "capacity_max" | "min_spend_inr" | "pdr_available">;
 
 export function EventRequestForm({
@@ -19,12 +26,15 @@ export function EventRequestForm({
   userId,
   companyGstin,
   venues,
+  prefill,
 }: {
   companyId: string;
   /** Acting employee; needed when a booking must be routed for sign-off. */
   userId?: string;
   companyGstin: string;
   venues: VenueOption[];
+  /** Each new object overwrites venue, guests and budget; the user can still edit them. */
+  prefill?: VenuePrefill;
 }) {
   const [state, formAction, pending] = useActionState<BookingRequestState, FormData>(submitBookingRequest, {
     status: "idle",
@@ -32,6 +42,16 @@ export function EventRequestForm({
   const [venueId, setVenueId] = useState("");
   const [partySize, setPartySize] = useState("");
   const [perHead, setPerHead] = useState("");
+
+  // Apply a new prefill while rendering rather than in an effect (React's
+  // "adjusting state when a prop changes" pattern), so there's no flash of old values.
+  const [appliedPrefill, setAppliedPrefill] = useState<VenuePrefill | undefined>(undefined);
+  if (prefill && prefill !== appliedPrefill) {
+    setAppliedPrefill(prefill);
+    setVenueId(prefill.venueId);
+    setPartySize(String(prefill.partySize));
+    setPerHead(String(prefill.perHead));
+  }
 
   const venue = venues.find((v) => v.id === venueId);
   const total = Number(partySize) * Number(perHead);

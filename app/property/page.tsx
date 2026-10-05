@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { computeMonthlyPayouts, listBookings, listVenues } from "@/lib/data";
 import { cn, formatDate, formatINR } from "@/lib/utils";
+import { EventBrief } from "./_components/event-brief";
 import { respondToBooking } from "./actions";
 
 const monthLabel = (ym: string) =>
@@ -95,6 +96,36 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                       <X aria-hidden /> Decline
                     </Button>
                   </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Host view · event briefs</CardTitle>
+          <CardDescription>
+            AI-drafted briefs for upcoming events: run of show, catering and budget limits from the client&apos;s request.
+            Suggestions are marked; confirm them with the client.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {incoming.length + upcoming.length === 0 ? (
+            <p className="text-muted-foreground py-4 text-sm">No upcoming events to brief.</p>
+          ) : (
+            <ul className="divide-y">
+              {[...incoming, ...upcoming].map((b) => (
+                <li key={b.id} className="grid gap-3 py-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{b.company.legal_name}</span>
+                    <span className="text-muted-foreground text-sm">
+                      {formatDate(b.event_date)} · {b.party_size} guests
+                    </span>
+                    <BookingStatusBadge status={b.status} />
+                  </div>
+                  <EventBrief bookingId={b.id} venueId={venue.id} />
                 </li>
               ))}
             </ul>
