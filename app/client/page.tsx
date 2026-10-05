@@ -1,251 +1,233 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ClipboardCheck } from "lucide-react";
 
+import { CopyButton } from "@/components/portal/copy-button";
+import { HoldCountdown } from "@/components/portal/hold-countdown";
+import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
+import { InPolicyPill, OutOfPolicyPill, PendingApprovalPill, RateCardPill, RejectedPill } from "@/components/portal/pills";
 import { PortalShell } from "@/components/portal/portal-shell";
-import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
-import { Badge } from "@/components/ui/badge";
+import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  computeItcSummary,
-  listApprovalChain,
-  listApprovals,
-  listBookings,
-  listCompanies,
-  listPortalUsers,
-  listVenues,
-} from "@/lib/data";
-import { partyStateCode, stateName } from "@/lib/gst-engine";
+import { activeHolds, approvalQueue, type ActiveHold } from "@/lib/approvals/service";
+import { requirePortal } from "@/lib/auth/session";
+import { getVenueCatalog } from "@/lib/catalog";
+import { computeItcSummary, dataSource, listApprovals, listBookings, listCompanies, type BookingDetail } from "@/lib/data";
+import { partyStateCode, roundInr, stateName } from "@/lib/gst-engine";
+import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
+import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { listRfps } from "@/lib/rfp/service";
+import type { ApprovalStatus, Payment } from "@/lib/supabase/database.types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
-import { ApprovalDecisionForm } from "./_components/approval-decision-form";
-import { RequestEventPanel } from "./_components/request-event-panel";
 import { ItcCalculator } from "./_components/itc-calculator";
+import { PayDepositButton } from "./_components/pay-deposit-button";
+import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
+import { VenueExplorer } from "./_components/venue-explorer";
 
 export default async function ClientPage({ searchParams }: PageProps<"/client">) {
-  const { company: companyParam, user: userParam, tab } = await searchParams;
-  const companies = await listCompanies();
-  // Until sign-in exists, the acting company is chosen via ?company=<id>.
+  const member = await requirePortal("/client");
+  const { company: companyParam, deposit } = await searchParams;
+  const allCompanies = await listCompanies();
+  // Clients are pinned to their own company; admins may switch via ?company=<id>.
+  const companies = member.role === "ADMIN" ? allCompanies : allCompanies.filter((c) => c.id === member.companyId);
   const company = typeof companyParam === "string" ? companies.find((c) => c.id === companyParam) : companies[0];
   if (!company) notFound();
 
-  const [bookings, venues, users, chain] = await Promise.all([
-    listBookings({ companyId: company.id }),
-    listVenues(),
-    listPortalUsers({ companyId: company.id }),
-    listApprovalChain(company.id),
+  const live = dataSource() === "supabase";
+  const [bookings, catalog] = await Promise.all([listBookings({ companyId: company.id }), getVenueCatalog(company.id)]);
+  const [payments, holds, rfps, approvals, queue] = await Promise.all([
+    latestPayments(bookings.map((b) => b.id)),
+    activeHolds(bookings.map((b) => b.id)),
+    live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
+    listApprovals({ tenantId: company.id }),
+    approvalQueue(member, company.id),
   ]);
+  // Latest approval decision per booking (listApprovals is newest first).
+  const approvalByBooking = new Map<string, { status: ApprovalStatus; reason: string | null }>();
+  for (const a of approvals) if (!approvalByBooking.has(a.booking_id)) approvalByBooking.set(a.booking_id, a);
   const itc = computeItcSummary(bookings);
-
-  // Until sign-in exists, the acting employee is chosen via ?user=<id>.
-  const user = (typeof userParam === "string" ? users.find((u) => u.id === userParam) : undefined) ?? users[0];
-  const isApprover = Boolean(user && chain.some((c) => c.approver_user_id === user.id));
-  const approvals =
-    user && isApprover ? await listApprovals({ tenantId: company.id, approverId: user.id, status: "PENDING" }) : [];
-  const activeTab = isApprover && tab === "approvals" ? "approvals" : "bookings";
-  const href = (params: { user?: string; tab?: string }) => {
-    const q = new URLSearchParams({ company: company.id });
-    if (params.user) q.set("user", params.user);
-    if (params.tab) q.set("tab", params.tab);
-    return `/client?${q}`;
-  };
+  const canPay = paymentsEnabled();
+  const awaitingApproval = queue.length;
 
   return (
     <PortalShell
       portal="/client"
       title={company.legal_name}
-      subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
+      subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly cap ${formatINR(Number(company.monthly_spend_limit_inr))}`}
+      actions={
+        awaitingApproval > 0 ? (
+          <Button asChild variant="outline">
+            <Link href="/client/approvals">
+              <ClipboardCheck aria-hidden /> {awaitingApproval} awaiting approval
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {companies.length > 1 ? (
-        <div className="-mt-4 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch company (demo)">
-          <span className="text-muted-foreground">Viewing as:</span>
+        <div className="-mt-3 mb-6 flex gap-2 overflow-x-auto pb-1 text-sm [scrollbar-width:none]" aria-label="Switch company (admin)">
           {companies.map((c) => (
             <Link
               key={c.id}
               href={`/client?company=${c.id}`}
+              aria-current={c.id === company.id ? "page" : undefined}
               className={cn(
-                "rounded-md border px-2 py-0.5",
-                c.id === company.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
+                "inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 pointer-coarse:min-h-11",
+                c.id === company.id ? "border-zinc-500 bg-zinc-800 text-zinc-50" : "border-zinc-800/60 text-zinc-400 hover:text-zinc-100"
               )}
             >
-              {c.legal_name.replace(" Private Limited", "")} ({partyStateCode(c)})
+              {c.legal_name.replace(" Private Limited", "")}
             </Link>
           ))}
         </div>
       ) : null}
 
-      {users.length > 0 ? (
-        <div className="-mt-2 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch user (demo)">
-          <span className="text-muted-foreground">Acting as:</span>
-          {users.map((u) => (
-            <Link
-              key={u.id}
-              href={href({ user: u.id })}
-              className={cn(
-                "rounded-md border px-2 py-0.5",
-                u.id === user?.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
-              )}
-            >
-              {u.name}
-            </Link>
-          ))}
-        </div>
+      {deposit === "success" || deposit === "cancelled" ? (
+        <p role="status" className="glass mb-6 rounded-xl px-4 py-3 text-sm text-zinc-200">
+          {deposit === "success"
+            ? "Deposit authorised — it's captured only when the venue confirms. Status updates here in a moment."
+            : "Checkout cancelled. Nothing was charged."}
+        </p>
       ) : null}
 
-      {isApprover ? (
-        <nav className="mb-6 flex gap-1 border-b" aria-label="Client portal sections">
-          {(
-            [
-              { key: "bookings", label: "Bookings" },
-              { key: "approvals", label: "Approvals needed" },
-            ] as const
-          ).map((t) => (
-            <Link
-              key={t.key}
-              href={href({ user: user?.id, tab: t.key === "approvals" ? "approvals" : undefined })}
-              aria-current={activeTab === t.key ? "page" : undefined}
-              className={cn(
-                "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm",
-                activeTab === t.key
-                  ? "border-primary text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground border-transparent"
-              )}
-            >
-              {t.label}
-              {t.key === "approvals" && approvals.length > 0 ? <Badge variant="warning">{approvals.length}</Badge> : null}
-            </Link>
-          ))}
-        </nav>
+      {live ? (
+        <section aria-label="Plan an event" className="mb-10">
+          <RfpBroadcastForm />
+        </section>
       ) : null}
 
-      {activeTab === "approvals" && user ? (
-        <Card>
+      <VenueExplorer venues={catalog.venues} company={{ id: company.id, gstin: company.gstin }} departments={catalog.departments} />
+
+      <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Approvals needed</CardTitle>
+            <CardTitle>Your bookings</CardTitle>
             <CardDescription>
-              Bookings outside {company.legal_name.replace(" Private Limited", "")}&apos;s policy wait here for your sign-off.
-              Approving sends them to the venue; rejecting cancels them.
+              {bookings.length} total · in-policy requests go straight to the venue and hold the date while it responds
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {approvals.length === 0 ? (
-              <p className="text-muted-foreground py-4 text-sm">Nothing waiting for you.</p>
+            {bookings.length === 0 ? (
+              <p className="py-6 text-center text-sm text-zinc-400">No bookings yet — pick a venue above to send your first request.</p>
             ) : (
-              <ul className="divide-y">
-                {approvals.map((a) => (
-                  <li key={a.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start">
-                    <div className="flex-1">
-                      <div className="font-medium">
-                        {a.booking.venue_name} · {formatDate(a.booking.event_date)}
-                      </div>
-                      <div className="text-muted-foreground text-sm">
-                        {a.booking.party_size} guests · {formatINR(a.booking.budget_per_head_inr)}/head ·{" "}
-                        {formatINR(a.booking.total_amount_inr)} taxable
-                      </div>
-                      <div className="text-muted-foreground mt-1 text-xs">
-                        Requested by {a.requester_name} on {formatDate(a.created_at.slice(0, 10))}
-                      </div>
-                      {a.reason ? <p className="mt-2 text-sm">{a.reason}</p> : null}
-                    </div>
-                    <ApprovalDecisionForm approvalId={a.id} userId={user.id} companyId={company.id} />
-                  </li>
+              <ul className="divide-y divide-zinc-800/60">
+                {bookings.map((b) => (
+                  <BookingRow
+                    key={b.id}
+                    booking={b}
+                    approval={approvalByBooking.get(b.id)}
+                    hold={holds.get(b.id)}
+                    payment={payments.get(b.id)}
+                    canPay={canPay}
+                  />
                 ))}
               </ul>
             )}
           </CardContent>
         </Card>
-      ) : (
-        <>
-          <div className="grid gap-6 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle>Request an event</CardTitle>
-                <CardDescription>
-                  The venue reviews your request; GST is worked out from your GSTIN and the venue&apos;s.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RequestEventPanel
-                  key={`${company.id}:${user?.id ?? ""}`}
-                  companyId={company.id}
-                  userId={user?.id}
-                  companyGstin={company.gstin}
-                  venues={venues.map(({ id, name, neighborhood, city, gstin, capacity_max, min_spend_inr, pdr_available }) => ({
-                    id,
-                    name,
-                    neighborhood,
-                    city,
-                    gstin,
-                    capacity_max,
-                    min_spend_inr: Number(min_spend_inr),
-                    pdr_available,
-                  }))}
-                />
-              </CardContent>
-            </Card>
 
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>GST ITC savings</CardTitle>
-                <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ItcCalculator reclaimed={itc.reclaimed} pipeline={itc.pipeline} committedSpend={itc.committedSpend} />
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>GST ITC savings</CardTitle>
+            <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ItcCalculator reclaimed={itc.reclaimed} pipeline={itc.pipeline} committedSpend={itc.committedSpend} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {rfps.length > 0 ? (
+        <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
+          <div>
+            <h2 id="rfp-heading" className="text-lg font-semibold text-zinc-50">
+              RFP comparisons
+            </h2>
+            <p className="text-sm text-zinc-400">Instant quotes from your packages and rate card; venues can counter-offer.</p>
           </div>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Your bookings</CardTitle>
-              <CardDescription>{bookings.length} total</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Event date</TableHead>
-                    <TableHead>Venue</TableHead>
-                    <TableHead className="text-right">Guests</TableHead>
-                    <TableHead>GST</TableHead>
-                    <TableHead className="text-right">Taxable</TableHead>
-                    <TableHead className="text-right">Tax</TableHead>
-                    <TableHead className="text-right">Invoice total</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bookings.map((b) => (
-                    <TableRow key={b.id}>
-                      <TableCell className="tabular-nums">{formatDate(b.event_date)}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{b.venue.name}</div>
-                        <div className="text-muted-foreground text-xs">{b.venue.neighborhood}</div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{b.party_size}</TableCell>
-                      <TableCell>
-                        <GstTypeBadge type={b.invoice.gst_type} />
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatINR(b.total_amount_inr)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatINR(b.invoice.total_tax)}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">{formatINR(b.invoice.invoice_total)}</TableCell>
-                      <TableCell>
-                        <BookingStatusBadge status={b.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {bookings.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-muted-foreground py-6 text-center">
-                        No bookings yet — send your first request above.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      )}
+          {rfps.map(({ rfp, markdown }) => (
+            <Card key={rfp.id} className="gap-3">
+              <CardHeader className="flex flex-row flex-wrap items-center gap-2">
+                <CardTitle className="text-base">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
+                <CardDescription className="line-clamp-1 flex-1">{rfp.brief}</CardDescription>
+                <CopyButton text={markdown} label="Copy Markdown" />
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <MarkdownMatrix markdown={markdown} />
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      ) : null}
     </PortalShell>
+  );
+}
+
+function PolicyPill({ approval }: { approval: { status: ApprovalStatus; reason: string | null } | undefined }) {
+  if (!approval) return <InPolicyPill />;
+  switch (approval.status) {
+    case "PENDING":
+      return <PendingApprovalPill />;
+    case "REJECTED":
+      return <RejectedPill />;
+    default:
+      return <OutOfPolicyPill reasons={`Approved exception: ${approval.reason ?? "outside policy"}`} />;
+  }
+}
+
+function BookingRow({
+  booking: b,
+  approval,
+  hold,
+  payment,
+  canPay,
+}: {
+  booking: BookingDetail;
+  approval: { status: ApprovalStatus; reason: string | null } | undefined;
+  hold: ActiveHold | undefined;
+  payment: Payment | undefined;
+  canPay: boolean;
+}) {
+  const deposit = depositFor(b.invoice.invoice_total);
+  const liveDeposit = payment && (payment.status === "authorized" || payment.status === "captured");
+  const listPerHead = b.list_budget_per_head_inr != null ? Number(b.list_budget_per_head_inr) : null;
+  const savings = listPerHead != null ? roundInr(Math.max(0, b.party_size * listPerHead - b.total_amount_inr)) : 0;
+
+  return (
+    <li className="grid gap-3 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium text-zinc-50">{b.venue.name}</span>
+          <span className="text-sm text-zinc-400">
+            {formatDate(b.event_date)} · {b.party_size} guests
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <BookingStatusBadge status={b.status} />
+          {b.status !== "CANCELLED" || approval?.status === "REJECTED" ? <PolicyPill approval={approval} /> : null}
+          {savings > 0 ? <RateCardPill label={`−${formatINR(savings)}`} /> : null}
+          <GstTypeBadge type={b.invoice.gst_type} />
+          {payment ? <PaymentStatusBadge status={payment.status} /> : null}
+        </div>
+        {hold && (b.status === "PENDING" || b.status === "PENDING_APPROVAL") ? (
+          <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-3 max-w-64" />
+        ) : null}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 md:justify-end">
+        <dl className="text-right text-sm">
+          <dt className="sr-only">Invoice total</dt>
+          <dd className="font-medium text-zinc-50 tabular-nums">{formatINR(b.invoice.invoice_total)}</dd>
+          <dd className="text-xs text-zinc-500 tabular-nums">
+            {formatINR(b.total_amount_inr)} + {formatINR(b.invoice.total_tax)} GST
+          </dd>
+        </dl>
+        {/* PENDING = signed off (or in policy) and with the venue; deposits are taken then. */}
+        {canPay && b.status === "PENDING" && !liveDeposit ? (
+          <PayDepositButton bookingId={b.id} label={`Pay ${formatINR(deposit)} deposit (${Math.round(DEPOSIT_RATE * 100)}%)`} />
+        ) : null}
+      </div>
+    </li>
   );
 }

@@ -2,14 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requirePortal } from "@/lib/auth/session";
+
 import {
   createBookingRequest,
   decideApproval,
   HoldConflictError,
   listApprovalChain,
+  listApprovals,
   listCompanies,
   listPortalUsers,
   listVenues,
+  dataSource,
   type NewApprovalRequest,
 } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
@@ -17,6 +21,7 @@ import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatINR } from "@/lib/utils";
 
 export interface BookingRequestState {
@@ -38,6 +43,7 @@ const AVAILABILITY_WINDOW_DAYS = 180;
  * confirmed booking). Returns dates only: who holds them stays private.
  */
 export async function getUnavailableDates(venueId: string): Promise<string[]> {
+  await requirePortal("/client");
   const venues = await listVenues();
   if (!venues.some((v) => v.id === venueId)) return [];
   const from = new Date().toISOString().slice(0, 10);
@@ -54,7 +60,10 @@ export async function previewNegotiatedRate(input: {
   partySize: number;
   perHead: number;
 }): Promise<NegotiatedPricing | null> {
-  const { companyId, venueId, eventDate, partySize, perHead } = input;
+  const member = await requirePortal("/client");
+  const { venueId, eventDate, partySize, perHead } = input;
+  // A client only ever previews their own company's negotiated terms.
+  const companyId = member.role === "ADMIN" ? input.companyId : member.companyId ?? "";
   if (!ISO_DATE.test(eventDate) || !Number.isInteger(partySize) || partySize < 1 || !(perHead > 0)) return null;
   const [companies, venues] = await Promise.all([listCompanies(), listVenues()]);
   if (!companies.some((c) => c.id === companyId) || !venues.some((v) => v.id === venueId)) return null;
@@ -65,9 +74,12 @@ export async function submitBookingRequest(
   _prev: BookingRequestState,
   formData: FormData
 ): Promise<BookingRequestState> {
-  const companyId = String(formData.get("company_id") ?? "");
-  // Until sign-in exists, the acting employee comes from the page's ?user= switcher.
-  const userId = String(formData.get("user_id") ?? "");
+  const member = await requirePortal("/client");
+  // Never trust the submitted company or requester: they come from the session
+  // (only admins may act for another company, and admins can't request sign-off).
+  const companyId = member.role === "ADMIN" ? String(formData.get("company_id") ?? "") : member.companyId ?? "";
+  const userId = member.role === "CLIENT" ? member.userId : "";
+  const departmentId = String(formData.get("department_id") ?? "") || null;
   const venueId = String(formData.get("venue_id") ?? "");
   const eventDate = String(formData.get("event_date") ?? "");
   const partySize = Number(formData.get("party_size"));
@@ -87,6 +99,15 @@ export async function submitBookingRequest(
   if (!Number.isFinite(budgetPerHead) || budgetPerHead <= 0) fieldErrors.budget_per_head_inr = "Enter a budget per head";
 
   if (!company) return { status: "error", message: "Unknown company account." };
+  if (departmentId && dataSource() === "supabase") {
+    const { data: dept } = await createAdminClient()
+      .from("departments")
+      .select("id")
+      .eq("id", departmentId)
+      .eq("company_id", company.id)
+      .maybeSingle();
+    if (!dept) return { status: "error", message: "Unknown department." };
+  }
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
 
   try {
@@ -121,7 +142,7 @@ export async function submitBookingRequest(
     if (policy.requiresApproval) {
       const [users, chain] = await Promise.all([listPortalUsers({ companyId: company.id }), listApprovalChain(company.id)]);
       if (!users.some((u) => u.id === userId)) {
-        return { status: "error", message: `This booking needs sign-off (${policy.reason}). Choose who is requesting it under "Acting as" first.` };
+        return { status: "error", message: `This booking needs sign-off (${policy.reason}). Only a signed-in employee of ${company.legal_name} can request it.` };
       }
       // Tier 1 approves; if the requester is tier 1 themselves, the next tier does.
       const tier = chain.find((c) => c.approver_user_id !== userId);
@@ -144,6 +165,10 @@ export async function submitBookingRequest(
         budget_per_head_inr: pricing.negotiatedPerHead,
         event_date: eventDate,
         notes,
+        department_id: departmentId,
+        // Snapshot list pricing so rate-card savings stay reportable.
+        list_budget_per_head_inr: pricing.source === "list" ? null : pricing.listPerHead,
+        rate_card_id: pricing.rateCardId,
       },
       { approval, hold }
     );
@@ -184,23 +209,34 @@ export async function decideBookingApproval(
   _prev: ApprovalDecisionState,
   formData: FormData
 ): Promise<ApprovalDecisionState> {
+  const member = await requirePortal("/client");
   const approvalId = String(formData.get("approval_id") ?? "");
-  const userId = String(formData.get("user_id") ?? "");
-  const companyId = String(formData.get("company_id") ?? "");
   const intent = String(formData.get("intent") ?? "");
-  const note = String(formData.get("note") ?? "").trim() || undefined;
-  if (!approvalId || !userId || !companyId || (intent !== "approve" && intent !== "reject")) {
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || undefined;
+  if (!approvalId || (intent !== "approve" && intent !== "reject")) {
     return { status: "error", message: "Invalid approval action." };
   }
 
+  // Approver and tenant come from the session. Admins may decide any pending
+  // approval, on behalf of its assigned approver.
+  let scope: { approverId: string; tenantId: string } | null = null;
+  if (member.role === "CLIENT" && member.companyId) {
+    scope = { approverId: member.userId, tenantId: member.companyId };
+  } else if (member.role === "ADMIN") {
+    const [pending] = (await listApprovals({ status: "PENDING" })).filter((a) => a.id === approvalId);
+    if (pending) scope = { approverId: pending.approver_id, tenantId: pending.tenant_id };
+  }
+  if (!scope) return { status: "error", message: "This approval was not found or has already been decided." };
+
   try {
     // Scoped to approver + tenant so nobody can decide someone else's approval.
-    await decideApproval(approvalId, { approverId: userId, tenantId: companyId }, intent === "approve" ? "APPROVED" : "REJECTED", note);
+    await decideApproval(approvalId, scope, intent === "approve" ? "APPROVED" : "REJECTED", note);
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : "Could not record the decision." };
   }
 
   revalidatePath("/client");
+  revalidatePath("/client/approvals");
   revalidatePath("/property");
   revalidatePath("/admin");
   return { status: "idle" };

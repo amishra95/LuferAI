@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { ApprovalStatus, BookingStatus, GstType, OnboardingStatus } from "@/lib/supabase/database.types";
+import type { ApprovalStatus, BookingStatus, GstType, OnboardingStatus, PaymentStatus } from "@/lib/supabase/database.types";
 
 const BOOKING_VARIANT = {
   PENDING_APPROVAL: "secondary",
@@ -38,4 +38,18 @@ export function GstTypeBadge({ type }: { type: GstType }) {
 export function OnboardingStatusBadge({ status }: { status: OnboardingStatus }) {
   const label = status === "UNDER_REVIEW" ? "Under review" : titleCase(status);
   return <Badge variant={status === "UNDER_REVIEW" ? "secondary" : "outline"}>{label}</Badge>;
+}
+
+const PAYMENT_BADGE = {
+  created: { variant: "outline", label: "Checkout started" },
+  authorized: { variant: "secondary", label: "Deposit held" },
+  captured: { variant: "success", label: "Deposit paid" },
+  voided: { variant: "outline", label: "Deposit released" },
+  failed: { variant: "destructive", label: "Payment failed" },
+  refunded: { variant: "outline", label: "Refunded" },
+} as const satisfies Record<PaymentStatus, { variant: string; label: string }>;
+
+export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
+  const { variant, label } = PAYMENT_BADGE[status];
+  return <Badge variant={variant}>{label}</Badge>;
 }

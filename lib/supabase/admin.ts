@@ -9,6 +9,8 @@ import { clean } from "./env";
  * Service-role client — BYPASSES RLS. Server-only.
  * The portals use this until per-portal sign-in exists; switch reads to
  * lib/supabase/server.ts once users are mapped in public.platform_users.
+ * Callers must authorise first (requirePortal in lib/auth/session.ts) and scope by
+ * the member's company/venue.
  */
 export function createAdminClient() {
   const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);

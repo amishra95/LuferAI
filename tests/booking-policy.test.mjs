@@ -45,3 +45,14 @@ test("only the per-head rule applies when the threshold is null", () => {
   assert.equal(evaluateBookingPolicy(capOnly, booking(500, 3000)).requiresApproval, false);
   assert.equal(evaluateBookingPolicy(capOnly, booking(1, 3001)).requiresApproval, true);
 });
+
+test("describePolicyChecks itemises the same rules evaluateBookingPolicy applies", async () => {
+  const { describePolicyChecks, evaluateBookingPolicy } = await import("../lib/policies/evaluate-booking-policy.ts");
+  const rules = { max_budget_per_head: 2500, requires_approval_above: 150000 };
+  const input = { total_amount: 160000, headcount: 40, per_head_amount: 4000 };
+  const checks = describePolicyChecks(rules, input);
+  assert.deepEqual(checks.map((c) => [c.rule, c.ok]), [["per_head", false], ["approval_threshold", false]]);
+  assert.equal(evaluateBookingPolicy(rules, input).requiresApproval, true);
+  assert.deepEqual(describePolicyChecks({ max_budget_per_head: null, requires_approval_above: null }, input), []);
+  assert.deepEqual(describePolicyChecks(null, input), []);
+});

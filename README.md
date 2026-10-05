@@ -8,8 +8,8 @@ Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Supabas
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000 — runs on built-in mock data, no setup needed
-npm test             # GST engine tests
+npm run dev          # http://localhost:3000 — the portals need Supabase (below) to sign in
+npm test             # GST, quote, policy and RBAC tests
 ```
 
 ### With Supabase
@@ -91,7 +91,23 @@ All GSTINs are synthetic but pass checksum validation.
 
 Five Bengaluru venues (Indiranagar ×2, Koramangala ×2, UB City) and three onboarding requests are also seeded.
 
+## Native apps (Capacitor)
+
+iOS and Android shells live in `ios/` and `android/` (`appId` `com.luferai.app`). The app uses middleware, Server Components, Server Actions and API routes, so it can't be statically exported: the native WebView loads the **deployed site** from `CAP_SERVER_URL`, and `capacitor-shell/` only bundles the offline and "not configured" pages.
+
+```bash
+CAP_SERVER_URL=https://app.example.com npm run cap:sync   # copies the shell + config into both projects
+npm run cap:open:ios        # Xcode (iOS uses Swift Package Manager — no CocoaPods)
+npm run cap:open:android    # Android Studio
+```
+
+For a device against your laptop: `npm run dev -- -H 0.0.0.0`, then `CAP_SERVER_URL=http://<LAN-IP>:3000 npm run cap:sync` (cleartext is enabled only for `http://` URLs).
+
+Safe areas: use `--app-safe-top|right|bottom|left` (or the `pt-safe` / `pb-safe` utilities) — never `env(safe-area-inset-*)` directly. They prefer the `--safe-area-inset-*` values Capacitor injects on Android, where WebView < 140 reports wrong `env()` values.
+
+Before a store release: Google blocks OAuth inside embedded WebViews (use magic links, or add native sign-in / an in-app browser flow), UPI intent links and payment redirects need testing on real devices, and Apple may reject apps that are only a wrapped website (guideline 4.2) — plan native value such as push notifications.
+
 ## Next steps
 
-- **Auth:** add Supabase Auth sign-in per portal, insert rows into `platform_users`, then move reads from `lib/supabase/admin.ts` (service role, bypasses RLS) to `lib/supabase/server.ts` (user session, RLS enforced).
+- **Data access:** reads still go through `lib/supabase/admin.ts` (service role) after `requirePortal` checks; moving them to `lib/supabase/server.ts` adds RLS as a second line of defence.
 - **Tax review:** have a tax advisor confirm SAC 998596 and ITC eligibility for your exact supply model — ITC on food & beverage is restricted under Section 17(5) of the CGST Act, and who the supplier of record is (venue or platform) changes the invoicing.

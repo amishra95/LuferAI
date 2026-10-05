@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
 import { matchVenues, venueSearchSchema } from "@/lib/ai/venue-sourcing";
+import { getCurrentMember } from "@/lib/auth/session";
 import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
 
 export const maxDuration = 30;
@@ -18,11 +19,18 @@ const requestSchema = z.object({
  * never include venues or prices the catalogue doesn't have.
  */
 export async function POST(req: Request) {
+  const member = await getCurrentMember();
+  if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
+  if (member.role !== "CLIENT" && member.role !== "ADMIN") return Response.json({ error: "forbidden" }, { status: 403 });
+
   const parsed = requestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ error: "Describe the event in 3–500 characters." }, { status: 400 });
   }
-  const { prompt, companyId } = parsed.data;
+  const { prompt } = parsed.data;
+  // Clients search under their own company's policy; only admins may pick one.
+  const companyId = member.role === "ADMIN" ? parsed.data.companyId : member.companyId;
+  if (!companyId) return Response.json({ error: "Unknown company account." }, { status: 404 });
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });

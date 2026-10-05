@@ -45,3 +45,41 @@ export function evaluateBookingPolicy(
 
   return reasons.length === 0 ? { requiresApproval: false } : { requiresApproval: true, reason: reasons.join("; ") };
 }
+
+export interface PolicyCheck {
+  rule: "per_head" | "approval_threshold";
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+/**
+ * The same two rules as evaluateBookingPolicy, one line each, for itemised
+ * display (e.g. /client/approvals). Unset limits are omitted, not "passed".
+ */
+export function describePolicyChecks(
+  rules: BookingPolicyRules | null,
+  input: Pick<BookingPolicyInput, "total_amount" | "per_head_amount">
+): PolicyCheck[] {
+  if (!rules) return [];
+  const checks: PolicyCheck[] = [];
+  if (rules.max_budget_per_head !== null) {
+    const cap = Number(rules.max_budget_per_head);
+    checks.push({
+      rule: "per_head",
+      label: "Per-head budget",
+      ok: input.per_head_amount <= cap,
+      detail: `${inr(input.per_head_amount)} per head vs ${inr(cap)} cap`,
+    });
+  }
+  if (rules.requires_approval_above !== null) {
+    const threshold = Number(rules.requires_approval_above);
+    checks.push({
+      rule: "approval_threshold",
+      label: "Approval threshold",
+      ok: input.total_amount <= threshold,
+      detail: `${inr(input.total_amount)} vs ${inr(threshold)} threshold`,
+    });
+  }
+  return checks;
+}
