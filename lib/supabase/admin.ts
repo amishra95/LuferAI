@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "./database.types";
+import { clean } from "./env";
 
 /**
  * Service-role client — BYPASSES RLS. Server-only.
@@ -10,8 +11,8 @@ import type { Database } from "./database.types";
  * lib/supabase/server.ts once users are mapped in public.platform_users.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!url || !key) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
   }
@@ -38,8 +39,8 @@ function isHttpUrl(value: string): boolean {
  * (the header badge shows "Mock data") and log once so it gets fixed.
  */
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!url || !key) return false;
   if (!isHttpUrl(url)) {
     if (!warnedInvalidUrl) {
