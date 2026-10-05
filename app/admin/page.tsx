@@ -1,17 +1,31 @@
+import Link from "next/link";
 import { CalendarCheck, IndianRupee, Landmark, Receipt } from "lucide-react";
 
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
-import { BookingStatusBadge, GstTypeBadge, OnboardingStatusBadge } from "@/components/portal/status-badge";
+import {
+  ApprovalStatusBadge,
+  BookingStatusBadge,
+  GstTypeBadge,
+  OnboardingStatusBadge,
+} from "@/components/portal/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { computePlatformMetrics, listBookings, listOnboardingRequests } from "@/lib/data";
+import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listOnboardingRequests } from "@/lib/data";
 import { stateName } from "@/lib/gst-engine";
-import { formatDate, formatINR } from "@/lib/utils";
+import { cn, formatDate, formatINR } from "@/lib/utils";
 
-export default async function AdminPage() {
-  const [bookings, onboarding] = await Promise.all([listBookings(), listOnboardingRequests()]);
+export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
+  const { tenant } = await searchParams;
+  const tenantId = typeof tenant === "string" ? tenant : undefined;
+  const [bookings, onboarding, companies, approvals] = await Promise.all([
+    listBookings(),
+    listOnboardingRequests(),
+    listCompanies(),
+    listApprovals({ tenantId }),
+  ]);
   const m = computePlatformMetrics(bookings);
+  const shortName = (name: string) => name.replace(" Private Limited", "");
 
   return (
     <PortalShell
@@ -109,6 +123,80 @@ export default async function AdminPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card id="approvals">
+          <CardHeader>
+            <CardTitle>Approval audit</CardTitle>
+            <CardDescription>
+              Every policy sign-off request across the platform, newest first · {approvals.length} shown
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 flex flex-wrap gap-2 text-sm" aria-label="Filter by tenant">
+              <span className="text-muted-foreground">Tenant:</span>
+              {[{ id: undefined, legal_name: "All" }, ...companies].map((c) => (
+                <Link
+                  key={c.id ?? "all"}
+                  href={c.id ? `/admin?tenant=${c.id}#approvals` : "/admin#approvals"}
+                  aria-current={c.id === tenantId ? "page" : undefined}
+                  className={cn(
+                    "rounded-md border px-2 py-0.5",
+                    c.id === tenantId ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
+                  )}
+                >
+                  {shortName(c.legal_name)}
+                </Link>
+              ))}
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Tenant · Booking</TableHead>
+                  <TableHead className="text-right">Taxable</TableHead>
+                  <TableHead>Requested by → Approver</TableHead>
+                  <TableHead>Reason · Decision note</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Decided</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvals.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="tabular-nums">{formatDate(a.created_at.slice(0, 10))}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{shortName(a.company.legal_name)}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {a.booking.venue_name} · {formatDate(a.booking.event_date)} · {a.booking.party_size} pax
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatINR(a.booking.total_amount_inr)}</TableCell>
+                    <TableCell className="text-sm">
+                      {a.requester_name}
+                      <span className="text-muted-foreground"> → </span>
+                      {a.approver_name}
+                    </TableCell>
+                    <TableCell className="max-w-xs text-sm whitespace-normal">
+                      {a.reason ?? "—"}
+                      {a.decision_note ? <div className="text-muted-foreground mt-1 text-xs">“{a.decision_note}”</div> : null}
+                    </TableCell>
+                    <TableCell>
+                      <ApprovalStatusBadge status={a.status} />
+                    </TableCell>
+                    <TableCell className="tabular-nums">{a.decided_at ? formatDate(a.decided_at.slice(0, 10)) : "—"}</TableCell>
+                  </TableRow>
+                ))}
+                {approvals.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-muted-foreground py-6 text-center">
+                      No approval requests{tenantId ? " for this tenant" : ""} yet.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>

@@ -1,6 +1,15 @@
 import "server-only";
 
-import type { Booking, Company, Venue, VenueOnboardingRequest } from "@/lib/supabase/database.types";
+import type {
+  ApprovalChain,
+  Booking,
+  BookingApproval,
+  Company,
+  CorporatePolicy,
+  PlatformUser,
+  Venue,
+  VenueOnboardingRequest,
+} from "@/lib/supabase/database.types";
 import { determineGstType } from "@/lib/gst-engine";
 
 /**
@@ -204,20 +213,67 @@ const onboarding: VenueOnboardingRequest[] = [
   },
 ];
 
+// Corporate approval workflow demo data (no mirror in seed.sql: platform_users
+// needs real auth.users rows, so Supabase setups create these via the dashboard).
+const NIMBUS = "11111111-1111-4111-8111-111111111111";
+const VERTEX = "22222222-2222-4222-8222-222222222222";
+
+/** platform_users plus a display name, which in Supabase comes from auth.users. */
+export type MockPortalUser = PlatformUser & { name: string };
+
+const portalUser = (user_id: string, company_id: string, name: string): MockPortalUser => ({
+  user_id,
+  role: "CLIENT",
+  company_id,
+  venue_id: null,
+  created_at: ts,
+  name,
+});
+
+const users: MockPortalUser[] = [
+  portalUser("dddddddd-0001-4000-8000-000000000001", NIMBUS, "Priya Raman (Executive Assistant)"),
+  portalUser("dddddddd-0002-4000-8000-000000000002", NIMBUS, "Arjun Mehta (Finance Manager)"),
+  portalUser("dddddddd-0003-4000-8000-000000000003", VERTEX, "Neha Kapoor (Office Manager)"),
+  portalUser("dddddddd-0004-4000-8000-000000000004", VERTEX, "Rohan Iyer (Managing Director)"),
+];
+
+const policies: CorporatePolicy[] = [
+  { id: "eeeeeeee-0001-4000-8000-000000000001", tenant_id: NIMBUS, max_budget_per_head: 3000, currency: "INR",
+    requires_approval_above: 150000, created_at: ts, updated_at: ts },
+  { id: "eeeeeeee-0002-4000-8000-000000000002", tenant_id: VERTEX, max_budget_per_head: 6000, currency: "INR",
+    requires_approval_above: 400000, created_at: ts, updated_at: ts },
+];
+
+const approvalChains: ApprovalChain[] = [
+  { id: "ffffffff-0001-4000-8000-000000000001", tenant_id: NIMBUS, approver_user_id: users[1].user_id, tier_level: 1, created_at: ts },
+  { id: "ffffffff-0002-4000-8000-000000000002", tenant_id: VERTEX, approver_user_id: users[3].user_id, tier_level: 1, created_at: ts },
+];
+
 interface MockDb {
   companies: Company[];
   venues: Venue[];
   bookings: Booking[];
   onboarding: VenueOnboardingRequest[];
+  users: MockPortalUser[];
+  policies: CorporatePolicy[];
+  approvalChains: ApprovalChain[];
+  approvals: BookingApproval[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
 
-export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb ??= {
+// Spread the existing store last so a hot reload keeps its state but still
+// picks up collections added since it was created.
+export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   companies,
   venues,
   bookings,
   onboarding,
+  users,
+  policies,
+  approvalChains,
+  approvals: [],
+  ...globalForMock.__corpHospitalityMockDb,
 });
 
 /** Mock equivalent of the bookings_derive_gst_type trigger. */

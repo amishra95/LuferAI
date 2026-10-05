@@ -39,6 +39,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_chains: {
+        Row: {
+          approver_user_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          tier_level: number
+        }
+        Insert: {
+          approver_user_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          tier_level: number
+        }
+        Update: {
+          approver_user_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          tier_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_chains_approver_fkey"
+            columns: ["approver_user_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["user_id", "company_id"]
+          },
+          {
+            foreignKeyName: "approval_chains_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_approvals: {
+        Row: {
+          approver_id: string
+          booking_id: string
+          created_at: string
+          decided_at: string | null
+          decision_note: string | null
+          id: string
+          reason: string | null
+          requested_by: string
+          status: Database["public"]["Enums"]["approval_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          approver_id: string
+          booking_id: string
+          created_at?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string
+          booking_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_approvals_approver_fkey"
+            columns: ["approver_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["user_id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_requested_by_fkey"
+            columns: ["requested_by", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["user_id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           budget_per_head_inr: number
@@ -143,6 +253,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "gst_state_codes"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      corporate_policies: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          max_budget_per_head: number | null
+          requires_approval_above: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          max_budget_per_head?: number | null
+          requires_approval_above?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          max_budget_per_head?: number | null
+          requires_approval_above?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -416,7 +564,13 @@ export type Database = {
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
     }
     Enums: {
-      booking_status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
+      approval_status: "PENDING" | "APPROVED" | "REJECTED"
+      booking_status:
+        | "PENDING_APPROVAL"
+        | "PENDING"
+        | "CONFIRMED"
+        | "COMPLETED"
+        | "CANCELLED"
       gst_type: "CGST_SGST" | "IGST"
       onboarding_status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED"
       portal_role: "ADMIN" | "CLIENT" | "PROPERTY"
@@ -550,7 +704,14 @@ export const Constants = {
   },
   public: {
     Enums: {
-      booking_status: ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"],
+      approval_status: ["PENDING", "APPROVED", "REJECTED"],
+      booking_status: [
+        "PENDING_APPROVAL",
+        "PENDING",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+      ],
       gst_type: ["CGST_SGST", "IGST"],
       onboarding_status: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
       portal_role: ["ADMIN", "CLIENT", "PROPERTY"],

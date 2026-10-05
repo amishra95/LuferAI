@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Hourglass, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,13 @@ type VenueOption = Pick<Venue, "id" | "name" | "neighborhood" | "city" | "gstin"
 
 export function EventRequestForm({
   companyId,
+  userId,
   companyGstin,
   venues,
 }: {
   companyId: string;
+  /** Acting employee; needed when a booking must be routed for sign-off. */
+  userId?: string;
   companyGstin: string;
   venues: VenueOption[];
 }) {
@@ -45,6 +48,7 @@ export function EventRequestForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input type="hidden" name="company_id" value={companyId} />
+      {userId ? <input type="hidden" name="user_id" value={userId} /> : null}
 
       <div className="grid gap-2">
         <Label htmlFor="venue_id">Venue</Label>
@@ -132,6 +136,18 @@ export function EventRequestForm({
         </dl>
       ) : null}
 
+      {state.status === "success" && state.approval ? (
+        <div className="border-warning/40 bg-warning/10 flex gap-3 rounded-lg border p-3 text-sm" role="status">
+          <Hourglass className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-medium">{state.message}</p>
+            <p className="text-muted-foreground mt-0.5">
+              Sent to {state.approval.approverName} because {state.approval.reason}. The venue sees it once approved.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
@@ -142,7 +158,7 @@ export function EventRequestForm({
             {state.message}
           </p>
         ) : null}
-        {state.status === "success" ? (
+        {state.status === "success" && !state.approval ? (
           <p className="text-success flex items-center gap-1.5 text-sm" role="status">
             <CheckCircle2 className="size-4" aria-hidden />
             {state.message}

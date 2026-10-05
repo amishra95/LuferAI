@@ -41,8 +41,13 @@ export type GstType = Enums<"gst_type">;
 export type BookingStatus = Enums<"booking_status">;
 export type OnboardingStatus = Enums<"onboarding_status">;
 export type PortalRole = Enums<"portal_role">;
+export type ApprovalStatus = Enums<"approval_status">;
 
 export type Company = Tables<"companies">;
 export type Venue = Tables<"venues">;
 export type Booking = Tables<"bookings">;
 export type VenueOnboardingRequest = Tables<"venue_onboarding_requests">;
+export type CorporatePolicy = Tables<"corporate_policies">;
+export type ApprovalChain = Tables<"approval_chains">;
+export type BookingApproval = Tables<"booking_approvals">;
+export type PlatformUser = Tables<"platform_users">;
