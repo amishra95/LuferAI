@@ -8,3 +8,13 @@
 export function clean(value: string | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, "");
 }
+
+/** True for an absolute http(s) URL — guards against e.g. a key pasted into the URL slot. */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}

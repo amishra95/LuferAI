@@ -3,7 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "./database.types";
-import { clean } from "./env";
+import { clean, isHttpUrl } from "./env";
 
 /**
  * Service-role client — BYPASSES RLS. Server-only.
@@ -24,15 +24,6 @@ export function createAdminClient() {
 }
 
 let warnedInvalidUrl = false;
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const { protocol } = new URL(value);
-    return protocol === "http:" || protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 /**
  * True only when both vars are set AND the URL is a real http(s) URL.

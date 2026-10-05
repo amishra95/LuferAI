@@ -1,0 +1,4 @@
+# Native Capacitor shells — not part of the web build.
+android/
+ios/
+capacitor-shell/
