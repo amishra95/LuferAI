@@ -5,7 +5,8 @@ import { releaseExpiredHolds } from "@/lib/approvals/service";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 
 /**
- * Hourly sweep (vercel.json → crons). An inventory hold stops locking its venue
+ * Daily sweep at 02:00 IST (vercel.json → crons; daily so it fits Vercel Hobby —
+ * switch to "0 * * * *" on Pro). An inventory hold stops locking its venue
  * date as soon as hold_expires_at passes (availability checks compare the time),
  * so nothing is double-booked between runs; this marks those holds RELEASED so
  * the hold lists and reports match. Converting/releasing on booking changes is
