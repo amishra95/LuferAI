@@ -24,7 +24,16 @@ export async function GET(request: NextRequest) {
       ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
       : { error: new Error("Missing auth code") };
 
-  if (error) return NextResponse.redirect(new URL("/login?error=link_invalid", request.url));
+  if (error) {
+    // Supabase reports failed verifications (e.g. otp_expired) as error_code on this URL.
+    console.error("auth: callback failed", {
+      message: error.message,
+      code: "code" in error ? error.code : undefined,
+      providerErrorCode: searchParams.get("error_code"),
+      providerError: searchParams.get("error_description"),
+    });
+    return NextResponse.redirect(new URL("/login?error=link_invalid", request.url));
+  }
 
   const { data: claims } = await supabase.auth.getClaims();
   const { data: member } = await supabase
