@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { CalendarCheck, IndianRupee, Landmark, Receipt } from "lucide-react";
 
+import { CumulativeSpendChart, DepartmentBudgetChart, SavingsChart } from "@/components/admin/spend-charts";
+import { getSpendAnalytics } from "@/lib/data/analytics";
+
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
 import {
@@ -11,11 +14,13 @@ import {
 } from "@/components/portal/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requirePortal } from "@/lib/auth/session";
 import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listOnboardingRequests } from "@/lib/data";
 import { stateName } from "@/lib/gst-engine";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
+  await requirePortal("/admin");
   const { tenant } = await searchParams;
   const tenantId = typeof tenant === "string" ? tenant : undefined;
   const [bookings, onboarding, companies, approvals] = await Promise.all([
@@ -24,8 +29,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     listCompanies(),
     listApprovals({ tenantId }),
   ]);
-  const m = computePlatformMetrics(bookings);
   const shortName = (name: string) => name.replace(" Private Limited", "");
+  const m = computePlatformMetrics(bookings);
+  const a = await getSpendAnalytics(bookings);
 
   return (
     <PortalShell
@@ -33,6 +39,44 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       title="Platform overview"
       subtitle="Marketplace health across every company and venue."
     >
+      <section aria-labelledby="exec-heading" className="mb-10 grid gap-4">
+        <h2 id="exec-heading" className="sr-only">
+          Executive spend analytics
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardDescription>Corporate spend · {a.fyLabel} to date (pre-GST)</CardDescription>
+              <CardTitle className="text-4xl font-semibold tracking-tight tabular-nums">{formatINR(a.fytdSpend)}</CardTitle>
+              <p className="text-xs text-zinc-400">
+                {formatINR(a.committedAhead)} more committed for later this year · {a.pendingApprovals} awaiting corporate approval
+              </p>
+            </CardHeader>
+            <CardContent>
+              <CumulativeSpendChart months={a.months} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Rate-card savings · {a.fyLabel} to date</CardDescription>
+              <CardTitle className="text-3xl font-semibold tabular-nums">{formatINR(a.fytdSavings)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SavingsChart months={a.months} />
+            </CardContent>
+          </Card>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Department budget usage</CardTitle>
+            <CardDescription>Committed spend against each department&apos;s {a.fyLabel} budget</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DepartmentBudgetChart departments={a.departments} />
+          </CardContent>
+        </Card>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key metrics">
         <StatCard label="Total bookings" value={String(m.totalBookings)} hint={`${m.pendingBookings} awaiting venue approval`} icon={CalendarCheck} />
         <StatCard label="Gross booking value" value={formatINR(m.grossBookingValue)} hint="Pre-GST, excludes cancelled" icon={IndianRupee} />
@@ -144,8 +188,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   href={c.id ? `/admin?tenant=${c.id}#approvals` : "/admin#approvals"}
                   aria-current={c.id === tenantId ? "page" : undefined}
                   className={cn(
-                    "rounded-md border px-2 py-0.5",
-                    c.id === tenantId ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
+                    "inline-flex min-h-9 items-center rounded-full border px-3 pointer-coarse:min-h-11",
+                    c.id === tenantId ? "border-zinc-500 bg-zinc-800 text-zinc-50" : "border-zinc-800/60 text-zinc-400 hover:text-zinc-100"
                   )}
                 >
                   {shortName(c.legal_name)}

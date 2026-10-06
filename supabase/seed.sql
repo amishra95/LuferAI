@@ -62,3 +62,56 @@ insert into public.venue_onboarding_requests
    'Meera Shah', 'partnerships@harbourloft.example', 140, true, 0.14, 'SUBMITTED', now() - interval '1 day'),
   ('Ragi & Rye', 'Bengaluru', 'Jayanagar', '29AAMCR6625G1ZY',
    'Kiran Hegde', 'owner@ragiandrye.example', 45, false, 0.15, 'SUBMITTED', now() - interval '6 hours');
+
+-- Corporate rate cards (tenant × venue) ------------------------------------------------
+-- Nimbus: 15% off at The Copper Courtyard; a fixed ₹1,600/head at Mosaic with a
+-- lower ₹50k minimum spend. Priced in the app (lib/rates) when a booking is made.
+insert into public.corporate_rate_cards
+  (tenant_id, venue_id, discount_percentage, custom_per_head_rate, minimum_spend_override, effective_from) values
+  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-0001-4000-8000-000000000001', 15.00, null,    null,     '2026-01-01'),
+  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-0003-4000-8000-000000000003',  0.00, 1600.00, 50000.00, '2026-01-01');
+
+-- Menu packages ----------------------------------------------------------------------
+insert into public.venue_menu_packages (venue_id, name, per_head_inr, dietary_tags, description) values
+  ('aaaaaaaa-0001-4000-8000-000000000001', 'Courtyard Classic',   2200.00, '{vegetarian}',                'Four-course North Indian set menu'),
+  ('aaaaaaaa-0001-4000-8000-000000000001', 'Copper Grill',        2900.00, '{halal}',                     'Tandoor grills with mocktail pairing'),
+  ('aaaaaaaa-0002-4000-8000-000000000002', 'Terrace Thali',       1500.00, '{vegetarian,jain}',           'Rajasthani thali, Jain on request'),
+  ('aaaaaaaa-0003-4000-8000-000000000003', 'Mosaic Small Plates', 1700.00, '{vegetarian,vegan,gluten_free}', 'Pan-Asian sharing plates'),
+  ('aaaaaaaa-0003-4000-8000-000000000003', 'Mosaic Feast',        2400.00, '{halal}',                     'Live grill counter and dessert bar'),
+  ('aaaaaaaa-0004-4000-8000-000000000004', 'Indigo Coastal',      1900.00, '{gluten_free}',               'Mangalorean seafood set'),
+  ('aaaaaaaa-0005-4000-8000-000000000005', 'Vault Signature',     4200.00, '{vegetarian,vegan,halal,jain}', 'Chef''s tasting menu, all diets catered');
+
+-- Venue coordinates (client map) ----------------------------------------------------------
+update public.venues v set latitude = c.lat, longitude = c.lng
+from (values
+  ('aaaaaaaa-0001-4000-8000-000000000001'::uuid, 12.971900, 77.641100),  -- Indiranagar, 12th Main
+  ('aaaaaaaa-0002-4000-8000-000000000002'::uuid, 12.978400, 77.640800),  -- Indiranagar, 100 Feet Rd
+  ('aaaaaaaa-0003-4000-8000-000000000003'::uuid, 12.934500, 77.626600),  -- Koramangala 4th Block
+  ('aaaaaaaa-0004-4000-8000-000000000004'::uuid, 12.935200, 77.614400),  -- Koramangala 5th Block
+  ('aaaaaaaa-0005-4000-8000-000000000005'::uuid, 12.971600, 77.596100)   -- UB City
+) as c(id, lat, lng)
+where v.id = c.id;
+
+-- Corporate policies --------------------------------------------------------------------
+-- Nimbus: ₹2,500/head cap, sign-off above ₹1.5L. Vertex: ₹4,500/head, no threshold.
+-- Approvers (approval_chains) reference auth users, so they're set up per environment.
+insert into public.corporate_policies (tenant_id, max_budget_per_head, requires_approval_above) values
+  ('11111111-1111-4111-8111-111111111111', 2500.00, 150000.00),
+  ('22222222-2222-4222-8222-222222222222', 4500.00, null);
+
+-- Departments (FY budgets, pre-GST) ---------------------------------------------------------
+insert into public.departments (id, company_id, name, annual_budget_inr) values
+  ('dddddddd-0001-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Engineering',     600000.00),
+  ('dddddddd-0002-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Sales',           900000.00),
+  ('dddddddd-0003-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'People & Culture', 250000.00),
+  ('dddddddd-0004-4000-8000-000000000004', '22222222-2222-4222-8222-222222222222', 'Investor Relations', 1500000.00),
+  ('dddddddd-0005-4000-8000-000000000005', '22222222-2222-4222-8222-222222222222', 'Leadership',     800000.00);
+
+update public.bookings set department_id = 'dddddddd-0001-4000-8000-000000000001' where id = 'bbbbbbbb-0001-4000-8000-000000000001';
+update public.bookings set department_id = 'dddddddd-0004-4000-8000-000000000004' where id = 'bbbbbbbb-0002-4000-8000-000000000002';
+update public.bookings set department_id = 'dddddddd-0002-4000-8000-000000000002' where id = 'bbbbbbbb-0003-4000-8000-000000000003';
+
+-- The pending seed booking holds its venue/date (24h hold, 6h already elapsed).
+insert into public.inventory_holds (venue_id, tenant_id, booking_id, hold_start, hold_expires_at)
+values ('aaaaaaaa-0003-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+        'bbbbbbbb-0003-4000-8000-000000000003', now() - interval '6 hours', now() + interval '18 hours');
