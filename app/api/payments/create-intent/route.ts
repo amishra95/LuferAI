@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getCurrentMember } from "@/lib/auth/session";
 import { createDepositCheckout, PaymentError } from "@/lib/payments/service";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * POST { bookingId } → authorise a deposit for a pending booking.
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
 
   try {
-    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
+    const origin = siteUrl(request.nextUrl.origin);
     const result = await createDepositCheckout(parsed.data.bookingId, member, origin);
     return NextResponse.json(result);
   } catch (err) {

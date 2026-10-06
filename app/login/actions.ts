@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeNextPath } from "@/lib/auth/roles";
+import { siteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 export interface MagicLinkState {
@@ -15,7 +16,7 @@ export interface MagicLinkState {
 async function callbackUrl(next: string | null) {
   const h = await headers();
   const origin = h.get("origin") ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const url = new URL("/auth/callback", process.env.NEXT_PUBLIC_SITE_URL ?? origin);
+  const url = new URL("/auth/callback", siteUrl(origin));
   if (next) url.searchParams.set("next", next);
   return url.toString();
 }
