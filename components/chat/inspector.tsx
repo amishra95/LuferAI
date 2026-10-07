@@ -35,7 +35,7 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 
 function Json({ value }: { value: unknown }) {
   return (
-    <pre className="border-line text-fg-muted max-h-72 overflow-auto rounded-lg border bg-black/30 p-3 font-mono text-[11px] leading-5">
+    <pre className="border-line text-fg-muted max-h-72 overflow-auto rounded-lg border bg-zinc-50 p-3 font-mono text-[11px] leading-5">
       {value === undefined ? "—" : JSON.stringify(value, null, 2)}
     </pre>
   );
@@ -59,7 +59,7 @@ export function Inspector({
     ["model", session.model],
     [
       "mode",
-      <span key="m" className={session.demo ? "text-fg-muted" : "text-copper"}>
+      <span key="m" className={session.demo ? "text-fg-muted" : "text-copper-ink"}>
         {session.demo ? "demo" : "live"}
       </span>,
     ],
@@ -123,13 +123,13 @@ export function Inspector({
                       aria-pressed={active}
                       className={cn(
                         "flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left font-mono text-[12px] transition-colors",
-                        active ? "bg-surface-raised text-fg" : "text-fg-muted hover:bg-surface"
+                        active ? "bg-surface-raised text-fg" : "text-fg-muted hover:bg-surface-hover"
                       )}
                     >
-                      <span className="text-fg-faint w-4 text-[10.5px] tabular-nums">{i + 1}</span>
+                      <span className="text-fg-subtle w-4 text-[10.5px] tabular-nums">{i + 1}</span>
                       <span className={cn("shrink-0", PHASE_DOT[phase])} aria-hidden />
                       <span className="truncate">{toolName(t)}</span>
-                      <span className="text-fg-faint ml-auto text-[10.5px]">{phase}</span>
+                      <span className="text-fg-subtle ml-auto text-[10.5px]">{phase}</span>
                     </button>
                   </li>
                 );
@@ -148,7 +148,7 @@ export function Inspector({
             ) : (
               <Json value={selected.state === "output-available" ? selected.output : undefined} />
             )}
-            <p className="text-fg-faint mt-3 truncate font-mono text-[10.5px]">{selected.toolCallId}</p>
+            <p className="text-fg-subtle mt-3 truncate font-mono text-[10.5px]">{selected.toolCallId}</p>
           </Section>
         )}
       </div>

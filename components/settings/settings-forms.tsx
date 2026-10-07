@@ -67,7 +67,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
     // method="post": if JS hasn't loaded, a native submit must never put the key in the URL.
     <form method="post" onSubmit={save} className="space-y-5">
       {!editable && (
-        <p className="border-line bg-surface text-fg-subtle flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[12.5px] leading-5">
+        <p className="border-line bg-zinc-50 text-fg-subtle flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[12.5px] leading-5">
           <Lock className="text-fg-faint mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             Read-only here. Keys can only be changed from <code className="text-fg-muted font-mono">next dev</code> on localhost, because
@@ -98,7 +98,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
         <label className="block">
           <span className="mb-2 flex items-center justify-between">
             <span className="label-mono">Model</span>
-            {status.modelIsDefault && <span className="text-fg-faint font-mono text-[11px]">default</span>}
+            {status.modelIsDefault && <span className="text-fg-subtle font-mono text-[11px]">default</span>}
           </span>
           <input
             name="model"

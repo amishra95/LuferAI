@@ -52,7 +52,7 @@ function EnvRow({ name, ok, detail }: { name: string; ok: boolean; detail: strin
     <li className="flex items-center gap-3 py-2.5">
       <span className={cn("size-1.5 shrink-0 rounded-full", ok ? "bg-sage" : "border-fg-faint border")} aria-hidden />
       <span className="text-fg-muted min-w-0 truncate font-mono text-[12px]">{name}</span>
-      <span className={cn("ml-auto shrink-0 font-mono text-[11.5px]", ok ? "text-fg-subtle" : "text-fg-faint")}>{detail}</span>
+      <span className={cn("ml-auto shrink-0 font-mono text-[11.5px]", ok ? "text-fg-muted" : "text-fg-subtle")}>{detail}</span>
       <span className="sr-only">{ok ? "set" : "not set"}</span>
     </li>
   );

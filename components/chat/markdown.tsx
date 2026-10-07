@@ -25,15 +25,15 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   }
 
   return (
-    <div className="border-line my-4 overflow-hidden rounded-xl border bg-black/40">
+    <div className="border-line my-4 overflow-hidden rounded-xl border bg-zinc-50">
       <div className="border-line flex h-9 items-center justify-between border-b pr-1.5 pl-3.5">
-        <span className="text-fg-faint font-mono text-[11px]">{language || "text"}</span>
+        <span className="text-fg-subtle font-mono text-[11px]">{language || "text"}</span>
         <button type="button" onClick={copy} className="btn btn-ghost h-6 gap-1 rounded-md px-2 text-[11px]">
           {copied ? <Check className="text-sage size-3" aria-hidden /> : <Copy className="size-3" aria-hidden />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="text-fg/90 overflow-x-auto px-4 py-3.5 font-mono text-[12.5px] leading-6">
+      <pre className="text-fg overflow-x-auto px-4 py-3.5 font-mono text-[12.5px] leading-6">
         <code>{code}</code>
       </pre>
     </div>
@@ -51,7 +51,7 @@ const components: Components = {
   },
   a({ children, href }) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className="text-copper decoration-copper/40 underline underline-offset-[3px] hover:decoration-copper">
+      <a href={href} target="_blank" rel="noreferrer" className="text-copper-ink decoration-copper/50 underline underline-offset-[3px] hover:decoration-copper-deep">
         {children}
       </a>
     );

@@ -13,7 +13,7 @@ export function Monogram({ name, className }: { name: string; className?: string
     <span
       aria-hidden
       className={cn(
-        "from-copper to-copper-deep text-obsidian grid size-6 shrink-0 place-items-center rounded-[7px] bg-gradient-to-br font-mono text-[11px] font-bold shadow-[0_0_0_1px_rgb(0_0_0/0.4),0_4px_14px_-4px_rgb(245_158_11/0.5)]",
+        "from-copper to-copper-deep text-fg grid size-6 shrink-0 place-items-center rounded-[7px] bg-gradient-to-br font-mono text-[11px] font-bold shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_1px_2px_rgb(180_83_9/0.3),0_4px_12px_-4px_rgb(245_158_11/0.55)]",
         className
       )}
     >
@@ -83,13 +83,13 @@ export function Sidebar({
                       className={cn(
                         "group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors",
                         collapsed && "justify-center px-0",
-                        active ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface hover:text-fg"
+                        active ? "bg-surface text-fg shadow-[0_1px_2px_rgb(9_9_11/0.06)] ring-1 ring-line" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
                       )}
                     >
                       {/* Copper rail marks the current page. */}
                       {active && <span aria-hidden className="bg-copper absolute top-2 bottom-2 -left-2.5 w-[2px] rounded-r-full" />}
                       <Icon
-                        className={cn("size-[15px] shrink-0 transition-colors", active ? "text-copper" : "text-fg-faint group-hover:text-fg-muted")}
+                        className={cn("size-[15px] shrink-0 transition-colors", active ? "text-copper-deep" : "text-fg-faint group-hover:text-fg-muted")}
                         strokeWidth={1.75}
                         aria-hidden
                       />
@@ -111,7 +111,7 @@ export function Sidebar({
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={`${collapsed ? "Expand" : "Collapse"} sidebar (⌘B)`}
             className={cn(
-              "text-fg-subtle hover:bg-surface hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] transition-colors",
+              "text-fg-subtle hover:bg-surface-raised hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] transition-colors",
               collapsed && "justify-center px-0"
             )}
           >
@@ -121,7 +121,7 @@ export function Sidebar({
               <>
                 <PanelLeftClose className="size-[15px]" strokeWidth={1.75} aria-hidden />
                 <span>Collapse</span>
-                <kbd className="text-fg-faint ml-auto font-mono text-[10.5px]">⌘B</kbd>
+                <kbd className="text-fg-subtle ml-auto font-mono text-[10.5px]">⌘B</kbd>
               </>
             )}
           </button>

@@ -12,9 +12,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { sidebarCollapsed, workspaceName } = await getPreferences();
   const model = getLanguageModel();
 
-  // `dark` keeps shadcn's dark: variants consistent; `lufer` scopes the design system.
+  // `lufer` scopes the design system (warm light theme).
   return (
-    <div className="dark lufer flex-1">
+    <div className="lufer flex-1">
       <DashboardShell
         defaultCollapsed={sidebarCollapsed}
         workspaceName={workspaceName}

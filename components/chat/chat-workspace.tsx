@@ -121,7 +121,7 @@ export function ChatWorkspace({
                   demo mode
                 </span>
                 Replies are scripted; tool calls run against real data.
-                <Link href="/settings" className="text-fg-muted hover:text-copper inline-flex items-center gap-0.5 transition-colors">
+                <Link href="/settings" className="text-fg-muted hover:text-copper-ink inline-flex items-center gap-0.5 transition-colors">
                   Connect a key <ArrowUpRight className="size-3" aria-hidden />
                 </Link>
               </div>
@@ -140,9 +140,9 @@ export function ChatWorkspace({
                       <button
                         type="button"
                         onClick={() => send(text)}
-                        className="group text-fg-muted hover:bg-surface hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
+                        className="group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
                       >
-                        <Icon className="text-fg-faint group-hover:text-copper size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
+                        <Icon className="text-fg-faint group-hover:text-copper-deep size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
                         <span className="flex-1">{text}</span>
                         <ArrowUpRight className="text-fg-faint size-3.5 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
                       </button>
@@ -182,7 +182,7 @@ export function ChatWorkspace({
           </div>
         </div>
 
-        <div className="from-obsidian via-obsidian/90 pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-4 pt-12 pb-4 sm:px-6 sm:pb-6">
+        <div className="from-canvas via-canvas/90 pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-4 pt-12 pb-4 sm:px-6 sm:pb-6">
           <div className="pointer-events-auto mx-auto max-w-[46rem]">
             <PromptBar
               busy={busy}
@@ -202,7 +202,7 @@ export function ChatWorkspace({
         </div>
       </div>
 
-      <div className={cn("border-line hidden w-[21rem] shrink-0 border-l bg-white/[0.008]", inspectorOpen && "lg:block")}>
+      <div className={cn("border-line bg-surface hidden w-[21rem] shrink-0 border-l", inspectorOpen && "lg:block")}>
         {inspector(() => setInspectorOpen(false))}
       </div>
 

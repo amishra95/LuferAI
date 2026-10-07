@@ -72,7 +72,7 @@ export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: D
         {events.map((e) => (
           <li
             key={e.id}
-            className="border-line hover:bg-surface flex gap-3.5 border-b px-5 py-3.5 transition-colors last:border-b-0"
+            className="border-line hover:bg-surface-hover flex gap-3.5 border-b px-5 py-3.5 transition-colors last:border-b-0"
           >
             <div className="pt-px">
               <StatusGlyph status={e.status} />
@@ -82,12 +82,12 @@ export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: D
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-3">
                 <p className="text-fg min-w-0 flex-1 truncate text-[13.5px]">{e.task}</p>
-                <time dateTime={e.startedAt} className="text-fg-faint shrink-0 font-mono text-[11px] tabular-nums">
+                <time dateTime={e.startedAt} className="text-fg-subtle shrink-0 font-mono text-[11px] tabular-nums">
                   {formatAgo(e.startedAt, now)}
                 </time>
               </div>
               <p className={cn("mt-1 truncate text-[12.5px]", e.status === "failed" ? "text-rose/90" : "text-fg-subtle")}>{e.log}</p>
-              <p className="text-fg-faint mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[11px] tabular-nums">
+              <p className="text-fg-subtle mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[11px] tabular-nums">
                 <span className="text-fg-muted">{e.agent}</span>
                 <span>
                   step {e.step}/{e.totalSteps}

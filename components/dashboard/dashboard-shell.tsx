@@ -55,7 +55,7 @@ export function DashboardShell({
         {/* A single, very faint copper bloom: the only ornament in the chrome. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.045),transparent)]"
+          className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
         />
         <Header workspaceName={workspaceName} system={system} onOpenMobileNav={() => setMobileOpen(true)} />
         {/* Pages own their padding and width: most scroll, Chat fills the pane. */}

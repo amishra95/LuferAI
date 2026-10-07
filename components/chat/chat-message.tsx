@@ -30,7 +30,7 @@ export function ChatMessage({
     const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
     return (
       <div className="flex justify-end">
-        <div className="bg-surface-raised border-line text-fg max-w-[85%] rounded-2xl rounded-br-md border px-4 py-2.5 text-[14px] leading-6 whitespace-pre-wrap">
+        <div className="bg-surface border-line text-fg max-w-[85%] rounded-2xl rounded-br-md border px-4 py-2.5 shadow-[0_1px_2px_rgb(9_9_11/0.05)] text-[14px] leading-6 whitespace-pre-wrap">
           {text}
         </div>
       </div>
@@ -52,7 +52,7 @@ export function ChatMessage({
       <div className="pt-0.5">
         <AgentMark live={streaming} />
       </div>
-      <div className="text-fg/85 min-w-0 flex-1 space-y-3 text-[14px] leading-7">
+      <div className="text-fg-muted min-w-0 flex-1 space-y-3 text-[14px] leading-7">
         {message.parts.map((part, i) => {
           if (part.type === "text") {
             const live = streaming && part === lastPart;
@@ -73,7 +73,7 @@ export function ChatMessage({
         })}
 
         {streaming && message.parts.length === 0 && <ThinkingDots />}
-        {tokens != null && <p className="text-fg-faint font-mono text-[11px] tabular-nums">{tokens.toLocaleString("en-US")} tokens</p>}
+        {tokens != null && <p className="text-fg-subtle font-mono text-[11px] tabular-nums">{tokens.toLocaleString("en-US")} tokens</p>}
       </div>
     </div>
   );

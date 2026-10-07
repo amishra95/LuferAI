@@ -42,7 +42,7 @@ export function PromptBar({
         e.preventDefault();
         submit();
       }}
-      className="border-line-strong bg-obsidian-raised/80 focus-within:border-copper/30 rounded-2xl border shadow-[0_24px_60px_-24px_rgb(0_0_0/0.9),inset_0_1px_0_rgb(255_255_255/0.04)] backdrop-blur-xl transition-colors"
+      className="border-line-strong bg-elevated/85 focus-within:border-copper-deep/50 focus-within:ring-[3px] focus-within:ring-copper/15 rounded-2xl border shadow-[0_1px_2px_rgb(9_9_11/0.05),0_16px_40px_-18px_rgb(9_9_11/0.22)] backdrop-blur-xl transition-colors"
     >
       <label htmlFor="prompt" className="sr-only">
         Message the agent
@@ -73,9 +73,9 @@ export function PromptBar({
           aria-pressed={inspectorOpen}
           className={cn("btn btn-ghost h-7 rounded-lg px-2 text-[12px]", inspectorOpen && "text-fg")}
         >
-          <PanelRight className={cn("size-3.5", inspectorOpen && "text-copper")} aria-hidden /> Inspector
+          <PanelRight className={cn("size-3.5", inspectorOpen && "text-copper-deep")} aria-hidden /> Inspector
         </button>
-        <span className="text-fg-faint ml-auto hidden pr-2 font-mono text-[10.5px] sm:inline">
+        <span className="text-fg-subtle ml-auto hidden pr-2 font-mono text-[10.5px] sm:inline">
           {value.length > MAX_LENGTH * 0.8 ? `${value.length}/${MAX_LENGTH}` : "↵ send  ⇧↵ newline"}
         </span>
         {busy ? (
@@ -83,7 +83,7 @@ export function PromptBar({
             type="button"
             onClick={onStop}
             aria-label="Stop generating"
-            className="border-copper/30 bg-copper/10 text-copper hover:bg-copper/15 grid size-8 place-items-center rounded-xl border transition-colors"
+            className="border-copper-deep/30 bg-copper/10 text-copper-ink hover:bg-copper/15 grid size-8 place-items-center rounded-xl border transition-colors"
           >
             <Square className="size-2.5 fill-current" aria-hidden />
           </button>
@@ -92,7 +92,7 @@ export function PromptBar({
             type="submit"
             disabled={!text}
             aria-label="Send message"
-            className="bg-fg text-obsidian disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-xl transition-colors hover:bg-white"
+            className="bg-copper-deep hover:bg-copper-ink disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-xl text-white shadow-[0_1px_2px_rgb(180_83_9/0.35)] transition-colors disabled:shadow-none"
           >
             <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
           </button>

@@ -32,7 +32,7 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
       aria-label={`Sort by ${column.label} ${nextDir === "asc" ? "ascending" : "descending"}`}
     >
       {column.label}
-      {active && <Icon className="text-copper size-3" aria-hidden />}
+      {active && <Icon className="text-copper-deep size-3" aria-hidden />}
     </Link>
   );
 }
@@ -135,7 +135,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             </thead>
             <tbody>
               {rows.map((v) => (
-                <tr key={v.id} className="border-line hover:bg-surface border-b transition-colors last:border-b-0">
+                <tr key={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
                   <td className="max-w-80 py-3 pr-4 pl-5">
                     <p className="text-fg truncate font-medium">{v.name}</p>
                     <p className="text-fg-subtle mt-0.5 truncate text-[12px]" title={v.address}>
@@ -147,7 +147,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                   <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(Number(v.min_spend_inr))}</td>
                   <td className="px-4 text-center">
                     {v.pdr_available ? (
-                      <span className="bg-sage/80 inline-block size-1.5 rounded-full" title="Private dining room" />
+                      <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
                     ) : (
                       <span className="text-fg-faint font-mono">–</span>
                     )}
@@ -161,7 +161,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                 <tr>
                   <td colSpan={COLUMNS.length} className="px-5 py-16 text-center">
                     <p className="text-fg-muted text-[13.5px]">No venues match these filters.</p>
-                    <Link href="/venues" className="text-fg-subtle hover:text-copper mt-1 inline-block text-[12.5px] transition-colors">
+                    <Link href="/venues" className="text-fg-subtle hover:text-copper-ink mt-1 inline-block text-[12.5px] transition-colors">
                       Clear filters
                     </Link>
                   </td>
@@ -174,11 +174,11 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-[11.5px]">
           <span className="tabular-nums">
             {first}–{first ? first + rows.length - 1 : 0} of {total}
-            {filtered && <span className="text-fg-faint"> · filtered from {venues.length}</span>}
+            {filtered && <span className="text-fg-subtle"> · filtered from {venues.length}</span>}
           </span>
           <nav className="ml-auto flex items-center gap-3" aria-label="Pagination">
             <span className="flex items-center gap-0.5">
-              <span className="text-fg-faint mr-1.5 hidden sm:inline">rows</span>
+              <span className="text-fg-subtle mr-1.5 hidden sm:inline">rows</span>
               {PAGE_SIZES.map((s) => (
                 <Link
                   key={s}

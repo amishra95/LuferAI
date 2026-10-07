@@ -4,26 +4,29 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Lufer design tokens (dashboard). Obsidian base, glass surfaces built from
- * low-alpha white, hairline borders, and a copper accent kept for active and
- * live states only. Status hues (sage, rose) always ship with an icon + label.
+ * Lufer design tokens (dashboard). Warm off-white canvas, crisp white cards
+ * with hairline zinc borders and soft shadows, charcoal ink. Copper is kept for
+ * live/active state only; copper-ink is its text-safe shade on light surfaces.
+ * Hover/raised fills are translucent charcoal so they read on white and canvas.
+ * Status hues (sage, rose) always ship with an icon + label.
  */
 @theme {
-  --color-obsidian: #050507;
-  --color-obsidian-raised: #0b0b0e;
-  --color-fg: #ededef;
-  --color-fg-muted: rgb(237 237 239 / 0.68);
-  --color-fg-subtle: rgb(237 237 239 / 0.5);
-  --color-fg-faint: rgb(237 237 239 / 0.28);
-  --color-surface: rgb(255 255 255 / 0.015);
-  --color-surface-raised: rgb(255 255 255 / 0.03);
-  --color-surface-hover: rgb(255 255 255 / 0.045);
-  --color-line: rgb(255 255 255 / 0.06);
-  --color-line-strong: rgb(255 255 255 / 0.1);
+  --color-canvas: #f8f9fa;
+  --color-elevated: #ffffff;
+  --color-fg: #09090b;
+  --color-fg-muted: #3f3f46;
+  --color-fg-subtle: #71717a;
+  --color-fg-faint: #a1a1aa;
+  --color-surface: #ffffff;
+  --color-surface-raised: rgb(9 9 11 / 0.045);
+  --color-surface-hover: rgb(9 9 11 / 0.028);
+  --color-line: rgb(228 228 231 / 0.8);
+  --color-line-strong: #d4d4d8;
   --color-copper: #f59e0b;
   --color-copper-deep: #d97706;
-  --color-sage: #8cc7a1;
-  --color-rose: #f19a8f;
+  --color-copper-ink: #b45309;
+  --color-sage: #2f7a52;
+  --color-rose: #c2352b;
 }
 
 @theme inline {
@@ -161,36 +164,38 @@
 /* ------------------------------------------------------------------------- */
 
 html:has(.lufer) {
-  background: var(--color-obsidian);
-  color-scheme: dark;
+  background: var(--color-canvas);
+  color-scheme: light;
 }
 
 /* In the base layer so utilities (e.g. outline-none on a focus target) still win. */
 @layer base {
   .lufer {
-    background: var(--color-obsidian);
+    background: var(--color-canvas);
     color: var(--color-fg);
     font-feature-settings: "ss01", "cv11";
-    scrollbar-color: rgb(255 255 255 / 0.1) transparent;
+    scrollbar-color: rgb(9 9 11 / 0.16) transparent;
     scrollbar-width: thin;
   }
 
   .lufer ::selection {
-    background: rgb(245 158 11 / 0.28);
+    background: rgb(245 158 11 / 0.22);
   }
 
   .lufer :focus-visible {
-    outline: 1.5px solid rgb(245 158 11 / 0.7);
+    outline: 2px solid rgb(217 119 6 / 0.65);
     outline-offset: 2px;
   }
 }
 
-/* Glass card: barely-there fill, hairline border, a whisper of top light. */
+/* White card: hairline border plus a soft, natural two-layer shadow. */
 @utility panel {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  box-shadow:
+    0 1px 2px rgb(9 9 11 / 0.04),
+    0 4px 14px -6px rgb(9 9 11 / 0.06);
 }
 
 /* Mono micro-label for section and column headings. */
@@ -211,40 +216,43 @@ html:has(.lufer) {
   height: 2rem;
   padding-inline: 0.75rem;
   border-radius: 9px;
-  border: 1px solid var(--color-line);
-  background: var(--color-surface-raised);
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
   color: var(--color-fg);
   font-size: 12.5px;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms;
+  box-shadow: 0 1px 2px rgb(9 9 11 / 0.05);
+  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, box-shadow 150ms;
   &:hover {
-    background: var(--color-surface-hover);
-    border-color: var(--color-line-strong);
+    background: #fafafa;
+    border-color: #c4c4ca;
   }
   &:disabled,
   &[aria-disabled="true"] {
-    opacity: 0.4;
+    opacity: 0.45;
     pointer-events: none;
   }
 }
 
 @utility btn-primary {
   background: var(--color-fg);
-  border-color: transparent;
-  color: var(--color-obsidian);
+  border-color: var(--color-fg);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgb(9 9 11 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.1);
   &:hover {
-    background: #ffffff;
-    border-color: transparent;
+    background: #27272a;
+    border-color: #27272a;
   }
 }
 
 @utility btn-ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--color-fg-muted);
+  box-shadow: none;
+  color: var(--color-fg-subtle);
   &:hover {
-    background: var(--color-surface-hover);
+    background: var(--color-surface-raised);
     border-color: transparent;
     color: var(--color-fg);
   }
@@ -259,25 +267,27 @@ html:has(.lufer) {
   height: 2.25rem;
   width: 100%;
   border-radius: 10px;
-  border: 1px solid var(--color-line);
-  background: rgb(0 0 0 / 0.25);
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
   padding-inline: 0.75rem;
   color: var(--color-fg);
   font-size: 13px;
+  box-shadow: 0 1px 2px rgb(9 9 11 / 0.04);
   transition: border-color 150ms, box-shadow 150ms;
   &::placeholder {
     color: var(--color-fg-faint);
   }
   &:hover {
-    border-color: var(--color-line-strong);
+    border-color: #c4c4ca;
   }
   &:focus {
     outline: none;
-    border-color: rgb(245 158 11 / 0.45);
-    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.1);
+    border-color: var(--color-copper-deep);
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.18);
   }
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.55;
+    background: var(--color-canvas);
   }
 }
 
@@ -290,25 +300,26 @@ html:has(.lufer) {
   padding-inline: 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--color-line);
-  background: var(--color-surface-raised);
-  color: var(--color-fg-muted);
+  background: var(--color-surface);
+  color: var(--color-fg-subtle);
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  box-shadow: 0 1px 1px rgb(9 9 11 / 0.03);
 }
 
 @utility pill-copper {
-  border-color: rgb(245 158 11 / 0.25);
-  background: rgb(245 158 11 / 0.08);
-  color: var(--color-copper);
+  border-color: rgb(217 119 6 / 0.3);
+  background: rgb(245 158 11 / 0.1);
+  color: var(--color-copper-ink);
 }
 
 /* Soft copper pulse for live indicators. */
 @keyframes lufer-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.45);
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.5);
   }
   50% {
     box-shadow: 0 0 0 4px rgb(245 158 11 / 0);
@@ -323,7 +334,7 @@ html:has(.lufer) {
   animation: lufer-pulse 2s ease-in-out infinite;
 }
 
-/* Copper shimmer across a running tool pill's label. */
+/* Copper shimmer across a running tool pill's label (dark-to-bright copper reads on white). */
 @keyframes lufer-shimmer {
   from {
     background-position: 200% 0;
@@ -334,7 +345,7 @@ html:has(.lufer) {
 }
 
 @utility text-shimmer {
-  background: linear-gradient(90deg, var(--color-copper) 0%, #fcd9a0 50%, var(--color-copper) 100%) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, var(--color-copper-ink) 0%, var(--color-copper) 50%, var(--color-copper-ink) 100%) 0 0 / 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -356,5 +367,5 @@ html:has(.lufer) {
   height: 1.1em;
   margin-left: 3px;
   border-radius: 1px;
-  background: var(--color-copper);
+  background: var(--color-copper-deep);
 }

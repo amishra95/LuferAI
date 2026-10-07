@@ -45,7 +45,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
       );
     case "disabled":
       return (
-        <span className="pill text-fg-faint">
+        <span className="pill text-fg-subtle">
           <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden /> off
         </span>
       );
@@ -63,13 +63,13 @@ function Switch({ on, label, pending, onToggle }: { on: boolean; label: string; 
       onClick={onToggle}
       className={cn(
         "relative h-[18px] w-8 shrink-0 rounded-full border transition-colors disabled:opacity-50",
-        on ? "border-copper/40 bg-copper/25" : "border-line-strong bg-surface-raised"
+        on ? "border-copper-deep bg-copper" : "border-line-strong bg-zinc-200"
       )}
     >
       <span
         className={cn(
           "absolute top-[2px] left-[2px] size-3 rounded-full transition-all duration-200",
-          on ? "bg-copper translate-x-[14px] shadow-[0_0_8px_rgb(245_158_11/0.6)]" : "bg-fg-subtle"
+          on ? "translate-x-[14px] bg-white shadow-[0_1px_2px_rgb(9_9_11/0.25)]" : "bg-white shadow-[0_1px_2px_rgb(9_9_11/0.2)]"
         )}
       />
     </button>
@@ -109,7 +109,7 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
 
   return (
     <li className="border-line border-b last:border-b-0">
-      <div className={cn("hover:bg-surface flex flex-col gap-3 px-5 py-4 transition-colors", AGENT_GRID)}>
+      <div className={cn("hover:bg-surface-hover flex flex-col gap-3 px-5 py-4 transition-colors", AGENT_GRID)}>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <p className="text-fg truncate text-[13.5px] font-medium">{agent.name}</p>
@@ -136,10 +136,10 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
         </div>
 
         <div className="text-fg-muted flex flex-wrap gap-x-5 gap-y-1 font-mono text-[12px] tabular-nums lg:contents">
-          <Cell label="last">{agent.lastRun ? formatAgo(agent.lastRun.at, now) : <span className="text-fg-faint">never</span>}</Cell>
+          <Cell label="last">{agent.lastRun ? formatAgo(agent.lastRun.at, now) : <span className="text-fg-subtle">never</span>}</Cell>
           <Cell label="runs" className="lg:text-right">{agent.runCount}</Cell>
           <Cell label="steps" className="lg:text-right">{agent.maxSteps}</Cell>
-          <Cell label="temp" className="lg:text-right">{agent.temperature ?? <span className="text-fg-faint">auto</span>}</Cell>
+          <Cell label="temp" className="lg:text-right">{agent.temperature ?? <span className="text-fg-subtle">auto</span>}</Cell>
         </div>
 
         <div className="flex items-center gap-1.5 lg:justify-end">
@@ -174,7 +174,7 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
 
       {(test || testError) && (
         <div className="px-5 pb-4" aria-live="polite">
-          <div className="border-line rounded-xl border bg-black/25 px-4 py-3">
+          <div className="border-line rounded-xl border bg-zinc-50 px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="label-mono">
                 test run{test && <span className="text-fg-muted normal-case"> · {test.durationMs} ms</span>}
@@ -198,7 +198,7 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
                   {t.ok ? <Check className="text-sage size-3.5" strokeWidth={2.5} aria-label="passed" /> : <X className="text-rose size-3.5" strokeWidth={2.5} aria-label="failed" />}
                   <span className="text-fg">{t.name}</span>
                   <span className="text-fg-subtle truncate font-sans text-[12.5px]">{t.summary}</span>
-                  <span className="text-fg-faint ml-auto tabular-nums">{t.durationMs} ms</span>
+                  <span className="text-fg-subtle ml-auto tabular-nums">{t.durationMs} ms</span>
                 </li>
               ))}
             </ul>
@@ -225,7 +225,7 @@ function ConfigDialog({ agent, ref }: { agent: AgentRecord; ref: React.RefObject
     <dialog
       ref={ref}
       aria-labelledby={`${agent.id}-config`}
-      className="border-line-strong bg-obsidian-raised text-fg m-auto w-[min(30rem,calc(100vw-2rem))] rounded-2xl border p-0 shadow-2xl shadow-black/70 backdrop:bg-black/60 backdrop:backdrop-blur-[2px]"
+      className="border-line bg-elevated text-fg m-auto w-[min(30rem,calc(100vw-2rem))] rounded-2xl border p-0 shadow-2xl shadow-zinc-900/15 backdrop:bg-zinc-950/25 backdrop:backdrop-blur-[2px]"
     >
       {/* key resets the uncontrolled inputs to the saved values each time the agent changes. */}
       <form onSubmit={submitWithoutReset(action)} key={`${agent.tools.join()}|${agent.temperature}|${agent.maxSteps}`}>
@@ -249,7 +249,7 @@ function ConfigDialog({ agent, ref }: { agent: AgentRecord; ref: React.RefObject
               {ALL_TOOLS.map((t, i) => (
                 <label
                   key={t}
-                  className="border-line hover:border-line-strong has-checked:border-copper/35 has-checked:bg-copper/[0.04] flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors"
+                  className="border-line hover:border-line-strong has-checked:border-copper-deep/40 has-checked:bg-copper/[0.06] flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors"
                 >
                   <input
                     type="checkbox"
