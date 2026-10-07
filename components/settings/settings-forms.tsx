@@ -11,11 +11,13 @@ import {
   testSupabaseConnection,
   type FormState,
 } from "@/app/(dashboard)/settings/actions";
+import { useToast } from "@/components/dashboard/toast";
 import { submitWithoutReset } from "@/lib/form-submit";
 import type { OpenAIStatus } from "@/lib/settings/status";
 import { cn } from "@/lib/utils";
 
 const IDLE: FormState = { status: "idle" };
+const UNREACHABLE: FormState = { status: "error", message: "Couldn't reach the server. Check your connection and try again." };
 
 /** Inline result line: icon + text, so success/failure never relies on colour alone. */
 export function Feedback({ state, pending, pendingText }: { state: FormState; pending?: boolean; pendingText?: string }) {
@@ -42,9 +44,22 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
   const [busy, startBusy] = useTransition();
   const [busyText, setBusyText] = useState("");
 
+  const toast = useToast();
+
+  /** Runs an action; success → toast, failure → inline result (and a toast if the server was unreachable). */
   function run(text: string, fn: () => Promise<FormState>) {
     setBusyText(text);
-    startBusy(async () => setResult(await fn()));
+    startBusy(async () => {
+      try {
+        const r = await fn();
+        setResult(r);
+        if (r.status === "success") toast({ tone: "success", title: r.message ?? "Saved" });
+      } catch (err) {
+        console.error(err);
+        setResult(UNREACHABLE);
+        toast({ tone: "error", title: "Request failed", description: UNREACHABLE.message });
+      }
+    });
   }
 
   // Save, then immediately verify the key against OpenAI so the user gets one clear answer.
@@ -129,7 +144,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
           </button>
         )}
         <div className="w-full empty:hidden" aria-live="polite">
-          <Feedback state={result} pending={busy} pendingText={busyText} />
+          <Feedback state={result.status === "error" ? result : IDLE} pending={busy} pendingText={busyText} />
         </div>
       </div>
     </form>
@@ -138,13 +153,24 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
 
 export function SupabaseTest({ configured }: { configured: boolean }) {
   const [result, setResult] = useState<FormState>(IDLE);
+  const toast = useToast();
   const [busy, start] = useTransition();
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
         type="button"
         disabled={!configured || busy}
-        onClick={() => start(async () => setResult(await testSupabaseConnection()))}
+        onClick={() =>
+          start(async () => {
+            try {
+              setResult(await testSupabaseConnection());
+            } catch (err) {
+              console.error(err);
+              setResult(UNREACHABLE);
+              toast({ tone: "error", title: "Connection test failed", description: UNREACHABLE.message });
+            }
+          })
+        }
         className="btn"
         title={configured ? undefined : "Set the Supabase env vars first"}
       >
@@ -158,7 +184,18 @@ export function SupabaseTest({ configured }: { configured: boolean }) {
 }
 
 export function PreferencesForm({ workspaceName, inspectorOpen }: { workspaceName: string; inspectorOpen: boolean }) {
-  const [state, action, pending] = useActionState(savePreferences, IDLE);
+  const toast = useToast();
+  const [state, action, pending] = useActionState(async (prev: FormState, form: FormData) => {
+    try {
+      const r = await savePreferences(prev, form);
+      if (r.status === "success") toast({ tone: "success", title: "Preferences saved" });
+      return r;
+    } catch (err) {
+      console.error(err);
+      toast({ tone: "error", title: "Couldn't save preferences", description: UNREACHABLE.message });
+      return UNREACHABLE;
+    }
+  }, IDLE);
   return (
     <form onSubmit={submitWithoutReset(action)} className="space-y-5">
       <label className="block max-w-sm">
@@ -175,7 +212,7 @@ export function PreferencesForm({ workspaceName, inspectorOpen }: { workspaceNam
           {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
           Save preferences
         </button>
-        <Feedback state={state} />
+        {state.status === "error" && <Feedback state={state} />}
       </div>
     </form>
   );

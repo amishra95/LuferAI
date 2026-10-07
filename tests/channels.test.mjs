@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 
-import { parseReservationText } from "../lib/channels/parse-reservation.ts";
+import { mergeParsed, parseReservationText } from "../lib/channels/parse-reservation.ts";
 import { tokensMatch, verifyMetaSignature, verifySlackSignature } from "../lib/channels/signatures.ts";
 
 const catalogue = {
@@ -74,4 +74,30 @@ test("verify-token comparison requires both values", () => {
   assert.equal(tokensMatch("abc", "abd"), false);
   assert.equal(tokensMatch(null, "abc"), false);
   assert.equal(tokensMatch("", ""), false);
+});
+
+test("multi-turn: a later 'book <venue>' reuses guests, date and budget from the earlier search", () => {
+  const earlier = parseReservationText("Dinner for 40 in Indiranagar on 20 Nov, ₹2,800 a head", catalogue, TODAY);
+  const merged = mergeParsed(parseReservationText("book Copper Courtyard", catalogue, TODAY), [earlier]);
+  assert.equal(merged.intent, "book");
+  assert.equal(merged.venueName, "The Copper Courtyard");
+  assert.equal(merged.guests, 40);
+  assert.equal(merged.date, "2026-11-20");
+  assert.equal(merged.budgetPerHead, 2800);
+});
+
+test("multi-turn: details sent after a booking request complete it; newer values win", () => {
+  const asked = parseReservationText("book Saffron Terrace for 30 people", catalogue, TODAY);
+  const merged = mergeParsed(parseReservationText("20 Nov, ₹2,000 a head, actually 35 guests", catalogue, TODAY), [asked]);
+  assert.equal(merged.intent, "book");
+  assert.equal(merged.venueName, "Saffron Terrace");
+  assert.equal(merged.guests, 35);
+  assert.equal(merged.date, "2026-11-20");
+});
+
+test("multi-turn: a fresh search in a new area isn't treated as a booking", () => {
+  const asked = parseReservationText("book Saffron Terrace", catalogue, TODAY);
+  const merged = mergeParsed(parseReservationText("what about Koramangala for 60?", catalogue, TODAY), [asked]);
+  assert.equal(merged.intent, "search");
+  assert.equal(merged.area, "Koramangala");
 });

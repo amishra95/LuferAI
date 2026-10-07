@@ -118,3 +118,18 @@ export function parseReservationText(
     wantsPrivateDining: /private (dining|room)|\bpdr\b|private space/.test(lower),
   };
 }
+
+/** Current message's details win; gaps are filled from earlier turns (newest first). */
+export function mergeParsed(current: ParsedReservation, earlier: ParsedReservation[]): ParsedReservation {
+  const pick = <K extends keyof ParsedReservation>(k: K) => current[k] ?? earlier.find((p) => p[k] !== undefined)?.[k];
+  const wantedBooking = earlier.some((p) => p.intent === "book");
+  return {
+    intent: current.intent === "book" || (wantedBooking && !current.area) ? "book" : "search",
+    guests: pick("guests"),
+    date: pick("date"),
+    budgetPerHead: pick("budgetPerHead"),
+    area: pick("area"),
+    venueName: pick("venueName"),
+    wantsPrivateDining: current.wantsPrivateDining || earlier.some((p) => p.wantsPrivateDining),
+  };
+}

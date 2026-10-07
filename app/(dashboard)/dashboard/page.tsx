@@ -9,7 +9,7 @@ import { AgentsWidget, ChannelsWidget, type ChannelSummary } from "@/components/
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { agentSnapshot } from "@/lib/agents/store";
 import { isChannelConfigured } from "@/lib/channels/config";
-import { isChannelEnabled, listEvents } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 import { getActivity } from "@/lib/telemetry/activity";
 import { getTelemetryMetrics, TELEMETRY_SOURCE } from "@/lib/telemetry/sample-data";
 import type { TaskChannel } from "@/types/channels";
@@ -23,17 +23,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const filter: ChannelFilterValue = FILTERS.includes(channel as ChannelFilterValue) ? (channel as ChannelFilterValue) : "all";
 
   const metrics = getTelemetryMetrics();
-  const { now, events, liveCount } = getActivity();
+  const { now, events, liveCount, channelEvents: allChannelEvents, liveError } = await getActivity();
   const counts = Object.fromEntries(
     FILTERS.map((f) => [f, f === "all" ? events.length : events.filter((e) => e.channel === f).length])
   ) as Record<ChannelFilterValue, number>;
   const visible = filter === "all" ? events : events.filter((e) => e.channel === filter);
 
-  const channelEvents = listEvents().filter((e) => !e.test);
-  const channels: ChannelSummary[] = (["whatsapp", "slack"] as const).map((id) => ({
+  const channelEvents = allChannelEvents.filter((e) => !e.test);
+  const enabled = await Promise.all(
+    (["whatsapp", "slack"] as const).map((id) =>
+      channelStore()
+        .isEnabled(id)
+        .catch(() => true)
+    )
+  );
+  const channels: ChannelSummary[] = (["whatsapp", "slack"] as const).map((id, i) => ({
     id,
     label: id === "whatsapp" ? "WhatsApp" : "Slack",
-    state: !isChannelConfigured(id) ? "setup" : isChannelEnabled(id) ? "live" : "paused",
+    state: !isChannelConfigured(id) ? "setup" : enabled[i] ? "live" : "paused",
     messages: channelEvents.filter((e) => e.channel === id).length,
     bookings: channelEvents.filter((e) => e.channel === id && e.status === "booked").length,
   }));
@@ -68,6 +75,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </div>
             <ChannelFilter value={filter} counts={counts} />
           </div>
+          {liveError && (
+            <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-xl border px-4 py-2.5 text-[12.5px]">
+              Live channel activity is unavailable right now ({liveError}). Showing sample rows only.
+            </p>
+          )}
           <ActivityFeed events={visible} now={now} emptyChannel={filter === "all" ? undefined : (filter as TaskChannel)} />
         </section>
 

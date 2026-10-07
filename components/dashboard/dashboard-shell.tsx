@@ -6,6 +6,7 @@ import { Drawer } from "@/components/dashboard/drawer";
 import { Header } from "@/components/dashboard/header";
 import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { ToastProvider } from "@/components/dashboard/toast";
 import type { SystemMode } from "@/types/navigation";
 
 export function DashboardShell({
@@ -44,23 +45,25 @@ export function DashboardShell({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <Sidebar workspaceName={workspaceName} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
+    <ToastProvider>
+      <div className="flex h-dvh overflow-hidden">
+        <Sidebar workspaceName={workspaceName} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
 
-      <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
-        <Sidebar workspaceName={workspaceName} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
-      </Drawer>
+        <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
+          <Sidebar workspaceName={workspaceName} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+        </Drawer>
 
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        {/* A single, very faint copper bloom: the only ornament in the chrome. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
-        />
-        <Header workspaceName={workspaceName} system={system} onOpenMobileNav={() => setMobileOpen(true)} />
-        {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          {/* A single, very faint copper bloom: the only ornament in the chrome. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
+          />
+          <Header workspaceName={workspaceName} system={system} onOpenMobileNav={() => setMobileOpen(true)} />
+          {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
+          <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

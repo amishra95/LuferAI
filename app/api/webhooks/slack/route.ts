@@ -1,10 +1,10 @@
 import { after } from "next/server";
 
-import { runChannelAgent } from "@/lib/channels/agent";
+import { recordDelivery, runChannelAgent } from "@/lib/channels/agent";
 import { env, isChannelConfigured } from "@/lib/channels/config";
 import { verifySlackSignature } from "@/lib/channels/signatures";
 import { extractSlackMessage, postSlackMessage } from "@/lib/channels/slack";
-import { firstDelivery, isChannelEnabled, updateEvent } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 
 export const maxDuration = 60;
 
@@ -36,19 +36,27 @@ export async function POST(req: Request) {
 
   // Slack retries on slow acks; the first delivery is already being handled.
   if (req.headers.get("x-slack-retry-num")) return new Response(null, { status: 200 });
-  if (!isChannelEnabled("slack")) return new Response(null, { status: 200 });
+  const store = channelStore();
+  try {
+    if (!(await store.isEnabled("slack"))) return new Response(null, { status: 200 });
 
-  const msg = extractSlackMessage(payload);
-  if (msg && firstDelivery(`slack:${msg.eventId}`)) {
-    after(async () => {
-      const result = await runChannelAgent({ channel: "slack", senderId: msg.user, text: msg.text });
-      try {
-        await postSlackMessage(msg.channel, result.reply, msg.threadTs);
-      } catch (err) {
-        console.error("slack: reply failed", err);
-        updateEvent(result.eventId, { status: "failed", error: err instanceof Error ? err.message : "Reply failed" });
-      }
-    });
+    const msg = extractSlackMessage(payload);
+    if (msg && (await store.firstDelivery(`slack:${msg.eventId}`))) {
+      after(async () => {
+        const result = await runChannelAgent({ channel: "slack", senderId: msg.user, text: msg.text });
+        try {
+          await postSlackMessage(msg.channel, result.reply, msg.threadTs);
+          await recordDelivery(result.eventId, { ok: true });
+        } catch (err) {
+          console.error("slack: reply failed", err);
+          await recordDelivery(result.eventId, { ok: false, error: err instanceof Error ? err.message : "Reply failed" });
+        }
+      });
+    }
+  } catch (err) {
+    // Store unavailable: a 5xx makes Slack retry instead of dropping the event.
+    console.error("slack: webhook failed", err);
+    return Response.json({ error: "Temporarily unavailable." }, { status: 503 });
   }
   return new Response(null, { status: 200 });
 }

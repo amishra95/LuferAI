@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { Page, PageHeader } from "@/components/dashboard/page-header";
+import { PanelErrorBoundary } from "@/components/dashboard/error-boundary";
 import { ChannelCard } from "@/components/settings/channel-card";
 import { OpenAIForm, PreferencesForm, SupabaseTest } from "@/components/settings/settings-forms";
 import { CHANNEL_ENV, env, isChannelConfigured } from "@/lib/channels/config";
-import { isChannelEnabled, listEvents, listLinks } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 import { listCompanies, listPortalUsers } from "@/lib/data";
 import { getPreferences } from "@/lib/settings/preferences";
 import { canEditEnvFile, getOpenAIStatus, getSupabaseStatus } from "@/lib/settings/status";
@@ -72,31 +73,54 @@ export default async function SettingsPage() {
     getSupabaseStatus(),
     canEditEnvFile(),
     getPreferences(),
-    listPortalUsers(),
-    listCompanies(),
+    // Portal data is optional here: an outage shouldn't take down the whole Settings page.
+    listPortalUsers().catch(() => []),
+    listCompanies().catch(() => []),
     headers(),
   ]);
+  // PUBLIC_BASE_URL (e.g. an ngrok URL) wins, so the URLs shown are the ones Meta/Slack can reach.
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const origin = `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
-  const localUrl = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+  const origin = env("PUBLIC_BASE_URL").replace(/\/+$/, "") || `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
+  const localUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
   const companyName = new Map(companies.map((c) => [c.id, c.legal_name.replace(" Private Limited", "")]));
   const clientUsers = users
     .filter((u) => u.companyId)
     .map((u) => ({ id: u.id, name: u.name, company: companyName.get(u.companyId!) ?? "" }));
   const time = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
-  const channelProps = (["whatsapp", "slack"] as const).map((channel) => ({
+  // Channel state comes from Supabase (or memory); a storage outage shows on the cards instead of failing the page.
+  const store = channelStore();
+  const channelData = await Promise.all(
+    (["whatsapp", "slack"] as const).map(async (channel) => {
+      try {
+        const [enabled, links, events] = await Promise.all([store.isEnabled(channel), store.listLinks(channel), store.listEvents({ channel, limit: 4 })]);
+        return { enabled, links, events, loadError: undefined };
+      } catch (err) {
+        console.error(`settings: could not load ${channel} channel state`, err);
+        return { enabled: false, links: [], events: [], loadError: err instanceof Error ? err.message : "Storage unavailable" };
+      }
+    })
+  );
+  const channelProps = (["whatsapp", "slack"] as const).map((channel, i) => ({
     channel,
-    enabled: isChannelEnabled(channel),
+    enabled: channelData[i].enabled,
+    loadError: channelData[i].loadError,
+    backend: store.backend,
     configured: isChannelConfigured(channel),
     editable,
     webhookUrl: `${origin}/api/webhooks/${channel}`,
     localUrl,
     envRows: CHANNEL_ENV[channel].map((f) => ({ key: f.key, label: f.label, hint: f.hint, set: Boolean(env(f.key)) })),
-    links: listLinks(channel),
+    links: channelData[i].links,
     users: clientUsers,
-    recent: listEvents(channel)
-      .slice(0, 4)
-      .map((e) => ({ id: e.id, text: e.text, reply: e.reply, status: e.status, at: time.format(new Date(e.at)), test: e.test })),
+    recent: channelData[i].events.map((e) => ({
+      id: e.id,
+      text: e.text,
+      reply: e.reply,
+      status: e.status,
+      delivery: e.delivery,
+      at: time.format(new Date(e.at)),
+      test: e.test,
+    })),
   }));
   const urlOk = Boolean(supabase.urlHost) && supabase.urlHost !== "invalid URL";
 
@@ -145,11 +169,21 @@ export default async function SettingsPage() {
 
         <Section
           title="Channels & Integrations"
-          description="Take booking requests over WhatsApp and Slack. Messages run through the Channel concierge agent, with the same pricing, policy and hold checks as the client portal. Sender links reset on restart."
+          description={
+            <>
+              Take booking requests over WhatsApp and Slack. Messages run through the Channel concierge agent, with the same pricing, policy and
+              hold checks as the client portal.{" "}
+              {store.backend === "supabase"
+                ? "Links and message logs are stored in Supabase."
+                : "Supabase isn't configured, so links and logs live in server memory and reset on restart."}
+            </>
+          }
           bare
         >
           {channelProps.map((p) => (
-            <ChannelCard key={p.channel} {...p} />
+            <PanelErrorBoundary key={p.channel} label={p.channel === "whatsapp" ? "WhatsApp settings" : "Slack settings"}>
+              <ChannelCard {...p} />
+            </PanelErrorBoundary>
           ))}
         </Section>
 

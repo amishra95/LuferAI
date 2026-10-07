@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { runChannelAgent } from "@/lib/channels/agent";
 import { CHANNEL_ENV } from "@/lib/channels/config";
-import { removeLink, setChannelEnabled, upsertLink } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 import { listPortalUsers } from "@/lib/data";
 import { canEditEnvFile, updateEnvFile } from "@/lib/settings/env-file";
 import type { ChannelEventStatus, ChannelId } from "@/types/channels";
@@ -24,11 +24,25 @@ const LOCAL_ONLY: FormState = {
   message: "Only editable from `next dev` on localhost. Configure channels in your host's environment instead.",
 };
 
-export async function setChannelEnabledAction(channel: string, on: boolean): Promise<void> {
+/** Turns a store failure (e.g. Supabase unreachable) into a form error instead of a crashed page. */
+async function persist(op: () => Promise<void>, what: string): Promise<FormState | null> {
+  try {
+    await op();
+    return null;
+  } catch (err) {
+    console.error(`channels: ${what} failed`, err);
+    return { status: "error", message: `Couldn't ${what}: ${err instanceof Error ? err.message : "storage unavailable"}.` };
+  }
+}
+
+export async function setChannelEnabledAction(channel: string, on: boolean): Promise<FormState> {
   const c = asChannel(channel);
-  if (!c) throw new Error("Unknown channel.");
-  setChannelEnabled(c, on);
+  if (!c) return { status: "error", message: "Unknown channel." };
+  const failed = await persist(() => channelStore().setEnabled(c, on), "save the channel switch");
+  if (failed) return failed;
   revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return { status: "success", message: `${c === "whatsapp" ? "WhatsApp" : "Slack"} ${on ? "enabled" : "paused"}.` };
 }
 
 export async function saveChannelSecrets(_prev: FormState, form: FormData): Promise<FormState> {
@@ -76,7 +90,11 @@ export async function linkSender(_prev: FormState, form: FormData): Promise<Form
   const user = (await listPortalUsers()).find((u) => u.id === String(form.get("userId") ?? ""));
   if (!user?.companyId) return { status: "error", message: "Choose a client user to book as." };
 
-  upsertLink({ channel, senderId, userId: user.id, companyId: user.companyId, userName: user.name });
+  const failed = await persist(
+    () => channelStore().upsertLink({ channel, senderId, userId: user.id, companyId: user.companyId!, userName: user.name }),
+    "save the sender link"
+  );
+  if (failed) return failed;
   revalidatePath("/settings");
   return { status: "success", message: `Linked to ${user.name}.` };
 }
@@ -85,12 +103,13 @@ export async function unlinkSender(channel: string, senderId: string): Promise<F
   if (!(await canEditEnvFile())) return LOCAL_ONLY;
   const c = asChannel(channel);
   if (!c) return { status: "error", message: "Unknown channel." };
-  removeLink(c, senderId);
+  const failed = await persist(() => channelStore().removeLink(c, senderId), "remove the sender link");
+  if (failed) return failed;
   revalidatePath("/settings");
   return { status: "success", message: "Unlinked." };
 }
 
-export type TestMessageState = FormState & { reply?: string; outcome?: ChannelEventStatus; tools?: string[] };
+export type TestMessageState = FormState & { reply?: string; outcome?: ChannelEventStatus; tools?: string[]; error?: string };
 
 /** Runs a message through the real channel agent (no outbound send) and returns the reply it would post. */
 export async function sendTestMessage(_prev: TestMessageState, form: FormData): Promise<TestMessageState> {
@@ -104,5 +123,8 @@ export async function sendTestMessage(_prev: TestMessageState, form: FormData): 
   const result = await runChannelAgent({ channel, senderId, text, test: true });
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  return { status: "success", reply: result.reply, outcome: result.status, tools: result.tools };
+  if (result.status === "failed") {
+    return { status: "error", message: "The agent run failed.", reply: result.reply, outcome: result.status, tools: result.tools, error: result.error };
+  }
+  return { status: "success", reply: result.reply, outcome: result.status, tools: result.tools, error: result.error };
 }

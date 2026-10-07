@@ -14,9 +14,13 @@ export type ChannelLink = {
 
 export type ChannelEventStatus = "running" | "replied" | "booked" | "failed" | "ignored";
 
+export type DeliveryStatus = "pending" | "sent" | "failed" | "skipped";
+
 export type ChannelEvent = {
   id: string;
   channel: ChannelId;
+  /** Raw sender ID (wa_id / Slack member ID); server-side only, used for conversation history. */
+  senderId: string;
   /** Masked sender identifier for display. */
   sender: string;
   /** Linked portal user's name, when the sender is linked. */
@@ -33,5 +37,7 @@ export type ChannelEvent = {
   at: string; // ISO
   /** Sent from the Settings test console rather than a real webhook. */
   test: boolean;
+  /** Outbound leg: whether the reply reached WhatsApp/Slack ("skipped" for test runs). */
+  delivery: DeliveryStatus;
   error?: string;
 };

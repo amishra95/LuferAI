@@ -1,9 +1,9 @@
 import { after } from "next/server";
 
-import { runChannelAgent } from "@/lib/channels/agent";
+import { recordDelivery, runChannelAgent } from "@/lib/channels/agent";
 import { env, isChannelConfigured } from "@/lib/channels/config";
 import { tokensMatch, verifyMetaSignature } from "@/lib/channels/signatures";
-import { firstDelivery, isChannelEnabled, updateEvent } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 import { extractWhatsAppMessages, sendWhatsAppText } from "@/lib/channels/whatsapp";
 
 export const maxDuration = 60;
@@ -36,20 +36,28 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  // Acknowledge but drop messages while the channel is paused.
-  if (!isChannelEnabled("whatsapp")) return new Response(null, { status: 200 });
+  const store = channelStore();
+  try {
+    // Acknowledge but drop messages while the channel is paused.
+    if (!(await store.isEnabled("whatsapp"))) return new Response(null, { status: 200 });
 
-  for (const m of extractWhatsAppMessages(payload)) {
-    if (!firstDelivery(`wa:${m.id}`)) continue;
-    after(async () => {
-      const result = await runChannelAgent({ channel: "whatsapp", senderId: m.from, text: m.text });
-      try {
-        await sendWhatsAppText(m.from, result.reply);
-      } catch (err) {
-        console.error("whatsapp: reply failed", err);
-        updateEvent(result.eventId, { status: "failed", error: err instanceof Error ? err.message : "Reply failed" });
-      }
-    });
+    for (const m of extractWhatsAppMessages(payload)) {
+      if (!(await store.firstDelivery(`wa:${m.id}`))) continue;
+      after(async () => {
+        const result = await runChannelAgent({ channel: "whatsapp", senderId: m.from, text: m.text });
+        try {
+          await sendWhatsAppText(m.from, result.reply);
+          await recordDelivery(result.eventId, { ok: true });
+        } catch (err) {
+          console.error("whatsapp: reply failed", err);
+          await recordDelivery(result.eventId, { ok: false, error: err instanceof Error ? err.message : "Reply failed" });
+        }
+      });
+    }
+  } catch (err) {
+    // Store unavailable: a 5xx makes Meta retry later instead of dropping the message.
+    console.error("whatsapp: webhook failed", err);
+    return Response.json({ error: "Temporarily unavailable." }, { status: 503 });
   }
   return new Response(null, { status: 200 });
 }

@@ -215,6 +215,149 @@ export type Database = {
           },
         ]
       }
+      channel_messages: {
+        Row: {
+          booking_id: string | null
+          channel: string
+          created_at: string
+          delivery_status: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          inbound_text: string
+          is_test: boolean
+          reply_text: string | null
+          sender_id: string
+          sender_name: string | null
+          status: string
+          steps: number
+          tokens: number
+          tools: string[]
+        }
+        Insert: {
+          booking_id?: string | null
+          channel: string
+          created_at?: string
+          delivery_status?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          inbound_text: string
+          is_test?: boolean
+          reply_text?: string | null
+          sender_id: string
+          sender_name?: string | null
+          status?: string
+          steps?: number
+          tokens?: number
+          tools?: string[]
+        }
+        Update: {
+          booking_id?: string | null
+          channel?: string
+          created_at?: string
+          delivery_status?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          inbound_text?: string
+          is_test?: boolean
+          reply_text?: string | null
+          sender_id?: string
+          sender_name?: string | null
+          status?: string
+          steps?: number
+          tokens?: number
+          tools?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_sender_links: {
+        Row: {
+          channel: string
+          company_id: string
+          created_at: string
+          id: string
+          sender_id: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          channel: string
+          company_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          channel?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_sender_links_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_sender_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      channel_settings: {
+        Row: {
+          channel: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      channel_webhook_receipts: {
+        Row: {
+          key: string
+          received_at: string
+        }
+        Insert: {
+          key: string
+          received_at?: string
+        }
+        Update: {
+          key?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string

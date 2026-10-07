@@ -1,6 +1,6 @@
 import "server-only";
 
-import { listEvents } from "@/lib/channels/store";
+import { channelStore } from "@/lib/channels/store";
 import { getSampleAgentTasks } from "@/lib/telemetry/sample-data";
 import type { ChannelEvent } from "@/types/channels";
 import type { AgentTaskEvent, TaskStatus } from "@/types/telemetry";
@@ -39,14 +39,23 @@ function fromChannelEvent(e: ChannelEvent): AgentTaskEvent {
   };
 }
 
-/** Activity for the Overview: live WhatsApp/Slack runs first, then sample rows. */
-export function getActivity(limit = 10) {
+/**
+ * Activity for the Overview: live WhatsApp/Slack runs first, then sample rows.
+ * If the message log can't be read, sample rows still render and liveError says why.
+ */
+export async function getActivity(limit = 10) {
   const now = new Date();
-  const live = listEvents()
-    .filter((e) => e.status !== "ignored")
-    .map(fromChannelEvent);
+  let channelEvents: ChannelEvent[] = [];
+  let liveError: string | undefined;
+  try {
+    channelEvents = await channelStore().listEvents({ limit: 50 });
+  } catch (err) {
+    console.error("overview: could not load channel activity", err);
+    liveError = err instanceof Error ? err.message : "Could not load channel activity";
+  }
+  const live = channelEvents.filter((e) => e.status !== "ignored").map(fromChannelEvent);
   const events = [...live, ...getSampleAgentTasks(now)]
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .slice(0, Math.max(limit, live.length));
-  return { now, events, liveCount: live.length };
+  return { now, events, liveCount: live.length, channelEvents, liveError };
 }
