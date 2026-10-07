@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePortal, type Member } from "@/lib/auth/session";
-import { placeBookingRequest, type BookingField } from "@/lib/bookings/place-booking";
+import { lockOwner, placeBookingRequest, type BookingField } from "@/lib/bookings/place-booking";
 import { addApprovalComment, decideApproval, listApprovals, listCompanies, listPortalUsers, listVenues } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
+import { CHECKOUT_LOCK_TTL_MS, getSlotLocks, ownerOf } from "@/lib/locks";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
 
 export interface BookingRequestState {
@@ -93,6 +94,7 @@ export async function submitBookingRequest(
     notes,
     departmentId,
     expense,
+    checkoutToken: String(formData.get("slot_token") ?? "") || null,
   });
   if (result.status === "success") {
     revalidatePath("/client");
@@ -173,4 +175,41 @@ export async function postApprovalComment(_prev: ApprovalCommentState, formData:
   revalidatePath("/client");
   revalidatePath("/client/approvals");
   return { status: "success" };
+}
+
+export type CheckoutSlotState =
+  | { status: "held"; token: string; expiresAt: number }
+  | { status: "busy"; retryAfterMs: number }
+  | { status: "unavailable" };
+
+/**
+ * Starts (or refreshes) a checkout session: locks the venue/date for this
+ * employee for CHECKOUT_LOCK_TTL_MS while they finish the form, so two people
+ * can't race for the same slot. Submitting the form consumes the lock.
+ */
+export async function reserveCheckoutSlot(venueId: string, eventDate: string): Promise<CheckoutSlotState> {
+  const member = await requirePortal("/client");
+  if (member.role !== "CLIENT" || !member.companyId) return { status: "unavailable" };
+  const today = new Date().toISOString().slice(0, 10);
+  if (!ISO_DATE.test(eventDate) || eventDate <= today) return { status: "unavailable" };
+  if (!(await listVenues()).some((v) => v.id === venueId)) return { status: "unavailable" };
+
+  try {
+    const r = await getSlotLocks().locks.acquire({ venueId, date: eventDate }, lockOwner(member.companyId, member.userId), CHECKOUT_LOCK_TTL_MS);
+    return r.ok ? { status: "held", token: r.token, expiresAt: r.expiresAt } : { status: "busy", retryAfterMs: r.retryAfterMs };
+  } catch (err) {
+    // Lock store down: the form still works; the database hold check still applies.
+    console.error("checkout: slot lock unavailable", err);
+    return { status: "unavailable" };
+  }
+}
+
+/** Ends the caller's own checkout session early (they picked another date or venue). */
+export async function releaseCheckoutSlot(venueId: string, eventDate: string, token: string): Promise<void> {
+  const member = await requirePortal("/client");
+  if (member.role !== "CLIENT" || !member.companyId || ownerOf(token) !== lockOwner(member.companyId, member.userId)) return;
+  if (!ISO_DATE.test(eventDate)) return;
+  await getSlotLocks()
+    .locks.release({ venueId, date: eventDate }, token)
+    .catch((err) => console.error("checkout: release failed", err));
 }

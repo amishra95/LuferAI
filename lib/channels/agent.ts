@@ -4,7 +4,7 @@ import { generateText, isStepCount, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 
 import { getAgent, recordRun } from "@/lib/agents/store";
-import { chatTools, searchVenueCatalogue } from "@/lib/ai/chat-tools";
+import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
 import { getLanguageModel } from "@/lib/ai/model";
 import { venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/place-booking";
@@ -188,7 +188,7 @@ async function runModel(
   const tools = {
     ...(agent.tools.includes("searchVenues") && {
       searchVenues: tool({
-        description: chatTools.searchVenues.description,
+        description: searchVenuesTool.description,
         inputSchema: venueSearchSchema,
         execute: (input) => guard("searchVenues", () => searchVenueCatalogue(input)),
       }),

@@ -749,6 +749,192 @@ export type Database = {
           },
         ]
       }
+      partner_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          entity: string
+          entity_id: string | null
+          id: string
+          partner_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          entity: string
+          entity_id?: string | null
+          id?: string
+          partner_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          partner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_audit_log_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_rate_cards: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          min_guests: number
+          partner_id: string
+          partner_venue_id: string
+          per_head_inr: number
+          updated_at: string
+          updated_by: string | null
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          min_guests?: number
+          partner_id: string
+          partner_venue_id: string
+          per_head_inr: number
+          updated_at?: string
+          updated_by?: string | null
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          min_guests?: number
+          partner_id?: string
+          partner_venue_id?: string
+          per_head_inr?: number
+          updated_at?: string
+          updated_by?: string | null
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_rate_cards_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_rate_cards_partner_venue_id_partner_id_fkey"
+            columns: ["partner_venue_id", "partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_venues"
+            referencedColumns: ["id", "partner_id"]
+          },
+        ]
+      }
+      partner_venues: {
+        Row: {
+          address: string
+          area: string
+          capacity: number
+          city: string
+          created_at: string
+          id: string
+          min_spend_inr: number
+          name: string
+          partner_id: string
+          private_dining: boolean
+          ref: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string
+          area: string
+          capacity: number
+          city?: string
+          created_at?: string
+          id?: string
+          min_spend_inr?: number
+          name: string
+          partner_id: string
+          private_dining?: boolean
+          ref: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          area?: string
+          capacity?: number
+          city?: string
+          created_at?: string
+          id?: string
+          min_spend_inr?: number
+          name?: string
+          partner_id?: string
+          private_dining?: boolean
+          ref?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_venues_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+
+        ]
+      }
       payment_events: {
         Row: {
           event_id: string
@@ -843,6 +1029,8 @@ export type Database = {
           corporate_role: Database["public"]["Enums"]["corporate_role"] | null
           company_id: string | null
           created_at: string
+          partner_id: string | null
+          partner_role: Database["public"]["Enums"]["partner_role"] | null
           role: Database["public"]["Enums"]["portal_role"]
           user_id: string
           venue_id: string | null
@@ -851,6 +1039,8 @@ export type Database = {
           corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
           created_at?: string
+          partner_id?: string | null
+          partner_role?: Database["public"]["Enums"]["partner_role"] | null
           role: Database["public"]["Enums"]["portal_role"]
           user_id: string
           venue_id?: string | null
@@ -859,6 +1049,8 @@ export type Database = {
           corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
           created_at?: string
+          partner_id?: string | null
+          partner_role?: Database["public"]["Enums"]["partner_role"] | null
           role?: Database["public"]["Enums"]["portal_role"]
           user_id?: string
           venue_id?: string | null
@@ -869,6 +1061,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_users_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -1269,6 +1468,11 @@ export type Database = {
     }
     Functions: {
       current_company_id: { Args: never; Returns: string }
+      current_partner_id: { Args: never; Returns: string }
+      current_partner_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["partner_role"]
+      }
       current_portal_role: {
         Args: never
         Returns: Database["public"]["Enums"]["portal_role"]
@@ -1295,7 +1499,8 @@ export type Database = {
       gst_type: "CGST_SGST" | "IGST"
       hold_status: "ACTIVE" | "RELEASED" | "CONVERTED"
       onboarding_status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED"
-      portal_role: "ADMIN" | "CLIENT" | "PROPERTY"
+      partner_role: "OWNER" | "MANAGER" | "STAFF"
+      portal_role: "ADMIN" | "CLIENT" | "PROPERTY" | "PARTNER"
       payment_provider: "razorpay" | "stripe"
       payment_status:
         | "created"
@@ -1449,7 +1654,8 @@ export const Constants = {
       gst_type: ["CGST_SGST", "IGST"],
       hold_status: ["ACTIVE", "RELEASED", "CONVERTED"],
       onboarding_status: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
-      portal_role: ["ADMIN", "CLIENT", "PROPERTY"],
+      partner_role: ["OWNER", "MANAGER", "STAFF"],
+      portal_role: ["ADMIN", "CLIENT", "PROPERTY", "PARTNER"],
       payment_provider: ["razorpay", "stripe"],
       payment_status: [
         "created",

@@ -55,14 +55,23 @@ test("admin-only workspace areas admit admins only", () => {
   }
 });
 
-test("chat and venues admit admins and client bookers, not finance viewers", () => {
+test("venues admits admins and client bookers, not finance viewers", () => {
+  assert.equal(canAccessWorkspace("ADMIN", null, "/venues"), true);
+  assert.equal(canAccessWorkspace("CLIENT", "ORGANIZER", "/venues"), true);
+  assert.equal(canAccessWorkspace("CLIENT", "APPROVER", "/venues"), true);
+  assert.equal(canAccessWorkspace("CLIENT", "FINANCE_VIEWER", "/venues"), false);
+});
+
+test("chat admits admins and every client role (its analytics are company-scoped)", () => {
+  for (const c of ["ORGANIZER", "APPROVER", "FINANCE_VIEWER"]) assert.equal(canAccessWorkspace("CLIENT", c, "/chat"), true, c);
+  assert.equal(canAccessWorkspace("ADMIN", null, "/chat"), true);
+});
+
+test("nobody else reaches chat or venues", () => {
   for (const r of ["/chat", "/venues"]) {
-    assert.equal(canAccessWorkspace("ADMIN", null, r), true);
-    assert.equal(canAccessWorkspace("CLIENT", "ORGANIZER", r), true);
-    assert.equal(canAccessWorkspace("CLIENT", "APPROVER", r), true);
-    assert.equal(canAccessWorkspace("CLIENT", "FINANCE_VIEWER", r), false);
     assert.equal(canAccessWorkspace("CLIENT", null, r), false);
     assert.equal(canAccessWorkspace("PROPERTY", null, r), false);
+    assert.equal(canAccessWorkspace("PARTNER", null, r), false);
     assert.equal(canAccessWorkspace(null, null, r), false);
   }
 });

@@ -5,11 +5,12 @@ import { revalidatePath } from "next/cache";
 
 import { getAgent, isAgentId, recordRun, updateAgent } from "@/lib/agents/store";
 import { searchVenueCatalogue } from "@/lib/ai/chat-tools";
+import { runBudgetForecast, runSpendAnalysis } from "@/lib/analytics/service";
 import { computePlatformMetrics, listBookings } from "@/lib/data";
 import type { AgentTestResult } from "@/types/agents";
 import type { ChatToolName } from "@/types/chat";
 
-const TOOL_NAMES: ChatToolName[] = ["searchVenues", "getPlatformMetrics"];
+const TOOL_NAMES: ChatToolName[] = ["searchVenues", "getPlatformMetrics", "analyzeSpend", "forecastBudget"];
 
 export type AgentConfigState = { status: "idle" | "success" | "error"; message?: string };
 
@@ -53,6 +54,17 @@ const TOOL_PROBES: Record<ChatToolName, () => Promise<string>> = {
   getPlatformMetrics: async () => {
     const m = computePlatformMetrics(await listBookings());
     return `${m.totalBookings} bookings, ${m.pendingBookings} pending`;
+  },
+  // Agent tests run as an admin, so they use the platform scope.
+  analyzeSpend: async () => {
+    const r = await runSpendAnalysis({ kind: "platform" }, { period: "fytd", groupBy: "month" });
+    if ("error" in r) throw new Error(r.error);
+    return `${r.totals.bookings} bookings in ${r.period.label}`;
+  },
+  forecastBudget: async () => {
+    const r = await runBudgetForecast({ kind: "platform" }, { horizonMonths: 3 });
+    if ("error" in r) throw new Error(r.error);
+    return `${r.forecast.length}-month forecast, ${r.basis.split(",")[0]}`;
   },
 };
 

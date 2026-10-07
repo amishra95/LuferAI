@@ -13,6 +13,7 @@ import {
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
+import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
@@ -34,6 +35,8 @@ export interface PlaceBookingInput {
   departmentId?: string | null;
   /** Cost centre (required), project code and billing GSTIN for finance. */
   expense: ExpenseInput;
+  /** Checkout-session lock the form took for this venue/date (reserveCheckoutSlot), if any. */
+  checkoutToken?: string | null;
 }
 
 /** Roles allowed to file booking requests. Finance viewers are read-only. */
@@ -95,90 +98,121 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   if (!expense.ok) Object.assign(fieldErrors, expense.errors);
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
 
-  try {
-    // The server re-prices with the tenant's rate card; the form's preview is advisory.
-    const [pricing, availability] = await Promise.all([
-      getNegotiatedRate({
+  /** The critical section: re-price, check the date, route for approval, create with a hold. */
+  const priceHoldAndCreate = async (): Promise<PlaceBookingResult> => {
+    try {
+      // The server re-prices with the tenant's rate card; the form's preview is advisory.
+      const [pricing, availability] = await Promise.all([
+        getNegotiatedRate({
+          tenant_id: company.id,
+          venue_id: venue!.id,
+          event_date: eventDate,
+          party_size: partySize,
+          per_head_amount: budgetPerHead,
+        }),
+        checkHoldAvailability({ venue_id: venue!.id, from: eventDate, to: eventDate }),
+      ]);
+      if (!pricing.meetsMinimumSpend) {
+        const agreed = pricing.rateCardId && pricing.minimumSpend !== Number(venue!.min_spend_inr) ? " agreed with your company" : "";
+        fieldErrors.budget_per_head_inr = `${formatINR(pricing.taxableTotal)} is below ${venue!.name}'s minimum spend of ${formatINR(pricing.minimumSpend)}${agreed}`;
+      }
+      if (!availability.available) fieldErrors.event_date = `${venue!.name} isn't available on this date`;
+      if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
+
+      // Policy is checked against what the company will actually pay.
+      const policy = await checkBookingPolicy({
         tenant_id: company.id,
-        venue_id: venue!.id,
-        event_date: eventDate,
-        party_size: partySize,
-        per_head_amount: budgetPerHead,
-      }),
-      checkHoldAvailability({ venue_id: venue!.id, from: eventDate, to: eventDate }),
-    ]);
-    if (!pricing.meetsMinimumSpend) {
-      const agreed = pricing.rateCardId && pricing.minimumSpend !== Number(venue!.min_spend_inr) ? " agreed with your company" : "";
-      fieldErrors.budget_per_head_inr = `${formatINR(pricing.taxableTotal)} is below ${venue!.name}'s minimum spend of ${formatINR(pricing.minimumSpend)}${agreed}`;
-    }
-    if (!availability.available) fieldErrors.event_date = `${venue!.name} isn't available on this date`;
-    if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
+        total_amount: pricing.taxableTotal,
+        headcount: partySize,
+        per_head_amount: pricing.negotiatedPerHead,
+      });
 
-    // Policy is checked against what the company will actually pay.
-    const policy = await checkBookingPolicy({
-      tenant_id: company.id,
-      total_amount: pricing.taxableTotal,
-      headcount: partySize,
-      per_head_amount: pricing.negotiatedPerHead,
-    });
+      // Tier 1 (manager) signs off; above the high-value threshold tier 2 (senior) does too, after tier 1.
+      // Nobody approves their own request: the requester is skipped and the next tier steps up.
+      const approvals: NewApprovalRequest[] = [];
+      let approverNames: string[] = [];
+      if (policy.requiresApproval) {
+        const chain = (await listApprovalChain(company.id)).filter((c) => c.approver_user_id !== userId);
+        const assigned = chain.slice(0, policy.tiers);
+        if (assigned.length < policy.tiers) {
+          return {
+            status: "error",
+            message: `This booking needs ${policy.tiers === 2 ? "two levels of" : ""} sign-off (${policy.reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
+          };
+        }
+        for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason: policy.reason });
+        approverNames = assigned.map((c) => users.find((u) => u.id === c.approver_user_id)?.name ?? "an approver");
+      }
 
-    // Tier 1 (manager) signs off; above the high-value threshold tier 2 (senior) does too, after tier 1.
-    // Nobody approves their own request: the requester is skipped and the next tier steps up.
-    const approvals: NewApprovalRequest[] = [];
-    let approverNames: string[] = [];
-    if (policy.requiresApproval) {
-      const chain = (await listApprovalChain(company.id)).filter((c) => c.approver_user_id !== userId);
-      const assigned = chain.slice(0, policy.tiers);
-      if (assigned.length < policy.tiers) {
+      const { hours, ...hold } = planHold(approvals.length > 0);
+      const booking = await createBookingRequest(
+        {
+          company_id: company.id,
+          venue_id: venue!.id,
+          party_size: partySize,
+          budget_per_head_inr: pricing.negotiatedPerHead,
+          event_date: eventDate,
+          notes,
+          department_id: departmentId,
+          // Snapshot list pricing so rate-card savings stay reportable.
+          list_budget_per_head_inr: pricing.source === "list" ? null : pricing.listPerHead,
+          rate_card_id: pricing.rateCardId,
+          ...(expense.ok ? expense.value : { cost_center: "" }),
+        },
+        { approvals, hold }
+      );
+      if (approvals.length) {
         return {
-          status: "error",
-          message: `This booking needs ${policy.tiers === 2 ? "two levels of" : ""} sign-off (${policy.reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
+          status: "success",
+          message: approvals.length > 1 ? "Booking submitted — requires manager and senior sign-off." : "Booking submitted — requires manager sign-off.",
+          invoice: booking.invoice,
+          approval: { reason: approvals[0].reason, approverName: approverNames.join(", then "), tiers: approvals.length },
+          holdHours: hours,
+          bookingId: booking.id,
+          venueName: venue!.name,
         };
       }
-      for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason: policy.reason });
-      approverNames = assigned.map((c) => users.find((u) => u.id === c.approver_user_id)?.name ?? "an approver");
-    }
-
-    const { hours, ...hold } = planHold(approvals.length > 0);
-    const booking = await createBookingRequest(
-      {
-        company_id: company.id,
-        venue_id: venue!.id,
-        party_size: partySize,
-        budget_per_head_inr: pricing.negotiatedPerHead,
-        event_date: eventDate,
-        notes,
-        department_id: departmentId,
-        // Snapshot list pricing so rate-card savings stay reportable.
-        list_budget_per_head_inr: pricing.source === "list" ? null : pricing.listPerHead,
-        rate_card_id: pricing.rateCardId,
-        ...(expense.ok ? expense.value : { cost_center: "" }),
-      },
-      { approvals, hold }
-    );
-    if (approvals.length) {
       return {
         status: "success",
-        message: approvals.length > 1 ? "Booking submitted — requires manager and senior sign-off." : "Booking submitted — requires manager sign-off.",
+        message: `Request sent to ${venue!.name}. The date is held for ${hours} hours while they respond.`,
         invoice: booking.invoice,
-        approval: { reason: approvals[0].reason, approverName: approverNames.join(", then "), tiers: approvals.length },
         holdHours: hours,
         bookingId: booking.id,
         venueName: venue!.name,
       };
+    } catch (err) {
+      if (err instanceof HoldConflictError) {
+        return { status: "error", fieldErrors: { event_date: err.message }, message: "Please fix the highlighted fields." };
+      }
+      return { status: "error", message: err instanceof Error ? err.message : "Could not create the booking." };
     }
-    return {
-      status: "success",
-      message: `Request sent to ${venue!.name}. The date is held for ${hours} hours while they respond.`,
-      invoice: booking.invoice,
-      holdHours: hours,
-      bookingId: booking.id,
-      venueName: venue!.name,
-    };
+  };
+
+  // Serialise checkouts per venue/date across server instances (lib/locks). The
+  // inventory_holds trigger still rejects a double hold if the lock store is down.
+  const slot = { venueId: venue!.id, date: eventDate };
+  let locked: { ok: true; value: PlaceBookingResult } | { ok: false; retryAfterMs: number };
+  try {
+    locked = await getSlotLocks().locks.withSlot(slot, lockOwner(company.id, userId), priceHoldAndCreate, {
+      token: input.checkoutToken,
+      succeeded: (r) => r.status === "success",
+    });
   } catch (err) {
-    if (err instanceof HoldConflictError) {
-      return { status: "error", fieldErrors: { event_date: err.message }, message: "Please fix the highlighted fields." };
-    }
-    return { status: "error", message: err instanceof Error ? err.message : "Could not create the booking." };
+    console.error("booking: slot lock unavailable, continuing without it", err);
+    return priceHoldAndCreate();
   }
+  if (!locked.ok) {
+    const minutes = Math.max(1, Math.ceil(locked.retryAfterMs / 60_000));
+    return {
+      status: "error",
+      fieldErrors: { event_date: `Someone else is booking ${venue!.name} on this date right now. Try again in ${minutes} min or pick another date.` },
+      message: "Please fix the highlighted fields.",
+    };
+  }
+  return locked.value;
+}
+
+/** Lock owner: the requesting employee, or the company for anonymous channel traffic. */
+export function lockOwner(companyId: string, userId: string): string {
+  return (userId || `company-${companyId}`).replace(/[^A-Za-z0-9:_-]/g, "");
 }

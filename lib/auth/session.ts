@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
+import { partnerCan, type PartnerPermission, type PartnerRole } from "./partner-rbac";
 import { canAccess, canAccessWorkspace, homeFor, type Portal, type WorkspaceRoute } from "./roles";
 
 export interface Member {
@@ -14,6 +15,9 @@ export interface Member {
   role: PortalRole;
   companyId: string | null;
   venueId: string | null;
+  /** The supplier organisation and role within it, for PARTNER users. */
+  partnerId: string | null;
+  partnerRole: PartnerRole | null;
   /** Organizer / Approver / Finance viewer, for CLIENT users. */
   corporateRole: CorporateRole | null;
   /** CLIENT users on their company's approval_chains (they decide policy breaches). */
@@ -31,7 +35,7 @@ export const getCurrentMember = cache(async (): Promise<Member | null> => {
 
   const { data: row } = await supabase
     .from("platform_users")
-    .select("role, company_id, venue_id, corporate_role")
+    .select("role, company_id, venue_id, corporate_role, partner_id, partner_role")
     .eq("user_id", claims.sub)
     .maybeSingle();
   if (!row) return null;
@@ -56,6 +60,8 @@ export const getCurrentMember = cache(async (): Promise<Member | null> => {
     companyId: row.company_id,
     venueId: row.venue_id,
     corporateRole: row.corporate_role,
+    partnerId: row.partner_id,
+    partnerRole: row.partner_role,
     canApprove,
   };
 });
@@ -78,4 +84,30 @@ export async function requireWorkspace(route: WorkspaceRoute): Promise<Member> {
   if (!member) redirect(`/login?next=${encodeURIComponent(route)}`);
   if (!canAccessWorkspace(member.role, member.corporateRole, route)) redirect(homeFor(member.role));
   return member;
+}
+
+export interface PartnerContext {
+  member: Member;
+  /** The partner organisation being acted on. */
+  partnerId: string;
+}
+
+/**
+ * Authoritative check for the partner extranet. Partner users act on their own
+ * organisation only; admins act on `requestedPartnerId` (they pick a partner in
+ * the UI). Throws for a missing permission, so server actions fail closed.
+ */
+export async function requirePartner(permission: PartnerPermission, requestedPartnerId?: string | null): Promise<PartnerContext> {
+  const member = await requirePortal("/partner");
+  if (!partnerCan(member, permission)) throw new PartnerAccessError(permission);
+  const partnerId = member.role === "ADMIN" ? requestedPartnerId ?? "" : member.partnerId ?? "";
+  if (!partnerId) throw new PartnerAccessError(permission);
+  return { member, partnerId };
+}
+
+export class PartnerAccessError extends Error {
+  constructor(permission: PartnerPermission) {
+    super(`You don't have permission to do that (${permission}).`);
+    this.name = "PartnerAccessError";
+  }
 }

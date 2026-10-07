@@ -14,8 +14,11 @@ import { formatDate, formatINR } from "@/lib/utils";
 import {
   getUnavailableDates,
   previewNegotiatedRate,
+  releaseCheckoutSlot,
+  reserveCheckoutSlot,
   submitBookingRequest,
   type BookingRequestState,
+  type CheckoutSlotState,
 } from "../actions";
 
 /** Values chosen elsewhere (e.g. an AI search result) to load into the form. */
@@ -86,6 +89,34 @@ export function EventRequestForm({
   const unavailableDates = locked?.venueId === venueId ? locked.dates : [];
   const dateUnavailable = Boolean(eventDate) && unavailableDates.includes(eventDate);
 
+  // Checkout session: once a venue and date are chosen, lock that slot for this
+  // user while they finish the form (released on change/unmount, consumed on submit).
+  const slotKey = venueId && eventDate && !dateUnavailable ? `${venueId}|${eventDate}` : "";
+  const [checkout, setCheckout] = useState<{ key: string; slot: CheckoutSlotState }>();
+  useEffect(() => {
+    if (!slotKey) return;
+    const [v, d] = slotKey.split("|");
+    let current = true;
+    let heldToken: string | null = null;
+    const timer = setTimeout(() => {
+      reserveCheckoutSlot(v, d).then((slot) => {
+        if (slot.status === "held") heldToken = slot.token;
+        if (!current) {
+          if (heldToken) void releaseCheckoutSlot(v, d, heldToken);
+          return;
+        }
+        setCheckout({ key: slotKey, slot });
+      });
+    }, 400);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+      if (heldToken) void releaseCheckoutSlot(v, d, heldToken);
+    };
+  }, [slotKey]);
+  const slot = checkout?.key === slotKey ? checkout.slot : null;
+  const slotBusy = slot?.status === "busy";
+
   const pricingKey = [companyId, venueId, eventDate, partySize, perHead].join("|");
   const [rate, setRate] = useState<{ key: string; pricing: NegotiatedPricing | null }>();
   useEffect(() => {
@@ -119,6 +150,7 @@ export function EventRequestForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input type="hidden" name="company_id" value={companyId} />
+      <input type="hidden" name="slot_token" value={slot?.status === "held" ? slot.token : ""} />
 
       <div className="grid gap-2">
         <Label htmlFor="venue_id">Venue</Label>
@@ -168,6 +200,15 @@ export function EventRequestForm({
             </p>
           ) : err.event_date ? (
             <p className="text-destructive text-xs">{err.event_date}</p>
+          ) : slot?.status === "busy" ? (
+            <p className="text-destructive text-xs" role="alert">
+              Someone else is booking this date right now. It frees up within {Math.max(1, Math.ceil(slot.retryAfterMs / 60_000))} min, or choose another.
+            </p>
+          ) : slot?.status === "held" ? (
+            <p className="text-muted-foreground text-xs" role="status">
+              Reserved for you until{" "}
+              {new Date(slot.expiresAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })} while you finish.
+            </p>
           ) : null}
         </div>
         <div className="grid gap-2">
@@ -347,7 +388,7 @@ export function EventRequestForm({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={pending || dateUnavailable}>
+        <Button type="submit" disabled={pending || dateUnavailable || slotBusy}>
           {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
           Send request
         </Button>

@@ -259,6 +259,8 @@ const portalUser = (user_id: string, company_id: string, name: string, corporate
   role: "CLIENT",
   company_id,
   venue_id: null,
+  partner_id: null,
+  partner_role: null,
   corporate_role,
   created_at: ts,
   name,

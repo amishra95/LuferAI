@@ -9,9 +9,11 @@ import {
 
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
-import { chatTools } from "@/lib/ai/chat-tools";
+import { createChatTools } from "@/lib/ai/chat-tools";
+import type { AnalyticsScope } from "@/lib/analytics/service";
 import { canAccessWorkspace } from "@/lib/auth/roles";
-import { getCurrentMember } from "@/lib/auth/session";
+import { getCurrentMember, type Member } from "@/lib/auth/session";
+import { listCompanies } from "@/lib/data";
 import { demoChatStream } from "@/lib/ai/demo-chat-stream";
 import type { LuferUIMessage } from "@/types/chat";
 
@@ -21,16 +23,30 @@ const MAX_MESSAGES = 100;
 
 const SYSTEM =
   "You are the Lufer.ai workspace agent for a corporate hospitality platform in Bengaluru, India. " +
-  "Use the tools to answer questions about venues and platform bookings; never invent venues, prices or totals. " +
+  "Use the tools to answer questions about venues, bookings, spend and budgets; never invent venues, prices or totals. " +
+  "For money questions call analyzeSpend or forecastBudget and quote their figures, saying they are pre-GST and naming the period. " +
+  "Indian financial years run April to March. " +
   "Amounts are INR. Answer concisely in Markdown and use fenced code blocks for code or config.";
 
 /** Tools that read platform-wide figures (every company's bookings); admins only. */
 const ADMIN_ONLY_TOOLS = new Set(["getPlatformMetrics"]);
 
+/** Admins analyse the platform; client users only ever their own company. */
+async function scopeFor(member: Member): Promise<AnalyticsScope | null> {
+  if (member.role === "ADMIN") return { kind: "platform" };
+  if (member.role !== "CLIENT" || !member.companyId) return null;
+  const company = (await listCompanies()).find((c) => c.id === member.companyId);
+  return company ? { kind: "company", companyId: company.id, companyName: company.legal_name.replace(" Private Limited", "") } : null;
+}
+
 export async function POST(req: Request) {
   const member = await getCurrentMember();
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
   if (!canAccessWorkspace(member.role, member.corporateRole, "/chat")) return Response.json({ error: "forbidden" }, { status: 403 });
+
+  const scope = await scopeFor(member);
+  if (!scope) return Response.json({ error: "forbidden" }, { status: 403 });
+  const chatTools = createChatTools(scope);
 
   const body = await req.json().catch(() => null);
   let messages: LuferUIMessage[];
@@ -58,7 +74,7 @@ export async function POST(req: Request) {
     const last = messages.findLast((m) => m.role === "user");
     const prompt = last?.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ") ?? "";
     record(true);
-    return createUIMessageStreamResponse({ stream: demoChatStream(prompt) });
+    return createUIMessageStreamResponse({ stream: demoChatStream(prompt, scope) });
   }
 
   const result = streamText({

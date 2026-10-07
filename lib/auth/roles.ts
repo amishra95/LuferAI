@@ -7,21 +7,24 @@ import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
  * DB enum `portal_role` → product role:
  *   CLIENT   → client            → /client only
  *   PROPERTY → property_manager  → /property only
+ *   PARTNER  → partner (supplier) → /partner only (OWNER / MANAGER / STAFF: lib/auth/partner-rbac.ts)
  *   ADMIN    → admin             → every portal
  */
 
-export const PORTALS = ["/client", "/property", "/admin"] as const;
+export const PORTALS = ["/client", "/property", "/partner", "/admin"] as const;
 export type Portal = (typeof PORTALS)[number];
 
 const PORTAL_ACCESS: Record<PortalRole, readonly Portal[]> = {
   CLIENT: ["/client"],
   PROPERTY: ["/property"],
+  PARTNER: ["/partner"],
   ADMIN: PORTALS,
 };
 
 const HOME: Record<PortalRole, Portal> = {
   CLIENT: "/client",
   PROPERTY: "/property",
+  PARTNER: "/partner",
   ADMIN: "/admin",
 };
 
@@ -41,16 +44,18 @@ export function homeFor(role: PortalRole): Portal {
 /**
  * Workspace areas outside the portals. "admin" areas expose platform-wide data or
  * secrets (settings, agent config, telemetry); "booker" areas also admit client
- * users who can request bookings (Organizers and Approvers, not Finance viewers).
+ * users who can request bookings (Organizers and Approvers, not Finance viewers);
+ * "client" areas admit every client role. The chat concierge is "client": its
+ * tools only search and analyse (scoped to the user's company), never book.
  */
 export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues"] as const;
 export type WorkspaceRoute = (typeof WORKSPACE_ROUTES)[number];
 
-const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker"> = {
+const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client"> = {
   "/dashboard": "admin",
   "/settings": "admin",
   "/agents": "admin",
-  "/chat": "booker",
+  "/chat": "client",
   "/venues": "booker",
 };
 
@@ -67,7 +72,9 @@ export function canAccessWorkspace(
   route: WorkspaceRoute
 ): boolean {
   if (role === "ADMIN") return true;
-  return WORKSPACE_ACCESS[route] === "booker" && role === "CLIENT" && !!corporateRole && BOOKERS.includes(corporateRole);
+  if (role !== "CLIENT" || !corporateRole) return false;
+  const access = WORKSPACE_ACCESS[route];
+  return access === "client" || (access === "booker" && BOOKERS.includes(corporateRole));
 }
 
 /** Only same-origin absolute paths are allowed as post-login destinations (no open redirects). */
