@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { PortalRole } from "@/lib/supabase/database.types";
-import { canAccess, homeFor, type Portal } from "./roles";
+import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
+import { canAccess, canAccessWorkspace, homeFor, type Portal, type WorkspaceRoute } from "./roles";
 
 export interface Member {
   userId: string;
@@ -14,6 +14,8 @@ export interface Member {
   role: PortalRole;
   companyId: string | null;
   venueId: string | null;
+  /** Organizer / Approver / Finance viewer, for CLIENT users. */
+  corporateRole: CorporateRole | null;
   /** CLIENT users on their company's approval_chains (they decide policy breaches). */
   canApprove: boolean;
 }
@@ -29,7 +31,7 @@ export const getCurrentMember = cache(async (): Promise<Member | null> => {
 
   const { data: row } = await supabase
     .from("platform_users")
-    .select("role, company_id, venue_id")
+    .select("role, company_id, venue_id, corporate_role")
     .eq("user_id", claims.sub)
     .maybeSingle();
   if (!row) return null;
@@ -53,6 +55,7 @@ export const getCurrentMember = cache(async (): Promise<Member | null> => {
     role: row.role,
     companyId: row.company_id,
     venueId: row.venue_id,
+    corporateRole: row.corporate_role,
     canApprove,
   };
 });
@@ -66,5 +69,13 @@ export async function requirePortal(portal: Portal): Promise<Member> {
   const member = await getCurrentMember();
   if (!member) redirect(`/login?next=${encodeURIComponent(portal)}`);
   if (!canAccess(member.role, portal)) redirect(homeFor(member.role));
+  return member;
+}
+
+/** Authoritative check for workspace areas (settings, agents, chat, …) and their server actions. */
+export async function requireWorkspace(route: WorkspaceRoute): Promise<Member> {
+  const member = await getCurrentMember();
+  if (!member) redirect(`/login?next=${encodeURIComponent(route)}`);
+  if (!canAccessWorkspace(member.role, member.corporateRole, route)) redirect(homeFor(member.role));
   return member;
 }

@@ -26,6 +26,7 @@ export function Monogram({ name, className }: { name: string; className?: string
 
 export function Sidebar({
   workspaceName,
+  allowedHrefs,
   collapsed,
   onToggle,
   onNavigate,
@@ -33,6 +34,7 @@ export function Sidebar({
   className,
 }: {
   workspaceName: string;
+  allowedHrefs: string[];
   collapsed: boolean;
   /** Omit to hide the collapse control (e.g. inside the mobile drawer). */
   onToggle?: () => void;
@@ -42,6 +44,8 @@ export function Sidebar({
   className?: string;
 }) {
   const pathname = usePathname();
+  const allowed = new Set(allowedHrefs);
+  const sections = NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => allowed.has(i.href)) })).filter((s) => s.items.length > 0);
 
   return (
     <aside
@@ -64,7 +68,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 pt-2 pb-4" aria-label="Dashboard">
-        {NAV_SECTIONS.map((section, i) => (
+        {sections.map((section, i) => (
           <div key={section.title ?? i} className={cn(i > 0 && "mt-6")}>
             {section.title &&
               (collapsed ? (

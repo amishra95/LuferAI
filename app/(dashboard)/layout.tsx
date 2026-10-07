@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getLanguageModel } from "@/lib/ai/model";
+import { canAccess, canAccessWorkspace, PORTALS, WORKSPACE_ROUTES } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getPreferences } from "@/lib/settings/preferences";
 
@@ -13,6 +14,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { sidebarCollapsed, workspaceName } = await getPreferences();
   const model = getLanguageModel();
   const member = await getCurrentMember();
+  const allowedHrefs = member
+    ? [
+        ...PORTALS.filter((p) => canAccess(member.role, p)),
+        ...WORKSPACE_ROUTES.filter((r) => canAccessWorkspace(member.role, member.corporateRole, r)),
+        ...(member.canApprove || member.role === "ADMIN" ? ["/client/approvals"] : []),
+      ]
+    : [];
 
   // `lufer` scopes the design system (warm light theme).
   return (
@@ -22,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         workspaceName={workspaceName}
         system={model ? { mode: "live", model: model.modelId } : { mode: "demo" }}
         account={member ? { email: member.email } : null}
+        allowedHrefs={allowedHrefs}
       >
         {children}
       </DashboardShell>

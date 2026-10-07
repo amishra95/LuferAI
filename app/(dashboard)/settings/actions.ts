@@ -1,5 +1,6 @@
 "use server";
 
+import { requireWorkspace } from "@/lib/auth/session";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -18,6 +19,7 @@ const NOT_EDITABLE: FormState = {
 };
 
 export async function saveOpenAISettings(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return NOT_EDITABLE;
 
   const key = String(form.get("apiKey") ?? "").trim();
@@ -32,6 +34,7 @@ export async function saveOpenAISettings(_prev: FormState, form: FormData): Prom
 }
 
 export async function removeOpenAIKey(): Promise<FormState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return NOT_EDITABLE;
   await updateEnvFile({ OPENAI_API_KEY: null });
   revalidatePath("/", "layout");
@@ -40,6 +43,7 @@ export async function removeOpenAIKey(): Promise<FormState> {
 
 /** Checks the configured key can see the configured model. Sends the key to OpenAI only. */
 export async function testOpenAIConnection(): Promise<FormState> {
+  await requireWorkspace("/settings");
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return { status: "error", message: "No API key is set." };
   const model = process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
@@ -60,6 +64,7 @@ export async function testOpenAIConnection(): Promise<FormState> {
 
 /** Re-runs the Supabase ping on demand (the page also checks on load). */
 export async function testSupabaseConnection(): Promise<FormState> {
+  await requireWorkspace("/settings");
   const status = await getSupabaseStatus();
   if (!status.configured) return { status: "error", message: "Not configured: the app is using mock data." };
   if (status.ping?.ok) return { status: "success", message: `Connected in ${status.ping.latencyMs} ms · ${status.ping.venues} venues` };
@@ -67,6 +72,7 @@ export async function testSupabaseConnection(): Promise<FormState> {
 }
 
 export async function savePreferences(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireWorkspace("/settings");
   const name = String(form.get("workspaceName") ?? "").trim().replace(/\s+/g, " ");
   if (name.length > 40) return { status: "error", message: "Workspace name must be 40 characters or fewer." };
 

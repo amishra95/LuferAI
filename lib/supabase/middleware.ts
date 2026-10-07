@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { canAccess, homeFor, portalFor } from "@/lib/auth/roles";
+import { canAccess, canAccessWorkspace, homeFor, portalFor, workspaceRouteFor } from "@/lib/auth/roles";
 import { isAiApiPath, limitAiRequest } from "@/lib/ratelimit";
 import type { Database, PortalRole } from "./database.types";
 import { clean, isHttpUrl } from "./env";
@@ -11,7 +11,9 @@ import { clean, isHttpUrl } from "./env";
  * - signed out            → /login?next=<path>
  * - signed in, no role    → /login?error=no_access
  * - signed in, wrong role → that role's own portal
- * and rate-limits /api/ai/* per user (or per IP when signed out) — see lib/ratelimit.ts.
+ * Workspace areas (/dashboard, /settings, /agents, /chat, /venues) are gated the
+ * same way, by portal role plus corporate role (lib/auth/roles.ts).
+ * It also rate-limits /api/ai/* per user (or per IP when signed out) — see lib/ratelimit.ts.
  *
  * This is the optimistic first line; portal layouts and server actions re-check via
  * lib/auth/session.ts, and RLS backs both.
@@ -19,6 +21,8 @@ import { clean, isHttpUrl } from "./env";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const portal = portalFor(request.nextUrl.pathname);
+  const workspace = workspaceRouteFor(request.nextUrl.pathname);
+  const gated = portal ?? workspace;
 
   const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const anonKey = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -27,7 +31,7 @@ export async function updateSession(request: NextRequest) {
   if (!url || !anonKey || !isHttpUrl(url)) {
     if (isAiApiPath(request.nextUrl.pathname)) return (await limitAiRequest(request, null)) ?? response;
     // Auth can't work without Supabase — fail closed rather than expose the portals.
-    return portal ? redirectToLogin(request, response, { error: "auth_unconfigured" }) : response;
+    return gated ? redirectToLogin(request, response, { error: "auth_unconfigured" }) : response;
   }
 
   const supabase = createServerClient<Database>(url, anonKey, {
@@ -53,7 +57,7 @@ export async function updateSession(request: NextRequest) {
     const limited = await limitAiRequest(request, userId ?? null);
     return limited ? withSessionCookies(limited, response) : response;
   }
-  if (!portal) return response;
+  if (!gated) return response;
   if (!userId) {
     return redirectToLogin(request, response, { next: request.nextUrl.pathname + request.nextUrl.search });
   }
@@ -61,13 +65,14 @@ export async function updateSession(request: NextRequest) {
   // RLS policy "users read own membership" lets the user's own client read this row.
   const { data: member } = await supabase
     .from("platform_users")
-    .select("role")
+    .select("role, corporate_role")
     .eq("user_id", userId)
     .maybeSingle();
   const role: PortalRole | undefined = member?.role;
 
   if (!role) return redirectToLogin(request, response, { error: "no_access" });
-  if (!canAccess(role, portal)) return withSessionCookies(NextResponse.redirect(new URL(homeFor(role), request.url)), response);
+  const allowed = portal ? canAccess(role, portal) : canAccessWorkspace(role, member?.corporate_role, workspace!);
+  if (!allowed) return withSessionCookies(NextResponse.redirect(new URL(homeFor(role), request.url)), response);
 
   return response;
 }

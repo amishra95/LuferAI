@@ -1,4 +1,4 @@
-import type { PortalRole } from "@/lib/supabase/database.types";
+import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
 
 /**
  * Portal RBAC rules, shared by middleware.ts (Edge) and server code — keep this file
@@ -36,6 +36,38 @@ export function canAccess(role: PortalRole | null | undefined, portal: Portal): 
 
 export function homeFor(role: PortalRole): Portal {
   return HOME[role];
+}
+
+/**
+ * Workspace areas outside the portals. "admin" areas expose platform-wide data or
+ * secrets (settings, agent config, telemetry); "booker" areas also admit client
+ * users who can request bookings (Organizers and Approvers, not Finance viewers).
+ */
+export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues"] as const;
+export type WorkspaceRoute = (typeof WORKSPACE_ROUTES)[number];
+
+const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker"> = {
+  "/dashboard": "admin",
+  "/settings": "admin",
+  "/agents": "admin",
+  "/chat": "booker",
+  "/venues": "booker",
+};
+
+const BOOKERS: readonly CorporateRole[] = ["ORGANIZER", "APPROVER"];
+
+/** The workspace area a pathname belongs to, or null. */
+export function workspaceRouteFor(pathname: string): WorkspaceRoute | null {
+  return WORKSPACE_ROUTES.find((r) => pathname === r || pathname.startsWith(`${r}/`)) ?? null;
+}
+
+export function canAccessWorkspace(
+  role: PortalRole | null | undefined,
+  corporateRole: CorporateRole | null | undefined,
+  route: WorkspaceRoute
+): boolean {
+  if (role === "ADMIN") return true;
+  return WORKSPACE_ACCESS[route] === "booker" && role === "CLIENT" && !!corporateRole && BOOKERS.includes(corporateRole);
 }
 
 /** Only same-origin absolute paths are allowed as post-login destinations (no open redirects). */

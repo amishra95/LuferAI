@@ -10,6 +10,8 @@ import {
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { chatTools } from "@/lib/ai/chat-tools";
+import { canAccessWorkspace } from "@/lib/auth/roles";
+import { getCurrentMember } from "@/lib/auth/session";
 import { demoChatStream } from "@/lib/ai/demo-chat-stream";
 import type { LuferUIMessage } from "@/types/chat";
 
@@ -22,7 +24,14 @@ const SYSTEM =
   "Use the tools to answer questions about venues and platform bookings; never invent venues, prices or totals. " +
   "Amounts are INR. Answer concisely in Markdown and use fenced code blocks for code or config.";
 
+/** Tools that read platform-wide figures (every company's bookings); admins only. */
+const ADMIN_ONLY_TOOLS = new Set(["getPlatformMetrics"]);
+
 export async function POST(req: Request) {
+  const member = await getCurrentMember();
+  if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
+  if (!canAccessWorkspace(member.role, member.corporateRole, "/chat")) return Response.json({ error: "forbidden" }, { status: 403 });
+
   const body = await req.json().catch(() => null);
   let messages: LuferUIMessage[];
   try {
@@ -57,7 +66,7 @@ export async function POST(req: Request) {
     system: SYSTEM,
     messages: await convertToModelMessages(messages),
     tools: chatTools,
-    activeTools: agent.tools,
+    activeTools: member.role === "ADMIN" ? agent.tools : agent.tools.filter((t) => !ADMIN_ONLY_TOOLS.has(t)),
     stopWhen: isStepCount(agent.maxSteps),
     ...(agent.temperature !== null && { temperature: agent.temperature }),
     onEnd: () => record(true),

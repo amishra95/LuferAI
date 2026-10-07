@@ -1,7 +1,7 @@
 // Run with: npm test   (uses Node's built-in test runner + TypeScript type stripping)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canAccess, homeFor, portalFor, safeNextPath } from "../lib/auth/roles.ts";
+import { canAccess, canAccessWorkspace, homeFor, portalFor, safeNextPath, workspaceRouteFor } from "../lib/auth/roles.ts";
 
 test("client can only open /client", () => {
   assert.equal(canAccess("CLIENT", "/client"), true);
@@ -44,4 +44,32 @@ test("safeNextPath rejects off-site redirects", () => {
   assert.equal(safeNextPath("/\\evil.example"), null);
   assert.equal(safeNextPath("https://evil.example"), null);
   assert.equal(safeNextPath(""), null);
+});
+
+test("admin-only workspace areas admit admins only", () => {
+  for (const r of ["/dashboard", "/settings", "/agents"]) {
+    assert.equal(canAccessWorkspace("ADMIN", null, r), true);
+    assert.equal(canAccessWorkspace("CLIENT", "ORGANIZER", r), false);
+    assert.equal(canAccessWorkspace("CLIENT", "APPROVER", r), false);
+    assert.equal(canAccessWorkspace("PROPERTY", null, r), false);
+  }
+});
+
+test("chat and venues admit admins and client bookers, not finance viewers", () => {
+  for (const r of ["/chat", "/venues"]) {
+    assert.equal(canAccessWorkspace("ADMIN", null, r), true);
+    assert.equal(canAccessWorkspace("CLIENT", "ORGANIZER", r), true);
+    assert.equal(canAccessWorkspace("CLIENT", "APPROVER", r), true);
+    assert.equal(canAccessWorkspace("CLIENT", "FINANCE_VIEWER", r), false);
+    assert.equal(canAccessWorkspace("CLIENT", null, r), false);
+    assert.equal(canAccessWorkspace("PROPERTY", null, r), false);
+    assert.equal(canAccessWorkspace(null, null, r), false);
+  }
+});
+
+test("workspaceRouteFor matches the area and its sub-paths only", () => {
+  assert.equal(workspaceRouteFor("/settings"), "/settings");
+  assert.equal(workspaceRouteFor("/chat/abc"), "/chat");
+  assert.equal(workspaceRouteFor("/settingsx"), null);
+  assert.equal(workspaceRouteFor("/client"), null);
 });

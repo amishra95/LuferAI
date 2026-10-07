@@ -14,12 +14,15 @@ export function DashboardShell({
   workspaceName,
   system,
   account,
+  allowedHrefs,
   children,
 }: {
   defaultCollapsed: boolean;
   workspaceName: string;
   system: SystemMode;
   account: { email: string | null } | null;
+  /** Nav items this user may open; the sidebar hides the rest. */
+  allowedHrefs: string[];
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -49,10 +52,10 @@ export function DashboardShell({
   return (
     <ToastProvider>
       <div className="flex h-dvh overflow-hidden">
-        <Sidebar workspaceName={workspaceName} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
+        <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
 
         <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
-          <Sidebar workspaceName={workspaceName} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+          <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
         </Drawer>
 
         <div className="relative flex min-w-0 flex-1 flex-col">

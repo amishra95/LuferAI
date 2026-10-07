@@ -1,5 +1,6 @@
 "use server";
 
+import { requireWorkspace } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 
 import { getAgent, isAgentId, recordRun, updateAgent } from "@/lib/agents/store";
@@ -13,12 +14,14 @@ const TOOL_NAMES: ChatToolName[] = ["searchVenues", "getPlatformMetrics"];
 export type AgentConfigState = { status: "idle" | "success" | "error"; message?: string };
 
 export async function setAgentEnabled(id: string, enabled: boolean): Promise<void> {
+  await requireWorkspace("/agents");
   if (!isAgentId(id)) throw new Error("Unknown agent.");
   updateAgent(id, { enabled });
   revalidatePath("/agents");
 }
 
 export async function saveAgentConfig(_prev: AgentConfigState, form: FormData): Promise<AgentConfigState> {
+  await requireWorkspace("/agents");
   const id = String(form.get("id"));
   if (!isAgentId(id)) return { status: "error", message: "Unknown agent." };
 
@@ -55,6 +58,7 @@ const TOOL_PROBES: Record<ChatToolName, () => Promise<string>> = {
 
 /** Runs each of the agent's tools once with a fixed sample input. Does not call the model. */
 export async function runAgentTest(id: string): Promise<AgentTestResult> {
+  await requireWorkspace("/agents");
   if (!isAgentId(id)) throw new Error("Unknown agent.");
   const agent = getAgent(id)!;
   const started = performance.now();

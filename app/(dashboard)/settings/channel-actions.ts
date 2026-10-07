@@ -1,5 +1,6 @@
 "use server";
 
+import { requireWorkspace } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 
 import { runChannelAgent } from "@/lib/channels/agent";
@@ -36,6 +37,7 @@ async function persist(op: () => Promise<void>, what: string): Promise<FormState
 }
 
 export async function setChannelEnabledAction(channel: string, on: boolean): Promise<FormState> {
+  await requireWorkspace("/settings");
   const c = asChannel(channel);
   if (!c) return { status: "error", message: "Unknown channel." };
   const failed = await persist(() => channelStore().setEnabled(c, on), "save the channel switch");
@@ -46,6 +48,7 @@ export async function setChannelEnabledAction(channel: string, on: boolean): Pro
 }
 
 export async function saveChannelSecrets(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return LOCAL_ONLY;
   const channel = asChannel(form.get("channel"));
   if (!channel) return { status: "error", message: "Unknown channel." };
@@ -77,6 +80,7 @@ function normaliseSender(channel: ChannelId, raw: string): string | null {
 }
 
 export async function linkSender(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return LOCAL_ONLY;
   const channel = asChannel(form.get("channel"));
   if (!channel) return { status: "error", message: "Unknown channel." };
@@ -105,6 +109,7 @@ export async function linkSender(_prev: FormState, form: FormData): Promise<Form
 }
 
 export async function unlinkSender(channel: string, senderId: string): Promise<FormState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return LOCAL_ONLY;
   const c = asChannel(channel);
   if (!c) return { status: "error", message: "Unknown channel." };
@@ -118,6 +123,7 @@ export type TestMessageState = FormState & { reply?: string; outcome?: ChannelEv
 
 /** Runs a message through the real channel agent (no outbound send) and returns the reply it would post. */
 export async function sendTestMessage(_prev: TestMessageState, form: FormData): Promise<TestMessageState> {
+  await requireWorkspace("/settings");
   if (!(await canEditEnvFile())) return LOCAL_ONLY;
   const channel = asChannel(form.get("channel"));
   const text = String(form.get("text") ?? "").trim();
