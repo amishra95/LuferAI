@@ -53,6 +53,7 @@ export type OnboardingStatus = Enums<"onboarding_status">;
 export type PortalRole = Enums<"portal_role">;
 export type ApprovalStatus = Enums<"approval_status">;
 export type HoldStatus = Enums<"hold_status">;
+export type CorporateRole = Enums<"corporate_role">;
 
 export type Company = Tables<"companies">;
 export type Venue = Tables<"venues">;
@@ -62,5 +63,7 @@ export type CorporatePolicy = Tables<"corporate_policies">;
 export type ApprovalChain = Tables<"approval_chains">;
 export type BookingApproval = Tables<"booking_approvals">;
 export type PlatformUser = Tables<"platform_users">;
+export type ApprovalComment = Tables<"approval_comments">;
+export type ExpenseExport = Tables<"expense_exports">;
 export type InventoryHold = Tables<"inventory_holds">;
 export type CorporateRateCard = Tables<"corporate_rate_cards">;

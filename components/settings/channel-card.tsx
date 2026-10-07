@@ -289,6 +289,7 @@ function SendersTab({
                 →
               </span>
               <span className="text-fg-muted min-w-0 truncate text-[12.5px]">{l.userName}</span>
+              {l.defaultCostCenter && <span className="text-fg-subtle font-mono text-[11px]">cc {l.defaultCostCenter}</span>}
               <button
                 type="button"
                 disabled={!editable || removing}
@@ -305,7 +306,7 @@ function SendersTab({
         <p className="border-line text-fg-subtle rounded-xl border border-dashed px-4 py-5 text-center text-[12.5px]">No linked senders yet.</p>
       )}
 
-      <form onSubmit={submitWithoutReset(action)} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form onSubmit={submitWithoutReset(action)} className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem_auto] sm:items-end">
         <input type="hidden" name="channel" value={channel} />
         <label className="block">
           <span className="label-mono mb-2 block">{senderLabel}</span>
@@ -323,6 +324,10 @@ function SendersTab({
               </option>
             ))}
           </select>
+        </label>
+        <label className="block">
+          <span className="label-mono mb-2 block">Cost centre</span>
+          <input name="costCenter" required disabled={!editable} placeholder="ENG-BLR" maxLength={32} className="field font-mono uppercase" />
         </label>
         <button type="submit" disabled={!editable || pending} className="btn btn-primary h-9">
           {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}

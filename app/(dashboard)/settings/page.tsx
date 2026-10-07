@@ -83,8 +83,9 @@ export default async function SettingsPage() {
   const origin = env("PUBLIC_BASE_URL").replace(/\/+$/, "") || `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
   const localUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
   const companyName = new Map(companies.map((c) => [c.id, c.legal_name.replace(" Private Limited", "")]));
+  // Only roles that can request bookings can be linked to a chat sender.
   const clientUsers = users
-    .filter((u) => u.companyId)
+    .filter((u) => u.companyId && u.role !== "FINANCE_VIEWER")
     .map((u) => ({ id: u.id, name: u.name, company: companyName.get(u.companyId!) ?? "" }));
   const time = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
   // Channel state comes from Supabase (or memory); a storage outage shows on the cards instead of failing the page.

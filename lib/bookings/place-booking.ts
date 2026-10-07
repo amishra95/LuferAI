@@ -9,6 +9,7 @@ import {
   listVenues,
   type NewApprovalRequest,
 } from "@/lib/data";
+import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { planHold } from "@/lib/inventory/plan-hold";
@@ -16,25 +17,31 @@ import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
 
-export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr";
+export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | ExpenseField;
 
 export interface PlaceBookingInput {
   companyId: string;
-  /** The requesting employee; needed when policy routes the booking for sign-off. */
+  /** The requesting employee: must be an Organizer or Approver at the company. */
   userId: string;
   venueId: string;
   eventDate: string; // YYYY-MM-DD
   partySize: number;
   budgetPerHead: number;
   notes?: string;
+  /** Cost centre (required), project code and billing GSTIN for finance. */
+  expense: ExpenseInput;
 }
+
+/** Roles allowed to file booking requests. Finance viewers are read-only. */
+const CAN_REQUEST = new Set(["ORGANIZER", "APPROVER"]);
 
 export interface PlaceBookingResult {
   status: "success" | "error";
   message: string;
   fieldErrors?: Partial<Record<BookingField, string>>;
   invoice?: TaxInvoicePayload;
-  approval?: { reason: string; approverName: string };
+  /** Set when the booking waits for sign-off; approverName lists approvers in order. */
+  approval?: { reason: string; approverName: string; tiers: number };
   holdHours?: number;
   bookingId?: string;
   venueName?: string;
@@ -50,9 +57,16 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   const { companyId, userId, venueId, eventDate, partySize, notes } = input;
   const budgetPerHead = input.budgetPerHead;
 
-  const [companies, venues] = await Promise.all([listCompanies(), listVenues()]);
+  const [companies, venues, users] = await Promise.all([listCompanies(), listVenues(), listPortalUsers({ companyId })]);
   const company = companies.find((c) => c.id === companyId);
   const venue = venues.find((v) => v.id === venueId);
+  const requester = users.find((u) => u.id === userId);
+
+  // Who may book: checked before anything else, for every entry point.
+  if (company && !requester) return { status: "error", message: `Choose who is requesting this under "Acting as" first.` };
+  if (requester && !CAN_REQUEST.has(requester.role ?? "")) {
+    return { status: "error", message: `${requester.name} has the Finance viewer role, which can't request bookings. Ask an Organizer.` };
+  }
 
   const fieldErrors: PlaceBookingResult["fieldErrors"] = {};
   if (!venue) fieldErrors.venue_id = "Choose a venue";
@@ -63,6 +77,8 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   if (!Number.isFinite(budgetPerHead) || budgetPerHead <= 0) fieldErrors.budget_per_head_inr = "Enter a budget per head";
 
   if (!company) return { status: "error", message: "Unknown company account." };
+  const expense = validateExpense(input.expense, company.gstin);
+  if (!expense.ok) Object.assign(fieldErrors, expense.errors);
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
 
   try {
@@ -92,26 +108,24 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       per_head_amount: pricing.negotiatedPerHead,
     });
 
-    let approval: NewApprovalRequest | undefined;
-    let approverName = "";
+    // Tier 1 (manager) signs off; above the high-value threshold tier 2 (senior) does too, after tier 1.
+    // Nobody approves their own request: the requester is skipped and the next tier steps up.
+    const approvals: NewApprovalRequest[] = [];
+    let approverNames: string[] = [];
     if (policy.requiresApproval) {
-      const [users, chain] = await Promise.all([listPortalUsers({ companyId: company.id }), listApprovalChain(company.id)]);
-      if (!users.some((u) => u.id === userId)) {
-        return { status: "error", message: `This booking needs sign-off (${policy.reason}). Choose who is requesting it under "Acting as" first.` };
-      }
-      // Tier 1 approves; if the requester is tier 1 themselves, the next tier does.
-      const tier = chain.find((c) => c.approver_user_id !== userId);
-      if (!tier) {
+      const chain = (await listApprovalChain(company.id)).filter((c) => c.approver_user_id !== userId);
+      const assigned = chain.slice(0, policy.tiers);
+      if (assigned.length < policy.tiers) {
         return {
           status: "error",
-          message: `This booking needs sign-off (${policy.reason}), but ${company.legal_name} has no approver set up${chain.length ? " other than you" : ""}.`,
+          message: `This booking needs ${policy.tiers === 2 ? "two levels of" : ""} sign-off (${policy.reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
         };
       }
-      approval = { requested_by: userId, approver_id: tier.approver_user_id, reason: policy.reason };
-      approverName = users.find((u) => u.id === tier.approver_user_id)?.name ?? "your approver";
+      for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason: policy.reason });
+      approverNames = assigned.map((c) => users.find((u) => u.id === c.approver_user_id)?.name ?? "an approver");
     }
 
-    const { hours, ...hold } = planHold(Boolean(approval));
+    const { hours, ...hold } = planHold(approvals.length > 0);
     const booking = await createBookingRequest(
       {
         company_id: company.id,
@@ -120,15 +134,16 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         budget_per_head_inr: pricing.negotiatedPerHead,
         event_date: eventDate,
         notes,
+        ...(expense.ok ? expense.value : { cost_center: "" }),
       },
-      { approval, hold }
+      { approvals, hold }
     );
-    if (approval) {
+    if (approvals.length) {
       return {
         status: "success",
-        message: "Booking submitted — requires manager sign-off.",
+        message: approvals.length > 1 ? "Booking submitted — requires manager and senior sign-off." : "Booking submitted — requires manager sign-off.",
         invoice: booking.invoice,
-        approval: { reason: approval.reason, approverName },
+        approval: { reason: approvals[0].reason, approverName: approverNames.join(", then "), tiers: approvals.length },
         holdHours: hours,
         bookingId: booking.id,
         venueName: venue!.name,

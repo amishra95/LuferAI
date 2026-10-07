@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { placeBookingRequest } from "@/lib/bookings/place-booking";
-import { decideApproval, listCompanies, listVenues } from "@/lib/data";
+import { placeBookingRequest, type BookingField } from "@/lib/bookings/place-booking";
+import { addApprovalComment, decideApproval, listCompanies, listPortalUsers, listVenues } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
@@ -11,10 +11,10 @@ import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegoti
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
   message?: string;
-  fieldErrors?: Partial<Record<"venue_id" | "event_date" | "party_size" | "budget_per_head_inr", string>>;
+  fieldErrors?: Partial<Record<BookingField, string>>;
   invoice?: TaxInvoicePayload;
-  /** Set when the booking breached policy and is waiting on a manager. */
-  approval?: { reason: string; approverName: string };
+  /** Set when the booking breached policy and is waiting for sign-off (tiers: 1 manager, 2 manager + senior). */
+  approval?: { reason: string; approverName: string; tiers: number };
   /** How long the venue/date is held for this booking. */
   holdHours?: number;
 }
@@ -62,8 +62,13 @@ export async function submitBookingRequest(
   const partySize = Number(formData.get("party_size"));
   const budgetPerHead = Number(formData.get("budget_per_head_inr"));
   const notes = String(formData.get("notes") ?? "").trim() || undefined;
+  const expense = {
+    costCenter: String(formData.get("cost_center") ?? ""),
+    projectCode: String(formData.get("project_code") ?? ""),
+    taxId: String(formData.get("billing_gstin") ?? ""),
+  };
 
-  const result = await placeBookingRequest({ companyId, userId, venueId, eventDate, partySize, budgetPerHead, notes });
+  const result = await placeBookingRequest({ companyId, userId, venueId, eventDate, partySize, budgetPerHead, notes, expense });
   if (result.status === "success") {
     revalidatePath("/client");
     revalidatePath("/property");
@@ -91,6 +96,10 @@ export async function decideBookingApproval(
     return { status: "error", message: "Invalid approval action." };
   }
 
+  // Only Approvers decide; the chain assignment below scopes it to their own approvals.
+  const actor = (await listPortalUsers({ companyId })).find((u) => u.id === userId);
+  if (actor?.role !== "APPROVER") return { status: "error", message: "Only users with the Approver role can sign off." };
+
   try {
     // Scoped to approver + tenant so nobody can decide someone else's approval.
     await decideApproval(approvalId, { approverId: userId, tenantId: companyId }, intent === "approve" ? "APPROVED" : "REJECTED", note);
@@ -102,4 +111,27 @@ export async function decideBookingApproval(
   revalidatePath("/property");
   revalidatePath("/admin");
   return { status: "idle" };
+}
+
+export interface ApprovalCommentState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** Posts to an approval's discussion thread as the acting user (any role in the tenant). */
+export async function postApprovalComment(_prev: ApprovalCommentState, formData: FormData): Promise<ApprovalCommentState> {
+  const approvalId = String(formData.get("approval_id") ?? "");
+  const companyId = String(formData.get("company_id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  if (!approvalId || !companyId || !userId) return { status: "error", message: "Invalid comment." };
+  if (body.length < 1 || body.length > 2000) return { status: "error", message: "Write a comment (up to 2000 characters)." };
+
+  try {
+    await addApprovalComment({ approvalId, tenantId: companyId, authorId: userId, body });
+  } catch (err) {
+    return { status: "error", message: err instanceof Error ? err.message : "Could not post the comment." };
+  }
+  revalidatePath("/client");
+  return { status: "success" };
 }

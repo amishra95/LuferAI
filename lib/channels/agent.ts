@@ -11,6 +11,7 @@ import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/pla
 import { mergeParsed, parseReservationText } from "@/lib/channels/parse-reservation";
 import { channelStore, maskSender } from "@/lib/channels/store";
 import { listVenues } from "@/lib/data";
+import { listDirectory } from "@/lib/venues/directory";
 import { formatDate, formatINR } from "@/lib/utils";
 import type { ChannelEvent, ChannelEventStatus, ChannelId, ChannelLink } from "@/types/channels";
 
@@ -42,7 +43,7 @@ const MAX_HISTORY_TURNS = 6;
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Finds a catalogue venue by (partial, case-insensitive) name. */
-function matchVenue(venues: Venue[], name: string): Venue | undefined {
+function matchVenue<V extends { name: string }>(venues: V[], name: string): V | undefined {
   const n = name.trim().toLowerCase().replace(/^the\s+/, "");
   if (!n) return undefined;
   return venues.find((v) => v.name.toLowerCase().replace(/^the\s+/, "") === n) ?? venues.find((v) => v.name.toLowerCase().includes(n));
@@ -64,13 +65,21 @@ function bookingReply(r: PlaceBookingResult): string {
 async function createBooking(
   link: ChannelLink | undefined,
   venues: Venue[],
-  args: { venueName: string; eventDate: string; partySize: number; budgetPerHead: number; notes?: string }
+  args: { venueName: string; eventDate: string; partySize: number; budgetPerHead: number; notes?: string; costCenter?: string; projectCode?: string }
 ): Promise<PlaceBookingResult> {
   if (!link) {
     return { status: "error", message: "This sender isn't linked to a Lufer.ai account, so I can only search. Ask your admin to link you in Settings → Channels." };
   }
   const venue = matchVenue(venues, args.venueName);
-  if (!venue) return { status: "error", message: `No catalogue venue called "${args.venueName}".` };
+  if (!venue) {
+    // Partner-network venues are listed but booked through their supplier.
+    const partner = matchVenue((await listDirectory()).venues.filter((v) => v.tier === "partner"), args.venueName);
+    if (partner) {
+      const supplier = partner.supplier ?? "its supplier network";
+      return { status: "error", message: `${partner.name} is a partner venue listed by ${supplier}. Partner venues are booked through the supplier, so I can't file it here; pick one of Lufer.ai's own venues or ask your admin for a supplier quote.` };
+    }
+    return { status: "error", message: `No catalogue venue called "${args.venueName}".` };
+  }
   return placeBookingRequest({
     companyId: link.companyId,
     userId: link.userId,
@@ -79,6 +88,7 @@ async function createBooking(
     partySize: args.partySize,
     budgetPerHead: args.budgetPerHead,
     notes: args.notes,
+    expense: { costCenter: args.costCenter || link.defaultCostCenter, projectCode: args.projectCode },
   });
 }
 
@@ -96,8 +106,15 @@ function openTurns(history: ChannelEvent[]): ChannelEvent[] {
 }
 
 /** Demo-mode handling: deterministic parse (with earlier turns), then search or book. */
-async function runDeterministic(text: string, turns: ChannelEvent[], link: ChannelLink | undefined, venues: Venue[]) {
-  const catalogue = { venueNames: venues.map((v) => v.name), areas: [...new Set(venues.map((v) => v.neighborhood))] };
+async function runDeterministic(
+  text: string,
+  turns: ChannelEvent[],
+  link: ChannelLink | undefined,
+  venues: Venue[],
+  directory: { name: string; neighborhood: string }[]
+) {
+  // Parse against the whole directory so partner venues and areas are recognised too.
+  const catalogue = { venueNames: directory.map((v) => v.name), areas: [...new Set(directory.map((v) => v.neighborhood))] };
   const parsed = mergeParsed(
     parseReservationText(text, catalogue, today()),
     [...turns].reverse().map((t) => parseReservationText(t.text, catalogue, today()))
@@ -114,7 +131,14 @@ async function runDeterministic(text: string, turns: ChannelEvent[], link: Chann
       return { reply: `To book ${parsed.venueName} I still need ${missing.join(", ")}. Just reply with the missing details.`, status: "replied" as const, tools };
     }
     tools.push("createBooking");
-    const r = await createBooking(link, venues, { venueName: parsed.venueName, eventDate: parsed.date!, partySize: parsed.guests!, budgetPerHead: parsed.budgetPerHead! });
+    const r = await createBooking(link, venues, {
+      venueName: parsed.venueName,
+      eventDate: parsed.date!,
+      partySize: parsed.guests!,
+      budgetPerHead: parsed.budgetPerHead!,
+      costCenter: parsed.costCenter,
+      projectCode: parsed.projectCode,
+    });
     return { reply: bookingReply(r), status: r.status === "success" ? ("booked" as const) : ("replied" as const), bookingId: r.bookingId, tools };
   }
 
@@ -128,7 +152,9 @@ async function runDeterministic(text: string, turns: ChannelEvent[], link: Chann
   if (result.total === 0) {
     return { reply: "No catalogue venues match that. Try fewer guests, another area or a higher budget.", status: "replied" as const, tools };
   }
-  const lines = result.venues.slice(0, 3).map((v) => `• *${v.name}* (${v.neighborhood}) · up to ${v.capacity} · est. ${formatINR(v.estimatedTotalInr)}`);
+  const lines = result.venues
+    .slice(0, 4)
+    .map((v) => `• *${v.name}* (${v.neighborhood}) · up to ${v.capacity} · est. ${formatINR(v.estimatedTotalInr)}${v.tier === "partner" ? ` · partner via ${v.supplier}` : ""}`);
   const when = parsed.date ? ` on ${formatDate(parsed.date)}` : "";
   const how = link ? `Reply "book <venue>" and I'll use the details above, or add a date, guests and budget.` : "Ask your admin to link this number in Lufer.ai to book directly.";
   return {
@@ -176,6 +202,8 @@ async function runModel(
         partySize: z.number().int().min(1),
         budgetPerHead: z.number().positive().describe("INR per guest, pre-GST."),
         notes: z.string().max(500).optional(),
+        costCenter: z.string().max(32).optional().describe("Cost centre if the sender named one; otherwise their default is used."),
+        projectCode: z.string().max(32).optional().describe("Project code if the sender named one."),
       }),
       execute: (args) =>
         guard("createBooking", async () => {
@@ -197,7 +225,8 @@ async function runModel(
       `You are Lufer.ai's booking concierge on ${msg.channel === "whatsapp" ? "WhatsApp" : "Slack"} for corporate events in Bengaluru, India. Today is ${today()}. ` +
       (link ? `The sender is ${link.userName}; bookings go on their company account. ` : "The sender is not linked to an account: you may search but not book; tell them to ask their admin to link them. ") +
       "Use earlier messages in this conversation to fill in details; ask only for what is still missing. " +
-      "Use searchVenues to find options and createBooking to file a request. Never invent venues, prices or booking references. Amounts are INR. " +
+      "Use searchVenues to find options and createBooking to file a request. Only internal (Lufer.ai) venues can be booked; partner venues are booked through their supplier, so say so. " +
+      "Never invent venues, prices or booking references. Amounts are INR. " +
       "Reply in under 80 words, plain text, *bold* for venue names, no markdown headings or tables.",
     messages: [...history, { role: "user", content: msg.text }],
     tools,
@@ -293,9 +322,9 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
   }
 
   try {
-    const venues = await listVenues();
+    const [venues, directory] = await Promise.all([listVenues(), listDirectory()]);
     const model = getLanguageModel();
-    if (!model) return finish(await runDeterministic(msg.text, turns, link, venues));
+    if (!model) return finish(await runDeterministic(msg.text, turns, link, venues, directory.venues));
     const { steps, tokens, ...r } = await runModel(model, msg, turns, link, venues, agent);
     return finish(r, { steps, tokens });
   } catch (err) {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { releaseHold, updateBookingStatus } from "@/lib/data";
+import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 
 const INTENT_TO_STATUS: Record<string, BookingStatus> = {
@@ -20,6 +21,8 @@ export async function respondToBooking(formData: FormData) {
 
   // Scoped to the venue so one property can never update another's booking.
   await updateBookingStatus(bookingId, next, { venueId });
+  // Finance sync: export the receipt on confirmation. Failures are logged, never block the venue.
+  if (next === "CONFIRMED") await dispatchBookingConfirmed(bookingId);
 
   revalidatePath("/property");
   revalidatePath("/client");
@@ -48,6 +51,7 @@ export async function convertVenueHold(formData: FormData) {
   if (!bookingId || !venueId) throw new Error("Invalid hold action");
 
   await updateBookingStatus(bookingId, "CONFIRMED", { venueId });
+  await dispatchBookingConfirmed(bookingId);
 
   revalidatePath("/property");
   revalidatePath("/client");

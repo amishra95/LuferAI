@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
-import { dataSource, listVenues } from "@/lib/data";
+import { dataSource } from "@/lib/data";
+import { listDirectory } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Venues" };
 
 const COLUMNS: { key: VenueSortKey | null; label: string; align?: "right"; className?: string }[] = [
   { key: "name", label: "Venue" },
+  { key: null, label: "Tier" },
   { key: "neighborhood", label: "Area" },
   { key: "capacity_max", label: "Guests", align: "right" },
   { key: "min_spend_inr", label: "Min spend", align: "right" },
@@ -39,18 +41,18 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
 
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
   const query = parseVenueQuery(await searchParams);
-  const venues = await listVenues();
+  const { venues, partners } = await listDirectory();
   const { rows, total, page, pageCount } = applyVenueQuery(venues, query);
   const areas = [...new Set(venues.map((v) => v.neighborhood))].sort();
   const source = dataSource();
-  const filtered = Boolean(query.q || query.area || query.pdr || query.minCapacity);
+  const filtered = Boolean(query.q || query.tier || query.area || query.pdr || query.minCapacity);
   const first = total === 0 ? 0 : (page - 1) * query.size + 1;
 
   return (
     <Page>
       <PageHeader
         title="Venues"
-        description="The catalogue behind the agent's searchVenues tool. Active venues only."
+        description="Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries."
         badge={<NoticePill>{source === "mock" ? "mock data" : "supabase"}</NoticePill>}
       />
 
@@ -68,6 +70,14 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             {areas.map((a) => (
               <option key={a}>{a}</option>
             ))}
+          </select>
+        </label>
+        <label className="flex-[1_1_9rem]">
+          <span className="sr-only">Directory tier</span>
+          <select name="tier" defaultValue={query.tier} className="field">
+            <option value="">All tiers</option>
+            <option value="internal">Lufer.ai venues</option>
+            <option value="partner">Partner network</option>
           </select>
         </label>
         <label className="flex-[1_1_8rem]">
@@ -90,12 +100,18 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             Apply
           </button>
           {filtered && (
-            <Link href={venueHref({ ...query, q: "", area: "", pdr: "", minCapacity: 0, page: 1 })} className="btn btn-ghost h-9">
+            <Link href={venueHref({ ...query, q: "", tier: "", area: "", pdr: "", minCapacity: 0, page: 1 })} className="btn btn-ghost h-9">
               Reset
             </Link>
           )}
         </div>
       </form>
+
+      {partners.status === "unavailable" && (
+        <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-xl border px-4 py-2.5 text-[12.5px]">
+          {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
+        </p>
+      )}
 
       <section className="panel overflow-hidden">
         {/* Phones: stacked rows. The full table starts at md. */}
@@ -104,13 +120,13 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             <li key={v.id} className="border-line border-b px-4 py-3.5 last:border-b-0">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-fg truncate text-[13.5px] font-medium">{v.name}</p>
-                <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(Number(v.min_spend_inr))}</p>
+                <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(v.min_spend_inr)}</p>
               </div>
               <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
                 <span className="text-fg-muted font-sans text-[12.5px]">{v.neighborhood}</span>
                 <span>{v.capacity_max} guests</span>
                 <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
-                <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>
+                {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
               </p>
             </li>
           ))}
@@ -142,9 +158,12 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                       {v.address}
                     </p>
                   </td>
+                  <td className="px-4">
+                    <TierBadge venue={v} />
+                  </td>
                   <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
                   <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
-                  <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(Number(v.min_spend_inr))}</td>
+                  <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
                   <td className="px-4 text-center">
                     {v.pdr_available ? (
                       <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
@@ -153,8 +172,10 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     )}
                     <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
                   </td>
-                  <td className="text-fg-muted px-4 text-right font-mono tabular-nums">{(Number(v.commission_rate) * 100).toFixed(1)}%</td>
-                  <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin}</td>
+                  <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
+                    {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
+                  </td>
+                  <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
                 </tr>
               ))}
               {rows.length === 0 && (
@@ -222,5 +243,20 @@ function PageLink({ query, page, disabled, label, children }: { query: VenueQuer
     <Link href={venueHref(query, { page })} scroll={false} aria-label={label} className="btn btn-icon size-7 rounded-lg">
       {children}
     </Link>
+  );
+}
+
+function TierBadge({ venue }: { venue: { tier: "internal" | "partner"; supplier: string | null } }) {
+  if (venue.tier === "internal") {
+    return (
+      <span className="pill" title="Lufer.ai venue: book directly">
+        <span className="bg-fg size-1.5 rounded-full" aria-hidden /> Lufer.ai
+      </span>
+    );
+  }
+  return (
+    <span className="pill" title={`Partner venue listed by ${venue.supplier}; booked through the supplier`}>
+      <span className="border-fg-subtle size-1.5 rounded-full border" aria-hidden /> partner
+    </span>
   );
 }

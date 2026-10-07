@@ -76,7 +76,14 @@ export const supabaseStore: ChannelStore = {
     if (channel) q = q.eq("channel", channel);
     const { data, error } = await q;
     if (error) fail("list sender links", error);
-    return data.map((r) => ({ channel: r.channel as ChannelId, senderId: r.sender_id, userId: r.user_id, companyId: r.company_id, userName: r.user_name }));
+    return data.map((r) => ({
+      channel: r.channel as ChannelId,
+      senderId: r.sender_id,
+      userId: r.user_id,
+      companyId: r.company_id,
+      userName: r.user_name,
+      defaultCostCenter: r.default_cost_center ?? undefined,
+    }));
   },
 
   async findLink(channel, senderId) {
@@ -87,14 +94,23 @@ export const supabaseStore: ChannelStore = {
       .eq("sender_id", senderId)
       .maybeSingle();
     if (error) fail("find sender link", error);
-    return data ? { channel, senderId, userId: data.user_id, companyId: data.company_id, userName: data.user_name } : undefined;
+    return data
+      ? { channel, senderId, userId: data.user_id, companyId: data.company_id, userName: data.user_name, defaultCostCenter: data.default_cost_center ?? undefined }
+      : undefined;
   },
 
   async upsertLink(l) {
     const { error } = await createAdminClient()
       .from("channel_sender_links")
       .upsert(
-        { channel: l.channel, sender_id: l.senderId, user_id: l.userId, company_id: l.companyId, user_name: l.userName },
+        {
+          channel: l.channel,
+          sender_id: l.senderId,
+          user_id: l.userId,
+          company_id: l.companyId,
+          user_name: l.userName,
+          default_cost_center: l.defaultCostCenter ?? null,
+        },
         { onConflict: "channel,sender_id" }
       );
     if (error) fail("save sender link", error);

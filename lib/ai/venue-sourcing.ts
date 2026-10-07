@@ -37,8 +37,8 @@ export interface CatalogueVenue {
 
 export type PolicyLabel = "Policy Compliant" | "Requires Manager Approval";
 
-export interface VenueOption {
-  venue: CatalogueVenue;
+export interface VenueOption<V extends CatalogueVenue = CatalogueVenue> {
+  venue: V;
   label: PolicyLabel;
   /** Why approval is needed; absent when compliant. */
   policyReason?: string;
@@ -58,11 +58,11 @@ const roundUp = (n: number) => Math.ceil(n);
  * Venues that fit the filters, each labelled against the tenant's policy.
  * Compliant options sort first, then the closest capacity fit.
  */
-export function matchVenues(
-  venues: CatalogueVenue[],
+export function matchVenues<V extends CatalogueVenue>(
+  venues: V[],
   filters: VenueSearchFilters,
   policy: BookingPolicyRules | null
-): VenueOption[] {
+): VenueOption<V>[] {
   const location = filters.location.trim().toLowerCase();
   const wantsPrivateDining = filters.features.some((f) => PRIVATE_DINING.test(f));
   const unverifiedFeatures = filters.features.filter((f) => !PRIVATE_DINING.test(f));
@@ -75,7 +75,7 @@ export function matchVenues(
     .filter((v) => !wantsPrivateDining || v.pdr_available)
     // With a budget, drop venues whose minimum spend the group can't reach.
     .filter((v) => budget <= 0 || Number(v.min_spend_inr) <= headcount * budget)
-    .map((v): VenueOption => {
+    .map((v): VenueOption<V> => {
       const minSpend = Number(v.min_spend_inr);
       const estimatedTotal = Math.max(headcount * budget, minSpend);
       const estimatedPerHead = Math.max(budget, roundUp(minSpend / headcount));

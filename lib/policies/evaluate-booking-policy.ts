@@ -9,6 +9,8 @@ export interface BookingPolicyRules {
   max_budget_per_head: number | null;
   /** Booking total (pre-GST) above which sign-off is needed. null = never. */
   requires_approval_above: number | null;
+  /** Booking total above which a tier-2 (senior) sign-off is needed too. null/absent = never. */
+  high_value_threshold?: number | null;
 }
 
 export interface BookingPolicyInput {
@@ -19,7 +21,10 @@ export interface BookingPolicyInput {
   per_head_amount: number;
 }
 
-export type BookingPolicyResult = { requiresApproval: false } | { requiresApproval: true; reason: string };
+export type BookingPolicyResult =
+  | { requiresApproval: false }
+  /** tiers: how many levels of the approval chain must sign off (2 = manager + senior). */
+  | { requiresApproval: true; reason: string; tiers: 1 | 2 };
 
 const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
@@ -43,5 +48,12 @@ export function evaluateBookingPolicy(
     );
   }
 
-  return reasons.length === 0 ? { requiresApproval: false } : { requiresApproval: true, reason: reasons.join("; ") };
+  const highValue = rules.high_value_threshold != null && input.total_amount > Number(rules.high_value_threshold);
+  if (highValue) {
+    reasons.push(`it is above the ${inr(Number(rules.high_value_threshold))} high-value threshold, so it also needs senior sign-off`);
+  }
+
+  return reasons.length === 0
+    ? { requiresApproval: false }
+    : { requiresApproval: true, reason: reasons.join("; "), tiers: highValue ? 2 : 1 };
 }

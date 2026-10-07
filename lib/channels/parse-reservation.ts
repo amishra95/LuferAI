@@ -15,6 +15,10 @@ export interface ParsedReservation {
   /** A catalogue venue named in the text. */
   venueName?: string;
   wantsPrivateDining: boolean;
+  /** "cc ENG-42", "cost centre: ENG-42" */
+  costCenter?: string;
+  /** "project FY27-SKO" */
+  projectCode?: string;
 }
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -108,6 +112,9 @@ export function parseReservationText(
     .find((v) => lower.includes(v.toLowerCase()) || lower.includes(v.toLowerCase().replace(/^the\s+/, "")));
   const area = catalogue.areas.find((a) => lower.includes(a.toLowerCase()));
 
+  const costCenter = text.match(/\b(?:cc|cost[ -]?cent(?:er|re))\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9._/-]{1,31})\b/i)?.[1]?.toUpperCase();
+  const projectCode = text.match(/\bproject(?:\s*code)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9._/-]{1,31})\b/i)?.[1]?.toUpperCase();
+
   return {
     intent: /\b(book|reserve|confirm|lock in|hold)\b/.test(lower) ? "book" : "search",
     guests,
@@ -116,6 +123,8 @@ export function parseReservationText(
     area,
     venueName,
     wantsPrivateDining: /private (dining|room)|\bpdr\b|private space/.test(lower),
+    costCenter,
+    projectCode,
   };
 }
 
@@ -131,5 +140,7 @@ export function mergeParsed(current: ParsedReservation, earlier: ParsedReservati
     area: pick("area"),
     venueName: pick("venueName"),
     wantsPrivateDining: current.wantsPrivateDining || earlier.some((p) => p.wantsPrivateDining),
+    costCenter: pick("costCenter"),
+    projectCode: pick("projectCode"),
   };
 }

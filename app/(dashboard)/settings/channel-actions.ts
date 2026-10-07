@@ -89,9 +89,14 @@ export async function linkSender(_prev: FormState, form: FormData): Promise<Form
   }
   const user = (await listPortalUsers()).find((u) => u.id === String(form.get("userId") ?? ""));
   if (!user?.companyId) return { status: "error", message: "Choose a client user to book as." };
+  if (user.role === "FINANCE_VIEWER") return { status: "error", message: `${user.name} is a Finance viewer and can't request bookings. Pick an Organizer or Approver.` };
+  const costCenter = String(form.get("costCenter") ?? "").trim().toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9._/-]{1,31}$/.test(costCenter)) {
+    return { status: "error", message: "Enter a default cost centre for this sender (2–32 letters, digits, . _ / -)." };
+  }
 
   const failed = await persist(
-    () => channelStore().upsertLink({ channel, senderId, userId: user.id, companyId: user.companyId!, userName: user.name }),
+    () => channelStore().upsertLink({ channel, senderId, userId: user.id, companyId: user.companyId!, userName: user.name, defaultCostCenter: costCenter }),
     "save the sender link"
   );
   if (failed) return failed;

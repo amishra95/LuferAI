@@ -1,4 +1,4 @@
-import type { Venue } from "@/lib/supabase/database.types";
+import type { DirectoryVenue, VenueTier } from "@/lib/venues/partner-network";
 
 export const SORT_KEYS = ["name", "neighborhood", "capacity_max", "min_spend_inr", "commission_rate"] as const;
 export type VenueSortKey = (typeof SORT_KEYS)[number];
@@ -6,6 +6,7 @@ export const PAGE_SIZES = [10, 25, 50] as const;
 
 export type VenueQuery = {
   q: string;
+  tier: "" | VenueTier;
   area: string;
   pdr: "" | "yes" | "no";
   minCapacity: number;
@@ -23,8 +24,10 @@ export function parseVenueQuery(params: Params): VenueQuery {
   const sort = one(params.sort) as VenueSortKey;
   const size = Number(one(params.size)) as VenueQuery["size"];
   const pdr = one(params.pdr);
+  const tier = one(params.tier);
   return {
     q: one(params.q).trim().slice(0, 100),
+    tier: tier === "internal" || tier === "partner" ? tier : "",
     area: one(params.area).trim(),
     pdr: pdr === "yes" || pdr === "no" ? pdr : "",
     minCapacity: Math.max(0, Math.floor(Number(one(params.min)) || 0)),
@@ -40,6 +43,7 @@ export function venueHref(q: VenueQuery, patch: Partial<VenueQuery> = {}): strin
   const v = { ...q, ...patch };
   const p = new URLSearchParams();
   if (v.q) p.set("q", v.q);
+  if (v.tier) p.set("tier", v.tier);
   if (v.area) p.set("area", v.area);
   if (v.pdr) p.set("pdr", v.pdr);
   if (v.minCapacity) p.set("min", String(v.minCapacity));
@@ -51,16 +55,19 @@ export function venueHref(q: VenueQuery, patch: Partial<VenueQuery> = {}): strin
   return s ? `/venues?${s}` : "/venues";
 }
 
-export function applyVenueQuery(venues: Venue[], q: VenueQuery) {
+export function applyVenueQuery(venues: DirectoryVenue[], q: VenueQuery) {
   const needle = q.q.toLowerCase();
   const filtered = venues
-    .filter((v) => !needle || [v.name, v.address, v.neighborhood, v.gstin].some((s) => s.toLowerCase().includes(needle)))
+    .filter((v) => !needle || [v.name, v.address, v.neighborhood, v.gstin ?? "", v.supplier ?? ""].some((s) => s.toLowerCase().includes(needle)))
+    .filter((v) => !q.tier || v.tier === q.tier)
     .filter((v) => !q.area || v.neighborhood === q.area)
     .filter((v) => !q.pdr || v.pdr_available === (q.pdr === "yes"))
     .filter((v) => v.capacity_max >= q.minCapacity)
     .sort((a, b) => {
       const x = a[q.sort];
       const y = b[q.sort];
+      // Nulls (e.g. partner venues have no commission) sort last either way.
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
       const cmp = typeof x === "string" ? x.localeCompare(String(y)) : Number(x) - Number(y);
       return q.dir === "asc" ? cmp : -cmp;
     });

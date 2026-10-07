@@ -39,6 +39,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_comments: {
+        Row: {
+          approval_id: string
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          approval_id: string
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          approval_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_comments_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "booking_approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_comments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_chains: {
         Row: {
           approver_user_id: string
@@ -151,6 +193,9 @@ export type Database = {
       }
       bookings: {
         Row: {
+          billing_gstin: string | null
+          cost_center: string | null
+          project_code: string | null
           budget_per_head_inr: number
           commission_rate: number
           company_id: string
@@ -167,6 +212,9 @@ export type Database = {
           venue_id: string
         }
         Insert: {
+          billing_gstin?: string | null
+          cost_center?: string | null
+          project_code?: string | null
           budget_per_head_inr: number
           commission_rate: number
           company_id: string
@@ -183,6 +231,9 @@ export type Database = {
           venue_id: string
         }
         Update: {
+          billing_gstin?: string | null
+          cost_center?: string | null
+          project_code?: string | null
           budget_per_head_inr?: number
           commission_rate?: number
           company_id?: string
@@ -282,6 +333,7 @@ export type Database = {
       }
       channel_sender_links: {
         Row: {
+          default_cost_center: string | null
           channel: string
           company_id: string
           created_at: string
@@ -291,6 +343,7 @@ export type Database = {
           user_name: string
         }
         Insert: {
+          default_cost_center?: string | null
           channel: string
           company_id: string
           created_at?: string
@@ -300,6 +353,7 @@ export type Database = {
           user_name: string
         }
         Update: {
+          default_cost_center?: string | null
           channel?: string
           company_id?: string
           created_at?: string
@@ -401,6 +455,7 @@ export type Database = {
       }
       corporate_policies: {
         Row: {
+          high_value_threshold: number | null
           created_at: string
           currency: string
           id: string
@@ -410,6 +465,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          high_value_threshold?: number | null
           created_at?: string
           currency?: string
           id?: string
@@ -419,6 +475,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          high_value_threshold?: number | null
           created_at?: string
           currency?: string
           id?: string
@@ -487,6 +544,66 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_exports: {
+        Row: {
+          payload: string
+          booking_id: string
+          created_at: string
+          destination: string
+          error: string | null
+          event: string
+          id: string
+          payload_sha256: string
+          receipt: Json
+          response_code: number | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          payload: string
+          booking_id: string
+          created_at?: string
+          destination: string
+          error?: string | null
+          event: string
+          id?: string
+          payload_sha256: string
+          receipt: Json
+          response_code?: number | null
+          status: string
+          tenant_id: string
+        }
+        Update: {
+          payload?: string
+          booking_id?: string
+          created_at?: string
+          destination?: string
+          error?: string | null
+          event?: string
+          id?: string
+          payload_sha256?: string
+          receipt?: Json
+          response_code?: number | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_exports_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_exports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -576,6 +693,7 @@ export type Database = {
       }
       platform_users: {
         Row: {
+          corporate_role: Database["public"]["Enums"]["corporate_role"] | null
           company_id: string | null
           created_at: string
           role: Database["public"]["Enums"]["portal_role"]
@@ -583,6 +701,7 @@ export type Database = {
           venue_id: string | null
         }
         Insert: {
+          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
           created_at?: string
           role: Database["public"]["Enums"]["portal_role"]
@@ -590,6 +709,7 @@ export type Database = {
           venue_id?: string | null
         }
         Update: {
+          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
           created_at?: string
           role?: Database["public"]["Enums"]["portal_role"]
@@ -827,6 +947,7 @@ export type Database = {
     }
     Enums: {
       approval_status: "PENDING" | "APPROVED" | "REJECTED"
+      corporate_role: "ORGANIZER" | "APPROVER" | "FINANCE_VIEWER"
       booking_status:
         | "PENDING_APPROVAL"
         | "PENDING"
@@ -968,6 +1089,7 @@ export const Constants = {
   public: {
     Enums: {
       approval_status: ["PENDING", "APPROVED", "REJECTED"],
+      corporate_role: ["ORGANIZER", "APPROVER", "FINANCE_VIEWER"],
       booking_status: [
         "PENDING_APPROVAL",
         "PENDING",

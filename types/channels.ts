@@ -10,6 +10,8 @@ export type ChannelLink = {
   userId: string;
   companyId: string;
   userName: string;
+  /** Cost centre used for bookings from this sender unless the message names one ("cc ENG-42"). */
+  defaultCostCenter?: string;
 };
 
 export type ChannelEventStatus = "running" | "replied" | "booked" | "failed" | "ignored";

@@ -1,12 +1,15 @@
 import "server-only";
 
 import type {
+  ApprovalComment,
   ApprovalChain,
   Booking,
   BookingApproval,
   Company,
   CorporatePolicy,
   CorporateRateCard,
+  CorporateRole,
+  ExpenseExport,
   InventoryHold,
   PlatformUser,
   Venue,
@@ -114,6 +117,9 @@ const venues: Venue[] = [
 const bookings: Booking[] = [
   {
     id: "bbbbbbbb-0001-4000-8000-000000000001",
+    cost_center: "ENG-BLR",
+    project_code: "Q3-OFFSITE",
+    billing_gstin: null,
     company_id: companies[0].id,
     venue_id: venues[0].id,
     party_size: 40,
@@ -130,6 +136,9 @@ const bookings: Booking[] = [
   },
   {
     id: "bbbbbbbb-0002-4000-8000-000000000002",
+    cost_center: "IR-ROADSHOW",
+    project_code: null,
+    billing_gstin: null,
     company_id: companies[1].id,
     venue_id: venues[4].id,
     party_size: 30,
@@ -146,6 +155,9 @@ const bookings: Booking[] = [
   },
   {
     id: "bbbbbbbb-0003-4000-8000-000000000003",
+    cost_center: "SALES-SKO",
+    project_code: "FY27-SKO",
+    billing_gstin: null,
     company_id: companies[0].id,
     venue_id: venues[2].id,
     party_size: 60,
@@ -223,32 +235,40 @@ const VERTEX = "22222222-2222-4222-8222-222222222222";
 /** platform_users plus a display name, which in Supabase comes from auth.users. */
 export type MockPortalUser = PlatformUser & { name: string };
 
-const portalUser = (user_id: string, company_id: string, name: string): MockPortalUser => ({
+const portalUser = (user_id: string, company_id: string, name: string, corporate_role: CorporateRole): MockPortalUser => ({
   user_id,
   role: "CLIENT",
   company_id,
   venue_id: null,
+  corporate_role,
   created_at: ts,
   name,
 });
 
 const users: MockPortalUser[] = [
-  portalUser("dddddddd-0001-4000-8000-000000000001", NIMBUS, "Priya Raman (Executive Assistant)"),
-  portalUser("dddddddd-0002-4000-8000-000000000002", NIMBUS, "Arjun Mehta (Finance Manager)"),
-  portalUser("dddddddd-0003-4000-8000-000000000003", VERTEX, "Neha Kapoor (Office Manager)"),
-  portalUser("dddddddd-0004-4000-8000-000000000004", VERTEX, "Rohan Iyer (Managing Director)"),
+  portalUser("dddddddd-0001-4000-8000-000000000001", NIMBUS, "Priya Raman (Executive Assistant)", "ORGANIZER"),
+  portalUser("dddddddd-0002-4000-8000-000000000002", NIMBUS, "Arjun Mehta (Finance Manager)", "APPROVER"),
+  portalUser("dddddddd-0003-4000-8000-000000000003", VERTEX, "Neha Kapoor (Office Manager)", "ORGANIZER"),
+  portalUser("dddddddd-0004-4000-8000-000000000004", VERTEX, "Rohan Iyer (Managing Director)", "APPROVER"),
+  portalUser("dddddddd-0005-4000-8000-000000000005", NIMBUS, "Vikram Shah (VP Operations)", "APPROVER"),
+  portalUser("dddddddd-0006-4000-8000-000000000006", NIMBUS, "Kavya Nair (Finance Controller)", "FINANCE_VIEWER"),
+  portalUser("dddddddd-0007-4000-8000-000000000007", VERTEX, "Ananya Rao (CFO)", "APPROVER"),
+  portalUser("dddddddd-0008-4000-8000-000000000008", VERTEX, "Sameer Das (Accounts)", "FINANCE_VIEWER"),
 ];
 
 const policies: CorporatePolicy[] = [
   { id: "eeeeeeee-0001-4000-8000-000000000001", tenant_id: NIMBUS, max_budget_per_head: 3000, currency: "INR",
-    requires_approval_above: 150000, created_at: ts, updated_at: ts },
+    requires_approval_above: 150000, high_value_threshold: 300000, created_at: ts, updated_at: ts },
   { id: "eeeeeeee-0002-4000-8000-000000000002", tenant_id: VERTEX, max_budget_per_head: 6000, currency: "INR",
-    requires_approval_above: 400000, created_at: ts, updated_at: ts },
+    requires_approval_above: 400000, high_value_threshold: 800000, created_at: ts, updated_at: ts },
 ];
 
 const approvalChains: ApprovalChain[] = [
   { id: "ffffffff-0001-4000-8000-000000000001", tenant_id: NIMBUS, approver_user_id: users[1].user_id, tier_level: 1, created_at: ts },
   { id: "ffffffff-0002-4000-8000-000000000002", tenant_id: VERTEX, approver_user_id: users[3].user_id, tier_level: 1, created_at: ts },
+  // Tier 2: senior sign-off for bookings above the high-value threshold.
+  { id: "ffffffff-0003-4000-8000-000000000003", tenant_id: NIMBUS, approver_user_id: users[4].user_id, tier_level: 2, created_at: ts },
+  { id: "ffffffff-0004-4000-8000-000000000004", tenant_id: VERTEX, approver_user_id: users[6].user_id, tier_level: 2, created_at: ts },
 ];
 
 // Demo negotiated terms: Nimbus gets 12% off at The Copper Courtyard, open-ended.
@@ -267,8 +287,10 @@ interface MockDb {
   policies: CorporatePolicy[];
   approvalChains: ApprovalChain[];
   approvals: BookingApproval[];
+  approvalComments: ApprovalComment[];
   holds: InventoryHold[];
   rateCards: CorporateRateCard[];
+  expenseExports: ExpenseExport[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -284,15 +306,17 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   policies,
   approvalChains,
   approvals: [],
+  approvalComments: [],
   holds: [],
   rateCards,
+  expenseExports: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
-/** Mock equivalent of the bookings_derive_gst_type trigger. */
-export function mockGstType(companyId: string, venueId: string) {
+/** Mock equivalent of the bookings_derive_gst_type trigger (billing GSTIN decides the place of supply when set). */
+export function mockGstType(companyId: string, venueId: string, billingGstin?: string | null) {
   const c = mockDb.companies.find((x) => x.id === companyId);
   const v = mockDb.venues.find((x) => x.id === venueId);
   if (!c || !v) throw new Error("Unknown company or venue");
-  return determineGstType(c.gstin, v.gstin);
+  return determineGstType(billingGstin || c.gstin, v.gstin);
 }

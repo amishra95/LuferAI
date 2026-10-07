@@ -4,6 +4,7 @@ import { calculateGst, roundInr, splitCommission, sumInr, type TaxInvoicePayload
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import type {
   ApprovalChain,
+  ApprovalComment,
   ApprovalStatus,
   Booking,
   BookingApproval,
@@ -11,11 +12,14 @@ import type {
   Company,
   CorporatePolicy,
   CorporateRateCard,
+  CorporateRole,
+  ExpenseExport,
   InventoryHold,
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
+import type { Json } from "@/lib/supabase/database.generated";
 import { mockDb, mockGstType } from "./mock-store";
 
 /**
@@ -45,7 +49,8 @@ function enrich(
   const total = Number(b.total_amount_inr);
   const invoice = calculateGst({
     total_amount: total,
-    company_gstin: company.gstin,
+    // Invoices go to the GSTIN being billed (a branch registration may differ from the company's main one).
+    company_gstin: b.billing_gstin ?? company.gstin,
     venue_gstin: venue.gstin,
     booking_id: b.id,
     invoice_date: b.event_date,
@@ -207,6 +212,10 @@ export interface NewBookingInput {
   budget_per_head_inr: number;
   event_date: string;
   notes?: string;
+  /** Expense metadata for finance: required cost centre, optional project, billing GSTIN (defaults to the company's). */
+  cost_center: string;
+  project_code?: string | null;
+  billing_gstin?: string | null;
 }
 
 export interface NewApprovalRequest {
@@ -216,11 +225,6 @@ export interface NewApprovalRequest {
   reason: string;
 }
 
-/**
- * Creates a booking. With `approval`, the booking starts as PENDING_APPROVAL and
- * a booking_approvals row is raised for the approver; otherwise it goes straight
- * to the venue as PENDING.
- */
 /** Thrown when another live hold already locks the venue on the event date. */
 export class HoldConflictError extends Error {
   constructor(venueName: string, date: string) {
@@ -235,18 +239,21 @@ export interface NewHoldRequest {
 }
 
 /**
- * Creates a booking. With `approval`, the booking starts as PENDING_APPROVAL and
- * a booking_approvals row is raised for the approver; otherwise it goes straight
- * to the venue as PENDING. With `hold`, an ACTIVE inventory hold locks the venue
+ * Creates a booking. With `approvals`, the booking starts as PENDING_APPROVAL and
+ * one booking_approvals row is raised per approver (tier 1, plus tier 2 for
+ * high-value bookings); it reaches the venue once all are approved. Otherwise it
+ * goes straight to the venue as PENDING. With `hold`, an ACTIVE inventory hold locks the venue
  * on the event date; if the date is already held the whole booking is refused.
  */
 export async function createBookingRequest(
   input: NewBookingInput,
-  options: { approval?: NewApprovalRequest; hold?: NewHoldRequest } = {}
+  options: { approvals?: NewApprovalRequest[]; hold?: NewHoldRequest } = {}
 ): Promise<BookingDetail> {
-  const { approval, hold } = options;
+  const { hold } = options;
+  const approvals = options.approvals ?? [];
   const total = roundInr(input.party_size * input.budget_per_head_inr);
-  const status: BookingStatus = approval ? "PENDING_APPROVAL" : "PENDING";
+  const status: BookingStatus = approvals.length ? "PENDING_APPROVAL" : "PENDING";
+  const row = { ...input, notes: input.notes ?? null, project_code: input.project_code ?? null, billing_gstin: input.billing_gstin ?? null };
 
   if (dataSource() === "mock") {
     const c = mockDb.companies.find((x) => x.id === input.company_id);
@@ -260,11 +267,10 @@ export async function createBookingRequest(
     }
     const booking: Booking = {
       id: crypto.randomUUID(),
-      ...input,
-      notes: input.notes ?? null,
+      ...row,
       total_amount_inr: total,
       sac_code: "998596",
-      gst_type: mockGstType(input.company_id, input.venue_id),
+      gst_type: mockGstType(input.company_id, input.venue_id, row.billing_gstin),
       // Mock equivalent of the bookings_snapshot_commission_rate trigger.
       commission_rate: v.commission_rate,
       status,
@@ -272,7 +278,7 @@ export async function createBookingRequest(
       updated_at: now,
     };
     mockDb.bookings.push(booking);
-    if (approval) {
+    for (const approval of approvals) {
       mockDb.approvals.push({
         id: crypto.randomUUID(),
         tenant_id: input.company_id,
@@ -304,7 +310,7 @@ export async function createBookingRequest(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("bookings")
-    .insert({ ...input, notes: input.notes ?? null, total_amount_inr: total, status })
+    .insert({ ...row, total_amount_inr: total, status })
     .select("id")
     .single();
   if (error) throw error;
@@ -312,10 +318,10 @@ export async function createBookingRequest(
   // No multi-statement transactions over PostgREST: if a dependent row fails,
   // delete the booking (approvals and holds cascade) so nothing is left half-made.
   const undo = () => supabase.from("bookings").delete().eq("id", data.id);
-  if (approval) {
+  if (approvals.length) {
     const { error: approvalError } = await supabase
       .from("booking_approvals")
-      .insert({ tenant_id: input.company_id, booking_id: data.id, ...approval });
+      .insert(approvals.map((a) => ({ tenant_id: input.company_id, booking_id: data.id, ...a })));
     if (approvalError) {
       await undo();
       throw approvalError;
@@ -388,6 +394,8 @@ export interface PortalUser {
   id: string;
   companyId: string | null;
   name: string;
+  /** Organizer requests events, Approver signs off, Finance viewer is read-only. */
+  role: CorporateRole | null;
 }
 
 /** Client-portal users (platform_users with role CLIENT), optionally for one tenant. */
@@ -395,11 +403,11 @@ export async function listPortalUsers(filter: { companyId?: string } = {}): Prom
   if (dataSource() === "mock") {
     return mockDb.users
       .filter((u) => !filter.companyId || u.company_id === filter.companyId)
-      .map((u) => ({ id: u.user_id, companyId: u.company_id, name: u.name }));
+      .map((u) => ({ id: u.user_id, companyId: u.company_id, name: u.name, role: u.corporate_role }));
   }
 
   const supabase = createAdminClient();
-  let query = supabase.from("platform_users").select("user_id, company_id").eq("role", "CLIENT");
+  let query = supabase.from("platform_users").select("user_id, company_id, corporate_role").eq("role", "CLIENT");
   if (filter.companyId) query = query.eq("company_id", filter.companyId);
   // platform_users has no name column; label people by their auth email.
   const [{ data, error }, auth] = await Promise.all([query, supabase.auth.admin.listUsers({ perPage: 1000 })]);
@@ -407,7 +415,7 @@ export async function listPortalUsers(filter: { companyId?: string } = {}): Prom
   if (auth.error) throw auth.error;
   const emails = new Map(auth.data.users.map((u) => [u.id, u.email ?? u.id]));
   return data
-    .map((u) => ({ id: u.user_id, companyId: u.company_id, name: emails.get(u.user_id) ?? u.user_id }))
+    .map((u) => ({ id: u.user_id, companyId: u.company_id, name: emails.get(u.user_id) ?? u.user_id, role: u.corporate_role }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -419,7 +427,14 @@ export async function getCorporatePolicy(tenantId: string): Promise<CorporatePol
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) throw error;
-  return data && { ...data, max_budget_per_head: numOrNull(data.max_budget_per_head), requires_approval_above: numOrNull(data.requires_approval_above) };
+  return (
+    data && {
+      ...data,
+      max_budget_per_head: numOrNull(data.max_budget_per_head),
+      requires_approval_above: numOrNull(data.requires_approval_above),
+      high_value_threshold: numOrNull(data.high_value_threshold),
+    }
+  );
 }
 
 const numOrNull = (v: number | string | null) => (v === null ? null : Number(v));
@@ -438,6 +453,21 @@ export async function listApprovalChain(tenantId: string): Promise<ApprovalChain
   return data;
 }
 
+/** Approver → tier, keyed "tenantId:userId" (optionally for one tenant). */
+async function approverTiers(tenantId?: string): Promise<Map<string, number>> {
+  let rows: ApprovalChain[];
+  if (dataSource() === "mock") {
+    rows = mockDb.approvalChains.filter((c) => !tenantId || c.tenant_id === tenantId);
+  } else {
+    let q = createAdminClient().from("approval_chains").select("*");
+    if (tenantId) q = q.eq("tenant_id", tenantId);
+    const { data, error } = await q;
+    if (error) throw error;
+    rows = data;
+  }
+  return new Map(rows.map((c) => [`${c.tenant_id}:${c.approver_user_id}`, c.tier_level]));
+}
+
 export interface ApprovalDetail extends BookingApproval {
   company: Pick<Company, "id" | "legal_name">;
   booking: Pick<Booking, "id" | "event_date" | "party_size" | "budget_per_head_inr" | "total_amount_inr" | "status"> & {
@@ -445,16 +475,20 @@ export interface ApprovalDetail extends BookingApproval {
   };
   requester_name: string;
   approver_name: string;
+  /** The approver's tier in the tenant's chain (1 = manager, 2 = senior sign-off). */
+  tier: number | null;
 }
 
 export async function listApprovals(
   filter: { tenantId?: string; approverId?: string; status?: ApprovalStatus } = {}
 ): Promise<ApprovalDetail[]> {
   const users = new Map((await listPortalUsers()).map((u) => [u.id, u.name]));
-  const named = (a: Omit<ApprovalDetail, "requester_name" | "approver_name">): ApprovalDetail => ({
+  const tiers = await approverTiers(filter.tenantId);
+  const named = (a: Omit<ApprovalDetail, "requester_name" | "approver_name" | "tier">): ApprovalDetail => ({
     ...a,
     requester_name: users.get(a.requested_by) ?? "Unknown user",
     approver_name: users.get(a.approver_id) ?? "Unknown user",
+    tier: tiers.get(`${a.tenant_id}:${a.approver_id}`) ?? null,
   });
 
   if (dataSource() === "mock") {
@@ -520,6 +554,9 @@ export async function decideApproval(
   decision: Exclude<ApprovalStatus, "PENDING">,
   note?: string
 ) {
+  // Sign-off is sequential: a tier-2 approver decides only after every lower tier has approved.
+  if (decision === "APPROVED") await assertLowerTiersApproved(id, scope.tenantId);
+
   if (dataSource() === "mock") {
     const a = mockDb.approvals.find(
       (x) => x.id === id && x.approver_id === scope.approverId && x.tenant_id === scope.tenantId && x.status === "PENDING"
@@ -548,6 +585,139 @@ export async function decideApproval(
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("This approval was not found or has already been decided.");
+}
+
+async function approvalsForBookingOf(approvalId: string, tenantId: string): Promise<BookingApproval[]> {
+  if (dataSource() === "mock") {
+    const a = mockDb.approvals.find((x) => x.id === approvalId && x.tenant_id === tenantId);
+    return a ? mockDb.approvals.filter((x) => x.booking_id === a.booking_id) : [];
+  }
+  const db = createAdminClient();
+  const { data: a, error } = await db.from("booking_approvals").select("booking_id").eq("id", approvalId).eq("tenant_id", tenantId).maybeSingle();
+  if (error) throw error;
+  if (!a) return [];
+  const { data, error: e2 } = await db.from("booking_approvals").select("*").eq("booking_id", a.booking_id);
+  if (e2) throw e2;
+  return data;
+}
+
+async function assertLowerTiersApproved(approvalId: string, tenantId: string) {
+  const [siblings, tiers, users] = await Promise.all([approvalsForBookingOf(approvalId, tenantId), approverTiers(tenantId), listPortalUsers({ companyId: tenantId })]);
+  const me = siblings.find((x) => x.id === approvalId);
+  if (!me) return; // decideApproval reports "not found"
+  const myTier = tiers.get(`${tenantId}:${me.approver_id}`) ?? 1;
+  const waitingOn = siblings.find((x) => x.id !== approvalId && x.status === "PENDING" && (tiers.get(`${tenantId}:${x.approver_id}`) ?? 1) < myTier);
+  if (waitingOn) {
+    const name = users.find((u) => u.id === waitingOn.approver_id)?.name ?? "the previous approver";
+    throw new Error(`Waiting for tier-${tiers.get(`${tenantId}:${waitingOn.approver_id}`) ?? 1} sign-off from ${name} first.`);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Approval threads
+// ----------------------------------------------------------------------------
+
+export interface ApprovalCommentDetail extends ApprovalComment {
+  author_name: string;
+}
+
+/** Comments on the given approvals, oldest first, with author names. */
+export async function listApprovalComments(approvalIds: string[], tenantId: string): Promise<ApprovalCommentDetail[]> {
+  if (approvalIds.length === 0) return [];
+  const names = new Map((await listPortalUsers({ companyId: tenantId })).map((u) => [u.id, u.name]));
+  let rows: ApprovalComment[];
+  if (dataSource() === "mock") {
+    rows = mockDb.approvalComments.filter((c) => c.tenant_id === tenantId && approvalIds.includes(c.approval_id));
+  } else {
+    const { data, error } = await createAdminClient()
+      .from("approval_comments")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .in("approval_id", approvalIds);
+    if (error) throw error;
+    rows = data;
+  }
+  return rows
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map((c) => ({ ...c, author_name: names.get(c.author_id) ?? "Unknown user" }));
+}
+
+/** Adds a comment; the approval and the author must both belong to the tenant. */
+export async function addApprovalComment(input: { approvalId: string; tenantId: string; authorId: string; body: string }) {
+  const body = input.body.trim();
+  if (!body || body.length > 2000) throw new Error("Comments are 1–2000 characters.");
+  if (dataSource() === "mock") {
+    if (!mockDb.approvals.some((a) => a.id === input.approvalId && a.tenant_id === input.tenantId)) throw new Error("Approval not found.");
+    if (!mockDb.users.some((u) => u.user_id === input.authorId && u.company_id === input.tenantId)) throw new Error("Unknown author.");
+    mockDb.approvalComments.push({
+      id: crypto.randomUUID(),
+      approval_id: input.approvalId,
+      tenant_id: input.tenantId,
+      author_id: input.authorId,
+      body,
+      created_at: new Date().toISOString(),
+    });
+    return;
+  }
+  // The approval_comments_author_fkey (author, tenant) FK enforces membership in Postgres.
+  const db = createAdminClient();
+  const { data: approval, error: e1 } = await db.from("booking_approvals").select("id").eq("id", input.approvalId).eq("tenant_id", input.tenantId).maybeSingle();
+  if (e1) throw e1;
+  if (!approval) throw new Error("Approval not found.");
+  const { error } = await db
+    .from("approval_comments")
+    .insert({ approval_id: input.approvalId, tenant_id: input.tenantId, author_id: input.authorId, body });
+  if (error) throw error;
+}
+
+// ----------------------------------------------------------------------------
+// Expense exports (finance sync audit log)
+// ----------------------------------------------------------------------------
+
+export type ExpenseExportEvent = "booking.confirmed";
+export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "receipt"> & { receipt: Json };
+
+/** The existing export for a booking/event, if any (exports are idempotent per booking + event). */
+export async function findExpenseExport(bookingId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
+  if (dataSource() === "mock") return mockDb.expenseExports.find((e) => e.booking_id === bookingId && e.event === event) ?? null;
+  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("booking_id", bookingId).eq("event", event).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Records an export. Returns false if one already exists for this booking + event. */
+export async function recordExpenseExport(row: NewExpenseExport): Promise<boolean> {
+  if (dataSource() === "mock") {
+    if (mockDb.expenseExports.some((e) => e.booking_id === row.booking_id && e.event === row.event)) return false;
+    mockDb.expenseExports.push({ ...row, id: crypto.randomUUID(), created_at: new Date().toISOString() });
+    return true;
+  }
+  const { error } = await createAdminClient().from("expense_exports").insert(row);
+  if (error?.code === "23505") return false; // unique (booking_id, event)
+  if (error) throw error;
+  return true;
+}
+
+export async function listExpenseExports(filter: { tenantId?: string; limit?: number } = {}): Promise<ExpenseExport[]> {
+  const limit = filter.limit ?? 50;
+  if (dataSource() === "mock") {
+    return mockDb.expenseExports
+      .filter((e) => !filter.tenantId || e.tenant_id === filter.tenantId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit);
+  }
+  let q = createAdminClient().from("expense_exports").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (filter.tenantId) q = q.eq("tenant_id", filter.tenantId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function getExpenseExport(id: string): Promise<ExpenseExport | null> {
+  if (dataSource() === "mock") return mockDb.expenseExports.find((e) => e.id === id) ?? null;
+  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 // ----------------------------------------------------------------------------

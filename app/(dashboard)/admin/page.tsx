@@ -10,21 +10,24 @@ import {
   GstTypeBadge,
   OnboardingStatusBadge,
 } from "@/components/portal/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listOnboardingRequests } from "@/lib/data";
+import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listExpenseExports, listOnboardingRequests } from "@/lib/data";
 import { stateName } from "@/lib/gst-engine";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const { tenant } = await searchParams;
   const tenantId = typeof tenant === "string" ? tenant : undefined;
-  const [bookings, onboarding, companies, approvals] = await Promise.all([
+  const [bookings, onboarding, companies, approvals, exports] = await Promise.all([
     listBookings(),
     listOnboardingRequests(),
     listCompanies(),
     listApprovals({ tenantId }),
+    listExpenseExports({ limit: 25 }),
   ]);
+  const companyName = new Map(companies.map((c) => [c.id, c.legal_name.replace(" Private Limited", "")]));
   const m = computePlatformMetrics(bookings);
   const shortName = (name: string) => name.replace(" Private Limited", "");
 
@@ -128,6 +131,64 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           </CardContent>
         </Card>
 
+        <Card id="exports">
+          <CardHeader>
+            <CardTitle>Expense exports</CardTitle>
+            <CardDescription>
+              Receipts sent to finance on booking confirmation. {process.env.EXPENSE_WEBHOOK_URL ? "Posted to the configured webhook." : "No EXPENSE_WEBHOOK_URL set, so exports are mocked (recorded, not sent)."} Each row keeps the SHA-256 of the exact payload.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Exported</TableHead>
+                  <TableHead>Tenant</TableHead>
+                  <TableHead>Cost centre</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Payload SHA-256</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {exports.map((e) => {
+                  const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null } };
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell className="font-mono text-[12px] tabular-nums">{e.created_at.slice(0, 16).replace("T", " ")}</TableCell>
+                      <TableCell>{companyName.get(e.tenant_id) ?? e.tenant_id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-mono text-[12px]">
+                        {r.expense?.cost_center ?? "—"}
+                        {r.expense?.project_code ? ` / ${r.expense.project_code}` : ""}
+                      </TableCell>
+                      <TableCell>
+                        <span title={e.error ?? undefined}>
+                          <ExportStatusBadge status={e.status} />
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-fg-subtle font-mono text-[11.5px]" title={e.payload_sha256}>
+                        {e.payload_sha256.slice(0, 16)}…
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <a href={`/api/exports/${e.id}`} download className="text-copper-ink text-[12px] hover:underline">
+                          receipt.json
+                        </a>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {exports.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-muted-foreground py-6 text-center">
+                      No exports yet. Confirming a booking in the property portal exports its receipt.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         <Card id="approvals">
           <CardHeader>
             <CardTitle>Approval audit</CardTitle>
@@ -201,4 +262,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       </div>
     </PortalShell>
   );
+}
+
+function ExportStatusBadge({ status }: { status: string }) {
+  if (status === "delivered") return <Badge variant="success">delivered</Badge>;
+  if (status === "failed") return <Badge variant="destructive">failed</Badge>;
+  return <Badge variant="outline">mocked</Badge>;
 }

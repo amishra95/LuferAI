@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { calculateGst } from "@/lib/gst-engine";
+import { calculateGst, normalizeGstin, validateGstin } from "@/lib/gst-engine";
 import type { Venue } from "@/lib/supabase/database.types";
 import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
 import { formatDate, formatINR } from "@/lib/utils";
@@ -49,6 +49,10 @@ export function EventRequestForm({
   const [partySize, setPartySize] = useState("");
   const [perHead, setPerHead] = useState("");
   const [eventDate, setEventDate] = useState("");
+  // Finance fields are controlled so they survive a failed submit (React resets uncontrolled inputs).
+  const [costCenter, setCostCenter] = useState("");
+  const [projectCode, setProjectCode] = useState("");
+  const [billingGstin, setBillingGstin] = useState("");
 
   // Apply a new prefill while rendering rather than in an effect (React's
   // "adjusting state when a prop changes" pattern), so there's no flash of old values.
@@ -96,10 +100,12 @@ export function EventRequestForm({
 
   // GST is on what will actually be invoiced: the negotiated total once known.
   const total = pricing?.taxableTotal ?? Number(partySize) * Number(perHead);
+  // The invoice follows the GSTIN being billed: a branch in another state switches CGST+SGST ↔ IGST.
+  const billedGstin = billingGstin && validateGstin(billingGstin).valid ? normalizeGstin(billingGstin) : companyGstin;
   const preview = useMemo(() => {
     if (!venue || !(total > 0)) return null;
-    return calculateGst({ total_amount: total, company_gstin: companyGstin, venue_gstin: venue.gstin });
-  }, [venue, total, companyGstin]);
+    return calculateGst({ total_amount: total, company_gstin: billedGstin, venue_gstin: venue.gstin });
+  }, [venue, total, billedGstin]);
 
   const err = state.status === "error" ? state.fieldErrors ?? {} : {};
   // Lazy initializer keeps render pure (evaluated once on mount).
@@ -201,6 +207,57 @@ export function EventRequestForm({
         </p>
       ) : null}
 
+      <fieldset className="grid gap-4 sm:grid-cols-3">
+        <legend className="text-fg mb-3 text-[13px] font-medium">Finance</legend>
+        <div className="grid gap-2">
+          <Label htmlFor="cost_center">Cost centre</Label>
+          <Input
+            id="cost_center"
+            name="cost_center"
+            value={costCenter}
+            onChange={(e) => setCostCenter(e.target.value.toUpperCase())}
+            placeholder="ENG-BLR"
+            maxLength={32}
+            required
+            aria-invalid={Boolean(err.cost_center)}
+            className="font-mono"
+          />
+          {err.cost_center ? <p className="text-destructive text-xs">{err.cost_center}</p> : null}
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="project_code">Project code</Label>
+          <Input
+            id="project_code"
+            name="project_code"
+            value={projectCode}
+            onChange={(e) => setProjectCode(e.target.value.toUpperCase())}
+            placeholder="Optional"
+            maxLength={32}
+            aria-invalid={Boolean(err.project_code)}
+            className="font-mono"
+          />
+          {err.project_code ? <p className="text-destructive text-xs">{err.project_code}</p> : null}
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="billing_gstin">Billing GSTIN</Label>
+          <Input
+            id="billing_gstin"
+            name="billing_gstin"
+            value={billingGstin}
+            onChange={(e) => setBillingGstin(e.target.value.toUpperCase())}
+            placeholder={companyGstin}
+            maxLength={15}
+            aria-invalid={Boolean(err.billing_gstin)}
+            className="font-mono"
+          />
+          {err.billing_gstin ? (
+            <p className="text-destructive text-xs">{err.billing_gstin}</p>
+          ) : (
+            <p className="text-muted-foreground text-xs">Blank bills your registered GSTIN.</p>
+          )}
+        </div>
+      </fieldset>
+
       <div className="grid gap-2">
         <Label htmlFor="notes">Notes for the venue</Label>
         <Input id="notes" name="notes" placeholder="Dietary needs, AV, seating, timings…" maxLength={500} />
@@ -263,7 +320,8 @@ export function EventRequestForm({
           <div>
             <p className="font-medium">{state.message}</p>
             <p className="text-muted-foreground mt-0.5">
-              Sent to {state.approval.approverName} because {state.approval.reason}. The venue sees it once approved
+              Sent for sign-off to {state.approval.approverName}
+              {state.approval.tiers > 1 ? " (in that order)" : ""} because {state.approval.reason}. The venue sees it once approved
               {state.holdHours ? `; the date is held for ${state.holdHours} hours meanwhile` : ""}.
             </p>
           </div>

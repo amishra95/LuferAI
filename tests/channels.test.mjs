@@ -21,6 +21,8 @@ test("parses guests, day-month date, per-head budget, area and PDR from a search
     area: "Indiranagar",
     venueName: undefined,
     wantsPrivateDining: true,
+    costCenter: undefined,
+    projectCode: undefined,
   });
 });
 
