@@ -132,8 +132,8 @@ export default async function SettingsPage() {
       <div>
         <Section
           title="OpenAI"
-          description="Powers Chat and the AI features. Without a key, Chat runs scripted demo replies."
-          status={openai.configured ? <StatusPill tone="live">live · {openai.model}</StatusPill> : <StatusPill tone="off">demo mode</StatusPill>}
+          description="Powers Chat and the AI features. Without a key, Chat is unavailable."
+          status={openai.configured ? <StatusPill tone="live">live · {openai.model}</StatusPill> : <StatusPill tone="off">not configured</StatusPill>}
         >
           <OpenAIForm status={openai} editable={editable} />
           {openai.source === "environment" && (

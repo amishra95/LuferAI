@@ -9,5 +9,5 @@ export const metadata: Metadata = { title: "Chat" };
 export default async function ChatPage() {
   const model = getLanguageModel();
   const { inspectorOpen } = await getPreferences();
-  return <ChatWorkspace model={model?.modelId ?? "demo"} demo={!model} defaultInspectorOpen={inspectorOpen} />;
+  return <ChatWorkspace model={model?.modelId ?? "none"} offline={!model} defaultInspectorOpen={inspectorOpen} />;
 }

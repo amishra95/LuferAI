@@ -38,7 +38,7 @@ export async function removeOpenAIKey(): Promise<FormState> {
   if (!(await canEditEnvFile())) return NOT_EDITABLE;
   await updateEnvFile({ OPENAI_API_KEY: null });
   revalidatePath("/", "layout");
-  return { status: "success", message: "Key removed. Chat is back in demo mode." };
+  return { status: "success", message: "Key removed. Chat is unavailable until a key is added." };
 }
 
 /** Checks the configured key can see the configured model. Sends the key to OpenAI only. */

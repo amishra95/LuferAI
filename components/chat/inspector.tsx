@@ -8,7 +8,8 @@ import type { ChatToolName } from "@/types/chat";
 
 export type SessionInfo = {
   model: string;
-  demo: boolean;
+  /** No model configured. */
+  offline: boolean;
   status: string;
   messageCount: number;
   totalTokens: number;
@@ -59,8 +60,8 @@ export function Inspector({
     ["model", session.model],
     [
       "mode",
-      <span key="m" className={session.demo ? "text-fg-muted" : "text-copper-ink"}>
-        {session.demo ? "demo" : "live"}
+      <span key="m" className={session.offline ? "text-fg-muted" : "text-copper-ink"}>
+        {session.offline ? "offline" : "live"}
       </span>,
     ],
     ["status", session.status],

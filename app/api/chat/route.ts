@@ -8,13 +8,13 @@ import {
 } from "ai";
 
 import { getAgent, recordRun } from "@/lib/agents/store";
-import { getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { allowedTools, financeFirstStep } from "@/lib/ai/chat-policy";
 import { createChatTools } from "@/lib/ai/chat-tools";
 import type { AnalyticsScope } from "@/lib/analytics/service";
 import { canAccessWorkspace } from "@/lib/auth/roles";
 import { getCurrentMember, type Member } from "@/lib/auth/session";
 import { listCompanies } from "@/lib/data";
-import { demoChatStream } from "@/lib/ai/demo-chat-stream";
 import type { LuferUIMessage } from "@/types/chat";
 
 export const maxDuration = 60;
@@ -25,11 +25,9 @@ const SYSTEM =
   "You are the Lufer.ai workspace agent for a corporate hospitality platform in Bengaluru, India. " +
   "Use the tools to answer questions about venues, bookings, spend and budgets; never invent venues, prices or totals. " +
   "For money questions call analyzeSpend or forecastBudget and quote their figures, saying they are pre-GST and naming the period. " +
+  "Never state a spend, budget or forecast figure that didn't come from a tool result in this conversation; if the tools can't answer, say so. " +
   "Indian financial years run April to March. " +
   "Amounts are INR. Answer concisely in Markdown and use fenced code blocks for code or config.";
-
-/** Tools that read platform-wide figures (every company's bookings); admins only. */
-const ADMIN_ONLY_TOOLS = new Set(["getPlatformMetrics"]);
 
 /** Admins analyse the platform; client users only ever their own company. */
 async function scopeFor(member: Member): Promise<AnalyticsScope | null> {
@@ -39,6 +37,15 @@ async function scopeFor(member: Member): Promise<AnalyticsScope | null> {
   return company ? { kind: "company", companyId: company.id, companyName: company.legal_name.replace(" Private Limited", "") } : null;
 }
 
+/**
+ * Workspace chat: a live model (lib/ai/model.ts) streamed token by token to the
+ * client via the AI SDK UI message stream.
+ *
+ * Order of checks: session (401) → workspace role (403) → analytics scope (403)
+ * → message validation (400) → agent enabled / model configured (503). Tools
+ * are bound to the caller's scope and filtered by role before the model sees
+ * them, so neither the prompt nor the model can reach other companies' data.
+ */
 export async function POST(req: Request) {
   const member = await getCurrentMember();
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -70,20 +77,26 @@ export async function POST(req: Request) {
     recordRun("workspace-agent", { at: new Date().toISOString(), ok, durationMs: Date.now() - started, source: "chat", error });
 
   const model = getLanguageModel();
-  if (!model) {
-    const last = messages.findLast((m) => m.role === "user");
-    const prompt = last?.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ") ?? "";
-    record(true);
-    return createUIMessageStreamResponse({ stream: demoChatStream(prompt, scope) });
-  }
+  if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+
+  const tools = allowedTools(member.role, agent.tools);
+  const lastUserText =
+    messages
+      .findLast((m) => m.role === "user")
+      ?.parts.map((p) => (p.type === "text" ? p.text : ""))
+      .join(" ") ?? "";
+  // Finance questions: the first step may only call (and must call) a finance tool.
+  const financeStep = financeFirstStep(tools, lastUserText);
 
   const result = streamText({
     model,
     system: SYSTEM,
     messages: await convertToModelMessages(messages),
     tools: chatTools,
-    activeTools: member.role === "ADMIN" ? agent.tools : agent.tools.filter((t) => !ADMIN_ONLY_TOOLS.has(t)),
-    stopWhen: isStepCount(agent.maxSteps),
+    activeTools: tools,
+    prepareStep: ({ stepNumber }) => (stepNumber === 0 && financeStep ? financeStep : {}),
+    // A forced tool call needs a follow-up step to write the answer.
+    stopWhen: isStepCount(financeStep ? Math.max(agent.maxSteps, 2) : agent.maxSteps),
     ...(agent.temperature !== null && { temperature: agent.temperature }),
     onEnd: () => record(true),
   });
@@ -94,7 +107,7 @@ export async function POST(req: Request) {
       tools: chatTools,
       originalMessages: messages,
       messageMetadata: ({ part }) => {
-        if (part.type === "start") return { model: model.modelId, demo: false };
+        if (part.type === "start") return { model: model.modelId };
         if (part.type === "finish") return { usage: part.totalUsage };
       },
       onError: (err) => {

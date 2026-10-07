@@ -10,6 +10,7 @@ const MAX_LENGTH = 4000;
 /** Floating composer. Enter sends, Shift+Enter adds a line. */
 export function PromptBar({
   busy,
+  disabled = false,
   onSend,
   onStop,
   onNewChat,
@@ -18,6 +19,8 @@ export function PromptBar({
   canReset,
 }: {
   busy: boolean;
+  /** No model configured: the composer can't send. */
+  disabled?: boolean;
   onSend: (text: string) => void;
   onStop: () => void;
   onNewChat: () => void;
@@ -30,7 +33,7 @@ export function PromptBar({
   const text = value.trim();
 
   function submit() {
-    if (!text || busy) return;
+    if (!text || busy || disabled) return;
     onSend(text);
     setValue("");
     ref.current?.focus();
@@ -60,7 +63,8 @@ export function PromptBar({
         }}
         rows={1}
         maxLength={MAX_LENGTH}
-        placeholder="Ask about venues, bookings or platform metrics…"
+        disabled={disabled}
+        placeholder={disabled ? "Chat is unavailable until a model key is added in Settings" : "Ask about venues, bookings, spend or budgets…"}
         className="text-fg placeholder:text-fg-faint block field-sizing-content max-h-52 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14px] leading-6 focus:outline-none"
       />
       <div className="flex items-center gap-0.5 px-2 pb-2">
@@ -90,7 +94,7 @@ export function PromptBar({
         ) : (
           <button
             type="submit"
-            disabled={!text}
+            disabled={!text || disabled}
             aria-label="Send message"
             className="bg-copper-deep hover:bg-copper-ink disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-xl text-white shadow-[0_1px_2px_rgb(180_83_9/0.35)] transition-colors disabled:shadow-none"
           >

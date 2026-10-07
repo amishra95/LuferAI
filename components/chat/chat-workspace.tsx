@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { AlertTriangle, ArrowUpRight, BarChart3, MapPin, RotateCw, Users } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, MapPin, PieChart, RotateCw, TrendingUp, Users } from "lucide-react";
 
 import { AgentMark, ChatMessage, ThinkingDots } from "@/components/chat/chat-message";
 import { Inspector, type SessionInfo } from "@/components/chat/inspector";
@@ -17,7 +17,8 @@ import type { LuferUIMessage } from "@/types/chat";
 const SUGGESTIONS = [
   { icon: Users, text: "Find a venue for 40 people with a private dining room" },
   { icon: MapPin, text: "What can host 120 guests in Whitefield under ₹3,000 a head?" },
-  { icon: BarChart3, text: "Summarise platform bookings and commission so far" },
+  { icon: PieChart, text: "How much have we spent this financial year, by month?" },
+  { icon: TrendingUp, text: "Will we stay within budget this year?" },
 ];
 
 const DESKTOP = "(min-width: 1024px)";
@@ -35,11 +36,12 @@ function errorText(error: Error): string {
 
 export function ChatWorkspace({
   model,
-  demo,
+  offline,
   defaultInspectorOpen,
 }: {
   model: string;
-  demo: boolean;
+  /** No model configured: chat is unavailable. */
+  offline: boolean;
   defaultInspectorOpen: boolean;
 }) {
   const { messages, sendMessage, status, stop, error, regenerate, setMessages, clearError } = useChat<LuferUIMessage>({
@@ -60,7 +62,7 @@ export function ChatWorkspace({
 
   const session: SessionInfo = {
     model: messages.findLast((m) => m.metadata?.model)?.metadata?.model ?? model,
-    demo,
+    offline,
     status,
     messageCount: messages.length,
     totalTokens: messages.reduce((n, m) => n + (m.metadata?.usage?.totalTokens ?? 0), 0),
@@ -86,6 +88,7 @@ export function ChatWorkspace({
   }
 
   function send(text: string) {
+    if (offline) return;
     pinned.current = true;
     clearError();
     void sendMessage({ text });
@@ -114,13 +117,13 @@ export function ChatWorkspace({
         >
           {/* Bottom padding clears the floating composer. */}
           <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-48 sm:px-6">
-            {demo && (
-              <div className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+            {offline && (
+              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
                 <span className="pill">
                   <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
-                  demo mode
+                  no model
                 </span>
-                Replies are scripted; tool calls run against real data.
+                Chat is unavailable until an OpenAI key is configured.
                 <Link href="/settings" className="text-fg-muted hover:text-copper-ink inline-flex items-center gap-0.5 transition-colors">
                   Connect a key <ArrowUpRight className="size-3" aria-hidden />
                 </Link>
@@ -132,7 +135,7 @@ export function ChatWorkspace({
                 <AgentMark />
                 <h1 className="text-fg mt-5 text-[24px] font-semibold tracking-[-0.03em]">What should we look into?</h1>
                 <p className="text-fg-subtle mt-1.5 text-[14px]">
-                  The agent searches the venue catalogue and booking data. Every tool call is inspectable.
+                  The agent searches venues and analyses spend and budgets from your booking data. Every tool call is inspectable.
                 </p>
                 <ul className="panel mt-8 overflow-hidden">
                   {SUGGESTIONS.map(({ icon: Icon, text }) => (
@@ -140,7 +143,8 @@ export function ChatWorkspace({
                       <button
                         type="button"
                         onClick={() => send(text)}
-                        className="group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
+                        disabled={offline}
+                        className="disabled:pointer-events-none disabled:opacity-60 group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
                       >
                         <Icon className="text-fg-faint group-hover:text-copper-deep size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
                         <span className="flex-1">{text}</span>
@@ -186,6 +190,7 @@ export function ChatWorkspace({
           <div className="pointer-events-auto mx-auto max-w-[46rem]">
             <PromptBar
               busy={busy}
+              disabled={offline}
               onSend={send}
               onStop={() => void stop()}
               onNewChat={() => {

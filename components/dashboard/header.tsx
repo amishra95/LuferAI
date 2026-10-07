@@ -70,7 +70,7 @@ export function Header({
 
       <Link
         href="/settings"
-        title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat runs scripted demo replies"}
+        title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat is unavailable"}
         className={system.mode === "live" ? "pill pill-copper ml-auto hover:brightness-110" : "pill hover:text-fg ml-auto transition-colors"}
       >
         {system.mode === "live" ? (
@@ -81,7 +81,7 @@ export function Header({
         ) : (
           <>
             <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
-            demo mode
+            no model
           </>
         )}
       </Link>

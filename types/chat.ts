@@ -4,8 +4,6 @@ import type { ChatTools } from "@/lib/ai/chat-tools";
 
 export type ChatMessageMetadata = {
   model?: string;
-  /** True when the reply was scripted because no model is configured. */
-  demo?: boolean;
   usage?: LanguageModelUsage;
 };
 
