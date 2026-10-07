@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 
+import { cn } from "@/lib/utils";
 import type { TelemetryMetric } from "@/types/telemetry";
 
 const W = 240;
@@ -24,12 +25,15 @@ export function Sparkline({
   label,
   format,
   bucketMinutes = 5,
+  className,
 }: {
   data: number[];
   /** Accessible name, e.g. "Token throughput, last 2 hours". */
   label: string;
   format: TelemetryMetric["format"];
   bucketMinutes?: number;
+  /** Height utility for the plot; defaults to h-12. */
+  className?: string;
 }) {
   const gradientId = useId();
   const [hover, setHover] = useState<number | null>(null);
@@ -55,7 +59,7 @@ export function Sparkline({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="text-copper-deep h-12 w-full touch-none overflow-visible"
+        className={cn("text-copper-deep w-full touch-none overflow-visible", className ?? "h-12")}
         role="img"
         aria-label={label}
         onPointerMove={onMove}
