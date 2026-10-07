@@ -25,19 +25,15 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   }
 
   return (
-    <div className="my-3 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-1.5">
-        <span className="font-mono text-[11px] text-zinc-500">{language || "text"}</span>
-        <button
-          type="button"
-          onClick={copy}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
-        >
-          {copied ? <Check className="size-3" aria-hidden /> : <Copy className="size-3" aria-hidden />}
+    <div className="border-line my-4 overflow-hidden rounded-xl border bg-black/40">
+      <div className="border-line flex h-9 items-center justify-between border-b pr-1.5 pl-3.5">
+        <span className="text-fg-faint font-mono text-[11px]">{language || "text"}</span>
+        <button type="button" onClick={copy} className="btn btn-ghost h-6 gap-1 rounded-md px-2 text-[11px]">
+          {copied ? <Check className="text-sage size-3" aria-hidden /> : <Copy className="size-3" aria-hidden />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3 font-mono text-[13px] leading-relaxed text-zinc-200">
+      <pre className="text-fg/90 overflow-x-auto px-4 py-3.5 font-mono text-[12.5px] leading-6">
         <code>{code}</code>
       </pre>
     </div>
@@ -51,26 +47,27 @@ const components: Components = {
     return <CodeBlock language={language} code={textOf(code?.props.children ?? children).replace(/\n$/, "")} />;
   },
   code({ children }) {
-    return <code className="rounded bg-zinc-800/80 px-1 py-0.5 font-mono text-[0.85em] text-zinc-100">{children}</code>;
+    return <code className="bg-surface-raised border-line text-fg rounded-md border px-1.5 py-px font-mono text-[0.86em]">{children}</code>;
   },
   a({ children, href }) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className="text-sky-400 underline-offset-2 hover:underline">
+      <a href={href} target="_blank" rel="noreferrer" className="text-copper decoration-copper/40 underline underline-offset-[3px] hover:decoration-copper">
         {children}
       </a>
     );
   },
-  p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5 marker:text-zinc-600">{children}</ul>,
-  ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5 marker:text-zinc-600">{children}</ol>,
-  h1: ({ children }) => <h3 className="mt-4 mb-2 text-base font-semibold text-zinc-50">{children}</h3>,
-  h2: ({ children }) => <h3 className="mt-4 mb-2 text-base font-semibold text-zinc-50">{children}</h3>,
-  h3: ({ children }) => <h4 className="mt-3 mb-1.5 text-sm font-semibold text-zinc-50">{children}</h4>,
-  strong: ({ children }) => <strong className="font-semibold text-zinc-50">{children}</strong>,
-  blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-zinc-700 pl-3 text-zinc-400">{children}</blockquote>,
+  p: ({ children }) => <p className="my-3 first:mt-0 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="marker:text-fg-faint my-3 list-disc space-y-1.5 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="marker:text-fg-faint my-3 list-decimal space-y-1.5 pl-5 marker:font-mono marker:text-[12px]">{children}</ol>,
+  h1: ({ children }) => <h3 className="text-fg mt-6 mb-2 text-[15px] font-semibold tracking-[-0.01em]">{children}</h3>,
+  h2: ({ children }) => <h3 className="text-fg mt-6 mb-2 text-[15px] font-semibold tracking-[-0.01em]">{children}</h3>,
+  h3: ({ children }) => <h4 className="text-fg mt-5 mb-1.5 text-[14px] font-semibold">{children}</h4>,
+  strong: ({ children }) => <strong className="text-fg font-semibold">{children}</strong>,
+  blockquote: ({ children }) => <blockquote className="border-copper/40 text-fg-muted my-3 border-l-2 pl-4">{children}</blockquote>,
+  hr: () => <hr className="border-line my-6" />,
 };
 
-/** Markdown for chat bubbles. Memoised so finished blocks don't re-parse on every streamed token. */
+/** Markdown for chat replies. Memoised so finished blocks don't re-parse on every streamed token. */
 export const Markdown = memo(function Markdown({ text }: { text: string }) {
   return <ReactMarkdown components={components}>{text}</ReactMarkdown>;
 });

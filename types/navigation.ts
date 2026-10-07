@@ -11,3 +11,6 @@ export type NavSection = {
   title?: string;
   items: NavItem[];
 };
+
+/** Whether chat talks to a real model; shown in the header. */
+export type SystemMode = { mode: "live"; model: string } | { mode: "demo" };

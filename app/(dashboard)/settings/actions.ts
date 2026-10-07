@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { DEFAULT_MODEL } from "@/lib/ai/model";
 import { canEditEnvFile, updateEnvFile } from "@/lib/settings/env-file";
 import { DEFAULT_WORKSPACE_NAME, INSPECTOR_COOKIE, WORKSPACE_COOKIE } from "@/lib/settings/preferences";
+import { getSupabaseStatus } from "@/lib/settings/status";
 
 export type FormState = { status: "idle" | "success" | "error"; message?: string };
 
@@ -55,6 +56,14 @@ export async function testOpenAIConnection(): Promise<FormState> {
   } catch {
     return { status: "error", message: "Couldn't reach api.openai.com." };
   }
+}
+
+/** Re-runs the Supabase ping on demand (the page also checks on load). */
+export async function testSupabaseConnection(): Promise<FormState> {
+  const status = await getSupabaseStatus();
+  if (!status.configured) return { status: "error", message: "Not configured: the app is using mock data." };
+  if (status.ping?.ok) return { status: "success", message: `Connected in ${status.ping.latencyMs} ms · ${status.ping.venues} venues` };
+  return { status: "error", message: status.ping?.error ?? "Connection failed." };
 }
 
 export async function savePreferences(_prev: FormState, form: FormData): Promise<FormState> {

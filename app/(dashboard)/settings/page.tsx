@@ -1,132 +1,114 @@
 import type { Metadata } from "next";
-import { CheckCircle2, Circle, Database, Sparkles, SlidersHorizontal, XCircle } from "lucide-react";
 
-import { PageHeader } from "@/components/dashboard/page-header";
-import { OpenAIForm, PreferencesForm } from "@/components/settings/settings-forms";
+import { Page, PageHeader } from "@/components/dashboard/page-header";
+import { OpenAIForm, PreferencesForm, SupabaseTest } from "@/components/settings/settings-forms";
 import { getPreferences } from "@/lib/settings/preferences";
 import { canEditEnvFile, getOpenAIStatus, getSupabaseStatus } from "@/lib/settings/status";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Settings" };
 
-function Card({
-  icon: Icon,
+/** Two-column settings row: what it is on the left, the controls on the right. */
+function Section({
   title,
   description,
   status,
   children,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   title: string;
-  description: string;
+  description: React.ReactNode;
   status?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/60">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-        <div className="flex gap-3">
-          <Icon className="mt-0.5 size-4 text-zinc-500" />
-          <div>
-            <h2 className="text-sm font-medium text-zinc-50">{title}</h2>
-            <p className="mt-0.5 text-xs text-zinc-400">{description}</p>
-          </div>
-        </div>
-        {status}
-      </header>
-      <div className="p-4">{children}</div>
+    <section className="border-line grid gap-5 border-t py-9 first:border-t-0 first:pt-0 md:grid-cols-[15rem_1fr] md:gap-10">
+      <div>
+        <h2 className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{title}</h2>
+        <p className="text-fg-subtle mt-1.5 text-[12.5px] leading-5">{description}</p>
+        {status && <div className="mt-3">{status}</div>}
+      </div>
+      <div className="panel min-w-0 p-5 sm:p-6">{children}</div>
     </section>
   );
 }
 
-function StatusPill({ tone, children }: { tone: "ok" | "warn" | "error"; children: React.ReactNode }) {
-  const cls = {
-    ok: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
-    warn: "border-amber-500/20 bg-amber-500/10 text-amber-400",
-    error: "border-red-500/20 bg-red-500/10 text-red-400",
+function StatusPill({ tone, children }: { tone: "live" | "ok" | "off" | "error"; children: React.ReactNode }) {
+  const dot = {
+    live: "live-dot",
+    ok: "size-1.5 rounded-full bg-sage",
+    off: "size-1.5 rounded-full border border-fg-faint",
+    error: "size-1.5 rounded-full bg-rose",
   }[tone];
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[11px] font-medium", cls)}>
-      <span className="size-1.5 rounded-full bg-current" aria-hidden />
+    <span className={cn("pill", tone === "live" && "pill-copper", tone === "error" && "border-rose/25 text-rose", tone === "ok" && "text-sage")}>
+      <span className={dot} aria-hidden />
       {children}
     </span>
   );
 }
 
-function Check({ ok, label, detail }: { ok: boolean | null; label: string; detail?: React.ReactNode }) {
-  const Icon = ok === null ? Circle : ok ? CheckCircle2 : XCircle;
+function EnvRow({ name, ok, detail }: { name: string; ok: boolean; detail: string }) {
   return (
-    <li className="flex items-center gap-2.5 py-2 text-sm">
-      <Icon className={cn("size-4 shrink-0", ok === null ? "text-zinc-600" : ok ? "text-emerald-400" : "text-red-400")} aria-hidden />
-      <span className="text-zinc-300">{label}</span>
-      {detail && <span className="ml-auto truncate pl-3 text-right font-mono text-xs text-zinc-500">{detail}</span>}
-      <span className="sr-only">{ok === null ? "not checked" : ok ? "ok" : "missing"}</span>
+    <li className="flex items-center gap-3 py-2.5">
+      <span className={cn("size-1.5 shrink-0 rounded-full", ok ? "bg-sage" : "border-fg-faint border")} aria-hidden />
+      <span className="text-fg-muted min-w-0 truncate font-mono text-[12px]">{name}</span>
+      <span className={cn("ml-auto shrink-0 font-mono text-[11.5px]", ok ? "text-fg-subtle" : "text-fg-faint")}>{detail}</span>
+      <span className="sr-only">{ok ? "set" : "not set"}</span>
     </li>
   );
 }
 
 export default async function SettingsPage() {
-  const [openai, supabase, editable, prefs] = await Promise.all([
-    getOpenAIStatus(),
-    getSupabaseStatus(),
-    canEditEnvFile(),
-    getPreferences(),
-  ]);
-
-  const supabaseTone = !supabase.configured ? "warn" : supabase.ping?.ok ? "ok" : "error";
-  const supabaseLabel = !supabase.configured ? "Using mock data" : supabase.ping?.ok ? "Connected" : "Unreachable";
+  const [openai, supabase, editable, prefs] = await Promise.all([getOpenAIStatus(), getSupabaseStatus(), canEditEnvFile(), getPreferences()]);
+  const urlOk = Boolean(supabase.urlHost) && supabase.urlHost !== "invalid URL";
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
-      <PageHeader title="Settings" description="API keys, data connections and workspace preferences." />
+    <Page width="narrow">
+      <PageHeader title="Settings" description="Model keys, data connections and workspace preferences." />
 
-      <div className="mt-6 space-y-4">
-        <Card
-          icon={Sparkles}
+      <div>
+        <Section
           title="OpenAI"
-          description="Powers the Chat workspace and AI features. Without a key, Chat runs in demo mode."
-          status={openai.configured ? <StatusPill tone="ok">Live · {openai.model}</StatusPill> : <StatusPill tone="warn">Demo mode</StatusPill>}
+          description="Powers Chat and the AI features. Without a key, Chat runs scripted demo replies."
+          status={openai.configured ? <StatusPill tone="live">live · {openai.model}</StatusPill> : <StatusPill tone="off">demo mode</StatusPill>}
         >
           <OpenAIForm status={openai} editable={editable} />
           {openai.source === "environment" && (
-            <p className="mt-3 text-xs text-zinc-500">
-              The current key comes from the process environment, not .env.local, so it can&apos;t be removed here.
-            </p>
+            <p className="text-fg-subtle mt-4 text-[12.5px]">This key comes from the process environment, not .env.local, so it can&apos;t be removed here.</p>
           )}
-        </Card>
+        </Section>
 
-        <Card
-          icon={Database}
+        <Section
           title="Supabase"
-          description="Venue, booking and policy data. Without it the app uses the built-in mock store."
-          status={<StatusPill tone={supabaseTone}>{supabaseLabel}</StatusPill>}
+          description={
+            <>
+              Venue, booking and policy data. Without it the app uses the built-in mock store. Set these in{" "}
+              <code className="text-fg-muted font-mono">.env.local</code> and restart the dev server.
+            </>
+          }
+          status={
+            !supabase.configured ? (
+              <StatusPill tone="off">mock data</StatusPill>
+            ) : supabase.ping?.ok ? (
+              <StatusPill tone="ok">connected · {supabase.ping.latencyMs} ms</StatusPill>
+            ) : (
+              <StatusPill tone="error">unreachable</StatusPill>
+            )
+          }
         >
-          <ul className="divide-y divide-zinc-800/70">
-            <Check ok={Boolean(supabase.urlHost) && supabase.urlHost !== "invalid URL"} label="NEXT_PUBLIC_SUPABASE_URL" detail={supabase.urlHost ?? "not set"} />
-            <Check ok={supabase.anonKey} label="NEXT_PUBLIC_SUPABASE_ANON_KEY" detail={supabase.anonKey ? "set" : "not set"} />
-            <Check ok={supabase.serviceRoleKey} label="SUPABASE_SERVICE_ROLE_KEY" detail={supabase.serviceRoleKey ? "set · server only" : "not set"} />
-            <Check
-              ok={supabase.ping ? supabase.ping.ok : null}
-              label="Connection"
-              detail={
-                !supabase.ping
-                  ? "skipped, not configured"
-                  : supabase.ping.ok
-                    ? `${supabase.ping.latencyMs} ms · ${supabase.ping.venues} venues`
-                    : supabase.ping.error
-              }
-            />
+          <ul className="divide-line -mt-2.5 mb-4 divide-y">
+            <EnvRow name="NEXT_PUBLIC_SUPABASE_URL" ok={urlOk} detail={supabase.urlHost ?? "not set"} />
+            <EnvRow name="NEXT_PUBLIC_SUPABASE_ANON_KEY" ok={supabase.anonKey} detail={supabase.anonKey ? "set" : "not set"} />
+            <EnvRow name="SUPABASE_SERVICE_ROLE_KEY" ok={supabase.serviceRoleKey} detail={supabase.serviceRoleKey ? "set · server only" : "not set"} />
           </ul>
-          <p className="mt-3 text-xs text-zinc-500">
-            Set these in <code className="font-mono text-zinc-400">.env.local</code> (see{" "}
-            <code className="font-mono text-zinc-400">.env.example</code>) and restart the dev server. Checked on each page load.
-          </p>
-        </Card>
+          {supabase.ping && !supabase.ping.ok && <p className="text-rose mb-4 font-mono text-[11.5px]">{supabase.ping.error}</p>}
+          <SupabaseTest configured={supabase.configured} />
+        </Section>
 
-        <Card icon={SlidersHorizontal} title="Workspace" description="Saved in this browser.">
+        <Section title="Workspace" description="Personal preferences, saved in this browser.">
           <PreferencesForm workspaceName={prefs.workspaceName} inspectorOpen={prefs.inspectorOpen} />
-        </Card>
+        </Section>
       </div>
-    </div>
+    </Page>
   );
 }

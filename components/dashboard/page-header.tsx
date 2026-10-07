@@ -1,3 +1,14 @@
+import { cn } from "@/lib/utils";
+
+/** Standard page frame: one width, one gutter, one vertical rhythm for every module. */
+export function Page({ children, width = "default" }: { children: React.ReactNode; width?: "default" | "narrow" }) {
+  return (
+    <div className={cn("mx-auto w-full px-4 pt-8 pb-16 sm:px-8 sm:pt-10", width === "narrow" ? "max-w-4xl" : "max-w-6xl")}>
+      {children}
+    </div>
+  );
+}
+
 export function PageHeader({
   title,
   description,
@@ -10,24 +21,35 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-50">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-fg flex flex-wrap items-center gap-2.5 text-[22px] font-semibold tracking-[-0.025em]">
           {title}
           {badge}
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">{description}</p>
+        <p className="text-fg-subtle mt-1.5 text-[13.5px]">{description}</p>
       </div>
       {actions}
     </div>
   );
 }
 
-/** Small mono pill for page-level notices ("Sample data", "In memory"). */
-export function NoticePill({ children, tone = "amber" }: { children: React.ReactNode; tone?: "amber" | "zinc" }) {
-  const cls =
-    tone === "amber"
-      ? "border-amber-500/20 bg-amber-500/10 text-amber-400"
-      : "border-zinc-700 bg-zinc-800/60 text-zinc-400";
-  return <span className={`rounded border px-1.5 py-0.5 font-mono text-[11px] font-normal ${cls}`}>{children}</span>;
+/** Quiet page-level notice ("sample data", "in memory"). Neutral by design: copper is reserved for live state. */
+export function NoticePill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="pill font-normal">
+      <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+/** Section heading inside a page: mono label with an optional trailing element. */
+export function SectionLabel({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="label-mono">{children}</h2>
+      {aside}
+    </div>
+  );
 }

@@ -1,23 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { Drawer } from "@/components/dashboard/drawer";
 import { Header } from "@/components/dashboard/header";
 import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import type { SystemMode } from "@/types/navigation";
 
 export function DashboardShell({
   defaultCollapsed,
   workspaceName,
+  system,
   children,
 }: {
   defaultCollapsed: boolean;
   workspaceName: string;
+  system: SystemMode;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // ⌘B / Ctrl+B toggles the sidebar, like most editors.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setCollapsed((c) => {
+          document.cookie = `${SIDEBAR_COOKIE}=${c ? "0" : "1"}; path=/; max-age=31536000; samesite=lax`;
+          return !c;
+        });
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function toggle() {
     const next = !collapsed;
@@ -29,27 +47,19 @@ export function DashboardShell({
     <div className="flex h-dvh overflow-hidden">
       <Sidebar workspaceName={workspaceName} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
-          <div className="relative h-full w-60">
-            <Sidebar workspaceName={workspaceName} collapsed={false} onNavigate={() => setMobileOpen(false)} />
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close navigation"
-              className="text-muted-foreground hover:text-foreground absolute top-3.5 right-3 grid size-7 place-items-center rounded-md"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </div>
-        </div>
-      )}
+      <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
+        <Sidebar workspaceName={workspaceName} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+      </Drawer>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Header workspaceName={workspaceName} onOpenMobileNav={() => setMobileOpen(true)} />
-        {/* Pages own their padding and width: Overview scrolls, Chat fills the pane. */}
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* A single, very faint copper bloom: the only ornament in the chrome. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.045),transparent)]"
+        />
+        <Header workspaceName={workspaceName} system={system} onOpenMobileNav={() => setMobileOpen(true)} />
+        {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
       </div>
     </div>
   );

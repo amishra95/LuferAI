@@ -1,11 +1,18 @@
 "use client";
 
-import { Bot } from "lucide-react";
-
 import { Markdown } from "@/components/chat/markdown";
 import { isLuferToolPart } from "@/components/chat/tool-meta";
 import { ToolStatus } from "@/components/chat/tool-status";
 import type { LuferUIMessage } from "@/types/chat";
+
+/** The agent's mark: a copper core in a hairline ring. */
+export function AgentMark({ live = false }: { live?: boolean }) {
+  return (
+    <span aria-hidden className="border-line-strong bg-surface grid size-6 shrink-0 place-items-center rounded-full border">
+      <span className={live ? "live-dot" : "bg-copper size-1.5 rounded-full"} />
+    </span>
+  );
+}
 
 export function ChatMessage({
   message,
@@ -23,7 +30,7 @@ export function ChatMessage({
     const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-lg rounded-br-sm border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm whitespace-pre-wrap text-zinc-100">
+        <div className="bg-surface-raised border-line text-fg max-w-[85%] rounded-2xl rounded-br-md border px-4 py-2.5 text-[14px] leading-6 whitespace-pre-wrap">
           {text}
         </div>
       </div>
@@ -38,13 +45,14 @@ export function ChatMessage({
     return step;
   }, 0);
   const lastPart = message.parts.at(-1);
+  const tokens = message.metadata?.usage?.totalTokens;
 
   return (
-    <div className="flex gap-3">
-      <div className="grid size-7 shrink-0 place-items-center rounded-md border border-zinc-800 bg-zinc-950 text-zinc-400">
-        <Bot className="size-4" aria-hidden />
+    <div className="flex gap-3.5">
+      <div className="pt-0.5">
+        <AgentMark live={streaming} />
       </div>
-      <div className="min-w-0 flex-1 space-y-2 pt-0.5 text-sm leading-relaxed text-zinc-300">
+      <div className="text-fg/85 min-w-0 flex-1 space-y-3 text-[14px] leading-7">
         {message.parts.map((part, i) => {
           if (part.type === "text") {
             const live = streaming && part === lastPart;
@@ -57,12 +65,7 @@ export function ChatMessage({
           if (isLuferToolPart(part)) {
             return (
               <div key={part.toolCallId}>
-                <ToolStatus
-                  part={part}
-                  step={steps[i]}
-                  selected={selectedToolCallId === part.toolCallId}
-                  onSelect={onSelectTool}
-                />
+                <ToolStatus part={part} step={steps[i]} selected={selectedToolCallId === part.toolCallId} onSelect={onSelectTool} />
               </div>
             );
           }
@@ -70,11 +73,7 @@ export function ChatMessage({
         })}
 
         {streaming && message.parts.length === 0 && <ThinkingDots />}
-        {message.metadata?.usage?.totalTokens != null && (
-          <p className="font-mono text-[11px] text-zinc-600">
-            {message.metadata.usage.totalTokens.toLocaleString("en-US")} tokens
-          </p>
-        )}
+        {tokens != null && <p className="text-fg-faint font-mono text-[11px] tabular-nums">{tokens.toLocaleString("en-US")} tokens</p>}
       </div>
     </div>
   );
@@ -82,9 +81,9 @@ export function ChatMessage({
 
 export function ThinkingDots() {
   return (
-    <span className="inline-flex items-center gap-1 py-1" aria-label="Assistant is thinking">
-      {[0, 150, 300].map((d) => (
-        <span key={d} className="size-1.5 animate-pulse rounded-full bg-zinc-500" style={{ animationDelay: `${d}ms` }} />
+    <span className="inline-flex items-center gap-1 py-2" aria-label="Agent is thinking">
+      {[0, 160, 320].map((d) => (
+        <span key={d} className="bg-fg-faint size-1 animate-pulse rounded-full" style={{ animationDelay: `${d}ms` }} />
       ))}
     </span>
   );

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
-import { AgentCard } from "@/components/agents/agent-card";
-import { NoticePill, PageHeader } from "@/components/dashboard/page-header";
+import { AGENT_GRID, AgentRow } from "@/components/agents/agent-row";
+import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { agentSnapshot } from "@/lib/agents/store";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Agents" };
 
@@ -11,31 +12,40 @@ export default function AgentsPage() {
   const counts = agents.reduce<Record<string, number>>((acc, { status }) => ({ ...acc, [status]: (acc[status] ?? 0) + 1 }), {});
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
+    <Page>
       <PageHeader
         title="Agents"
-        description="Enable agents, assign tools and run smoke tests against live app data."
-        badge={<NoticePill tone="zinc">In memory · resets on restart</NoticePill>}
+        description="Switch agents on, assign their tools and smoke-test them against live app data."
+        badge={<NoticePill>in memory</NoticePill>}
         actions={
-          <p className="font-mono text-xs text-zinc-500">
+          <p className="text-fg-subtle font-mono text-[11.5px]">
             {(["active", "idle", "error", "disabled"] as const)
               .filter((s) => counts[s])
               .map((s) => `${counts[s]} ${s}`)
-              .join(" · ")}
+              .join("  ·  ")}
           </p>
         }
       />
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {agents.map(({ agent, status }) => (
-          <AgentCard key={agent.id} agent={agent} status={status} now={now} />
-        ))}
+      <div className="panel overflow-hidden">
+        <div className={cn("border-line hidden border-b px-5 py-2.5", AGENT_GRID)} aria-hidden>
+          {["Agent", "Status", "Tools", "Last run", "Runs", "Steps", "Temp", ""].map((h, i) => (
+            <span key={i} className={cn("label-mono", i >= 4 && i <= 6 && "text-right")}>
+              {h}
+            </span>
+          ))}
+        </div>
+        <ul>
+          {agents.map(({ agent, status }) => (
+            <AgentRow key={agent.id} agent={agent} status={status} now={now} />
+          ))}
+        </ul>
       </div>
 
-      <p className="mt-4 text-xs text-zinc-500">
-        Test runs call each assigned tool once with a sample input; they don&apos;t call the model. Chat messages count as runs of
-        the workspace agent.
+      <p className="text-fg-subtle mt-4 text-[12.5px] leading-5">
+        Test runs call each assigned tool once with a sample input and don&apos;t call the model. Chat messages count as workspace-agent
+        runs. Settings live in server memory and reset on restart.
       </p>
-    </div>
+    </Page>
   );
 }

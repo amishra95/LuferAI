@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { AlertTriangle, BarChart3, MapPin, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BarChart3, MapPin, RotateCw, Users } from "lucide-react";
 
-import { ChatMessage, ThinkingDots } from "@/components/chat/chat-message";
+import { AgentMark, ChatMessage, ThinkingDots } from "@/components/chat/chat-message";
 import { Inspector, type SessionInfo } from "@/components/chat/inspector";
 import { PromptBar } from "@/components/chat/prompt-bar";
 import { isLuferToolPart, type LuferToolPart } from "@/components/chat/tool-meta";
+import { Drawer } from "@/components/dashboard/drawer";
 import { cn } from "@/lib/utils";
 import type { LuferUIMessage } from "@/types/chat";
 
@@ -46,7 +48,7 @@ export function ChatWorkspace({
 
   const [selectedToolCallId, setSelectedToolCallId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(defaultInspectorOpen); // desktop side panel
-  const [mobileInspector, setMobileInspector] = useState(false); // below lg: overlay
+  const [mobileInspector, setMobileInspector] = useState(false); // below lg: drawer
 
   const busy = status === "submitted" || status === "streaming";
   const last = messages.at(-1);
@@ -100,8 +102,8 @@ export function ChatWorkspace({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 bg-zinc-950/40">
-      <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <div
           ref={scroller}
           onScroll={(e) => {
@@ -110,37 +112,46 @@ export function ChatWorkspace({
           }}
           className="flex-1 overflow-y-auto"
         >
-          <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+          {/* Bottom padding clears the floating composer. */}
+          <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-48 sm:px-6">
             {demo && (
-              <p className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300/90">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                Demo mode: OPENAI_API_KEY isn&apos;t set, so replies are scripted. Tool calls still run against real app data.
-              </p>
+              <div className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+                <span className="pill">
+                  <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
+                  demo mode
+                </span>
+                Replies are scripted; tool calls run against real data.
+                <Link href="/settings" className="text-fg-muted hover:text-copper inline-flex items-center gap-0.5 transition-colors">
+                  Connect a key <ArrowUpRight className="size-3" aria-hidden />
+                </Link>
+              </div>
             )}
 
             {messages.length === 0 ? (
-              <div className="pt-10 text-center">
-                <div className="mx-auto grid size-10 place-items-center rounded-lg border border-zinc-800 bg-zinc-900">
-                  <Sparkles className="size-5 text-zinc-300" aria-hidden />
-                </div>
-                <h1 className="mt-4 text-lg font-semibold text-zinc-50">Agent workspace</h1>
-                <p className="mt-1 text-sm text-zinc-400">Ask a question. Tool calls show up inline and in the inspector.</p>
-                <div className="mx-auto mt-6 grid max-w-xl gap-2 text-left">
+              <div className="pt-[8vh]">
+                <AgentMark />
+                <h1 className="text-fg mt-5 text-[24px] font-semibold tracking-[-0.03em]">What should we look into?</h1>
+                <p className="text-fg-subtle mt-1.5 text-[14px]">
+                  The agent searches the venue catalogue and booking data. Every tool call is inspectable.
+                </p>
+                <ul className="panel mt-8 overflow-hidden">
                   {SUGGESTIONS.map(({ icon: Icon, text }) => (
-                    <button
-                      key={text}
-                      type="button"
-                      onClick={() => send(text)}
-                      className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
-                    >
-                      <Icon className="size-4 shrink-0 text-zinc-500" aria-hidden />
-                      {text}
-                    </button>
+                    <li key={text} className="border-line border-b last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => send(text)}
+                        className="group text-fg-muted hover:bg-surface hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
+                      >
+                        <Icon className="text-fg-faint group-hover:text-copper size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
+                        <span className="flex-1">{text}</span>
+                        <ArrowUpRight className="text-fg-faint size-3.5 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+                      </button>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ) : (
-              <div aria-live="polite" aria-busy={busy} className="space-y-6">
+              <div aria-live="polite" aria-busy={busy} className="space-y-8">
                 {messages.map((m) => (
                   <ChatMessage
                     key={m.id}
@@ -151,7 +162,8 @@ export function ChatWorkspace({
                   />
                 ))}
                 {status === "submitted" && (
-                  <div className="pl-10">
+                  <div className="flex gap-3.5">
+                    <AgentMark live />
                     <ThinkingDots />
                   </div>
                 )}
@@ -159,49 +171,44 @@ export function ChatWorkspace({
             )}
 
             {error && (
-              <div role="alert" className="flex items-center gap-3 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <div role="alert" className="border-rose/20 bg-rose/[0.05] text-rose mt-8 flex items-center gap-3 rounded-xl border px-4 py-3 text-[13px]">
                 <AlertTriangle className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1">{errorText(error)}</span>
-                <button
-                  type="button"
-                  onClick={() => void regenerate()}
-                  className="rounded px-2 py-0.5 text-xs text-red-200 hover:bg-red-500/20"
-                >
-                  Retry
+                <button type="button" onClick={() => void regenerate()} className="btn btn-ghost text-rose hover:text-rose h-7 px-2 text-[12px]">
+                  <RotateCw className="size-3" aria-hidden /> Retry
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        <PromptBar
-          busy={busy}
-          onSend={send}
-          onStop={() => void stop()}
-          onNewChat={() => {
-            void stop();
-            setMessages([]);
-            setSelectedToolCallId(null);
-            clearError();
-          }}
-          onToggleInspector={toggleInspector}
-          inspectorOpen={inspectorOpen}
-          canReset={messages.length > 0}
-        />
+        <div className="from-obsidian via-obsidian/90 pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-4 pt-12 pb-4 sm:px-6 sm:pb-6">
+          <div className="pointer-events-auto mx-auto max-w-[46rem]">
+            <PromptBar
+              busy={busy}
+              onSend={send}
+              onStop={() => void stop()}
+              onNewChat={() => {
+                void stop();
+                setMessages([]);
+                setSelectedToolCallId(null);
+                clearError();
+              }}
+              onToggleInspector={toggleInspector}
+              inspectorOpen={inspectorOpen}
+              canReset={messages.length > 0}
+            />
+          </div>
+        </div>
       </div>
 
-      <div className={cn("hidden w-80 shrink-0 border-l border-zinc-800", inspectorOpen && "lg:block")}>
+      <div className={cn("border-line hidden w-[21rem] shrink-0 border-l bg-white/[0.008]", inspectorOpen && "lg:block")}>
         {inspector(() => setInspectorOpen(false))}
       </div>
 
-      {mobileInspector && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Inspector">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileInspector(false)} aria-hidden />
-          <div className="absolute inset-y-0 right-0 w-[min(20rem,90vw)] border-l border-zinc-800">
-            {inspector(() => setMobileInspector(false))}
-          </div>
-        </div>
-      )}
+      <Drawer open={mobileInspector} onClose={() => setMobileInspector(false)} side="right" label="Inspector" className="lg:hidden">
+        {inspector(() => setMobileInspector(false))}
+      </Drawer>
     </div>
   );
 }

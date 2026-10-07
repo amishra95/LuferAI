@@ -1,6 +1,6 @@
 "use client";
 
-import { Wrench, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { TOOL_META, toolName, toolPhase, type LuferToolPart } from "@/components/chat/tool-meta";
 import { cn } from "@/lib/utils";
@@ -15,16 +15,16 @@ export type SessionInfo = {
 };
 
 const PHASE_DOT = {
-  running: "bg-sky-400 animate-pulse",
-  done: "bg-emerald-400",
-  error: "bg-red-400",
-  denied: "bg-amber-400",
+  running: "live-dot",
+  done: "size-1.5 rounded-full bg-sage",
+  error: "size-1.5 rounded-full bg-rose",
+  denied: "size-1.5 rounded-full border border-fg-faint",
 } as const;
 
 function Section({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <section className="border-b border-zinc-800 px-4 py-3">
-      <h3 className="mb-2 flex items-center justify-between font-mono text-[11px] tracking-wider text-zinc-500 uppercase">
+    <section className="border-line border-b px-5 py-5 last:border-b-0">
+      <h3 className="label-mono mb-3 flex items-center justify-between">
         {title}
         {aside}
       </h3>
@@ -35,7 +35,7 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 
 function Json({ value }: { value: unknown }) {
   return (
-    <pre className="max-h-64 overflow-auto rounded border border-zinc-800 bg-zinc-950 p-2 font-mono text-[11px] leading-relaxed text-zinc-300">
+    <pre className="border-line text-fg-muted max-h-72 overflow-auto rounded-lg border bg-black/30 p-3 font-mono text-[11px] leading-5">
       {value === undefined ? "—" : JSON.stringify(value, null, 2)}
     </pre>
   );
@@ -55,58 +55,51 @@ export function Inspector({
   onClose: () => void;
 }) {
   const selected = toolCalls.find((t) => t.toolCallId === selectedToolCallId) ?? toolCalls.at(-1);
+  const rows: [string, React.ReactNode][] = [
+    ["model", session.model],
+    [
+      "mode",
+      <span key="m" className={session.demo ? "text-fg-muted" : "text-copper"}>
+        {session.demo ? "demo" : "live"}
+      </span>,
+    ],
+    ["status", session.status],
+    ["messages", session.messageCount],
+    ["tokens", session.totalTokens ? session.totalTokens.toLocaleString("en-US") : "—"],
+  ];
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden bg-zinc-950" aria-label="Context and tool inspector">
-      <header className="flex h-11 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
-        <h2 className="text-sm font-medium text-zinc-100">Inspector</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close inspector"
-          className="grid size-7 place-items-center rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
-        >
+    <aside className="flex h-full w-full flex-col overflow-hidden" aria-label="Context and tool inspector">
+      <header className="border-line flex h-12 shrink-0 items-center justify-between border-b pr-2.5 pl-5">
+        <h2 className="text-fg text-[13px] font-medium">Inspector</h2>
+        <button type="button" onClick={onClose} aria-label="Close inspector" className="btn btn-ghost btn-icon size-8">
           <X className="size-4" aria-hidden />
         </button>
       </header>
 
       <div className="flex-1 overflow-y-auto">
         <Section title="Session">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-            <dt className="text-zinc-500">Model</dt>
-            <dd className="truncate text-right font-mono text-zinc-200">{session.model}</dd>
-            <dt className="text-zinc-500">Mode</dt>
-            <dd className="text-right">
-              <span
-                className={cn(
-                  "rounded px-1.5 py-0.5 font-mono text-[11px]",
-                  session.demo ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"
-                )}
-              >
-                {session.demo ? "demo" : "live"}
-              </span>
-            </dd>
-            <dt className="text-zinc-500">Status</dt>
-            <dd className="text-right font-mono text-zinc-200">{session.status}</dd>
-            <dt className="text-zinc-500">Messages</dt>
-            <dd className="text-right font-mono text-zinc-200 tabular-nums">{session.messageCount}</dd>
-            <dt className="text-zinc-500">Tokens</dt>
-            <dd className="text-right font-mono text-zinc-200 tabular-nums">
-              {session.totalTokens ? session.totalTokens.toLocaleString("en-US") : "—"}
-            </dd>
+          <dl className="space-y-2 font-mono text-[12px]">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex items-baseline gap-3">
+                <dt className="text-fg-subtle">{k}</dt>
+                <span aria-hidden className="border-line mb-1 flex-1 border-b border-dotted" />
+                <dd className="text-fg max-w-[60%] truncate tabular-nums">{v}</dd>
+              </div>
+            ))}
           </dl>
         </Section>
 
-        <Section title="Available tools">
-          <ul className="space-y-2">
+        <Section title="Tools">
+          <ul className="space-y-3">
             {(Object.keys(TOOL_META) as ChatToolName[]).map((name) => {
               const { icon: Icon, summary } = TOOL_META[name];
               return (
-                <li key={name} className="flex gap-2 text-xs">
-                  <Icon className="mt-0.5 size-3.5 shrink-0 text-zinc-500" aria-hidden />
-                  <div>
-                    <p className="font-mono text-zinc-200">{name}</p>
-                    <p className="text-zinc-500">{summary}</p>
+                <li key={name} className="flex gap-2.5">
+                  <Icon className="text-fg-faint mt-0.5 size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-fg font-mono text-[12px]">{name}</p>
+                    <p className="text-fg-subtle mt-0.5 text-[12px] leading-5">{summary}</p>
                   </div>
                 </li>
               );
@@ -114,14 +107,12 @@ export function Inspector({
           </ul>
         </Section>
 
-        <Section title="Tool calls" aside={<span className="tabular-nums">{toolCalls.length}</span>}>
+        <Section title="Calls" aside={<span className="text-fg-muted tabular-nums">{toolCalls.length}</span>}>
           {toolCalls.length === 0 ? (
-            <p className="flex items-center gap-2 text-xs text-zinc-500">
-              <Wrench className="size-3.5" aria-hidden /> No tool calls yet.
-            </p>
+            <p className="text-fg-subtle text-[12.5px]">Tool calls appear here as the agent makes them.</p>
           ) : (
-            <ol className="space-y-1">
-              {toolCalls.map((t) => {
+            <ol className="-mx-2 space-y-px">
+              {toolCalls.map((t, i) => {
                 const phase = toolPhase(t);
                 const active = t.toolCallId === selected?.toolCallId;
                 return (
@@ -131,13 +122,14 @@ export function Inspector({
                       onClick={() => onSelectTool(t.toolCallId)}
                       aria-pressed={active}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded px-2 py-1 text-left font-mono text-xs text-zinc-400 hover:bg-zinc-900",
-                        active && "bg-zinc-900 text-zinc-100"
+                        "flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left font-mono text-[12px] transition-colors",
+                        active ? "bg-surface-raised text-fg" : "text-fg-muted hover:bg-surface"
                       )}
                     >
-                      <span className={cn("size-1.5 shrink-0 rounded-full", PHASE_DOT[phase])} aria-hidden />
+                      <span className="text-fg-faint w-4 text-[10.5px] tabular-nums">{i + 1}</span>
+                      <span className={cn("shrink-0", PHASE_DOT[phase])} aria-hidden />
                       <span className="truncate">{toolName(t)}</span>
-                      <span className="ml-auto text-[10px] text-zinc-600">{phase}</span>
+                      <span className="text-fg-faint ml-auto text-[10.5px]">{phase}</span>
                     </button>
                   </li>
                 );
@@ -148,15 +140,15 @@ export function Inspector({
 
         {selected && (
           <Section title={`Call · ${toolName(selected)}`}>
-            <p className="mb-1 text-[11px] text-zinc-500">Input</p>
+            <p className="text-fg-subtle mb-1.5 font-mono text-[11px]">input</p>
             <Json value={selected.input} />
-            <p className="mt-3 mb-1 text-[11px] text-zinc-500">Output</p>
+            <p className="text-fg-subtle mt-4 mb-1.5 font-mono text-[11px]">output</p>
             {selected.state === "output-error" ? (
-              <p className="rounded border border-red-500/25 bg-red-500/10 p-2 font-mono text-[11px] text-red-300">{selected.errorText}</p>
+              <p className="border-rose/25 bg-rose/[0.06] text-rose rounded-lg border p-3 font-mono text-[11px]">{selected.errorText}</p>
             ) : (
               <Json value={selected.state === "output-available" ? selected.output : undefined} />
             )}
-            <p className="mt-2 truncate font-mono text-[10px] text-zinc-600">{selected.toolCallId}</p>
+            <p className="text-fg-faint mt-3 truncate font-mono text-[10.5px]">{selected.toolCallId}</p>
           </Section>
         )}
       </div>
