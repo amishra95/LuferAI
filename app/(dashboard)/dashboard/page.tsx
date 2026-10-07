@@ -5,14 +5,14 @@ import { ArrowRight } from "lucide-react";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { TelemetryCard } from "@/components/dashboard/telemetry-card";
-import { getRecentAgentTasks, getTelemetryMetrics, TELEMETRY_SOURCE } from "@/lib/telemetry/sample-data";
+import { getActivity } from "@/lib/telemetry/activity";
+import { getTelemetryMetrics, TELEMETRY_SOURCE } from "@/lib/telemetry/sample-data";
 
 export const metadata: Metadata = { title: "Overview" };
 
 export default function DashboardPage() {
-  const now = new Date("2026-10-07T12:00:00Z");
   const metrics = getTelemetryMetrics();
-  const events = getRecentAgentTasks(now);
+  const { now, events, liveCount } = getActivity();
 
   return (
     <Page>
@@ -35,7 +35,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-3">
-        <ActivityFeed events={events} now={now} />
+        <ActivityFeed events={events} now={now} liveCount={liveCount} />
       </div>
     </Page>
   );

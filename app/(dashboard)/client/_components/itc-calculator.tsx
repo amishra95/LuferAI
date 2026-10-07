@@ -29,7 +29,7 @@ export function ItcCalculator({
     <div className="grid gap-5">
       <div>
         <p className="text-muted-foreground text-sm">Total tax credits reclaimed</p>
-        <p className="text-primary text-3xl font-semibold tabular-nums">{formatINR(reclaimed, true)}</p>
+        <p className="text-fg font-mono text-[30px] leading-tight font-medium tracking-[-0.03em] tabular-nums">{formatINR(reclaimed, true)}</p>
         <p className="text-muted-foreground mt-1 text-xs">
           {formatINR(pipeline)} more becomes claimable once upcoming events are invoiced.
         </p>

@@ -15,6 +15,8 @@ export type TelemetryMetric = {
   format: "int" | "tokens" | "ms" | "percent";
 };
 
+import type { TaskChannel } from "@/types/channels";
+
 export type TaskStatus = "running" | "succeeded" | "failed" | "queued";
 
 export type AgentTaskEvent = {
@@ -30,4 +32,8 @@ export type AgentTaskEvent = {
   startedAt: string; // ISO
   /** Latest log line from the agent. */
   log: string;
+  /** Where the task came from: WhatsApp, Slack or the web app. */
+  channel: TaskChannel;
+  /** Illustrative sample row rather than a recorded event. */
+  sample: boolean;
 };

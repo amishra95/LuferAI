@@ -1,6 +1,6 @@
 import type { ChatToolName } from "@/types/chat";
 
-export type AgentId = "workspace-agent" | "venue-sourcer" | "metrics-reporter";
+export type AgentId = "workspace-agent" | "channel-concierge" | "venue-sourcer" | "metrics-reporter";
 
 export type AgentStatus = "active" | "idle" | "error" | "disabled";
 
@@ -19,7 +19,7 @@ export type AgentRun = {
   at: string; // ISO
   ok: boolean;
   durationMs: number;
-  source: "chat" | "test";
+  source: "chat" | "test" | "whatsapp" | "slack";
   error?: string;
 };
 

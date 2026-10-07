@@ -18,6 +18,15 @@ const DEFAULTS: AgentConfig[] = [
     maxSteps: 5,
   },
   {
+    id: "channel-concierge",
+    name: "Channel concierge",
+    description: "Answers WhatsApp and Slack messages: finds venues, and files booking requests for linked senders.",
+    enabled: true,
+    tools: ["searchVenues"],
+    temperature: 0.2,
+    maxSteps: 4,
+  },
+  {
     id: "venue-sourcer",
     name: "Venue sourcer",
     description: "Shortlists catalogue venues for an event brief.",
@@ -41,7 +50,9 @@ const DEFAULTS: AgentConfig[] = [
 const ACTIVE_WINDOW_MS = 10 * 60_000;
 
 const g = globalThis as typeof globalThis & { __luferAgents?: Map<AgentId, AgentRecord> };
-const agents = (g.__luferAgents ??= new Map(DEFAULTS.map((a) => [a.id, { ...a, lastRun: null, runCount: 0 }])));
+const agents = (g.__luferAgents ??= new Map());
+// Backfill defaults (also covers agents added since this process started).
+for (const a of DEFAULTS) if (!agents.has(a.id)) agents.set(a.id, { ...a, lastRun: null, runCount: 0 });
 
 export function listAgents(): AgentRecord[] {
   return [...agents.values()].map((a) => ({ ...a, tools: [...a.tools] }));

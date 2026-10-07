@@ -1,6 +1,7 @@
-import { Check, X } from "lucide-react";
+import { Check, Globe, Hash, MessageCircle, X, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { TaskChannel } from "@/types/channels";
 import type { AgentTaskEvent, TaskStatus } from "@/types/telemetry";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -41,6 +42,27 @@ export function StatusGlyph({ status }: { status: TaskStatus }) {
   }
 }
 
+const CHANNEL: Record<TaskChannel, { label: string; icon: LucideIcon; dot: string }> = {
+  whatsapp: { label: "WhatsApp", icon: MessageCircle, dot: "bg-[#25a35a]" },
+  slack: { label: "Slack", icon: Hash, dot: "bg-[#6b2a6e]" },
+  web: { label: "Web", icon: Globe, dot: "bg-fg-faint" },
+};
+
+/** Where a task came from. Icon + label carry the meaning; the dot is a quick visual key. */
+export function ChannelBadge({ channel }: { channel: TaskChannel }) {
+  const { label, icon: Icon, dot } = CHANNEL[channel];
+  return (
+    <span className="border-line bg-surface text-fg-muted inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md border px-1.5 font-mono text-[10.5px]">
+      <span className={cn("size-1.5 rounded-full", dot)} aria-hidden />
+      <Icon className="size-3" strokeWidth={2} aria-hidden />
+      {label}
+    </span>
+  );
+}
+
+// Server-rendered, so a fixed zone keeps output stable; IST matches the business.
+const CLOCK = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+
 function formatDuration(ms: number | null): string {
   if (ms === null) return "—";
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
@@ -53,7 +75,7 @@ function formatAgo(iso: string, now: Date): string {
   return `${Math.floor(s / 3600)}h`;
 }
 
-export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: Date }) {
+export function ActivityFeed({ events, now, liveCount }: { events: AgentTaskEvent[]; now: Date; liveCount: number }) {
   const running = events.filter((e) => e.status === "running").length;
 
   return (
@@ -64,7 +86,7 @@ export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: D
         </h2>
         <span className="text-fg-subtle flex items-center gap-2 font-mono text-[11px]">
           {running > 0 && <span className="live-dot" aria-hidden />}
-          {running} running · {events.length} recent
+          {running} running · {liveCount} live · {events.length - liveCount} sample
         </span>
       </header>
 
@@ -80,10 +102,16 @@ export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: D
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-center gap-2.5">
+                <ChannelBadge channel={e.channel} />
                 <p className="text-fg min-w-0 flex-1 truncate text-[13.5px]">{e.task}</p>
-                <time dateTime={e.startedAt} className="text-fg-subtle shrink-0 font-mono text-[11px] tabular-nums">
-                  {formatAgo(e.startedAt, now)}
+                <time
+                  dateTime={e.startedAt}
+                  title={`${formatAgo(e.startedAt, now)} ago`}
+                  className="text-fg-subtle shrink-0 font-mono text-[11px] tabular-nums"
+                >
+                  {CLOCK.format(new Date(e.startedAt))}
+                  <span className="text-fg-faint hidden sm:inline"> · {formatAgo(e.startedAt, now)}</span>
                 </time>
               </div>
               <p className={cn("mt-1 truncate text-[12.5px]", e.status === "failed" ? "text-rose/90" : "text-fg-subtle")}>{e.log}</p>
@@ -95,6 +123,7 @@ export function ActivityFeed({ events, now }: { events: AgentTaskEvent[]; now: D
                 <span>{formatDuration(e.durationMs)}</span>
                 <span>{e.tokens.toLocaleString("en-US")} tok</span>
                 <span className="hidden sm:inline">{e.id}</span>
+                {e.sample && <span className="text-fg-faint">sample</span>}
               </p>
             </div>
           </li>

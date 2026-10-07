@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarCheck, IndianRupee, Landmark, Receipt } from "lucide-react";
 
 import { PortalShell } from "@/components/portal/portal-shell";
+import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
 import {
   ApprovalStatusBadge,
@@ -13,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listOnboardingRequests } from "@/lib/data";
 import { stateName } from "@/lib/gst-engine";
-import { cn, formatDate, formatINR } from "@/lib/utils";
+import { formatDate, formatINR } from "@/lib/utils";
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const { tenant } = await searchParams;
@@ -29,11 +30,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   return (
     <PortalShell
-      portal="/admin"
       title="Platform overview"
       subtitle="Marketplace health across every company and venue."
     >
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key metrics">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key metrics">
         <StatCard label="Total bookings" value={String(m.totalBookings)} hint={`${m.pendingBookings} awaiting venue approval`} icon={CalendarCheck} />
         <StatCard label="Gross booking value" value={formatINR(m.grossBookingValue)} hint="Pre-GST, excludes cancelled" icon={IndianRupee} />
         <StatCard label="Commission earned" value={formatINR(m.commissionEarned)} hint="Confirmed + completed bookings" icon={Landmark} />
@@ -136,17 +136,14 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 flex flex-wrap gap-2 text-sm" aria-label="Filter by tenant">
-              <span className="text-muted-foreground">Tenant:</span>
+            <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Filter by tenant">
+              <span className="label-mono mr-1">Tenant</span>
               {[{ id: undefined, legal_name: "All" }, ...companies].map((c) => (
                 <Link
                   key={c.id ?? "all"}
                   href={c.id ? `/admin?tenant=${c.id}#approvals` : "/admin#approvals"}
                   aria-current={c.id === tenantId ? "page" : undefined}
-                  className={cn(
-                    "rounded-md border px-2 py-0.5",
-                    c.id === tenantId ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
-                  )}
+                  className={segmentClass(c.id === tenantId)}
                 >
                   {shortName(c.legal_name)}
                 </Link>

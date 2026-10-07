@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
+/** Headline metric for the portals, styled like the dashboard's telemetry cards. */
 export function StatCard({
   label,
   value,
@@ -14,15 +13,13 @@ export function StatCard({
   icon?: LucideIcon;
 }) {
   return (
-    <Card className="gap-2">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardDescription>{label}</CardDescription>
-        {Icon ? <Icon className="text-muted-foreground size-4" aria-hidden /> : null}
-      </CardHeader>
-      <CardContent>
-        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
-        {hint ? <p className="text-muted-foreground mt-1.5 text-xs">{hint}</p> : null}
-      </CardContent>
-    </Card>
+    <div className="panel flex flex-col p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="label-mono">{label}</p>
+        {Icon ? <Icon className="text-fg-faint size-4" strokeWidth={1.75} aria-hidden /> : null}
+      </div>
+      <p className="text-fg mt-4 font-mono text-[24px] leading-none font-medium tracking-[-0.03em] tabular-nums">{value}</p>
+      {hint ? <p className="text-fg-subtle mt-2.5 text-[12px]">{hint}</p> : null}
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Check, CheckCheck, Lock, Unlock, X } from "lucide-react";
 
 import { PortalShell } from "@/components/portal/portal-shell";
+import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
 import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { computeMonthlyPayouts, listBookings, listLiveHolds, listVenues } from "@/lib/data";
-import { cn, formatDate, formatINR } from "@/lib/utils";
+import { formatDate, formatINR } from "@/lib/utils";
 import { EventBrief } from "./_components/event-brief";
 import { HoldCountdown } from "./_components/hold-countdown";
 import { convertVenueHold, releaseVenueHold, respondToBooking } from "./actions";
@@ -34,27 +35,23 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   return (
     <PortalShell
-      portal="/property"
       title={venue.name}
       subtitle={`${venue.neighborhood}, ${venue.city} · GSTIN ${venue.gstin} · platform commission ${(Number(venue.commission_rate) * 100).toFixed(0)}%`}
     >
-      <div className="-mt-4 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch venue (demo)">
-        <span className="text-muted-foreground">Viewing as:</span>
+      <div className="-mt-2 mb-8 flex flex-wrap items-center gap-2" aria-label="Switch venue (demo)">
+        <span className="label-mono mr-1">Viewing as</span>
         {venues.map((v) => (
           <Link
             key={v.id}
             href={`/property?venue=${v.id}`}
-            className={cn(
-              "rounded-md border px-2 py-0.5",
-              v.id === venue.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
-            )}
+            className={segmentClass(v.id === venue.id)}
           >
             {v.name}
           </Link>
         ))}
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Summary">
+      <section className="grid gap-3 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
         <StatCard
@@ -212,7 +209,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 2xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Monthly payouts</CardTitle>

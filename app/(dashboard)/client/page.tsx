@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PortalShell } from "@/components/portal/portal-shell";
+import { segmentClass } from "@/components/portal/segment";
 import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,21 +52,17 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   return (
     <PortalShell
-      portal="/client"
       title={company.legal_name}
       subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
     >
       {companies.length > 1 ? (
-        <div className="-mt-4 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch company (demo)">
-          <span className="text-muted-foreground">Viewing as:</span>
+        <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2" aria-label="Switch company (demo)">
+          <span className="label-mono mr-1">Viewing as</span>
           {companies.map((c) => (
             <Link
               key={c.id}
               href={`/client?company=${c.id}`}
-              className={cn(
-                "rounded-md border px-2 py-0.5",
-                c.id === company.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
-              )}
+              className={segmentClass(c.id === company.id)}
             >
               {c.legal_name.replace(" Private Limited", "")} ({partyStateCode(c)})
             </Link>
@@ -74,16 +71,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       ) : null}
 
       {users.length > 0 ? (
-        <div className="-mt-2 mb-6 flex flex-wrap gap-2 text-sm" aria-label="Switch user (demo)">
-          <span className="text-muted-foreground">Acting as:</span>
+        <div className="mb-8 flex flex-wrap items-center gap-2" aria-label="Switch user (demo)">
+          <span className="label-mono mr-1">Acting as</span>
           {users.map((u) => (
             <Link
               key={u.id}
               href={href({ user: u.id })}
-              className={cn(
-                "rounded-md border px-2 py-0.5",
-                u.id === user?.id ? "bg-accent text-accent-foreground border-transparent" : "hover:bg-muted"
-              )}
+              className={segmentClass(u.id === user?.id)}
             >
               {u.name}
             </Link>

@@ -4,17 +4,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+/** Status pill in the Lufer style: mono, rounded, tinted. Always carries a text label. */
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none transition-[color,box-shadow] overflow-hidden",
+  "inline-flex h-[22px] w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2 font-mono text-[10.5px] tracking-[0.02em] whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-transparent bg-destructive/10 text-destructive",
-        outline: "text-foreground",
-        success: "border-transparent bg-success/15 text-success",
-        warning: "border-transparent bg-warning/20 text-foreground",
+        default: "border-line bg-surface text-fg shadow-[0_1px_1px_rgb(9_9_11/0.03)]",
+        secondary: "border-transparent bg-surface-raised text-fg-muted",
+        destructive: "border-rose/25 bg-rose/[0.06] text-rose",
+        outline: "border-line bg-transparent text-fg-muted",
+        success: "border-sage/25 bg-sage/[0.07] text-sage",
+        warning: "border-copper-deep/30 bg-copper/10 text-copper-ink",
       },
     },
     defaultVariants: {

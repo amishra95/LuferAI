@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { Page, PageHeader } from "@/components/dashboard/page-header";
+import { ChannelCard } from "@/components/settings/channel-card";
 import { OpenAIForm, PreferencesForm, SupabaseTest } from "@/components/settings/settings-forms";
+import { CHANNEL_ENV, env, isChannelConfigured } from "@/lib/channels/config";
+import { isChannelEnabled, listEvents, listLinks } from "@/lib/channels/store";
+import { listCompanies, listPortalUsers } from "@/lib/data";
 import { getPreferences } from "@/lib/settings/preferences";
 import { canEditEnvFile, getOpenAIStatus, getSupabaseStatus } from "@/lib/settings/status";
 import { cn } from "@/lib/utils";
@@ -13,11 +18,14 @@ function Section({
   title,
   description,
   status,
+  bare = false,
   children,
 }: {
   title: string;
   description: React.ReactNode;
   status?: React.ReactNode;
+  /** Children bring their own cards instead of sitting in one panel. */
+  bare?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -27,7 +35,7 @@ function Section({
         <p className="text-fg-subtle mt-1.5 text-[12.5px] leading-5">{description}</p>
         {status && <div className="mt-3">{status}</div>}
       </div>
-      <div className="panel min-w-0 p-5 sm:p-6">{children}</div>
+      {bare ? <div className="min-w-0 space-y-4">{children}</div> : <div className="panel min-w-0 p-5 sm:p-6">{children}</div>}
     </section>
   );
 }
@@ -59,7 +67,37 @@ function EnvRow({ name, ok, detail }: { name: string; ok: boolean; detail: strin
 }
 
 export default async function SettingsPage() {
-  const [openai, supabase, editable, prefs] = await Promise.all([getOpenAIStatus(), getSupabaseStatus(), canEditEnvFile(), getPreferences()]);
+  const [openai, supabase, editable, prefs, users, companies, h] = await Promise.all([
+    getOpenAIStatus(),
+    getSupabaseStatus(),
+    canEditEnvFile(),
+    getPreferences(),
+    listPortalUsers(),
+    listCompanies(),
+    headers(),
+  ]);
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const origin = `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}`;
+  const localUrl = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+  const companyName = new Map(companies.map((c) => [c.id, c.legal_name.replace(" Private Limited", "")]));
+  const clientUsers = users
+    .filter((u) => u.companyId)
+    .map((u) => ({ id: u.id, name: u.name, company: companyName.get(u.companyId!) ?? "" }));
+  const time = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+  const channelProps = (["whatsapp", "slack"] as const).map((channel) => ({
+    channel,
+    enabled: isChannelEnabled(channel),
+    configured: isChannelConfigured(channel),
+    editable,
+    webhookUrl: `${origin}/api/webhooks/${channel}`,
+    localUrl,
+    envRows: CHANNEL_ENV[channel].map((f) => ({ key: f.key, label: f.label, hint: f.hint, set: Boolean(env(f.key)) })),
+    links: listLinks(channel),
+    users: clientUsers,
+    recent: listEvents(channel)
+      .slice(0, 4)
+      .map((e) => ({ id: e.id, text: e.text, reply: e.reply, status: e.status, at: time.format(new Date(e.at)), test: e.test })),
+  }));
   const urlOk = Boolean(supabase.urlHost) && supabase.urlHost !== "invalid URL";
 
   return (
@@ -103,6 +141,16 @@ export default async function SettingsPage() {
           </ul>
           {supabase.ping && !supabase.ping.ok && <p className="text-rose mb-4 font-mono text-[11.5px]">{supabase.ping.error}</p>}
           <SupabaseTest configured={supabase.configured} />
+        </Section>
+
+        <Section
+          title="Channels & Integrations"
+          description="Take booking requests over WhatsApp and Slack. Messages run through the Channel concierge agent, with the same pricing, policy and hold checks as the client portal. Sender links reset on restart."
+          bare
+        >
+          {channelProps.map((p) => (
+            <ChannelCard key={p.channel} {...p} />
+          ))}
         </Section>
 
         <Section title="Workspace" description="Personal preferences, saved in this browser.">

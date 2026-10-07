@@ -63,16 +63,16 @@ export function getTelemetryMetrics(): TelemetryMetric[] {
   ];
 }
 
-export function getRecentAgentTasks(now = new Date("2026-10-07T12:00:00Z")): AgentTaskEvent[] {
+export function getSampleAgentTasks(now: Date): AgentTaskEvent[] {
   const ago = (s: number) => new Date(now.getTime() - s * 1000).toISOString();
   return [
-    { id: "tsk_9f21", agent: "venue-sourcer", task: "Shortlist venues for 120-guest offsite", status: "running", step: 2, totalSteps: 4, durationMs: null, tokens: 3_412, startedAt: ago(14), log: "Querying venue catalogue (capacity ≥ 120, Whitefield)" },
-    { id: "tsk_9f1e", agent: "brief-writer", task: "Generate event brief for booking BK-2291", status: "succeeded", step: 3, totalSteps: 3, durationMs: 4_820, tokens: 6_904, startedAt: ago(52), log: "Brief saved · 3 sections, 412 words" },
-    { id: "tsk_9f1a", agent: "policy-checker", task: "Evaluate booking against corporate policy", status: "succeeded", step: 2, totalSteps: 2, durationMs: 910, tokens: 1_204, startedAt: ago(95), log: "Policy compliant · under per-head cap" },
-    { id: "tsk_9f17", agent: "invoice-reconciler", task: "Reconcile GST invoices for September", status: "failed", step: 3, totalSteps: 5, durationMs: 12_330, tokens: 9_870, startedAt: ago(180), log: "GSTIN mismatch on 2 invoices · retry scheduled" },
-    { id: "tsk_9f15", agent: "venue-sourcer", task: "Find private dining for 18 in Indiranagar", status: "succeeded", step: 4, totalSteps: 4, durationMs: 6_140, tokens: 5_377, startedAt: ago(260), log: "Returned 4 options · 3 policy compliant" },
-    { id: "tsk_9f14", agent: "hold-monitor", task: "Release expired inventory holds", status: "queued", step: 0, totalSteps: 2, durationMs: null, tokens: 0, startedAt: ago(300), log: "Waiting for worker slot" },
-    { id: "tsk_9f10", agent: "brief-writer", task: "Generate event brief for booking BK-2287", status: "succeeded", step: 3, totalSteps: 3, durationMs: 5_210, tokens: 7_118, startedAt: ago(420), log: "Brief saved · 4 sections, 506 words" },
-    { id: "tsk_9f0c", agent: "policy-checker", task: "Evaluate booking against corporate policy", status: "succeeded", step: 2, totalSteps: 2, durationMs: 870, tokens: 1_090, startedAt: ago(610), log: "Requires manager approval · over per-head cap" },
+    { id: "tsk_9f21", agent: "venue-sourcer", task: "Shortlist venues for 120-guest offsite", status: "running", step: 2, totalSteps: 4, durationMs: null, tokens: 3_412, startedAt: ago(14), log: "Querying venue catalogue (capacity ≥ 120, Whitefield)", channel: "slack", sample: true },
+    { id: "tsk_9f1e", agent: "brief-writer", task: "Generate event brief for booking BK-2291", status: "succeeded", step: 3, totalSteps: 3, durationMs: 4_820, tokens: 6_904, startedAt: ago(52), log: "Brief saved · 3 sections, 412 words", channel: "web", sample: true },
+    { id: "tsk_9f1a", agent: "policy-checker", task: "Evaluate booking against corporate policy", status: "succeeded", step: 2, totalSteps: 2, durationMs: 910, tokens: 1_204, startedAt: ago(95), log: "Policy compliant · under per-head cap", channel: "web", sample: true },
+    { id: "tsk_9f17", agent: "invoice-reconciler", task: "Reconcile GST invoices for September", status: "failed", step: 3, totalSteps: 5, durationMs: 12_330, tokens: 9_870, startedAt: ago(180), log: "GSTIN mismatch on 2 invoices · retry scheduled", channel: "web", sample: true },
+    { id: "tsk_9f15", agent: "venue-sourcer", task: "Find private dining for 18 in Indiranagar", status: "succeeded", step: 4, totalSteps: 4, durationMs: 6_140, tokens: 5_377, startedAt: ago(260), log: "Returned 4 options · 3 policy compliant", channel: "whatsapp", sample: true },
+    { id: "tsk_9f14", agent: "hold-monitor", task: "Release expired inventory holds", status: "queued", step: 0, totalSteps: 2, durationMs: null, tokens: 0, startedAt: ago(300), log: "Waiting for worker slot", channel: "web", sample: true },
+    { id: "tsk_9f10", agent: "brief-writer", task: "Generate event brief for booking BK-2287", status: "succeeded", step: 3, totalSteps: 3, durationMs: 5_210, tokens: 7_118, startedAt: ago(420), log: "Brief saved · 4 sections, 506 words", channel: "web", sample: true },
+    { id: "tsk_9f0c", agent: "policy-checker", task: "Evaluate booking against corporate policy", status: "succeeded", step: 2, totalSteps: 2, durationMs: 870, tokens: 1_090, startedAt: ago(610), log: "Requires manager approval · over per-head cap", channel: "slack", sample: true },
   ];
 }
