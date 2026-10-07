@@ -29,7 +29,7 @@ const portals = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-16 sm:px-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 pt-[calc(4rem+var(--app-safe-top))] pb-[calc(4rem+var(--app-safe-bottom))] sm:px-6">
       <p className="label-mono">CorpHospitality · India</p>
       <h1 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
         GST-compliant corporate hospitality, from request to invoice.

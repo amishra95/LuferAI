@@ -1,31 +1,44 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Eye } from "lucide-react";
+import { ClipboardCheck, Download, Eye } from "lucide-react";
 
+import { CopyButton } from "@/components/portal/copy-button";
+import { HoldCountdown } from "@/components/portal/hold-countdown";
+import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
+import { RateCardPill } from "@/components/portal/pills";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
-import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
+import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { activeHolds, approvalQueue } from "@/lib/approvals/service";
+import { requirePortal } from "@/lib/auth/session";
+import { getVenueCatalog } from "@/lib/catalog";
 import {
   computeItcSummary,
+  dataSource,
   listApprovalComments,
   listApprovals,
   listBookings,
   listCompanies,
   listExpenseExports,
   listPortalUsers,
-  listVenues,
   type ApprovalDetail,
 } from "@/lib/data";
-import { partyStateCode, stateName } from "@/lib/gst-engine";
+import { partyStateCode, roundInr, stateName } from "@/lib/gst-engine";
+import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
+import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { listRfps } from "@/lib/rfp/service";
 import type { CorporateRole } from "@/lib/supabase/database.types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "./_components/approval-decision-form";
 import { ApprovalThread, type ThreadComment } from "./_components/approval-thread";
 import { ItcCalculator } from "./_components/itc-calculator";
-import { RequestEventPanel } from "./_components/request-event-panel";
+import { PayDepositButton } from "./_components/pay-deposit-button";
+import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
+import { VenueExplorer } from "./_components/venue-explorer";
 
 const ROLE_LABEL: Record<CorporateRole, string> = { ORGANIZER: "Organizer", APPROVER: "Approver", FINANCE_VIEWER: "Finance viewer" };
 const ROLE_HELP: Record<CorporateRole, string> = {
@@ -40,23 +53,34 @@ const CLOCK = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short",
 type SignOff = { bookingId: string; approvals: ApprovalDetail[] };
 
 export default async function ClientPage({ searchParams }: PageProps<"/client">) {
-  const { company: companyParam, user: userParam, tab } = await searchParams;
-  const companies = await listCompanies();
-  // Until sign-in exists, the acting company is chosen via ?company=<id>.
+  const member = await requirePortal("/client");
+  const { company: companyParam, tab, deposit } = await searchParams;
+  const allCompanies = await listCompanies();
+  // Clients are pinned to their own company; admins may switch via ?company=<id>.
+  const companies = member.role === "ADMIN" ? allCompanies : allCompanies.filter((c) => c.id === member.companyId);
   const company = typeof companyParam === "string" ? companies.find((c) => c.id === companyParam) : companies[0];
   if (!company) notFound();
 
-  const [bookings, venues, users, allApprovals, exports] = await Promise.all([
+  const live = dataSource() === "supabase";
+  const [bookings, catalog, users, allApprovals, exports] = await Promise.all([
     listBookings({ companyId: company.id }),
-    listVenues(),
+    getVenueCatalog(company.id),
     listPortalUsers({ companyId: company.id }),
     listApprovals({ tenantId: company.id }),
     listExpenseExports({ tenantId: company.id }),
   ]);
+  const [payments, holds, rfps, queue] = await Promise.all([
+    latestPayments(bookings.map((b) => b.id)),
+    activeHolds(bookings.map((b) => b.id)),
+    live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
+    approvalQueue(member, company.id),
+  ]);
   const itc = computeItcSummary(bookings);
+  const canPay = paymentsEnabled();
 
-  // Until sign-in exists, the acting employee is chosen via ?user=<id>.
-  const user = (typeof userParam === "string" ? users.find((u) => u.id === userParam) : undefined) ?? users[0];
+  // The signed-in employee and their corporate role. Admins have none here: they
+  // browse read-only and decide approvals on the Approvals page.
+  const user = member.role === "CLIENT" ? users.find((u) => u.id === member.userId) : undefined;
   const role = user?.role ?? null;
   const canRequest = role === "ORGANIZER" || role === "APPROVER";
 
@@ -83,21 +107,31 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   const activeTab = tab === "signoffs" ? "signoffs" : "bookings";
   const exportByBooking = new Map(exports.map((e) => [e.booking_id, e]));
-  const href = (params: { user?: string; tab?: string }) => {
-    const q = new URLSearchParams({ company: company.id });
-    if (params.user) q.set("user", params.user);
+  const href = (params: { tab?: string }) => {
+    const q = new URLSearchParams();
+    if (member.role === "ADMIN") q.set("company", company.id);
     if (params.tab) q.set("tab", params.tab);
-    return `/client?${q}`;
+    return q.size ? `/client?${q}` : "/client";
   };
 
   return (
     <PortalShell
+      portal="/client"
       title={company.legal_name}
       subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
+      actions={
+        queue.length > 0 ? (
+          <Button asChild variant="outline">
+            <Link href={member.role === "ADMIN" ? `/client/approvals?company=${company.id}` : "/client/approvals"}>
+              <ClipboardCheck aria-hidden /> {queue.length} awaiting approval
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {companies.length > 1 ? (
-        <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2" aria-label="Switch company (demo)">
-          <span className="label-mono mr-1">Viewing as</span>
+        <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2" aria-label="Switch company (admin)">
+          <span className="label-mono mr-1">Viewing</span>
           {companies.map((c) => (
             <Link key={c.id} href={`/client?company=${c.id}`} className={segmentClass(c.id === company.id)}>
               {c.legal_name.replace(" Private Limited", "")} ({partyStateCode(c)})
@@ -106,18 +140,23 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : null}
 
-      {users.length > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Switch user (demo)">
-          <span className="label-mono mr-1">Acting as</span>
-          {users.map((u) => (
-            <Link key={u.id} href={href({ user: u.id, tab: activeTab === "signoffs" ? "signoffs" : undefined })} className={segmentClass(u.id === user?.id)}>
-              {u.name.replace(/\s*\(.*\)$/, "")}
-              {u.role && <span className="ml-1.5 font-mono text-[10.5px] opacity-70">{ROLE_LABEL[u.role]}</span>}
-            </Link>
-          ))}
-        </div>
+      <p className="text-fg-subtle mb-8 text-[12.5px]">
+        {user && role ? (
+          <>
+            Signed in as <span className="text-fg">{user.name}</span> · {ROLE_LABEL[role]}. {ROLE_HELP[role]}
+          </>
+        ) : (
+          "Platform admin view: read-only here. Decide pending sign-offs from Approvals."
+        )}
+      </p>
+
+      {deposit === "success" || deposit === "cancelled" ? (
+        <p role="status" className="bg-surface-raised mb-6 rounded-xl px-4 py-3 text-[13px]">
+          {deposit === "success"
+            ? "Deposit authorised — it's captured only when the venue confirms. Status updates here in a moment."
+            : "Checkout cancelled. Nothing was charged."}
+        </p>
       ) : null}
-      {role && <p className="text-fg-subtle mb-8 text-[12.5px]">{ROLE_HELP[role]}</p>}
 
       <nav className="border-line mb-6 flex gap-1 border-b" aria-label="Client portal sections">
         {(
@@ -128,7 +167,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         ).map((t) => (
           <Link
             key={t.key}
-            href={href({ user: user?.id, tab: t.key === "signoffs" ? "signoffs" : undefined })}
+            href={href({ tab: t.key === "signoffs" ? "signoffs" : undefined })}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
               "relative -mb-px inline-flex h-10 items-center gap-2 px-3 text-[13px] transition-colors",
@@ -204,11 +243,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     {mine && user ? (
                       <div className="bg-surface-raised rounded-xl p-4">
                         <p className="text-fg mb-2 text-[13px] font-medium">Your sign-off</p>
-                        <ApprovalDecisionForm approvalId={mine.id} userId={user.id} companyId={company.id} />
+                        <ApprovalDecisionForm approvalId={mine.id} />
                       </div>
                     ) : null}
 
-                    {anchor && <ApprovalThread approvalId={anchor} companyId={company.id} userId={user?.id} comments={thread} />}
+                    {anchor && <ApprovalThread approvalId={anchor} userId={user?.id} comments={thread} />}
                   </CardContent>
                 </Card>
               );
@@ -217,84 +256,69 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : (
         <>
+          {canRequest ? (
+            <div className="mb-10 space-y-10">
+              {live ? (
+                <section aria-label="Plan an event">
+                  <RfpBroadcastForm />
+                </section>
+              ) : null}
+              <VenueExplorer venues={catalog.venues} company={{ id: company.id, gstin: company.gstin }} departments={catalog.departments} />
+            </div>
+          ) : null}
+
           <div className="grid gap-6 lg:grid-cols-5">
-            {canRequest ? (
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <CardTitle>Request an event</CardTitle>
-                  <CardDescription>The venue reviews your request; GST is worked out from the billed GSTIN and the venue&apos;s.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <RequestEventPanel
-                    key={`${company.id}:${user?.id ?? ""}`}
-                    companyId={company.id}
-                    userId={user?.id}
-                    companyGstin={company.gstin}
-                    venues={venues.map(({ id, name, neighborhood, city, gstin, capacity_max, min_spend_inr, pdr_available }) => ({
-                      id,
-                      name,
-                      neighborhood,
-                      city,
-                      gstin,
-                      capacity_max,
-                      min_spend_inr: Number(min_spend_inr),
-                      pdr_available,
-                    }))}
-                  />
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="size-4" aria-hidden /> Expense receipts
-                  </CardTitle>
-                  <CardDescription>
-                    Structured receipts exported to finance when a venue confirms a booking. You have read-only access; ask an Organizer to request events.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {exports.length === 0 ? (
-                    <p className="text-fg-subtle text-[13px]">No receipts yet. They appear once a venue confirms a booking.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Exported</TableHead>
-                          <TableHead>Cost centre</TableHead>
-                          <TableHead className="text-right">Invoice total</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {exports.map((e) => {
-                          const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null }; tax?: { invoice_total?: number } };
-                          return (
-                            <TableRow key={e.id}>
-                              <TableCell className="font-mono text-[12px]">{CLOCK.format(new Date(e.created_at))}</TableCell>
-                              <TableCell className="font-mono text-[12px]">
-                                {r.expense?.cost_center ?? "—"}
-                                {r.expense?.project_code && <span className="text-fg-subtle"> / {r.expense.project_code}</span>}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">{formatINR(r.tax?.invoice_total ?? 0, true)}</TableCell>
-                              <TableCell>
-                                <Badge variant={e.status === "failed" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-[12px]" download>
-                                  <Download className="size-3.5" aria-hidden /> JSON
-                                </a>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="size-4" aria-hidden /> Expense receipts
+                </CardTitle>
+                <CardDescription>
+                  Structured receipts exported to finance when a venue confirms a booking.
+                  {canRequest ? "" : " You have read-only access; ask an Organizer to request events."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {exports.length === 0 ? (
+                  <p className="text-fg-subtle text-[13px]">No receipts yet. They appear once a venue confirms a booking.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Exported</TableHead>
+                        <TableHead>Cost centre</TableHead>
+                        <TableHead className="text-right">Invoice total</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {exports.map((e) => {
+                        const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null }; tax?: { invoice_total?: number } };
+                        return (
+                          <TableRow key={e.id}>
+                            <TableCell className="font-mono text-[12px]">{CLOCK.format(new Date(e.created_at))}</TableCell>
+                            <TableCell className="font-mono text-[12px]">
+                              {r.expense?.cost_center ?? "—"}
+                              {r.expense?.project_code && <span className="text-fg-subtle"> / {r.expense.project_code}</span>}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">{formatINR(r.tax?.invoice_total ?? 0, true)}</TableCell>
+                            <TableCell>
+                              <Badge variant={e.status === "failed" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-[12px]" download>
+                                <Download className="size-3.5" aria-hidden /> JSON
+                              </a>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
 
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -325,11 +349,17 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     <TableHead className="text-right">Invoice total</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Receipt</TableHead>
+                    {canPay ? <TableHead /> : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {bookings.map((b) => {
                     const exp = exportByBooking.get(b.id);
+                    const payment = payments.get(b.id);
+                    const hold = holds.get(b.id);
+                    const liveDeposit = payment && (payment.status === "authorized" || payment.status === "captured");
+                    const listPerHead = b.list_budget_per_head_inr != null ? Number(b.list_budget_per_head_inr) : null;
+                    const savings = listPerHead != null ? roundInr(Math.max(0, b.party_size * listPerHead - b.total_amount_inr)) : 0;
                     return (
                       <TableRow key={b.id}>
                         <TableCell className="tabular-nums">{formatDate(b.event_date)}</TableCell>
@@ -345,10 +375,23 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         <TableCell>
                           <GstTypeBadge type={b.invoice.gst_type} />
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{formatINR(b.total_amount_inr)}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatINR(b.total_amount_inr)}
+                          {savings > 0 ? (
+                            <div className="mt-1">
+                              <RateCardPill label={`−${formatINR(savings)}`} />
+                            </div>
+                          ) : null}
+                        </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">{formatINR(b.invoice.invoice_total)}</TableCell>
                         <TableCell>
-                          <BookingStatusBadge status={b.status} />
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <BookingStatusBadge status={b.status} />
+                            {payment ? <PaymentStatusBadge status={payment.status} /> : null}
+                          </div>
+                          {hold && (b.status === "PENDING" || b.status === "PENDING_APPROVAL") ? (
+                            <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           {exp ? (
@@ -359,13 +402,24 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             <span className="text-fg-faint text-[12px]">—</span>
                           )}
                         </TableCell>
+                        {canPay ? (
+                          <TableCell className="text-right">
+                            {/* PENDING = signed off (or in policy) and with the venue; deposits are taken then. */}
+                            {canRequest && b.status === "PENDING" && !liveDeposit ? (
+                              <PayDepositButton
+                                bookingId={b.id}
+                                label={`Pay ${formatINR(depositFor(b.invoice.invoice_total))} deposit (${Math.round(DEPOSIT_RATE * 100)}%)`}
+                              />
+                            ) : null}
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     );
                   })}
                   {bookings.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-fg-subtle py-6 text-center">
-                        No bookings yet{canRequest ? " — send your first request above" : ""}.
+                      <TableCell colSpan={canPay ? 10 : 9} className="text-fg-subtle py-6 text-center">
+                        No bookings yet{canRequest ? " — pick a venue above to send your first request" : ""}.
                       </TableCell>
                     </TableRow>
                   )}
@@ -373,6 +427,29 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               </Table>
             </CardContent>
           </Card>
+
+          {rfps.length > 0 ? (
+            <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
+              <div>
+                <h2 id="rfp-heading" className="text-fg text-lg font-semibold">
+                  RFP comparisons
+                </h2>
+                <p className="text-fg-subtle text-[13px]">Instant quotes from your packages and rate card; venues can counter-offer.</p>
+              </div>
+              {rfps.map(({ rfp, markdown }) => (
+                <Card key={rfp.id} className="gap-3">
+                  <CardHeader className="flex flex-row flex-wrap items-center gap-2">
+                    <CardTitle className="text-base">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
+                    <CardDescription className="line-clamp-1 flex-1">{rfp.brief}</CardDescription>
+                    <CopyButton text={markdown} label="Copy Markdown" />
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <MarkdownMatrix markdown={markdown} />
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
+          ) : null}
         </>
       )}
     </PortalShell>

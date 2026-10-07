@@ -1,5 +1,8 @@
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
+import type { Portal } from "@/lib/auth/roles";
 import { dataSource } from "@/lib/data";
+
+export type PortalKey = Portal | "/client/approvals";
 
 /**
  * Frame for the client, property and admin portals. They render inside the
@@ -12,8 +15,11 @@ export function PortalShell({
   actions,
   children,
 }: {
+  /** The portal this page belongs to (navigation lives in the dashboard sidebar). */
+  portal?: PortalKey;
   title: string;
   subtitle: string;
+  /** Page-level actions shown beside the title (e.g. a drawer trigger). */
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {

@@ -11,12 +11,11 @@ export type ThreadComment = { id: string; author: string; body: string; at: stri
 /** Discussion on a booking's sign-off. Any role in the company can read and post. */
 export function ApprovalThread({
   approvalId,
-  companyId,
   userId,
   comments,
 }: {
   approvalId: string;
-  companyId: string;
+  /** The signed-in employee; omitted for people who can only read the thread. */
   userId?: string;
   comments: ThreadComment[];
 }) {
@@ -47,8 +46,7 @@ export function ApprovalThread({
       {userId ? (
         <form onSubmit={submitWithoutReset(action)} className="flex flex-col gap-2 sm:flex-row sm:items-start">
           <input type="hidden" name="approval_id" value={approvalId} />
-          <input type="hidden" name="company_id" value={companyId} />
-          <input type="hidden" name="user_id" value={userId} />
+          {/* Author and company come from the session. */}
           <label htmlFor={`comment-${approvalId}`} className="sr-only">
             Add to the thread
           </label>

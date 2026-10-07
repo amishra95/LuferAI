@@ -3,7 +3,9 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
+
+import { signOut } from "@/app/login/actions";
 
 import { segmentLabel } from "@/components/dashboard/nav-config";
 import { Monogram } from "@/components/dashboard/sidebar";
@@ -12,10 +14,13 @@ import type { SystemMode } from "@/types/navigation";
 export function Header({
   workspaceName,
   system,
+  account,
   onOpenMobileNav,
 }: {
   workspaceName: string;
   system: SystemMode;
+  /** The signed-in user, or null when signed out / auth isn't configured. */
+  account: { email: string | null } | null;
   onOpenMobileNav: () => void;
 }) {
   const pathname = usePathname();
@@ -80,6 +85,15 @@ export function Header({
           </>
         )}
       </Link>
+
+      {account ? (
+        <form action={signOut} className="flex items-center gap-2">
+          {account.email && <span className="text-fg-subtle hidden text-[12.5px] lg:inline">{account.email}</span>}
+          <button type="submit" aria-label="Sign out" title="Sign out" className="btn btn-ghost btn-icon">
+            <LogOut className="size-4" aria-hidden />
+          </button>
+        </form>
+      ) : null}
     </header>
   );
 }

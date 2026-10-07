@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#09090b">
+<title>Offline</title>
+<style>
+  :root {
+    --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; place-items: center;
+    padding: calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
+    background: #09090b; color: #fafafa;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 22rem; text-align: center; }
+  .mark {
+    display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 12px;
+    background: #fafafa; color: #09090b; font-weight: 700; margin-bottom: 20px;
+    box-shadow: 0 0 28px -6px rgb(52 211 153 / .7);
+  }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { color: #a1a1aa; margin: 0 0 24px; }
+  button {
+    min-height: 44px; padding: 0 20px; border: 0; border-radius: 10px;
+    background: #fafafa; color: #09090b; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid #34d399; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">L</div>
+  <h1>You're offline</h1>
+  <p>LuferAI needs a connection to load your bookings. Check your network and try again.</p>
+  <button type="button" onclick="history.length > 1 ? history.back() : location.reload()">Try again</button>
+</main>
+</body>
+</html>

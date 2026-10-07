@@ -13,11 +13,13 @@ export function DashboardShell({
   defaultCollapsed,
   workspaceName,
   system,
+  account,
   children,
 }: {
   defaultCollapsed: boolean;
   workspaceName: string;
   system: SystemMode;
+  account: { email: string | null } | null;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -59,7 +61,7 @@ export function DashboardShell({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
           />
-          <Header workspaceName={workspaceName} system={system} onOpenMobileNav={() => setMobileOpen(true)} />
+          <Header workspaceName={workspaceName} system={system} account={account} onOpenMobileNav={() => setMobileOpen(true)} />
           {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
           <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
         </div>

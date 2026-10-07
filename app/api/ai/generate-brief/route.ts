@@ -2,6 +2,7 @@ import { createUIMessageStreamResponse, streamText, toUIMessageStream } from "ai
 import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { getCurrentMember } from "@/lib/auth/session";
 import { listBookings, listVenues } from "@/lib/data";
 import { formatDate, formatINR } from "@/lib/utils";
 
@@ -15,9 +16,16 @@ const requestSchema = z.object({
 
 /** Streams a Markdown event brief for the venue host of one booking. */
 export async function POST(req: Request) {
+  const member = await getCurrentMember();
+  if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
+  if (member.role !== "PROPERTY" && member.role !== "ADMIN") return Response.json({ error: "forbidden" }, { status: 403 });
+
   const parsed = requestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid booking." }, { status: 400 });
-  const { prompt: bookingId, venueId } = parsed.data;
+  const { prompt: bookingId } = parsed.data;
+  // Hosts brief their own venue's bookings only; admins may pick the venue.
+  const venueId = member.role === "ADMIN" ? parsed.data.venueId : member.venueId;
+  if (!venueId) return Response.json({ error: "Booking not found." }, { status: 404 });
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });

@@ -52,6 +52,10 @@
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-brand: var(--brand);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -85,6 +89,32 @@
   --ring: #d97706;
   --success: #2f7a52;
   --warning: #b45309;
+  --brand: #d97706;
+  /* Chart series (dataviz reference steps; mid-luminance, readable on white too). */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-critical: #d03b3b;
+
+  /* Safe areas (notch, status bar, home indicator, landscape cut-outs). Capacitor
+     injects --safe-area-inset-* on <html> (Android WebView < 140 reports wrong env()
+     values); browsers and iOS fall back to env(). Use these, never env() directly. */
+  --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+@utility pt-safe {
+  padding-top: var(--app-safe-top);
+}
+@utility pb-safe {
+  padding-bottom: var(--app-safe-bottom);
+}
+
+/* Frosted overlay for floating bars, docks and mobile drawers. */
+@utility glass {
+  @apply border-line border bg-white/75 backdrop-blur-md;
 }
 
 @layer base {
@@ -93,6 +123,46 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* Landscape: keep content clear of side cut-outs. */
+    padding-left: var(--app-safe-left);
+    padding-right: var(--app-safe-right);
+  }
+  /* Room for the fixed mobile bottom nav + home indicator. */
+  .pb-bottom-nav {
+    padding-bottom: calc(4.5rem + var(--app-safe-bottom));
+  }
+}
+
+/* Venue map markers (components/portal/venue-map.tsx). */
+.venue-marker {
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid oklch(0.37 0.013 285.805);
+  background: oklch(0.21 0.006 285.885 / 0.9);
+  color: oklch(0.985 0 0);
+  font: 600 12px/1.2 var(--font-geist-sans), system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.venue-marker:hover,
+.venue-marker:focus-visible {
+  transform: translateY(-1px);
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.venue-marker[data-selected="true"] {
+  background: oklch(0.985 0 0);
+  color: oklch(0.141 0.005 285.823);
+  box-shadow: 0 0 18px -2px oklch(0.765 0.177 163.223 / 0.8);
+  z-index: 1;
+}
+@media (pointer: coarse) {
+  .venue-marker {
+    min-height: 2.75rem;
+    padding-inline: 0.875rem;
   }
 }
 

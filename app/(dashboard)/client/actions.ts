@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requirePortal, type Member } from "@/lib/auth/session";
 import { placeBookingRequest, type BookingField } from "@/lib/bookings/place-booking";
-import { addApprovalComment, decideApproval, listCompanies, listPortalUsers, listVenues } from "@/lib/data";
+import { addApprovalComment, decideApproval, listApprovals, listCompanies, listPortalUsers, listVenues } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
@@ -23,10 +24,19 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const AVAILABILITY_WINDOW_DAYS = 180;
 
 /**
+ * The tenant a request acts for. Never trust a submitted company: clients act for
+ * their own, and only admins may act for another company.
+ */
+function tenantFor(member: Member, submitted: FormDataEntryValue | string | null): string {
+  return member.role === "ADMIN" ? String(submitted ?? "") : member.companyId ?? "";
+}
+
+/**
  * Dates in the next ~6 months on which a venue is locked (live hold or
  * confirmed booking). Returns dates only: who holds them stays private.
  */
 export async function getUnavailableDates(venueId: string): Promise<string[]> {
+  await requirePortal("/client");
   const venues = await listVenues();
   if (!venues.some((v) => v.id === venueId)) return [];
   const from = new Date().toISOString().slice(0, 10);
@@ -43,7 +53,10 @@ export async function previewNegotiatedRate(input: {
   partySize: number;
   perHead: number;
 }): Promise<NegotiatedPricing | null> {
-  const { companyId, venueId, eventDate, partySize, perHead } = input;
+  const member = await requirePortal("/client");
+  const { venueId, eventDate, partySize, perHead } = input;
+  // A client only ever previews their own company's negotiated terms.
+  const companyId = tenantFor(member, input.companyId);
   if (!ISO_DATE.test(eventDate) || !Number.isInteger(partySize) || partySize < 1 || !(perHead > 0)) return null;
   const [companies, venues] = await Promise.all([listCompanies(), listVenues()]);
   if (!companies.some((c) => c.id === companyId) || !venues.some((v) => v.id === venueId)) return null;
@@ -54,9 +67,11 @@ export async function submitBookingRequest(
   _prev: BookingRequestState,
   formData: FormData
 ): Promise<BookingRequestState> {
-  const companyId = String(formData.get("company_id") ?? "");
-  // Until sign-in exists, the acting employee comes from the page's ?user= switcher.
-  const userId = String(formData.get("user_id") ?? "");
+  const member = await requirePortal("/client");
+  // The requester is the signed-in employee (admins can't request sign-off for a company).
+  const companyId = tenantFor(member, formData.get("company_id"));
+  const userId = member.role === "CLIENT" ? member.userId : "";
+  const departmentId = String(formData.get("department_id") ?? "") || null;
   const venueId = String(formData.get("venue_id") ?? "");
   const eventDate = String(formData.get("event_date") ?? "");
   const partySize = Number(formData.get("party_size"));
@@ -68,7 +83,17 @@ export async function submitBookingRequest(
     taxId: String(formData.get("billing_gstin") ?? ""),
   };
 
-  const result = await placeBookingRequest({ companyId, userId, venueId, eventDate, partySize, budgetPerHead, notes, expense });
+  const result = await placeBookingRequest({
+    companyId,
+    userId,
+    venueId,
+    eventDate,
+    partySize,
+    budgetPerHead,
+    notes,
+    departmentId,
+    expense,
+  });
   if (result.status === "success") {
     revalidatePath("/client");
     revalidatePath("/property");
@@ -87,27 +112,37 @@ export async function decideBookingApproval(
   _prev: ApprovalDecisionState,
   formData: FormData
 ): Promise<ApprovalDecisionState> {
+  const member = await requirePortal("/client");
   const approvalId = String(formData.get("approval_id") ?? "");
-  const userId = String(formData.get("user_id") ?? "");
-  const companyId = String(formData.get("company_id") ?? "");
   const intent = String(formData.get("intent") ?? "");
-  const note = String(formData.get("note") ?? "").trim() || undefined;
-  if (!approvalId || !userId || !companyId || (intent !== "approve" && intent !== "reject")) {
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || undefined;
+  if (!approvalId || (intent !== "approve" && intent !== "reject")) {
     return { status: "error", message: "Invalid approval action." };
   }
 
-  // Only Approvers decide; the chain assignment below scopes it to their own approvals.
-  const actor = (await listPortalUsers({ companyId })).find((u) => u.id === userId);
-  if (actor?.role !== "APPROVER") return { status: "error", message: "Only users with the Approver role can sign off." };
+  // Approver and tenant come from the session. Admins may decide any pending
+  // approval, on behalf of its assigned approver.
+  let scope: { approverId: string; tenantId: string } | null = null;
+  if (member.role === "CLIENT" && member.companyId) {
+    // Only Approvers decide; the scope below limits it to their own approvals.
+    const actor = (await listPortalUsers({ companyId: member.companyId })).find((u) => u.id === member.userId);
+    if (actor?.role !== "APPROVER") return { status: "error", message: "Only users with the Approver role can sign off." };
+    scope = { approverId: member.userId, tenantId: member.companyId };
+  } else if (member.role === "ADMIN") {
+    const [pending] = (await listApprovals({ status: "PENDING" })).filter((a) => a.id === approvalId);
+    if (pending) scope = { approverId: pending.approver_id, tenantId: pending.tenant_id };
+  }
+  if (!scope) return { status: "error", message: "This approval was not found or has already been decided." };
 
   try {
     // Scoped to approver + tenant so nobody can decide someone else's approval.
-    await decideApproval(approvalId, { approverId: userId, tenantId: companyId }, intent === "approve" ? "APPROVED" : "REJECTED", note);
+    await decideApproval(approvalId, scope, intent === "approve" ? "APPROVED" : "REJECTED", note);
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : "Could not record the decision." };
   }
 
   revalidatePath("/client");
+  revalidatePath("/client/approvals");
   revalidatePath("/property");
   revalidatePath("/admin");
   return { status: "idle" };
@@ -120,11 +155,14 @@ export interface ApprovalCommentState {
 
 /** Posts to an approval's discussion thread as the acting user (any role in the tenant). */
 export async function postApprovalComment(_prev: ApprovalCommentState, formData: FormData): Promise<ApprovalCommentState> {
+  const member = await requirePortal("/client");
+  // Comments are posted as the signed-in employee, in their own company's threads.
+  if (member.role !== "CLIENT" || !member.companyId) return { status: "error", message: "Only company employees can comment." };
+  const companyId = member.companyId;
+  const userId = member.userId;
   const approvalId = String(formData.get("approval_id") ?? "");
-  const companyId = String(formData.get("company_id") ?? "");
-  const userId = String(formData.get("user_id") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  if (!approvalId || !companyId || !userId) return { status: "error", message: "Invalid comment." };
+  if (!approvalId) return { status: "error", message: "Invalid comment." };
   if (body.length < 1 || body.length > 2000) return { status: "error", message: "Write a comment (up to 2000 characters)." };
 
   try {
@@ -133,5 +171,6 @@ export async function postApprovalComment(_prev: ApprovalCommentState, formData:
     return { status: "error", message: err instanceof Error ? err.message : "Could not post the comment." };
   }
   revalidatePath("/client");
+  revalidatePath("/client/approvals");
   return { status: "success" };
 }

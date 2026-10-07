@@ -8,7 +8,7 @@ function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
     <select
       data-slot="native-select"
       className={cn(
-        "field disabled:cursor-not-allowed",
+        "field pointer-coarse:h-11 disabled:cursor-not-allowed",
         "aria-invalid:border-rose",
         className
       )}

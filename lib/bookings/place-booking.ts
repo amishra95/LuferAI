@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   createBookingRequest,
+  dataSource,
   HoldConflictError,
   listApprovalChain,
   listCompanies,
@@ -15,6 +16,7 @@ import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatINR } from "@/lib/utils";
 
 export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | ExpenseField;
@@ -28,6 +30,8 @@ export interface PlaceBookingInput {
   partySize: number;
   budgetPerHead: number;
   notes?: string;
+  /** Department the spend is charged to; must belong to the company. */
+  departmentId?: string | null;
   /** Cost centre (required), project code and billing GSTIN for finance. */
   expense: ExpenseInput;
 }
@@ -63,7 +67,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   const requester = users.find((u) => u.id === userId);
 
   // Who may book: checked before anything else, for every entry point.
-  if (company && !requester) return { status: "error", message: `Choose who is requesting this under "Acting as" first.` };
+  if (company && !requester) return { status: "error", message: `Only a signed-in employee of ${company.legal_name} can request bookings.` };
   if (requester && !CAN_REQUEST.has(requester.role ?? "")) {
     return { status: "error", message: `${requester.name} has the Finance viewer role, which can't request bookings. Ask an Organizer.` };
   }
@@ -77,6 +81,16 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   if (!Number.isFinite(budgetPerHead) || budgetPerHead <= 0) fieldErrors.budget_per_head_inr = "Enter a budget per head";
 
   if (!company) return { status: "error", message: "Unknown company account." };
+  const departmentId = input.departmentId || null;
+  if (departmentId && dataSource() === "supabase") {
+    const { data: dept } = await createAdminClient()
+      .from("departments")
+      .select("id")
+      .eq("id", departmentId)
+      .eq("company_id", company.id)
+      .maybeSingle();
+    if (!dept) return { status: "error", message: "Unknown department." };
+  }
   const expense = validateExpense(input.expense, company.gstin);
   if (!expense.ok) Object.assign(fieldErrors, expense.errors);
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
@@ -134,6 +148,10 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         budget_per_head_inr: pricing.negotiatedPerHead,
         event_date: eventDate,
         notes,
+        department_id: departmentId,
+        // Snapshot list pricing so rate-card savings stay reportable.
+        list_budget_per_head_inr: pricing.source === "list" ? null : pricing.listPerHead,
+        rate_card_id: pricing.rateCardId,
         ...(expense.ok ? expense.value : { cost_center: "" }),
       },
       { approvals, hold }

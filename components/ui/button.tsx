@@ -18,10 +18,11 @@ const buttonVariants = cva(
         link: "text-copper-ink h-auto border-transparent bg-transparent px-0 shadow-none underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
       },
       size: {
-        default: "h-9 px-4 text-[13px] has-[>svg]:px-3.5",
-        sm: "h-8 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 px-5 text-[13.5px]",
-        icon: "size-9 px-0",
+        // pointer-coarse: 44px minimum touch targets on touch screens (WCAG 2.5.5).
+        default: "h-9 px-4 text-[13px] has-[>svg]:px-3.5 pointer-coarse:min-h-11",
+        sm: "h-8 px-3 has-[>svg]:px-2.5 pointer-coarse:min-h-11",
+        lg: "h-10 px-5 text-[13.5px] pointer-coarse:min-h-11",
+        icon: "size-9 px-0 pointer-coarse:size-11",
       },
     },
     defaultVariants: {

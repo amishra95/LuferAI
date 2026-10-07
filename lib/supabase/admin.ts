@@ -3,12 +3,14 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "./database.types";
-import { clean } from "./env";
+import { clean, isHttpUrl } from "./env";
 
 /**
  * Service-role client — BYPASSES RLS. Server-only.
  * The portals use this until per-portal sign-in exists; switch reads to
  * lib/supabase/server.ts once users are mapped in public.platform_users.
+ * Callers must authorise first (requirePortal in lib/auth/session.ts) and scope by
+ * the member's company/venue.
  */
 export function createAdminClient() {
   const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -22,15 +24,6 @@ export function createAdminClient() {
 }
 
 let warnedInvalidUrl = false;
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const { protocol } = new URL(value);
-    return protocol === "http:" || protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 /**
  * True only when both vars are set AND the URL is a real http(s) URL.

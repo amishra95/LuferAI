@@ -25,27 +25,32 @@ export interface VenuePrefill {
   perHead: number;
 }
 
-type VenueOption = Pick<Venue, "id" | "name" | "neighborhood" | "city" | "gstin" | "capacity_max" | "min_spend_inr" | "pdr_available">;
+export type VenueOption = Pick<
+  Venue,
+  "id" | "name" | "neighborhood" | "city" | "gstin" | "capacity_max" | "min_spend_inr" | "pdr_available"
+>;
 
 export function EventRequestForm({
   companyId,
-  userId,
   companyGstin,
   venues,
+  departments = [],
+  defaultVenueId = "",
   prefill,
 }: {
+  /** Used for the negotiated-rate preview; the server scopes it to the session's company. */
   companyId: string;
-  /** Acting employee; needed when a booking must be routed for sign-off. */
-  userId?: string;
   companyGstin: string;
   venues: VenueOption[];
+  departments?: { id: string; name: string }[];
+  defaultVenueId?: string;
   /** Each new object overwrites venue, guests and budget; the user can still edit them. */
   prefill?: VenuePrefill;
 }) {
   const [state, formAction, pending] = useActionState<BookingRequestState, FormData>(submitBookingRequest, {
     status: "idle",
   });
-  const [venueId, setVenueId] = useState("");
+  const [venueId, setVenueId] = useState(defaultVenueId);
   const [partySize, setPartySize] = useState("");
   const [perHead, setPerHead] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -114,7 +119,6 @@ export function EventRequestForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input type="hidden" name="company_id" value={companyId} />
-      {userId ? <input type="hidden" name="user_id" value={userId} /> : null}
 
       <div className="grid gap-2">
         <Label htmlFor="venue_id">Venue</Label>
@@ -207,6 +211,20 @@ export function EventRequestForm({
         </p>
       ) : null}
 
+      {departments.length > 0 ? (
+        <div className="grid gap-2">
+          <Label htmlFor="department_id">Charge to department</Label>
+          <NativeSelect id="department_id" name="department_id" defaultValue="">
+            <option value="">No department</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      ) : null}
+
       <fieldset className="grid gap-4 sm:grid-cols-3">
         <legend className="text-fg mb-3 text-[13px] font-medium">Finance</legend>
         <div className="grid gap-2">
@@ -264,7 +282,7 @@ export function EventRequestForm({
       </div>
 
       {pricing ? (
-        <div className="grid gap-1 rounded-lg border p-3 text-sm" aria-live="polite">
+        <div className="grid gap-1 rounded-lg border border-violet-400/30 bg-violet-400/5 p-3 text-sm" aria-live="polite">
           {pricing.source !== "list" ? (
             <p className="flex items-center gap-1.5 font-medium">
               <BadgePercent className="size-4" aria-hidden />
@@ -288,7 +306,7 @@ export function EventRequestForm({
             {pricing.savings > 0 ? (
               <>
                 <dt className="text-muted-foreground">You save</dt>
-                <dd className="text-success tabular-nums">{formatINR(pricing.savings, true)}</dd>
+                <dd className="text-emerald-700 tabular-nums">{formatINR(pricing.savings, true)}</dd>
               </>
             ) : null}
           </dl>
@@ -302,7 +320,7 @@ export function EventRequestForm({
       ) : null}
 
       {preview ? (
-        <dl className="bg-muted/60 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg p-3 text-sm sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-line/60 bg-surface p-3 text-sm sm:grid-cols-4">
           <dt className="text-muted-foreground">Taxable value</dt>
           <dd className="text-right tabular-nums sm:text-left">{formatINR(preview.taxable_value, true)}</dd>
           <dt className="text-muted-foreground">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
@@ -315,7 +333,7 @@ export function EventRequestForm({
       ) : null}
 
       {state.status === "success" && state.approval ? (
-        <div className="border-warning/40 bg-warning/10 flex gap-3 rounded-lg border p-3 text-sm" role="status">
+        <div className="flex gap-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-800" role="status">
           <Hourglass className="mt-0.5 size-4 shrink-0" aria-hidden />
           <div>
             <p className="font-medium">{state.message}</p>
@@ -339,7 +357,7 @@ export function EventRequestForm({
           </p>
         ) : null}
         {state.status === "success" && !state.approval ? (
-          <p className="text-success flex items-center gap-1.5 text-sm" role="status">
+          <p className="flex items-center gap-1.5 text-sm text-emerald-700" role="status">
             <CheckCircle2 className="size-4" aria-hidden />
             {state.message}
           </p>

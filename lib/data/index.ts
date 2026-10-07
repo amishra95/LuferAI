@@ -216,6 +216,11 @@ export interface NewBookingInput {
   cost_center: string;
   project_code?: string | null;
   billing_gstin?: string | null;
+  department_id?: string | null;
+  /** Per-head before the corporate rate card; omit when list pricing applied. */
+  list_budget_per_head_inr?: number | null;
+  /** corporate_rate_cards row used to price the booking, if any. */
+  rate_card_id?: string | null;
 }
 
 export interface NewApprovalRequest {
@@ -253,7 +258,15 @@ export async function createBookingRequest(
   const approvals = options.approvals ?? [];
   const total = roundInr(input.party_size * input.budget_per_head_inr);
   const status: BookingStatus = approvals.length ? "PENDING_APPROVAL" : "PENDING";
-  const row = { ...input, notes: input.notes ?? null, project_code: input.project_code ?? null, billing_gstin: input.billing_gstin ?? null };
+  const row = {
+    ...input,
+    notes: input.notes ?? null,
+    project_code: input.project_code ?? null,
+    billing_gstin: input.billing_gstin ?? null,
+    department_id: input.department_id ?? null,
+    list_budget_per_head_inr: input.list_budget_per_head_inr ?? null,
+    rate_card_id: input.rate_card_id ?? null,
+  };
 
   if (dataSource() === "mock") {
     const c = mockDb.companies.find((x) => x.id === input.company_id);
@@ -382,8 +395,11 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
   // bookings_sync_inventory_holds converts/releases the booking's live hold.
   let query = createAdminClient().from("bookings").update({ status: next }).eq("id", id);
   if (scope.venueId) query = query.eq("venue_id", scope.venueId);
-  const { error } = await query;
+  // Zero rows means another venue's booking (or a missing one): fail loudly rather
+  // than let the caller capture a deposit for a booking it didn't change.
+  const { data, error } = await query.select("id");
   if (error) throw error;
+  if (data.length === 0) throw new Error("Booking not found");
 }
 
 // ----------------------------------------------------------------------------

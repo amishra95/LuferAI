@@ -200,11 +200,14 @@ export type Database = {
           commission_rate: number
           company_id: string
           created_at: string
+          department_id: string | null
           event_date: string
           gst_type: Database["public"]["Enums"]["gst_type"]
           id: string
+          list_budget_per_head_inr: number | null
           notes: string | null
           party_size: number
+          rate_card_id: string | null
           sac_code: string
           status: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
@@ -219,11 +222,14 @@ export type Database = {
           commission_rate: number
           company_id: string
           created_at?: string
+          department_id?: string | null
           event_date: string
           gst_type: Database["public"]["Enums"]["gst_type"]
           id?: string
+          list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size: number
+          rate_card_id?: string | null
           sac_code?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
@@ -238,11 +244,14 @@ export type Database = {
           commission_rate?: number
           company_id?: string
           created_at?: string
+          department_id?: string | null
           event_date?: string
           gst_type?: Database["public"]["Enums"]["gst_type"]
           id?: string
+          list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size?: number
+          rate_card_id?: string | null
           sac_code?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr?: number
@@ -250,6 +259,20 @@ export type Database = {
           venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_department_same_company"
+            columns: ["department_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "bookings_rate_card_id_fkey"
+            columns: ["rate_card_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_rate_cards"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_company_id_fkey"
             columns: ["company_id"]
@@ -548,6 +571,41 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          annual_budget_inr: number
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          annual_budget_inr?: number
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          annual_budget_inr?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_exports: {
         Row: {
           payload: string
@@ -691,6 +749,95 @@ export type Database = {
           },
         ]
       }
+      payment_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          payload: Json
+          provider: Database["public"]["Enums"]["payment_provider"]
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          payload: Json
+          provider: Database["public"]["Enums"]["payment_provider"]
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          payload?: Json
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          received_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_inr: number
+          authorized_at: string | null
+          booking_id: string
+          captured_at: string | null
+          created_at: string
+          currency: string
+          deposit_rate: number
+          id: string
+          invoice: Json
+          last_error: string | null
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_order_id: string
+          provider_payment_id: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          voided_at: string | null
+        }
+        Insert: {
+          amount_inr: number
+          authorized_at?: string | null
+          booking_id: string
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          deposit_rate: number
+          id?: string
+          invoice: Json
+          last_error?: string | null
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_order_id: string
+          provider_payment_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Update: {
+          amount_inr?: number
+          authorized_at?: string | null
+          booking_id?: string
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          deposit_rate?: number
+          id?: string
+          invoice?: Json
+          last_error?: string | null
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_order_id?: string
+          provider_payment_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_users: {
         Row: {
           corporate_role: Database["public"]["Enums"]["corporate_role"] | null
@@ -726,6 +873,186 @@ export type Database = {
           },
           {
             foreignKeyName: "platform_users_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfp_responses: {
+        Row: {
+          created_at: string
+          id: string
+          list_amount_inr: number | null
+          menu_package_id: string | null
+          notes: string | null
+          per_head_inr: number | null
+          rate_card_id: string | null
+          responded_at: string | null
+          rfp_id: string
+          source: Database["public"]["Enums"]["rfp_response_source"]
+          status: Database["public"]["Enums"]["rfp_response_status"]
+          taxable_amount_inr: number | null
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          list_amount_inr?: number | null
+          menu_package_id?: string | null
+          notes?: string | null
+          per_head_inr?: number | null
+          rate_card_id?: string | null
+          responded_at?: string | null
+          rfp_id: string
+          source?: Database["public"]["Enums"]["rfp_response_source"]
+          status: Database["public"]["Enums"]["rfp_response_status"]
+          taxable_amount_inr?: number | null
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          list_amount_inr?: number | null
+          menu_package_id?: string | null
+          notes?: string | null
+          per_head_inr?: number | null
+          rate_card_id?: string | null
+          responded_at?: string | null
+          rfp_id?: string
+          source?: Database["public"]["Enums"]["rfp_response_source"]
+          status?: Database["public"]["Enums"]["rfp_response_status"]
+          taxable_amount_inr?: number | null
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_responses_rate_card_id_fkey"
+            columns: ["rate_card_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_rate_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_responses_menu_package_id_fkey"
+            columns: ["menu_package_id"]
+            isOneToOne: false
+            referencedRelation: "venue_menu_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_responses_rfp_id_fkey"
+            columns: ["rfp_id"]
+            isOneToOne: false
+            referencedRelation: "rfps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_responses_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfps: {
+        Row: {
+          brief: string
+          budget_per_head_inr: number | null
+          city: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          dietary_tags: string[]
+          event_date: string | null
+          id: string
+          party_size: number
+          requirements: Json
+          status: Database["public"]["Enums"]["rfp_status"]
+          updated_at: string
+        }
+        Insert: {
+          brief: string
+          budget_per_head_inr?: number | null
+          city?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          dietary_tags?: string[]
+          event_date?: string | null
+          id?: string
+          party_size: number
+          requirements: Json
+          status?: Database["public"]["Enums"]["rfp_status"]
+          updated_at?: string
+        }
+        Update: {
+          brief?: string
+          budget_per_head_inr?: number | null
+          city?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          dietary_tags?: string[]
+          event_date?: string | null
+          id?: string
+          party_size?: number
+          requirements?: Json
+          status?: Database["public"]["Enums"]["rfp_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_menu_packages: {
+        Row: {
+          created_at: string
+          description: string | null
+          dietary_tags: string[]
+          id: string
+          is_active: boolean
+          name: string
+          per_head_inr: number
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          id?: string
+          is_active?: boolean
+          name: string
+          per_head_inr: number
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dietary_tags?: string[]
+          id?: string
+          is_active?: boolean
+          name?: string
+          per_head_inr?: number
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_menu_packages_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
@@ -802,6 +1129,8 @@ export type Database = {
           gstin: string
           id: string
           is_active: boolean
+          latitude: number | null
+          longitude: number | null
           min_spend_inr: number
           name: string
           neighborhood: string
@@ -818,6 +1147,8 @@ export type Database = {
           gstin: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           min_spend_inr?: number
           name: string
           neighborhood: string
@@ -834,6 +1165,8 @@ export type Database = {
           gstin?: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
           min_spend_inr?: number
           name?: string
           neighborhood?: string
@@ -944,6 +1277,11 @@ export type Database = {
       gstin_checksum: { Args: { p_first14: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
+      rfp_company_id: { Args: { p_rfp_id: string }; Returns: string }
+      rfp_sent_to_current_venue: {
+        Args: { p_rfp_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       approval_status: "PENDING" | "APPROVED" | "REJECTED"
@@ -958,6 +1296,17 @@ export type Database = {
       hold_status: "ACTIVE" | "RELEASED" | "CONVERTED"
       onboarding_status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED"
       portal_role: "ADMIN" | "CLIENT" | "PROPERTY"
+      payment_provider: "razorpay" | "stripe"
+      payment_status:
+        | "created"
+        | "authorized"
+        | "captured"
+        | "voided"
+        | "failed"
+        | "refunded"
+      rfp_response_source: "instant" | "venue"
+      rfp_response_status: "quoted" | "countered" | "declined" | "no_fit"
+      rfp_status: "open" | "awarded" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1101,6 +1450,18 @@ export const Constants = {
       hold_status: ["ACTIVE", "RELEASED", "CONVERTED"],
       onboarding_status: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
       portal_role: ["ADMIN", "CLIENT", "PROPERTY"],
+      payment_provider: ["razorpay", "stripe"],
+      payment_status: [
+        "created",
+        "authorized",
+        "captured",
+        "voided",
+        "failed",
+        "refunded",
+      ],
+      rfp_response_source: ["instant", "venue"],
+      rfp_response_status: ["quoted", "countered", "declined", "no_fit"],
+      rfp_status: ["open", "awarded", "closed"],
     },
   },
 } as const

@@ -7,6 +7,8 @@ import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { NAV_SECTIONS, isActive } from "@/components/dashboard/nav-config";
 import { cn } from "@/lib/utils";
 
+const ALL_HREFS = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+
 /** Copper monogram: the brand mark, derived from the workspace name. */
 export function Monogram({ name, className }: { name: string; className?: string }) {
   return (
@@ -72,7 +74,8 @@ export function Sidebar({
               ))}
             <ul className="space-y-px">
               {section.items.map(({ href, label, icon: Icon }) => {
-                const active = isActive(pathname, href);
+                // The most specific item wins (/client/approvals, not /client too).
+                const active = isActive(pathname, href) && !ALL_HREFS.some((h) => h.length > href.length && isActive(pathname, h));
                 return (
                   <li key={href}>
                     <Link

@@ -10,46 +10,62 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { computeMonthlyPayouts, listBookings, listLiveHolds, listVenues } from "@/lib/data";
+import { requirePortal } from "@/lib/auth/session";
+import { computeMonthlyPayouts, dataSource, listBookings, listLiveHolds, listVenues } from "@/lib/data";
+import { dietaryLabel } from "@/lib/quotes";
+import { listVenuePackages, listVenueRfps } from "@/lib/rfp/service";
 import { formatDate, formatINR } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { HoldCountdown } from "@/components/portal/hold-countdown";
+import { RateCardPill } from "@/components/portal/pills";
+import { activeHolds } from "@/lib/approvals/service";
 import { EventBrief } from "./_components/event-brief";
-import { HoldCountdown } from "./_components/hold-countdown";
-import { convertVenueHold, releaseVenueHold, respondToBooking } from "./actions";
+import { NegotiatorDrawer } from "./_components/negotiator-drawer";
+import { convertVenueHold, releaseVenueHold, respondToBooking, respondToRfpAction } from "./actions";
 
 const monthLabel = (ym: string) =>
   new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
 export default async function PropertyPage({ searchParams }: PageProps<"/property">) {
+  const member = await requirePortal("/property");
   const { venue: venueParam } = await searchParams;
-  const venues = await listVenues();
-  // Until sign-in exists, the acting venue is chosen via ?venue=<id>.
+  const allVenues = await listVenues();
+  // Property managers are pinned to their own venue; admins may switch via ?venue=<id>.
+  const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
   if (!venue) notFound();
 
-  const [bookings, holds] = await Promise.all([listBookings({ venueId: venue.id }), listLiveHolds(venue.id)]);
-  const holdsByDate = [...holds].sort((a, b) => a.event_date.localeCompare(b.event_date));
+  const live = dataSource() === "supabase";
+  const [bookings, rfpInbox, packages] = await Promise.all([
+    listBookings({ venueId: venue.id }),
+    live ? listVenueRfps(venue.id) : Promise.resolve([]),
+    live ? listVenuePackages(venue.id) : Promise.resolve([]),
+  ]);
   const incoming = bookings.filter((b) => b.status === "PENDING");
+  const [holds, liveHolds] = await Promise.all([activeHolds(incoming.map((b) => b.id)), listLiveHolds(venue.id)]);
+  const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
   const payouts = computeMonthlyPayouts(bookings);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <PortalShell
+      portal="/property"
+      actions={live ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} /> : null}
       title={venue.name}
-      subtitle={`${venue.neighborhood}, ${venue.city} · GSTIN ${venue.gstin} · platform commission ${(Number(venue.commission_rate) * 100).toFixed(0)}%`}
+      subtitle={`${venue.neighborhood}, ${venue.city} · GSTIN ${venue.gstin} · platform commission ${(Number(venue.commission_rate) * 100).toFixed(0)}% · min spend ${formatINR(Number(venue.min_spend_inr))}`}
     >
-      <div className="-mt-2 mb-8 flex flex-wrap items-center gap-2" aria-label="Switch venue (demo)">
-        <span className="label-mono mr-1">Viewing as</span>
-        {venues.map((v) => (
-          <Link
-            key={v.id}
-            href={`/property?venue=${v.id}`}
-            className={segmentClass(v.id === venue.id)}
-          >
-            {v.name}
-          </Link>
-        ))}
-      </div>
+      {venues.length > 1 ? (
+        <div className="-mt-2 mb-8 flex flex-wrap items-center gap-2" aria-label="Switch venue (admin)">
+          <span className="label-mono mr-1">Viewing</span>
+          {venues.map((v) => (
+            <Link key={v.id} href={`/property?venue=${v.id}`} className={segmentClass(v.id === venue.id)}>
+              {v.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
@@ -71,69 +87,53 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </CardHeader>
         <CardContent>
           {holdsByDate.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-sm">No dates on hold.</p>
+            <p className="py-4 text-sm text-fg-subtle">No dates on hold.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event date</TableHead>
-                  <TableHead>Request</TableHead>
-                  <TableHead>Releases in</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {holdsByDate.map((h) => {
-                  // Bookings still awaiting the client's internal sign-off aren't visible to venues.
-                  const booking = bookings.find((b) => b.id === h.booking_id);
-                  return (
-                    <TableRow key={h.id}>
-                      <TableCell className="tabular-nums">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Lock className="text-muted-foreground size-3.5" aria-hidden />
-                          {formatDate(h.event_date)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {booking ? (
-                          <>
-                            <div className="font-medium">{booking.company.legal_name.replace(" Private Limited", "")}</div>
-                            <div className="text-muted-foreground text-xs">
-                              {booking.party_size} guests · {formatINR(booking.total_amount_inr)} taxable
-                            </div>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Awaiting the client&apos;s internal sign-off</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <HoldCountdown expiresAt={h.hold_expires_at} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          {booking?.status === "PENDING" ? (
-                            <form action={convertVenueHold}>
-                              <input type="hidden" name="booking_id" value={booking.id} />
-                              <input type="hidden" name="venue_id" value={venue.id} />
-                              <Button type="submit" size="sm">
-                                <Check aria-hidden /> Convert
-                              </Button>
-                            </form>
-                          ) : null}
-                          <form action={releaseVenueHold}>
-                            <input type="hidden" name="hold_id" value={h.id} />
-                            <input type="hidden" name="venue_id" value={venue.id} />
-                            <Button type="submit" size="sm" variant="outline">
-                              <Unlock aria-hidden /> Release
-                            </Button>
-                          </form>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <ul className="divide-y divide-line">
+              {holdsByDate.map((h) => {
+                // Bookings still awaiting the client's internal sign-off aren't visible to venues.
+                const booking = bookings.find((b) => b.id === h.booking_id);
+                return (
+                  <li key={h.id} className="grid gap-3 py-4 sm:grid-cols-[8rem_minmax(0,1fr)_11rem_auto] sm:items-center">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-fg tabular-nums">
+                      <Lock className="size-3.5 text-fg-faint" aria-hidden />
+                      {formatDate(h.event_date)}
+                    </span>
+                    <div className="min-w-0">
+                      {booking ? (
+                        <>
+                          <div className="truncate font-medium text-fg">{booking.company.legal_name.replace(" Private Limited", "")}</div>
+                          <div className="text-xs text-fg-subtle">
+                            {booking.party_size} guests · {formatINR(booking.total_amount_inr)} taxable
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-sm text-fg-subtle">Awaiting the client&apos;s internal sign-off</span>
+                      )}
+                    </div>
+                    <HoldCountdown createdAt={h.hold_start} expiresAt={h.hold_expires_at} />
+                    <div className="flex gap-2 sm:justify-end">
+                      {booking?.status === "PENDING" ? (
+                        <form action={convertVenueHold}>
+                          <input type="hidden" name="booking_id" value={booking.id} />
+                          <input type="hidden" name="venue_id" value={venue.id} />
+                          <Button type="submit" size="sm">
+                            <Check aria-hidden /> Convert
+                          </Button>
+                        </form>
+                      ) : null}
+                      <form action={releaseVenueHold}>
+                        <input type="hidden" name="hold_id" value={h.id} />
+                        <input type="hidden" name="venue_id" value={venue.id} />
+                        <Button type="submit" size="sm" variant="outline">
+                          <Unlock aria-hidden /> Release
+                        </Button>
+                      </form>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </CardContent>
       </Card>
@@ -149,7 +149,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           ) : (
             <ul className="divide-y">
               {incoming.map((b) => (
-                <li key={b.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+                <li key={b.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-5">
                   <div className="flex-1">
                     <div className="font-medium">{b.company.legal_name}</div>
                     <div className="text-muted-foreground text-sm">
@@ -159,9 +159,13 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                     {b.notes ? <p className="mt-1 text-sm">“{b.notes}”</p> : null}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <GstTypeBadge type={b.invoice.gst_type} />
+                      {b.rate_card_id ? <RateCardPill label={`${formatINR(b.budget_per_head_inr)}/head`} /> : null}
                       <Badge variant="secondary">You receive {formatINR(b.venue_payout_inr)}</Badge>
                     </div>
                   </div>
+                  {holds.get(b.id) ? (
+                    <HoldCountdown createdAt={holds.get(b.id)!.holdStart} expiresAt={holds.get(b.id)!.expiresAt} className="sm:w-44" />
+                  ) : null}
                   <form action={respondToBooking} className="flex gap-2">
                     <input type="hidden" name="booking_id" value={b.id} />
                     <input type="hidden" name="venue_id" value={venue.id} />
@@ -179,6 +183,88 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </CardContent>
       </Card>
 
+      {live ? (
+        <div className="mt-6 grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>RFP inbox</CardTitle>
+              <CardDescription>
+                Clients received an instant quote from your packages and minimum spend. Counter with your own per-head
+                price, or decline. The client&apos;s rate-card discount and GST are applied on top.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {rfpInbox.length === 0 ? (
+                <p className="text-muted-foreground py-4 text-sm">No open RFPs. Multi-venue requests from clients land here.</p>
+              ) : (
+                <ul className="divide-y">
+                  {rfpInbox.map(({ response: r, rfp, requirements, companyName }) => (
+                    <li key={r.id} className="grid gap-3 py-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{companyName.replace(" Private Limited", "")}</span>
+                          <Badge variant={r.status === "countered" ? "default" : r.status === "quoted" ? "secondary" : "outline"}>
+                            {{ quoted: "Instant quote sent", countered: "Countered", declined: "Declined", no_fit: "Not a fit" }[r.status]}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground text-sm">
+                          {requirements?.summary ?? rfp.brief} · {rfp.party_size} guests
+                          {rfp.event_date ? ` · ${formatDate(rfp.event_date)}` : ""}
+                          {rfp.budget_per_head_inr != null ? ` · budget ${formatINR(Number(rfp.budget_per_head_inr))}/head` : ""}
+                          {rfp.dietary_tags.length ? ` · ${rfp.dietary_tags.map(dietaryLabel).join(", ")}` : ""}
+                        </p>
+                        {r.per_head_inr != null ? (
+                          <p className="mt-1 text-sm">
+                            Current offer {formatINR(Number(r.per_head_inr))}/head · {formatINR(Number(r.list_amount_inr))} before discount
+                            {r.notes ? ` · ${r.notes}` : ""}
+                          </p>
+                        ) : r.notes ? (
+                          <p className="mt-1 text-sm">{r.notes}</p>
+                        ) : null}
+                      </div>
+                      <form action={respondToRfpAction} className="grid gap-2 sm:grid-cols-[8rem_1fr_auto] sm:items-end">
+                        <input type="hidden" name="response_id" value={r.id} />
+                        <input type="hidden" name="venue_id" value={venue.id} />
+                        <Input
+                          name="per_head_inr"
+                          type="number"
+                          min={1}
+                          step="any"
+                          placeholder="₹ / head"
+                          aria-label="Per-head price"
+                          defaultValue={r.per_head_inr != null ? Number(r.per_head_inr) : undefined}
+                        />
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <NativeSelect name="menu_package_id" aria-label="Menu package" defaultValue={r.menu_package_id ?? ""}>
+                            <option value="">No package</option>
+                            {packages.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} — {formatINR(p.per_head_inr)}
+                                {p.is_active ? "" : " (inactive)"}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                          <Input name="notes" placeholder="Note to client (optional)" aria-label="Note to client" maxLength={280} />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button type="submit" name="intent" value="counter" size="sm">
+                            Counter
+                          </Button>
+                          <Button type="submit" name="intent" value="decline" size="sm" variant="outline" formNoValidate>
+                            Decline
+                          </Button>
+                        </div>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+        </div>
+      ) : null}
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Host view · event briefs</CardTitle>
@@ -189,14 +275,14 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </CardHeader>
         <CardContent>
           {incoming.length + upcoming.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-sm">No upcoming events to brief.</p>
+            <p className="py-4 text-sm text-fg-subtle">No upcoming events to brief.</p>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y divide-line">
               {[...incoming, ...upcoming].map((b) => (
                 <li key={b.id} className="grid gap-3 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{b.company.legal_name}</span>
-                    <span className="text-muted-foreground text-sm">
+                    <span className="font-medium text-fg">{b.company.legal_name}</span>
+                    <span className="text-sm text-fg-subtle">
                       {formatDate(b.event_date)} · {b.party_size} guests
                     </span>
                     <BookingStatusBadge status={b.status} />
