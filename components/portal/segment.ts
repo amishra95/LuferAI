@@ -9,7 +9,7 @@ export function segmentClass(active: boolean) {
   return cn(
     "inline-flex h-7 items-center rounded-full border px-3 text-[12.5px] transition-colors",
     active
-      ? "border-fg bg-fg text-white shadow-[0_1px_2px_rgb(9_9_11/0.15)]"
+      ? "border-fg bg-fg text-canvas shadow-[0_1px_2px_rgb(9_9_11/0.15)] dark:border-amber-400/50 dark:bg-amber-400/15 dark:text-amber-200 dark:shadow-[0_0_16px_-6px_rgb(245_158_11/0.6)]"
       : "border-line bg-surface text-fg-muted hover:border-line-strong hover:text-fg"
   );
 }

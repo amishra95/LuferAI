@@ -13,7 +13,7 @@ const buttonVariants = cva(
         default: "btn-primary",
         destructive: "border-rose bg-rose text-white hover:border-rose hover:bg-rose/90",
         outline: "",
-        secondary: "bg-surface-raised border-transparent shadow-none hover:border-transparent hover:bg-zinc-200/70",
+        secondary: "bg-surface-raised border-transparent shadow-none hover:border-transparent hover:bg-zinc-200/70 dark:hover:bg-white/10",
         ghost: "btn-ghost",
         link: "text-copper-ink h-auto border-transparent bg-transparent px-0 shadow-none underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
       },

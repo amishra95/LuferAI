@@ -14,7 +14,7 @@ import type { RunBucket } from "@/lib/telemetry/metrics";
  * the reserved critical red, always with an icon and a label, never colour alone.
  */
 
-const axis = { stroke: "var(--color-zinc-300)", tick: { fill: "var(--color-zinc-500)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
+const axis = { stroke: "var(--color-line-strong)", tick: { fill: "var(--color-fg-subtle)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
 
 type Row = RunBucket & { label: string; failedTag: string };
 
@@ -45,7 +45,7 @@ export function RunsChart({ buckets, bucketMs }: { buckets: RunBucket[]; bucketM
           <span aria-hidden className="size-2.5 rounded-[3px]" style={{ background: "var(--chart-critical)" }} />
           Failed
           {failed > 0 && (
-            <span className="inline-flex items-center gap-1 text-red-700">
+            <span className="inline-flex items-center gap-1 text-rose">
               <AlertTriangle className="size-3" aria-hidden />
               {failed} in this period
             </span>
@@ -54,11 +54,11 @@ export function RunsChart({ buckets, bucketMs }: { buckets: RunBucket[]; bucketM
       </ul>
       <ChartContainer config={runsConfig} className="aspect-auto h-60 w-full">
         <BarChart data={data} margin={{ left: 4, right: 8, top: 16 }} barCategoryGap="25%">
-          <CartesianGrid vertical={false} stroke="var(--color-zinc-700)" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="3 3" />
           <XAxis dataKey="label" {...axis} tickMargin={8} minTickGap={12} />
           <YAxis {...axis} width={36} allowDecimals={false} />
           <ChartTooltip
-            cursor={{ fill: "var(--color-zinc-700)", opacity: 0.4 }}
+            cursor={{ fill: "var(--color-surface-raised)" }}
             content={
               <ChartTooltipContent
                 labelFormatter={(_, payload) => {
@@ -78,7 +78,7 @@ export function RunsChart({ buckets, bucketMs }: { buckets: RunBucket[]; bucketM
           <Bar dataKey="ok" stackId="runs" fill="var(--color-ok)" stroke="var(--color-surface)" strokeWidth={1} maxBarSize={28} />
           <Bar dataKey="failed" stackId="runs" fill="var(--color-failed)" stroke="var(--color-surface)" strokeWidth={1} radius={[4, 4, 0, 0]} maxBarSize={28}>
             {/* Direct labels on failures only: the series that needs attention. */}
-            <LabelList dataKey="failedTag" position="top" offset={4} fill="var(--color-zinc-700)" fontSize={11} />
+            <LabelList dataKey="failedTag" position="top" offset={4} fill="var(--color-fg-muted)" fontSize={11} />
           </Bar>
         </BarChart>
       </ChartContainer>
@@ -104,11 +104,11 @@ export function LatencyChart({ buckets, bucketMs }: { buckets: RunBucket[]; buck
     <div>
       <ChartContainer config={latencyConfig} className="aspect-auto h-60 w-full">
         <LineChart data={data} margin={{ left: 4, right: 12, top: 16 }}>
-          <CartesianGrid vertical={false} stroke="var(--color-zinc-700)" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="3 3" />
           <XAxis dataKey="label" {...axis} tickMargin={8} minTickGap={12} />
           <YAxis {...axis} width={52} tickFormatter={(v) => formatMs(Number(v))} />
           <ChartTooltip
-            cursor={{ stroke: "var(--color-zinc-500)" }}
+            cursor={{ stroke: "var(--color-fg-faint)" }}
             content={
               <ChartTooltipContent
                 indicator="line"

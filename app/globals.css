@@ -394,3 +394,195 @@ html:has(.lufer) {
   border-radius: 1px;
   background: var(--color-copper-deep);
 }
+
+/* ------------------------------------------------------------------------- */
+/* Concierge scope (luxury dark)                                               */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Deep midnight canvas, charcoal glass cards, hairline white borders and warm
+ * amber metal for accents. Add `concierge dark` to a container (it also enables
+ * `dark:` variants) and every token-based utility (text-fg, bg-surface,
+ * border-line, …) and shadcn primitive inside it switches over. Portaled
+ * content (sheets, dialogs) needs the classes on its own root.
+ */
+@layer base {
+  .concierge {
+    color-scheme: dark;
+    --color-canvas: #09090b; /* zinc-950 */
+    --color-elevated: #18181b; /* zinc-900 */
+    --color-fg: #fafafa;
+    --color-fg-muted: #d4d4d8; /* zinc-300 */
+    --color-fg-subtle: #a1a1aa; /* zinc-400 */
+    --color-fg-faint: #71717a; /* zinc-500 */
+    --color-surface: rgb(24 24 27 / 0.6); /* zinc-900/60 */
+    --color-surface-raised: rgb(255 255 255 / 0.06);
+    --color-surface-hover: rgb(255 255 255 / 0.04);
+    --color-line: rgb(255 255 255 / 0.1);
+    --color-line-strong: rgb(255 255 255 / 0.16);
+    --color-copper: #f59e0b; /* amber-500 */
+    --color-copper-deep: #f59e0b;
+    --color-copper-ink: #fbbf24; /* amber-400: text-safe on dark */
+    --color-sage: #34d399; /* emerald-400 */
+    --color-rose: #fb7185; /* rose-400 */
+
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: rgb(24 24 27 / 0.6);
+    --card-foreground: #fafafa;
+    --popover: #18181b;
+    --popover-foreground: #fafafa;
+    --primary: #fbbf24;
+    --primary-foreground: #09090b;
+    --secondary: rgb(255 255 255 / 0.06);
+    --secondary-foreground: #d4d4d8;
+    --muted: rgb(255 255 255 / 0.06);
+    --muted-foreground: #a1a1aa;
+    --accent: rgb(255 255 255 / 0.06);
+    --accent-foreground: #fafafa;
+    --destructive: #fb7185;
+    --border: rgb(255 255 255 / 0.1);
+    --input: rgb(255 255 255 / 0.16);
+    --ring: #f59e0b;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --brand: #f59e0b;
+    /* Charts: amber metal for the main series, rose for failures (always labelled too). */
+    --chart-1: #f59e0b;
+    --chart-critical: #fb7185;
+
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-feature-settings: "ss01", "cv11";
+    scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+    scrollbar-width: thin;
+  }
+
+  .concierge ::selection {
+    background: rgb(245 158 11 / 0.3);
+  }
+
+  .concierge :focus-visible {
+    outline: 2px solid rgb(251 191 36 / 0.7);
+    outline-offset: 2px;
+  }
+
+  .concierge :is(h1, h2, h3, h4) {
+    letter-spacing: -0.025em;
+  }
+}
+
+/* The shared primitives hard-code a few light values; restate them for dark. */
+.concierge .btn {
+  box-shadow: none;
+  &:hover {
+    background: rgb(255 255 255 / 0.06);
+    border-color: rgb(255 255 255 / 0.24);
+  }
+}
+.concierge .btn-primary {
+  border-color: rgb(251 191 36 / 0.6);
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  color: #09090b;
+  box-shadow: 0 0 0 1px rgb(251 191 36 / 0.15), 0 8px 24px -10px rgb(245 158 11 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  &:hover {
+    border-color: #fcd34d;
+    background: linear-gradient(180deg, #fcd34d, #fbbf24);
+  }
+}
+.concierge .field {
+  background: rgb(9 9 11 / 0.6);
+  box-shadow: none;
+  &:hover {
+    border-color: rgb(255 255 255 / 0.24);
+  }
+  &:focus {
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.22);
+  }
+}
+/* Cards and panels: flat charcoal that warms with an amber hairline and glow on hover. */
+.concierge .panel {
+  box-shadow: none;
+  transition:
+    border-color 200ms ease,
+    box-shadow 300ms ease;
+  &:hover {
+    border-color: rgb(251 191 36 / 0.2);
+    box-shadow: 0 0 0 1px rgb(251 191 36 / 0.05), 0 12px 40px -18px rgb(245 158 11 / 0.35);
+  }
+}
+/* A full page in the scope: midnight canvas with a faint amber light from above. */
+.concierge-page {
+  background:
+    radial-gradient(60rem 22rem at 25% -8rem, rgb(245 158 11 / 0.09), transparent 70%),
+    var(--color-canvas);
+}
+/* Mobile bottom sheets use `glass`; make it midnight glass here. */
+.concierge.glass,
+.concierge .glass {
+  background: rgb(9 9 11 / 0.82);
+  border-color: var(--color-line);
+}
+
+/*
+ * Charcoal card that warms on hover: amber hairline plus a soft luminous glow.
+ * Selected state via aria-checked / data-selected / :has(:checked).
+ */
+@utility concierge-card {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  backdrop-filter: blur(24px);
+  transition:
+    border-color 200ms ease,
+    box-shadow 300ms ease,
+    transform 200ms ease,
+    background-color 200ms ease;
+  &:hover {
+    border-color: rgb(251 191 36 / 0.3);
+    box-shadow:
+      0 0 0 1px rgb(251 191 36 / 0.08),
+      0 12px 40px -14px rgb(245 158 11 / 0.45);
+    transform: translateY(-1px);
+  }
+  &:has(:checked),
+  &[data-selected="true"] {
+    border-color: rgb(251 191 36 / 0.55);
+    background: linear-gradient(160deg, rgb(245 158 11 / 0.1), rgb(24 24 27 / 0.6) 55%);
+    box-shadow:
+      0 0 0 1px rgb(251 191 36 / 0.25),
+      0 16px 48px -16px rgb(245 158 11 / 0.55);
+  }
+  &:has(:focus-visible) {
+    outline: 2px solid rgb(251 191 36 / 0.7);
+    outline-offset: 2px;
+  }
+}
+
+/* Amber halo that breathes around a small badge or dot. */
+@keyframes concierge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(251 191 36 / 0);
+  }
+}
+
+@utility badge-pulse {
+  animation: concierge-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concierge *,
+  .concierge *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .concierge .concierge-card:hover {
+    transform: none;
+  }
+}

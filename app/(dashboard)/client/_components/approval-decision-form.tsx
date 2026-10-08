@@ -36,7 +36,7 @@ export function ApprovalDecisionForm({ approvalId, className }: { approvalId: st
         </Button>
       </div>
       {state.status === "error" ? (
-        <p className="text-xs text-red-700" role="alert">
+        <p className="text-xs text-rose" role="alert">
           {state.message}
         </p>
       ) : null}

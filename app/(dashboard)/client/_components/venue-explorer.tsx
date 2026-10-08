@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DoorClosed, List, Map as MapIcon, Users } from "lucide-react";
+import { ArrowUpRight, List, Map as MapIcon } from "lucide-react";
 
 import { RateCardPill } from "@/components/portal/pills";
 import { ResponsiveSheetContent } from "@/components/portal/responsive-sheet";
@@ -12,9 +12,24 @@ import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
 import { AiVenueSearch } from "./ai-venue-search";
-import { EventRequestForm, type VenuePrefill } from "./event-request-form";
+import { EventRequestForm, type VenueOption, type VenuePrefill } from "./event-request-form";
+import { VenueCardBody } from "./venue-picker";
 
 const fromPrice = (v: CatalogVenue) => (v.packages.length ? Math.min(...v.packages.map((p) => p.per_head_inr)) : null);
+/** One card's data, shared by the list here and the wizard's VenuePicker. */
+const toOption = (v: CatalogVenue): VenueOption => ({
+  id: v.id,
+  name: v.name,
+  neighborhood: v.neighborhood,
+  city: v.city,
+  gstin: v.gstin,
+  capacity_max: v.capacity_max,
+  min_spend_inr: v.rate_card?.minSpendOverride ?? v.min_spend_inr,
+  pdr_available: v.pdr_available,
+  from_per_head_inr: fromPrice(v),
+  rate_card_label: v.rate_card?.label ?? null,
+  dietary: [...new Set(v.packages.flatMap((p) => p.dietary_tags))].map(dietaryLabel),
+});
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
 
 /**
@@ -37,6 +52,7 @@ export function VenueExplorer({
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const [prefill, setPrefill] = useState<VenuePrefill>();
   const selected = venues.find((v) => v.id === selectedId) ?? null;
+  const options = venues.map(toOption);
 
   const pick = (id: string) => {
     setSelectedId(id);
@@ -67,47 +83,32 @@ export function VenueExplorer({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <ul className={cn("grid content-start gap-3 lg:max-h-[34rem] lg:overflow-y-auto lg:pr-1", mobileView === "map" && "max-lg:hidden")}>
-          {venues.map((v) => {
-            const from = fromPrice(v);
-            const diets = [...new Set(v.packages.flatMap((p) => p.dietary_tags))];
+        <ul className={cn("grid content-start gap-3 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2 lg:pb-8 lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-3rem),transparent)]", mobileView === "map" && "max-lg:hidden")}>
+          {options.map((v) => {
+            const active = v.id === selectedId;
             return (
-              <li key={v.id}>
+              <li key={v.id} className="grid">
                 <button
                   type="button"
                   onClick={() => pick(v.id)}
                   onMouseEnter={() => setSelectedId(v.id)}
-                  aria-current={v.id === selectedId ? "true" : undefined}
-                  className={cn(
-                    "w-full rounded-xl border bg-surface p-4 text-left transition",
-                    v.id === selectedId
-                      ? "border-line-strong shadow-[0_0_24px_-10px] shadow-emerald-400/60"
-                      : "border-line/60 hover:border-line-strong"
-                  )}
+                  aria-current={active ? "true" : undefined}
+                  aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
+                  data-selected={active}
+                  className="concierge-card group flex w-full cursor-pointer flex-col gap-3 p-4 text-left"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-fg">{v.name}</div>
-                      <div className="text-sm text-fg-subtle">{v.neighborhood}</div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-sm font-medium text-fg tabular-nums">{from != null ? `${formatINR(from)}/head` : "—"}</div>
-                      <div className="text-xs text-fg-faint">from</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-fg-subtle">
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="size-3.5" aria-hidden /> Up to {v.capacity_max}
-                    </span>
-                    {v.pdr_available ? (
-                      <span className="inline-flex items-center gap-1">
-                        <DoorClosed className="size-3.5" aria-hidden /> Private room
-                      </span>
-                    ) : null}
-                    <span className="tabular-nums">Min {compact(v.rate_card?.minSpendOverride ?? v.min_spend_inr)}</span>
-                    {v.rate_card ? <RateCardPill label={v.rate_card.label} /> : null}
-                  </div>
-                  {diets.length ? <p className="mt-2 text-xs text-fg-faint">{diets.map(dietaryLabel).join(" · ")}</p> : null}
+                  <VenueCardBody
+                    venue={v}
+                    indicator={
+                      <ArrowUpRight
+                        aria-hidden
+                        className={cn(
+                          "size-4 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-amber-400",
+                          active ? "text-amber-400" : "text-fg-faint"
+                        )}
+                      />
+                    }
+                  />
                 </button>
               </li>
             );
@@ -141,7 +142,7 @@ export function VenueExplorer({
               onClick={() => setMobileView(view)}
               className={cn(
                 "inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm capitalize transition",
-                mobileView === view ? "bg-fg text-white" : "text-fg-muted"
+                mobileView === view ? "bg-amber-400 text-zinc-950" : "text-fg-muted"
               )}
             >
               {view === "list" ? <List className="size-4" aria-hidden /> : <MapIcon className="size-4" aria-hidden />}
@@ -152,11 +153,12 @@ export function VenueExplorer({
       </div>
 
       <Sheet open={open && !!selected} onOpenChange={setOpen}>
-        <ResponsiveSheetContent wide>
+        {/* The drawer is portaled outside the page, so it carries its own concierge scope. */}
+        <ResponsiveSheetContent wide className="concierge dark border-line bg-zinc-950/85 backdrop-blur-xl">
           {selected ? (
             <div className="grid gap-6 overflow-y-auto p-5 sm:p-6">
               <SheetHeader className="p-0 pr-10">
-                <SheetTitle className="text-xl text-fg">{selected.name}</SheetTitle>
+                <SheetTitle className="text-2xl font-semibold tracking-tight text-fg">{selected.name}</SheetTitle>
                 <SheetDescription>{selected.address}</SheetDescription>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selected.rate_card ? <RateCardPill label={selected.rate_card.label} /> : null}
@@ -172,10 +174,10 @@ export function VenueExplorer({
                   <h3 className="text-sm font-medium text-fg-muted">Menu packages</h3>
                   <ul className="grid gap-2">
                     {selected.packages.map((p) => (
-                      <li key={p.id} className="rounded-lg border border-line/60 bg-surface p-3">
+                      <li key={p.id} className="concierge-card p-3">
                         <div className="flex justify-between gap-3 text-sm">
                           <span className="font-medium text-fg">{p.name}</span>
-                          <span className="text-fg tabular-nums">{formatINR(p.per_head_inr)}/head</span>
+                          <span className="text-copper-ink tabular-nums">{formatINR(p.per_head_inr)}/head</span>
                         </div>
                         {p.description ? <p className="mt-0.5 text-xs text-fg-subtle">{p.description}</p> : null}
                         {p.dietary_tags.length ? (
@@ -196,16 +198,7 @@ export function VenueExplorer({
                   defaultVenueId={selected.id}
                   departments={departments}
                   prefill={prefill}
-                  venues={venues.map(({ id, name, neighborhood, city, gstin, capacity_max, min_spend_inr, pdr_available }) => ({
-                    id,
-                    name,
-                    neighborhood,
-                    city,
-                    gstin,
-                    capacity_max,
-                    min_spend_inr,
-                    pdr_available,
-                  }))}
+                  venues={options}
                 />
               </div>
             </div>
