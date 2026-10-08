@@ -1,9 +1,7 @@
-import { after } from "next/server";
-
-import { recordDelivery, runChannelAgent } from "@/lib/channels/agent";
 import { env, isChannelConfigured } from "@/lib/channels/config";
+import { dispatchReply } from "@/lib/channels/dispatch";
 import { verifySlackSignature } from "@/lib/channels/signatures";
-import { extractSlackMessage, postSlackMessage } from "@/lib/channels/slack";
+import { extractSlackMessage } from "@/lib/channels/slack";
 import { channelStore } from "@/lib/channels/store";
 
 export const maxDuration = 60;
@@ -11,7 +9,8 @@ export const maxDuration = 60;
 /**
  * Slack Events API endpoint: URL verification and message events. Every
  * request (including the handshake) must carry a valid signature. Slack wants
- * a 200 within 3 seconds, so the agent runs after the response.
+ * a 200 within 3 seconds, so the reply runs in the durable reply workflow
+ * (workflows/channel-reply.ts) after the ack.
  */
 export async function POST(req: Request) {
   if (!isChannelConfigured("slack")) return Response.json({ error: "Slack is not configured." }, { status: 503 });
@@ -42,16 +41,7 @@ export async function POST(req: Request) {
 
     const msg = extractSlackMessage(payload);
     if (msg && (await store.firstDelivery(`slack:${msg.eventId}`))) {
-      after(async () => {
-        const result = await runChannelAgent({ channel: "slack", senderId: msg.user, text: msg.text });
-        try {
-          await postSlackMessage(msg.channel, result.reply, msg.threadTs);
-          await recordDelivery(result.eventId, { ok: true });
-        } catch (err) {
-          console.error("slack: reply failed", err);
-          await recordDelivery(result.eventId, { ok: false, error: err instanceof Error ? err.message : "Reply failed" });
-        }
-      });
+      await dispatchReply({ senderId: msg.user, text: msg.text, target: { channel: "slack", channelId: msg.channel, threadTs: msg.threadTs } });
     }
   } catch (err) {
     // Store unavailable: a 5xx makes Slack retry instead of dropping the event.

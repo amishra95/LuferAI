@@ -41,6 +41,7 @@
     "server-only": "^0.0.1",
     "stripe": "^23.0.0",
     "tailwind-merge": "^3.7.0",
+    "workflow": "^5.1.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

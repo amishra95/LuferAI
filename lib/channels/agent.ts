@@ -23,6 +23,8 @@ export type ChannelMessage = {
   text: string;
   /** From the Settings test console rather than a real webhook. */
   test?: boolean;
+  /** Message-log id to use, fixed by the caller so a durable retry logs (and replies) under one id. */
+  eventId?: string;
 };
 
 export type ChannelAgentResult = {
@@ -255,7 +257,7 @@ async function runModel(
 export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgentResult> {
   const started = Date.now();
   const store = channelStore();
-  const eventId = crypto.randomUUID();
+  const eventId = msg.eventId ?? crypto.randomUUID();
   const test = Boolean(msg.test);
 
   let link: ChannelLink | undefined;

@@ -103,3 +103,17 @@ test("multi-turn: a fresh search in a new area isn't treated as a booking", () =
   assert.equal(merged.intent, "search");
   assert.equal(merged.area, "Koramangala");
 });
+
+import { classifyDeliveryFailure } from "../lib/channels/delivery-errors.ts";
+
+test("delivery failures: rate limits retry later, bad config stops, outages retry", () => {
+  assert.equal(classifyDeliveryFailure("WhatsApp send failed (429): Too many messages"), "rate-limited");
+  assert.equal(classifyDeliveryFailure("Slack post failed: ratelimited"), "rate-limited");
+  assert.equal(classifyDeliveryFailure("WhatsApp send failed (400): Recipient phone number not in allowed list"), "permanent");
+  assert.equal(classifyDeliveryFailure("WhatsApp send failed (401): Invalid OAuth access token"), "permanent");
+  assert.equal(classifyDeliveryFailure("Slack post failed: not_in_channel"), "permanent");
+  assert.equal(classifyDeliveryFailure("Slack post failed: invalid_auth"), "permanent");
+  assert.equal(classifyDeliveryFailure("WhatsApp send failed (503): Service Unavailable"), "transient");
+  assert.equal(classifyDeliveryFailure("Slack post failed: 500"), "transient");
+  assert.equal(classifyDeliveryFailure("fetch failed"), "transient");
+});

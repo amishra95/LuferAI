@@ -11,5 +11,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Run on all pages so Supabase sessions stay refreshed; updateSession only *gates*
   // /client, /property and /admin. Static assets and images are skipped.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // .well-known/workflow/ is the Workflow runtime's own endpoints (workflows/*); they must bypass this.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|\\.well-known/workflow/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

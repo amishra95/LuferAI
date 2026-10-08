@@ -1,10 +1,8 @@
-import { after } from "next/server";
-
-import { recordDelivery, runChannelAgent } from "@/lib/channels/agent";
 import { env, isChannelConfigured } from "@/lib/channels/config";
+import { dispatchReply } from "@/lib/channels/dispatch";
 import { tokensMatch, verifyMetaSignature } from "@/lib/channels/signatures";
 import { channelStore } from "@/lib/channels/store";
-import { extractWhatsAppMessages, sendWhatsAppText } from "@/lib/channels/whatsapp";
+import { extractWhatsAppMessages } from "@/lib/channels/whatsapp";
 
 export const maxDuration = 60;
 
@@ -18,8 +16,8 @@ export async function GET(req: Request) {
 
 /**
  * Inbound messages. The signature is checked over the raw body before
- * anything is parsed; the reply is generated and sent after the 200 so Meta
- * doesn't time out and redeliver.
+ * anything is parsed; each message is handed to the durable reply workflow
+ * (workflows/channel-reply.ts) and acknowledged at once so Meta doesn't redeliver.
  */
 export async function POST(req: Request) {
   if (!isChannelConfigured("whatsapp")) return Response.json({ error: "WhatsApp is not configured." }, { status: 503 });
@@ -43,16 +41,7 @@ export async function POST(req: Request) {
 
     for (const m of extractWhatsAppMessages(payload)) {
       if (!(await store.firstDelivery(`wa:${m.id}`))) continue;
-      after(async () => {
-        const result = await runChannelAgent({ channel: "whatsapp", senderId: m.from, text: m.text });
-        try {
-          await sendWhatsAppText(m.from, result.reply);
-          await recordDelivery(result.eventId, { ok: true });
-        } catch (err) {
-          console.error("whatsapp: reply failed", err);
-          await recordDelivery(result.eventId, { ok: false, error: err instanceof Error ? err.message : "Reply failed" });
-        }
-      });
+      await dispatchReply({ senderId: m.from, text: m.text, target: { channel: "whatsapp", to: m.from } });
     }
   } catch (err) {
     // Store unavailable: a 5xx makes Meta retry later instead of dropping the message.
