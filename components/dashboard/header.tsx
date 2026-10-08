@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Search } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
 
@@ -16,12 +16,14 @@ export function Header({
   system,
   account,
   onOpenMobileNav,
+  onOpenPalette,
 }: {
   workspaceName: string;
   system: SystemMode;
   /** The signed-in user, or null when signed out / auth isn't configured. */
   account: { email: string | null } | null;
   onOpenMobileNav: () => void;
+  onOpenPalette: () => void;
 }) {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
@@ -68,10 +70,22 @@ export function Header({
         </ol>
       </nav>
 
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        aria-label="Search (⌘K)"
+        aria-keyshortcuts="Meta+K Control+K"
+        className="btn btn-ghost text-fg-subtle ml-auto h-8 gap-2 px-2 sm:px-2.5"
+      >
+        <Search className="size-4" aria-hidden />
+        <span className="hidden text-[12.5px] sm:inline">Search</span>
+        <kbd className="border-line hidden rounded border px-1 font-mono text-[10.5px] lg:inline">⌘K</kbd>
+      </button>
+
       <Link
         href="/settings"
         title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat is unavailable"}
-        className={system.mode === "live" ? "pill pill-copper ml-auto hover:brightness-110" : "pill hover:text-fg ml-auto transition-colors"}
+        className={system.mode === "live" ? "pill pill-copper hover:brightness-110" : "pill hover:text-fg transition-colors"}
       >
         {system.mode === "live" ? (
           <>

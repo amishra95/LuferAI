@@ -33,7 +33,9 @@ export type NewRun = AgentRun & { task?: string; tokens?: number; steps?: number
 const RUNS_KEY = "lufer:telemetry:runs";
 const COUNTS_KEY = "lufer:telemetry:run-counts";
 const LAST_KEY = "lufer:telemetry:last-run";
-const MAX_RUNS = 2000;
+/** The log keeps the most recent runs only; older ones are trimmed. */
+export const RUN_LOG_LIMIT = 2000;
+const MAX_RUNS = RUN_LOG_LIMIT;
 
 interface MemoryLog {
   runs: LoggedRun[];

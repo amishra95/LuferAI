@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { CommandPalette } from "@/components/dashboard/command-palette";
 import { Drawer } from "@/components/dashboard/drawer";
 import { Header } from "@/components/dashboard/header";
 import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ToastProvider } from "@/components/dashboard/toast";
+import type { PortalRole } from "@/lib/supabase/database.types";
 import type { SystemMode } from "@/types/navigation";
 
 export function DashboardShell({
@@ -20,34 +22,33 @@ export function DashboardShell({
   defaultCollapsed: boolean;
   workspaceName: string;
   system: SystemMode;
-  account: { email: string | null } | null;
+  account: { email: string | null; role: PortalRole } | null;
   /** Nav items this user may open; the sidebar hides the rest. */
   allowedHrefs: string[];
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const toggle = useCallback(() => {
+    setCollapsed((c) => {
+      document.cookie = `${SIDEBAR_COOKIE}=${c ? "0" : "1"}; path=/; max-age=31536000; samesite=lax`;
+      return !c;
+    });
+  }, []);
 
   // ⌘B / Ctrl+B toggles the sidebar, like most editors.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b" && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        setCollapsed((c) => {
-          document.cookie = `${SIDEBAR_COOKIE}=${c ? "0" : "1"}; path=/; max-age=31536000; samesite=lax`;
-          return !c;
-        });
+        toggle();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  function toggle() {
-    const next = !collapsed;
-    setCollapsed(next);
-    document.cookie = `${SIDEBAR_COOKIE}=${next ? "1" : "0"}; path=/; max-age=31536000; samesite=lax`;
-  }
+  }, [toggle]);
 
   return (
     <ToastProvider>
@@ -64,11 +65,24 @@ export function DashboardShell({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
           />
-          <Header workspaceName={workspaceName} system={system} account={account} onOpenMobileNav={() => setMobileOpen(true)} />
+          <Header
+            workspaceName={workspaceName}
+            system={system}
+            account={account}
+            onOpenMobileNav={() => setMobileOpen(true)}
+            onOpenPalette={() => setPaletteOpen(true)}
+          />
           {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
           <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
         </div>
       </div>
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        allowedHrefs={allowedHrefs}
+        role={account?.role ?? null}
+        onToggleSidebar={toggle}
+      />
     </ToastProvider>
   );
 }

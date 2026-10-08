@@ -1,4 +1,4 @@
-import { Bot, Building2, ClipboardCheck, ConciergeBell, Handshake, LayoutDashboard, MapPinned, MessageSquare, Settings, ShieldCheck } from "lucide-react";
+import { BarChart3, Bot, Building2, ClipboardCheck, ConciergeBell, Handshake, LayoutDashboard, MapPinned, MessageSquare, Settings, ShieldCheck } from "lucide-react";
 
 import type { NavSection } from "@/types/navigation";
 
@@ -19,6 +19,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/property", label: "Property", icon: ConciergeBell },
       { href: "/partner", label: "Partner", icon: Handshake },
       { href: "/admin", label: "Admin", icon: ShieldCheck },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {

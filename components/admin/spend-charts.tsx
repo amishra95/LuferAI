@@ -25,7 +25,7 @@ const compactINR = (n: number) =>
 
 const axis = { stroke: "var(--color-zinc-300)", tick: { fill: "var(--color-zinc-500)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
 
-function DataTable({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
+export function DataTable({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
   return (
     <details className="mt-3 text-sm">
       <summary className="inline-flex min-h-11 cursor-pointer items-center text-fg-subtle hover:text-fg md:min-h-0">View as table</summary>

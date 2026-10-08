@@ -19,6 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...PORTALS.filter((p) => canAccess(member.role, p)),
         ...WORKSPACE_ROUTES.filter((r) => canAccessWorkspace(member.role, member.corporateRole, r)),
         ...(member.canApprove || member.role === "ADMIN" ? ["/client/approvals"] : []),
+        ...(member.role === "ADMIN" ? ["/admin/analytics"] : []),
       ]
     : [];
 
@@ -29,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         defaultCollapsed={sidebarCollapsed}
         workspaceName={workspaceName}
         system={model ? { mode: "live", model: model.modelId } : { mode: "demo" }}
-        account={member ? { email: member.email } : null}
+        account={member ? { email: member.email, role: member.role } : null}
         allowedHrefs={allowedHrefs}
       >
         {children}

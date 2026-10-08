@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, IndianRupee, Landmark, Receipt } from "lucide-react";
+import { BarChart3, CalendarCheck, IndianRupee, Landmark, Receipt } from "lucide-react";
 
 import { CumulativeSpendChart, DepartmentBudgetChart, SavingsChart } from "@/components/admin/spend-charts";
 import { getSpendAnalytics } from "@/lib/data/analytics";
@@ -42,6 +42,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       portal="/admin"
       title="Platform overview"
       subtitle="Marketplace health across every company and venue."
+      actions={
+        <Link href="/admin/analytics" className="btn">
+          <BarChart3 className="size-3.5" aria-hidden />
+          Agent analytics
+        </Link>
+      }
     >
       <section aria-labelledby="exec-heading" className="mb-10 grid gap-4">
         <h2 id="exec-heading" className="sr-only">

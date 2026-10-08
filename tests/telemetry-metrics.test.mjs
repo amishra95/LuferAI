@@ -53,3 +53,36 @@ test("buckets: newest run lands in the last bucket; empty buckets carry latency 
   assert.equal(m["active-agents"].series.at(-1), 1);
   assert.equal(m["active-agents"].series.at(-2), 0);
 });
+
+import { summarizeRuns } from "../lib/telemetry/metrics.ts";
+
+test("summarizeRuns: IST day buckets, previous window, breakdowns and failures", () => {
+  // 12:00 UTC = 17:30 IST on 8 Oct.
+  const runs = [
+    run(10, { agent: "a", channel: "web" }),
+    run(60 * 20, { agent: "b", channel: "whatsapp", ok: false, error: "timeout", task: "Find a venue" }), // 7 Oct, 21:30 IST
+    run(60 * 24 * 8, { agent: "a" }), // previous window
+    run(60 * 24 * 40, { agent: "a" }), // out of both
+  ];
+  const s = summarizeRuns(runs, NOW, "7d");
+  assert.equal(s.buckets.length, 7);
+  assert.equal(s.from, "2026-10-01T18:30:00.000Z"); // 2 Oct 00:00 IST
+  assert.equal(s.buckets.at(-1).start, "2026-10-07T18:30:00.000Z"); // 8 Oct 00:00 IST
+  assert.equal(s.buckets.at(-1).ok, 1);
+  assert.equal(s.buckets.at(-2).failed, 1);
+  assert.equal(s.totals.runs, 2);
+  assert.equal(s.totals.successRate, 50);
+  assert.equal(s.previous.runs, 1);
+  assert.deepEqual(s.agents.map((a) => [a.agent, a.runs, a.failed]), [["a", 1, 0], ["b", 1, 1]]);
+  assert.deepEqual(s.channels.map((c) => c.channel).sort(), ["web", "whatsapp"]);
+  assert.deepEqual(s.failures.map((f) => [f.agent, f.error, f.task]), [["b", "timeout", "Find a venue"]]);
+});
+
+test("summarizeRuns: 24h uses IST hour buckets; empty buckets have no latency", () => {
+  const s = summarizeRuns([run(5, { durationMs: 700 })], NOW, "24h");
+  assert.equal(s.buckets.length, 24);
+  assert.equal(s.buckets.at(-1).start, "2026-10-08T11:30:00.000Z"); // 17:00 IST
+  assert.equal(s.buckets.at(-1).p50Ms, 700);
+  assert.equal(s.buckets[0].p50Ms, null);
+  assert.equal(summarizeRuns([], NOW, "30d").totals.successRate, null);
+});
