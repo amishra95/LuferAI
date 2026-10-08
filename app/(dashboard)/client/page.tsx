@@ -118,6 +118,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   return (
     <PortalShell
+      theme="concierge"
       portal="/client"
       title={company.legal_name}
       subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}

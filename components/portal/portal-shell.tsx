@@ -13,6 +13,7 @@ export function PortalShell({
   title,
   subtitle,
   actions,
+  theme,
   children,
 }: {
   /** The portal this page belongs to (navigation lives in the dashboard sidebar). */
@@ -21,10 +22,12 @@ export function PortalShell({
   subtitle: string;
   /** Page-level actions shown beside the title (e.g. a drawer trigger). */
   actions?: React.ReactNode;
+  /** "concierge": the dark luxury scope (app/globals.css), filling the content pane. */
+  theme?: "concierge";
   children: React.ReactNode;
 }) {
   const source = dataSource();
-  return (
+  const page = (
     <Page>
       <PageHeader
         title={title}
@@ -35,4 +38,5 @@ export function PortalShell({
       {children}
     </Page>
   );
+  return theme === "concierge" ? <div className="concierge concierge-page flex-1">{page}</div> : page;
 }

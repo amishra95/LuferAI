@@ -18,7 +18,6 @@ import {
   type BookingSchemaContext,
 } from "@/lib/bookings/request-schema";
 import { calculateGst, normalizeGstin, validateGstin } from "@/lib/gst-engine";
-import type { Venue } from "@/lib/supabase/database.types";
 import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import {
@@ -30,6 +29,7 @@ import {
   type BookingRequestState,
   type CheckoutSlotState,
 } from "../actions";
+import { VenuePicker, type VenuePickerOption } from "./venue-picker";
 
 /** Values chosen elsewhere (e.g. an AI search result) to load into the form. */
 export interface VenuePrefill {
@@ -38,10 +38,7 @@ export interface VenuePrefill {
   perHead: number;
 }
 
-export type VenueOption = Pick<
-  Venue,
-  "id" | "name" | "neighborhood" | "city" | "gstin" | "capacity_max" | "min_spend_inr" | "pdr_available"
->;
+export type VenueOption = VenuePickerOption & { gstin: string };
 
 type Errors = Partial<Record<BookingFormField, string>>;
 
@@ -272,7 +269,7 @@ export function EventRequestForm({
                   aria-hidden
                   className={cn(
                     "grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10.5px]",
-                    done ? "bg-fg text-white" : active ? "bg-copper-deep text-white" : "bg-surface-raised text-fg-subtle"
+                    done ? "bg-fg text-canvas" : active ? "badge-pulse bg-copper-deep text-canvas" : "bg-surface-raised text-fg-subtle"
                   )}
                 >
                   {done ? <Check className="size-3" /> : i + 1}
@@ -291,26 +288,7 @@ export function EventRequestForm({
 
       {/* ── Step 1 · Event ─────────────────────────────────────────────── */}
       <div hidden={current.id !== "event"} className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="venue_id">Venue</Label>
-          <NativeSelect id="venue_id" name="venue_id" value={venueId} onChange={(e) => set("venue_id", e.target.value)} aria-invalid={Boolean(err("venue_id"))}>
-            <option value="" disabled>
-              Select a venue…
-            </option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name} — {v.neighborhood}
-              </option>
-            ))}
-          </NativeSelect>
-          {venue ? (
-            <p className="text-muted-foreground text-xs">
-              Up to {venue.capacity_max} guests · min spend {formatINR(Number(venue.min_spend_inr))}
-              {venue.pdr_available ? " · private dining room" : ""}
-            </p>
-          ) : null}
-          <FieldError message={err("venue_id")} />
-        </div>
+        <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="grid gap-2">
@@ -532,7 +510,7 @@ export function EventRequestForm({
 
       {/* ── Outcome & navigation ──────────────────────────────────────── */}
       {succeeded && state.approval ? (
-        <div className="flex gap-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-800" role="status">
+        <div className="text-copper-ink animate-in fade-in flex gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm" role="status">
           <Hourglass className="mt-0.5 size-4 shrink-0" aria-hidden />
           <div>
             <p className="font-medium">{state.message}</p>
@@ -572,7 +550,7 @@ export function EventRequestForm({
           </p>
         ) : null}
         {succeeded && !state.approval ? (
-          <p className="flex items-center gap-1.5 text-sm text-emerald-700" role="status">
+          <p className="text-sage animate-in fade-in flex items-center gap-1.5 text-sm" role="status">
             <CheckCircle2 className="size-4" aria-hidden />
             {state.message}
           </p>
@@ -600,9 +578,9 @@ function ReviewRow({ label, onEdit, children }: { label: string; onEdit: () => v
 
 function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
   return (
-    <div className="grid gap-1 rounded-lg border border-violet-400/30 bg-violet-400/5 p-3 text-sm" aria-live="polite">
+    <div className="animate-in fade-in grid gap-1 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 text-sm duration-300" aria-live="polite">
       {pricing.source !== "list" ? (
-        <p className="flex items-center gap-1.5 font-medium">
+        <p className="text-copper-ink flex items-center gap-1.5 font-medium">
           <BadgePercent className="size-4" aria-hidden />
           Your company&apos;s negotiated rate applies
         </p>
@@ -623,7 +601,7 @@ function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
         {pricing.savings > 0 ? (
           <>
             <dt className="text-muted-foreground">You save</dt>
-            <dd className="text-emerald-700 tabular-nums">{formatINR(pricing.savings, true)}</dd>
+            <dd className="text-sage tabular-nums">{formatINR(pricing.savings, true)}</dd>
           </>
         ) : null}
       </dl>

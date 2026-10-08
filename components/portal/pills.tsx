@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
  * pill pairs an icon with a label, so state never rides on colour alone.
  */
 const TONES = {
-  emerald: "border-emerald-400/40 bg-emerald-400/10 text-emerald-700 shadow-[0_0_14px_-4px] shadow-emerald-400/60",
-  amber: "border-amber-400/40 bg-amber-400/10 text-amber-800 shadow-[0_0_14px_-4px] shadow-amber-400/60",
-  sky: "border-sky-400/40 bg-sky-400/10 text-sky-700 shadow-[0_0_14px_-4px] shadow-sky-400/60",
-  violet: "border-violet-400/40 bg-violet-400/10 text-violet-100 shadow-[0_0_14px_-4px] shadow-violet-400/60",
-  red: "border-red-400/40 bg-red-400/10 text-red-700 shadow-[0_0_14px_-4px] shadow-red-400/60",
+  emerald: "border-emerald-400/40 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 shadow-[0_0_14px_-4px] shadow-emerald-400/60",
+  amber: "border-amber-400/40 bg-amber-400/10 text-amber-800 dark:text-amber-300 shadow-[0_0_14px_-4px] shadow-amber-400/60",
+  sky: "border-sky-400/40 bg-sky-400/10 text-sky-700 dark:text-sky-300 shadow-[0_0_14px_-4px] shadow-sky-400/60",
+  violet: "border-violet-400/40 bg-violet-400/10 text-violet-700 shadow-[0_0_14px_-4px] shadow-violet-400/60 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:shadow-amber-400/40",
+  red: "border-red-400/40 bg-red-400/10 text-red-700 dark:text-red-300 shadow-[0_0_14px_-4px] shadow-red-400/60",
   zinc: "border-line bg-surface-raised text-fg",
 } as const;
 

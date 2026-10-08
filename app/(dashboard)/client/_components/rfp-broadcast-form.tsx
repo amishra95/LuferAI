@@ -63,12 +63,12 @@ export function RfpBroadcastForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-3">
-      <div className="glass group relative rounded-2xl p-2 shadow-[0_0_40px_-12px] shadow-emerald-400/25 transition-shadow focus-within:shadow-emerald-400/45">
+      <div className="glass group relative rounded-2xl p-2 shadow-[0_0_40px_-12px] shadow-amber-500/20 backdrop-blur-xl transition-[box-shadow,border-color] duration-300 focus-within:border-amber-400/40 focus-within:shadow-amber-500/45">
         <label htmlFor="brief" className="sr-only">
           Describe your event
         </label>
         <div className="flex items-start gap-2">
-          <Sparkles className="mt-3 ml-2 size-5 shrink-0 text-emerald-700" aria-hidden />
+          <Sparkles className="text-copper-ink mt-3 ml-2 size-5 shrink-0" aria-hidden />
           <textarea
             ref={textarea}
             id="brief"
@@ -89,7 +89,7 @@ export function RfpBroadcastForm() {
             type="submit"
             disabled={pending || brief.trim().length < 20}
             aria-label="Broadcast RFP to matching venues"
-            className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl bg-fg text-white transition hover:bg-white disabled:bg-surface-raised disabled:text-fg-faint"
+            className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl bg-amber-400 text-zinc-950 shadow-[0_8px_24px_-10px_rgb(245_158_11/0.7)] transition hover:bg-amber-300 disabled:bg-surface-raised disabled:text-fg-faint disabled:shadow-none"
           >
             {pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <ArrowUp className="size-5" aria-hidden />}
           </button>
@@ -107,7 +107,7 @@ export function RfpBroadcastForm() {
                 className={cn(
                   "inline-flex min-h-8 items-center gap-1 rounded-full border px-3 text-xs transition pointer-coarse:min-h-11",
                   on
-                    ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-700 shadow-[0_0_12px_-4px] shadow-emerald-400/60"
+                    ? "border-amber-400/50 bg-amber-400/15 text-amber-200 shadow-[0_0_12px_-4px] shadow-amber-400/60"
                     : "border-line bg-surface text-fg-muted hover:border-line-strong hover:text-fg"
                 )}
               >
@@ -142,7 +142,7 @@ export function RfpBroadcastForm() {
           Reading your brief and pricing matching venues…
         </p>
       ) : status ? (
-        <p role="status" className={status.ok ? "text-sm text-emerald-700" : "text-sm text-red-700"}>
+        <p role="status" className={status.ok ? "text-sage text-sm" : "text-rose text-sm"}>
           {status.message}
         </p>
       ) : null}

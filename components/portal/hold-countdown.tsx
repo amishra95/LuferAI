@@ -56,9 +56,9 @@ export function HoldCountdown({ createdAt, expiresAt, className }: { createdAt: 
         <span
           className={cn(
             "inline-flex items-center gap-1 font-medium",
-            tone === "sky" && "text-sky-700",
-            tone === "amber" && "text-amber-800",
-            tone === "red" && "text-red-700"
+            tone === "sky" && "text-sky-700 dark:text-sky-300",
+            tone === "amber" && "text-amber-800 dark:text-amber-300",
+            tone === "red" && "text-red-700 dark:text-red-300"
           )}
         >
           <Timer className="size-3.5" aria-hidden />

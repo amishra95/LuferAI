@@ -77,6 +77,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
 
   return (
     <PortalShell
+      theme="concierge"
       portal="/admin"
       title="Agent analytics"
       subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
@@ -169,7 +170,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                       <TableCell className="text-right tabular-nums">{int(a.runs)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {a.failed > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-red-700" title={`${a.failed} failed`}>
+                          <span className="inline-flex items-center gap-1 text-rose" title={`${a.failed} failed`}>
                             <AlertTriangle className="size-3" aria-hidden />
                             {pct(a.successRate)}
                             <span className="sr-only">, {a.failed} failed</span>
@@ -209,7 +210,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                       <TableRow key={c.channel}>
                         <TableCell>{CHANNEL_LABEL[c.channel] ?? c.channel}</TableCell>
                         <TableCell className="text-right tabular-nums">{int(c.runs)}</TableCell>
-                        <TableCell className={c.failed ? "text-right text-red-700 tabular-nums" : "text-right tabular-nums"}>{int(c.failed)}</TableCell>
+                        <TableCell className={c.failed ? "text-right text-rose tabular-nums" : "text-right tabular-nums"}>{int(c.failed)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -232,10 +233,10 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                     {s.failures.map((f) => (
                       <li key={`${f.at}-${f.agent}`} className="py-2.5 first:pt-0 last:pb-0">
                         <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
-                          <AlertTriangle className="size-3.5 shrink-0 translate-y-0.5 text-red-700" aria-label="Failed" />
+                          <AlertTriangle className="size-3.5 shrink-0 translate-y-0.5 text-rose" aria-label="Failed" />
                           <span className="text-fg min-w-0 break-words">{f.task}</span>
                         </p>
-                        <p className="mt-0.5 pl-5.5 text-[12.5px] break-words text-red-700">{f.error}</p>
+                        <p className="mt-0.5 pl-5.5 text-[12.5px] break-words text-rose">{f.error}</p>
                         <p className="text-fg-subtle mt-0.5 pl-5.5 font-mono text-[11px]">
                           {f.agent} · {CHANNEL_LABEL[f.channel] ?? f.channel} · {when.format(new Date(f.at))}
                         </p>

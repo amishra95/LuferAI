@@ -19,7 +19,7 @@ function ErrorRate({ errors, count }: { errors: number; count: number }) {
   const rate = count ? (errors / count) * 100 : 0;
   if (errors === 0) return <>0%</>;
   return (
-    <span className="inline-flex items-center gap-1 text-red-700">
+    <span className="inline-flex items-center gap-1 text-rose">
       <AlertTriangle className="size-3" aria-hidden />
       {rate.toFixed(rate < 10 ? 1 : 0)}%<span className="sr-only">, {errors} failed</span>
     </span>
@@ -94,8 +94,8 @@ function Waterfall({ trace }: { trace: TraceRecord }) {
         return (
           <li key={span.spanId} className="grid grid-cols-[minmax(0,1fr)] gap-1 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_4.5rem] sm:items-center sm:gap-3">
             <span className="flex min-w-0 items-center gap-1.5 font-mono text-[12px]" style={{ paddingLeft: `${depth * 12}px` }}>
-              {failed && <AlertTriangle className="size-3 shrink-0 text-red-700" aria-label="Failed" />}
-              <span className={cn("truncate", failed ? "text-red-700" : "text-fg")} title={span.name}>
+              {failed && <AlertTriangle className="size-3 shrink-0 text-rose" aria-label="Failed" />}
+              <span className={cn("truncate", failed ? "text-rose" : "text-fg")} title={span.name}>
                 {span.name}
               </span>
             </span>
@@ -108,7 +108,7 @@ function Waterfall({ trace }: { trace: TraceRecord }) {
             <span className="text-fg-muted text-right font-mono text-[12px] tabular-nums">{formatMs(span.durationMs)}</span>
             {(span.error || attrs) && (
               <span className="text-fg-subtle col-span-full -mt-0.5 font-mono text-[11px] break-all" style={{ paddingLeft: `${depth * 12 + (failed ? 18 : 0)}px` }}>
-                {span.error && <span className="text-red-700">{span.error.name}: {span.error.message}</span>}
+                {span.error && <span className="text-rose">{span.error.name}: {span.error.message}</span>}
                 {span.error && attrs && " · "}
                 {attrs}
               </span>
@@ -188,7 +188,7 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
                       <li key={t.traceId} className="py-3 first:pt-0 last:pb-0">
                         <details open={i === 0} className="group">
                           <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-0.5 [&::-webkit-details-marker]:hidden">
-                            <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] text-red-700">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] text-rose">
                               <AlertTriangle className="size-3.5" aria-hidden />
                               {t.name}
                             </span>
