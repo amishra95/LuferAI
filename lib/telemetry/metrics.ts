@@ -186,6 +186,32 @@ export interface RunsSummary {
   failures: { at: string; agent: string; task: string; error: string; channel: string }[];
 }
 
+/** Whether a move is welcome: success rate up is good, latency up is bad, volume is neither. */
+export type ChangeIntent = "good" | "bad" | "neutral";
+
+export interface MetricChange {
+  /** "+12%", "−1.2 pts", "0%". */
+  label: string;
+  direction: "up" | "down" | "flat";
+  intent: ChangeIntent;
+}
+
+/**
+ * Change from the previous window, for the summary pills: relative ("%") or
+ * absolute percentage points ("pts"). Null when there's nothing to compare
+ * (no runs now or before, or a relative change from zero).
+ */
+export function metricChange(now: number | null, before: number | null, options: { unit: "%" | "pts"; better: "up" | "down" | "neither" }): MetricChange | null {
+  if (now === null || before === null) return null;
+  if (options.unit === "%" && before === 0) return null;
+  const raw = options.unit === "pts" ? now - before : ((now - before) / before) * 100;
+  const shown = Math.abs(raw).toFixed(options.unit === "pts" ? 1 : 0);
+  const direction = Number(shown) === 0 ? "flat" : raw > 0 ? "up" : "down";
+  const sign = direction === "flat" ? "" : direction === "up" ? "+" : "\u2212";
+  const intent: ChangeIntent = direction === "flat" || options.better === "neither" ? "neutral" : direction === options.better ? "good" : "bad";
+  return { label: `${sign}${shown}${options.unit === "pts" ? " pts" : "%"}`, direction, intent };
+}
+
 export function totalsOf(runs: MetricRun[]): RunTotals {
   const ok = runs.filter((r) => r.ok).length;
   const latencies = runs.map((r) => r.durationMs).sort((a, b) => a - b);
