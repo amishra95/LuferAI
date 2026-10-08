@@ -12,9 +12,11 @@ import { clip } from "@/lib/telemetry/runs";
 import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { allowedTools, financeFirstStep } from "@/lib/ai/chat-policy";
 import { createChatTools } from "@/lib/ai/chat-tools";
+import { traceTools } from "@/lib/ai/trace-tools";
 import { analyticsScopeFor } from "@/lib/analytics/service";
 import { canAccessWorkspace } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
+import { tracer } from "@/lib/tracer";
 import type { LuferUIMessage } from "@/types/chat";
 
 export const maxDuration = 60;
@@ -38,15 +40,19 @@ const SYSTEM =
  * → message validation (400) → agent enabled / model configured (503). Tools
  * are bound to the caller's scope and filtered by role before the model sees
  * them, so neither the prompt nor the model can reach other companies' data.
+ *
+ * Traced as `api.chat` (until the stream finishes) with `llm.stream`,
+ * `llm.http` and `tool.*` children.
  */
-export async function POST(req: Request) {
+async function handleChat(req: Request) {
   const member = await getCurrentMember();
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
+  tracer.annotate({ role: member.role, corporateRole: member.corporateRole });
   if (!canAccessWorkspace(member.role, member.corporateRole, "/chat")) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const scope = await analyticsScopeFor(member);
   if (!scope) return Response.json({ error: "forbidden" }, { status: 403 });
-  const chatTools = createChatTools(scope);
+  const chatTools = traceTools(createChatTools(scope));
 
   const body = await req.json().catch(() => null);
   let messages: LuferUIMessage[];
@@ -83,18 +89,31 @@ export async function POST(req: Request) {
   // Finance questions: the first step may only call (and must call) a finance tool.
   const financeStep = financeFirstStep(tools, lastUserText);
 
-  const result = streamText({
+  const modelMessages = await convertToModelMessages(messages);
+  const llm = tracer.startSpan("llm.stream", {
+    attributes: { model: model.modelId, messages: messages.length, activeTools: tools, financeFirst: Boolean(financeStep) },
+  });
+  // Started inside llm.run so the provider requests and tool calls are its children.
+  const result = llm.run(() => streamText({
     model,
     system: SYSTEM,
-    messages: await convertToModelMessages(messages),
+    messages: modelMessages,
     tools: chatTools,
     activeTools: tools,
     prepareStep: ({ stepNumber }) => (stepNumber === 0 && financeStep ? financeStep : {}),
     // A forced tool call needs a follow-up step to write the answer.
     stopWhen: isStepCount(financeStep ? Math.max(agent.maxSteps, 2) : agent.maxSteps),
     ...(agent.temperature !== null && { temperature: agent.temperature }),
-    onEnd: ({ totalUsage, steps }) => record(true, { tokens: totalUsage.totalTokens, steps: steps.length }),
-  });
+    onEnd: ({ totalUsage, steps, finishReason }) => {
+      llm.setAttributes({ tokens: totalUsage.totalTokens, steps: steps.length, finishReason });
+      llm.end();
+      return record(true, { tokens: totalUsage.totalTokens, steps: steps.length });
+    },
+    onError: ({ error }) => {
+      llm.recordError(error);
+      llm.end();
+    },
+  }));
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream<typeof chatTools, LuferUIMessage>({
@@ -113,3 +132,5 @@ export async function POST(req: Request) {
     }),
   });
 }
+
+export const POST = tracer.traceResponse("api.chat", handleChat);

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Activity, AlertTriangle, CheckCircle2, Coins, Timer } from "lucide-react";
 
-import { formatMs, LatencyChart, RunsChart } from "@/components/admin/run-charts";
+import { LatencyChart, RunsChart } from "@/components/admin/run-charts";
+import { TracePanels } from "@/components/admin/trace-panels";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
@@ -10,8 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
 import { isRedisConfigured } from "@/lib/data/local-store";
+import { formatMs } from "@/lib/telemetry/format";
 import { RUN_RANGES, summarizeRuns, type RunRange, type RunTotals } from "@/lib/telemetry/metrics";
 import { listAgentRuns, RUN_LOG_LIMIT } from "@/lib/telemetry/runs";
+import { summarizeTraces, TRACE_LIST_LIMIT, tracer } from "@/lib/tracer";
 
 export const metadata: Metadata = { title: "Agent analytics" };
 
@@ -37,17 +40,26 @@ function change(now: number | null, before: number | null, range: RunRange, unit
 const nonZero = (t: RunTotals, v: number) => (t.runs ? v : null);
 
 async function loadSummary(range: RunRange) {
-  let loadError: string | null = null;
-  const runs = await listAgentRuns().catch((err) => {
-    console.error("admin analytics: could not load agent runs", err);
-    loadError = err instanceof Error ? err.message : "Could not load agent runs";
-    return [];
-  });
+  const errors: string[] = [];
+  const [runs, traces] = await Promise.all([
+    listAgentRuns().catch((err) => {
+      console.error("admin analytics: could not load agent runs", err);
+      errors.push(err instanceof Error ? err.message : "Could not load agent runs");
+      return [];
+    }),
+    tracer.listTraces({ limit: TRACE_LIST_LIMIT }).catch((err) => {
+      console.error("admin analytics: could not load traces", err);
+      errors.push(err instanceof Error ? err.message : "Could not load traces");
+      return [];
+    }),
+  ]);
+  const loadError = errors.length ? errors.join("; ") : null;
   const s = summarizeRuns(runs, Date.now(), range);
+  const traceSummary = summarizeTraces(traces, Date.parse(s.from));
   // The log is capped; say so when the cap cuts into the selected period.
   const oldest = runs.at(-1)?.at;
   const truncated = runs.length >= RUN_LOG_LIMIT && oldest !== undefined && oldest > s.from;
-  return { s, loadError, oldest, truncated };
+  return { s, traceSummary, loadError, oldest, truncated };
 }
 
 /**
@@ -60,14 +72,14 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
   const { range: rangeParam } = await searchParams;
   const range: RunRange = RUN_RANGES.includes(rangeParam as RunRange) ? (rangeParam as RunRange) : "7d";
 
-  const { s, loadError, oldest, truncated } = await loadSummary(range);
+  const { s, traceSummary, loadError, oldest, truncated } = await loadSummary(range);
   const { totals: t, previous: p } = s;
 
   return (
     <PortalShell
       portal="/admin"
       title="Agent analytics"
-      subtitle="Runs, reliability, latency and token use across every agent and channel."
+      subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
       actions={
         <nav aria-label="Time range" className="flex gap-1.5">
           {RUN_RANGES.map((r) => (
@@ -80,7 +92,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
     >
       {loadError && (
         <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-xl border px-4 py-2.5 text-[12.5px]">
-          The run log couldn&apos;t be read right now ({loadError}).
+          Some analytics couldn&apos;t be loaded right now ({loadError}).
         </p>
       )}
 
@@ -236,6 +248,8 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
           </div>
         </>
       )}
+
+      <TracePanels summary={traceSummary} rangeLabel={RANGE_LABEL[range]} source={isRedisConfigured() ? "redis" : "memory"} />
 
       <p className="text-fg-subtle text-[12px] leading-5">
         {isRedisConfigured() ? "From the shared run log in Upstash Redis" : "From this server instance's memory (Upstash Redis isn't configured)"}, which keeps the

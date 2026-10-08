@@ -1,9 +1,10 @@
-import { FatalError, RetryableError } from "workflow";
+import { FatalError, getStepMetadata, getWorkflowMetadata, RetryableError } from "workflow";
 
 import { recordDelivery, runChannelAgent, type ChannelAgentResult } from "@/lib/channels/agent";
 import { classifyDeliveryFailure } from "@/lib/channels/delivery-errors";
 import { postSlackMessage } from "@/lib/channels/slack";
 import { sendWhatsAppText } from "@/lib/channels/whatsapp";
+import { tracer, type ActiveSpan } from "@/lib/tracer";
 
 /**
  * Durable reply to one inbound WhatsApp or Slack message, started by the
@@ -15,6 +16,9 @@ import { sendWhatsAppText } from "@/lib/channels/whatsapp";
  *
  * Each step's result is persisted, so a crash or redeploy resumes where it
  * stopped instead of losing the message (the old `after()` path did).
+ *
+ * Steps run as separate invocations, so each is its own trace
+ * (`workflow.channelReply.<step>`), correlated by eventId and workflow run id.
  */
 
 export type ReplyTarget = { channel: "whatsapp"; to: string } | { channel: "slack"; channelId: string; threadTs?: string };
@@ -45,7 +49,7 @@ export async function channelReplyWorkflow(input: ChannelReplyInput) {
   }
 
   try {
-    await deliverReply(input.target, reply);
+    await deliverReply(input.target, reply, input.eventId);
   } catch (err) {
     await markDelivered(input.eventId, { ok: false, error: messageOf(err) });
     return { eventId: input.eventId, delivered: false };
@@ -56,26 +60,46 @@ export async function channelReplyWorkflow(input: ChannelReplyInput) {
 
 async function generateReply(input: ChannelReplyInput): Promise<ChannelAgentResult> {
   "use step";
-  return runChannelAgent({ channel: input.target.channel, senderId: input.senderId, text: input.text, eventId: input.eventId });
+  return traceStep("generate", { channel: input.target.channel, eventId: input.eventId, chars: input.text.length }, async (span) => {
+    const result = await runChannelAgent({ channel: input.target.channel, senderId: input.senderId, text: input.text, eventId: input.eventId });
+    span.setAttributes({ status: result.status, tools: result.tools });
+    // The agent never throws; surface its failures on the span.
+    if (result.status === "failed") span.recordError(new Error(result.error ?? "Agent run failed"));
+    return result;
+  });
 }
 // The agent can file a booking. Re-running it after a partial run could file a
 // second one, so this step runs once; if it dies the workflow sends an apology.
 generateReply.maxRetries = 0;
 
-async function deliverReply(target: ReplyTarget, reply: string) {
+async function deliverReply(target: ReplyTarget, reply: string, eventId: string) {
   "use step";
-  try {
-    if (target.channel === "whatsapp") await sendWhatsAppText(target.to, reply);
-    else await postSlackMessage(target.channelId, reply, target.threadTs);
-  } catch (err) {
-    throw classifyDeliveryError(err);
-  }
+  return traceStep("deliver", { channel: target.channel, eventId, chars: reply.length }, async () => {
+    try {
+      if (target.channel === "whatsapp") await sendWhatsAppText(target.to, reply);
+      else await postSlackMessage(target.channelId, reply, target.threadTs);
+    } catch (err) {
+      throw classifyDeliveryError(err);
+    }
+  });
 }
 deliverReply.maxRetries = 5;
 
 async function markDelivered(eventId: string, outcome: { ok: true } | { ok: false; error: string }) {
   "use step";
-  await recordDelivery(eventId, outcome);
+  await traceStep("record", { eventId, delivered: outcome.ok }, () => recordDelivery(eventId, outcome));
+}
+
+/** Runs a step body as a root trace tagged with the workflow run, step and attempt. */
+function traceStep<T>(step: string, attributes: Record<string, unknown>, fn: (span: ActiveSpan) => Promise<T>): Promise<T> {
+  let meta: Record<string, unknown> = {};
+  try {
+    const { stepId, attempt } = getStepMetadata();
+    meta = { "workflow.runId": getWorkflowMetadata().workflowRunId, "workflow.stepId": stepId, "workflow.attempt": attempt };
+  } catch {
+    // Called outside the workflow runtime (inline fallback, tests).
+  }
+  return tracer.trace(`workflow.channelReply.${step}`, fn, { root: true, attributes: { ...attributes, ...meta } });
 }
 
 function classifyDeliveryError(err: unknown): Error {

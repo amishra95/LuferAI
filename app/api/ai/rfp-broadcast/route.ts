@@ -8,6 +8,7 @@ import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
 import { broadcastRfp, RfpRequirements } from "@/lib/rfp/service";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
+import { tracer } from "@/lib/tracer";
 
 /**
  * POST { brief, companyId? } → structured RFP broadcast to matching venues.
@@ -27,9 +28,10 @@ const Body = z.object({
   companyId: z.uuid().optional(), // admins only
 });
 
-export async function POST(request: NextRequest) {
+async function handleRfpBroadcast(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  tracer.annotate({ role: member.role });
   if (member.role !== "CLIENT" && member.role !== "ADMIN") return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const model = getLanguageModel();
   if (!model) return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
@@ -50,17 +52,21 @@ export async function POST(request: NextRequest) {
   const task = `RFP from brief: “${clip(parsed.data.brief)}”`;
   let requirements: RfpRequirements;
   try {
-    const { output, totalUsage } = await generateText({
-      model,
-      output: Output.object({ schema: RfpRequirements }),
-      instructions: [
-        "You turn a corporate event brief into a structured RFP for hospitality venues in India.",
-        `Today is ${today} (Asia/Kolkata). Resolve relative dates ("next Friday") to YYYY-MM-DD.`,
-        "Only extract what the brief states or clearly implies; use null / empty lists otherwise.",
-        "Budgets are pre-GST INR per guest; convert totals to per-head when the guest count is known.",
-        "dietary lists needs the whole menu must satisfy (e.g. an all-vegetarian team → vegetarian).",
-      ].join("\n"),
-      prompt: parsed.data.brief,
+    const { output, totalUsage } = await tracer.trace("llm.generate", async (span) => {
+      const r = await generateText({
+        model,
+        output: Output.object({ schema: RfpRequirements }),
+        instructions: [
+          "You turn a corporate event brief into a structured RFP for hospitality venues in India.",
+          `Today is ${today} (Asia/Kolkata). Resolve relative dates ("next Friday") to YYYY-MM-DD.`,
+          "Only extract what the brief states or clearly implies; use null / empty lists otherwise.",
+          "Budgets are pre-GST INR per guest; convert totals to per-head when the guest count is known.",
+          "dietary lists needs the whole menu must satisfy (e.g. an all-vegetarian team → vegetarian).",
+        ].join("\n"),
+        prompt: parsed.data.brief,
+      });
+      span.setAttributes({ model: model.modelId, tokens: r.totalUsage.totalTokens });
+      return r;
     });
     requirements = output;
     await logAgentRun("rfp-broadcaster", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: 1 });
@@ -74,12 +80,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "The AI service is unavailable. Try again shortly." }, { status: 502 });
   }
 
-  const result = await broadcastRfp({
-    companyId,
-    createdBy: member.userId,
-    brief: parsed.data.brief,
-    requirements,
-    today,
+  const result = await tracer.trace("rfp.broadcast", async (span) => {
+    const r = await broadcastRfp({
+      companyId,
+      createdBy: member.userId,
+      brief: parsed.data.brief,
+      requirements,
+      today,
+    });
+    span.setAttribute("venuesContacted", r.columns.length);
+    return r;
   });
 
   return NextResponse.json({
@@ -89,3 +99,5 @@ export async function POST(request: NextRequest) {
     matrix: result.markdown,
   });
 }
+
+export const POST = tracer.traceResponse("api.ai.rfp-broadcast", handleRfpBroadcast);

@@ -3,6 +3,7 @@ import { dispatchReply } from "@/lib/channels/dispatch";
 import { tokensMatch, verifyMetaSignature } from "@/lib/channels/signatures";
 import { channelStore } from "@/lib/channels/store";
 import { extractWhatsAppMessages } from "@/lib/channels/whatsapp";
+import { tracer } from "@/lib/tracer";
 
 export const maxDuration = 60;
 
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
  * anything is parsed; each message is handed to the durable reply workflow
  * (workflows/channel-reply.ts) and acknowledged at once so Meta doesn't redeliver.
  */
-export async function POST(req: Request) {
+async function handleWhatsApp(req: Request) {
   if (!isChannelConfigured("whatsapp")) return Response.json({ error: "WhatsApp is not configured." }, { status: 503 });
 
   const raw = await req.text();
@@ -50,3 +51,5 @@ export async function POST(req: Request) {
   }
   return new Response(null, { status: 200 });
 }
+
+export const POST = tracer.traceResponse("webhook.whatsapp", handleWhatsApp);

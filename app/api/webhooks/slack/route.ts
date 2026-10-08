@@ -3,6 +3,7 @@ import { dispatchReply } from "@/lib/channels/dispatch";
 import { verifySlackSignature } from "@/lib/channels/signatures";
 import { extractSlackMessage } from "@/lib/channels/slack";
 import { channelStore } from "@/lib/channels/store";
+import { tracer } from "@/lib/tracer";
 
 export const maxDuration = 60;
 
@@ -12,7 +13,7 @@ export const maxDuration = 60;
  * a 200 within 3 seconds, so the reply runs in the durable reply workflow
  * (workflows/channel-reply.ts) after the ack.
  */
-export async function POST(req: Request) {
+async function handleSlack(req: Request) {
   if (!isChannelConfigured("slack")) return Response.json({ error: "Slack is not configured." }, { status: 503 });
 
   const raw = await req.text();
@@ -50,3 +51,5 @@ export async function POST(req: Request) {
   }
   return new Response(null, { status: 200 });
 }
+
+export const POST = tracer.traceResponse("webhook.slack", handleSlack);

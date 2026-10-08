@@ -6,6 +6,7 @@ import { matchVenues, venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
+import { tracer } from "@/lib/tracer";
 
 export const maxDuration = 30;
 
@@ -19,9 +20,10 @@ const requestSchema = z.object({
  * policy labelling are deterministic (lib/ai/venue-sourcing.ts), so results
  * never include venues or prices the catalogue doesn't have.
  */
-export async function POST(req: Request) {
+async function handleSourceVenues(req: Request) {
   const member = await getCurrentMember();
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
+  tracer.annotate({ role: member.role });
   if (member.role !== "CLIENT" && member.role !== "ADMIN") return Response.json({ error: "forbidden" }, { status: 403 });
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null));
@@ -46,14 +48,18 @@ export async function POST(req: Request) {
   const task = `Venue search: “${clip(prompt)}”`;
   let filters;
   try {
-    const result = await generateText({
-      model,
-      output: Output.object({ schema: venueSearchSchema }),
-      system:
-        "You turn corporate event requests for venues in Bengaluru, India into search filters. " +
-        "Amounts are INR. Convert totals to a per-head budget when the guest count is known. " +
-        "Never invent values the request does not imply.",
-      prompt,
+    const result = await tracer.trace("llm.generate", async (span) => {
+      const r = await generateText({
+        model,
+        output: Output.object({ schema: venueSearchSchema }),
+        system:
+          "You turn corporate event requests for venues in Bengaluru, India into search filters. " +
+          "Amounts are INR. Convert totals to a per-head budget when the guest count is known. " +
+          "Never invent values the request does not imply.",
+        prompt,
+      });
+      span.setAttributes({ model: model.modelId, tokens: r.totalUsage.totalTokens });
+      return r;
     });
     filters = result.output;
     await logAgentRun("venue-sourcer", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: result.totalUsage.totalTokens, steps: 1 });
@@ -64,12 +70,15 @@ export async function POST(req: Request) {
     return Response.json({ error: "Couldn't interpret that request. Try rephrasing it." }, { status: 502 });
   }
 
-  const [venues, policy] = await Promise.all([listVenues(), getCorporatePolicy(companyId)]);
+  const [venues, policy] = await tracer.trace("db.venuesAndPolicy", () => Promise.all([listVenues(), getCorporatePolicy(companyId)]));
   const options = matchVenues(
     venues.map((v) => ({ ...v, min_spend_inr: Number(v.min_spend_inr) })),
     filters,
     policy
   );
+  tracer.annotate({ venuesConsidered: venues.length, options: options.length });
 
   return Response.json({ filters, options });
 }
+
+export const POST = tracer.traceResponse("api.ai.source-venues", handleSourceVenues);

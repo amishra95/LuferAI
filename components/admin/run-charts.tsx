@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis 
 
 import { DataTable } from "@/components/admin/spend-charts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { bucketLabel, formatMs } from "@/lib/telemetry/format";
 import type { RunBucket } from "@/lib/telemetry/metrics";
 
 /**
@@ -13,16 +14,7 @@ import type { RunBucket } from "@/lib/telemetry/metrics";
  * the reserved critical red, always with an icon and a label, never colour alone.
  */
 
-const HOUR_MS = 3_600_000;
 const axis = { stroke: "var(--color-zinc-300)", tick: { fill: "var(--color-zinc-500)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
-
-const hourFmt = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
-const dayFmt = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
-
-/** Bucket label in IST: "14:00" for hourly buckets, "8 Oct" for daily ones. */
-export const bucketLabel = (start: string, bucketMs: number) => (bucketMs <= HOUR_MS ? hourFmt : dayFmt).format(new Date(start));
-
-export const formatMs = (ms: number | null) => (ms === null ? "—" : ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`);
 
 type Row = RunBucket & { label: string; failedTag: string };
 

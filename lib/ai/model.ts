@@ -3,6 +3,7 @@ import "server-only";
 import { createOpenAI } from "@ai-sdk/openai";
 
 import { CircuitOpenError, isTransientError, llmCircuitBreaker } from "@/lib/circuit-breaker";
+import { tracer } from "@/lib/tracer";
 
 // Default OpenAI text model; override per environment with OPENAI_MODEL
 // rather than editing code when models change.
@@ -35,11 +36,36 @@ export class AiUnavailableError extends Error {
 
 const isTransientStatus = (status: number) => status === 408 || status === 429 || status >= 500;
 
+/**
+ * Each provider request is an `llm.http` span (child of whatever route or step
+ * is running): endpoint, final status, attempts made by the breaker and the
+ * circuit state. Covers the request up to the response headers.
+ */
 const resilientFetch: typeof fetch = async (input, init) => {
   const callerSignal = init?.signal ?? undefined;
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const span = tracer.startSpan("llm.http", { attributes: { "http.path": new URL(url).pathname, "circuit.state": llmCircuitBreaker.getState() } });
+  let attempts = 0;
+  try {
+    const res = await span.run(() => breakerFetch(input, init, callerSignal, () => attempts++));
+    span.setAttribute("http.status", res.status);
+    if (!res.ok) span.recordError(new Error(`HTTP ${res.status}`));
+    return res;
+  } catch (err) {
+    if (callerSignal?.aborted) span.setAttribute("cancelled", true);
+    else span.recordError(err);
+    throw err;
+  } finally {
+    span.setAttribute("attempts", attempts);
+    span.end();
+  }
+};
+
+async function breakerFetch(input: Parameters<typeof fetch>[0], init: RequestInit | undefined, callerSignal: AbortSignal | undefined, onAttempt: () => void) {
   try {
     return await llmCircuitBreaker.execute(
       async (attemptSignal) => {
+        onAttempt();
         // The caller's signal keeps cancelling the response body after headers arrive.
         const signal = callerSignal ? AbortSignal.any([callerSignal, attemptSignal]) : attemptSignal;
         const res = await fetch(input, { ...init, signal });
@@ -64,7 +90,7 @@ const resilientFetch: typeof fetch = async (input, init) => {
     }
     throw err;
   }
-};
+}
 
 const g = globalThis as typeof globalThis & { __luferOpenAI?: ReturnType<typeof createOpenAI> };
 const provider = () => (g.__luferOpenAI ??= createOpenAI({ fetch: resilientFetch }));

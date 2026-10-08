@@ -12,9 +12,11 @@ import { z } from "zod";
 import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
+import { traceTools } from "@/lib/ai/trace-tools";
 import { negotiatorTools, type NegotiatorUIMessage } from "@/lib/negotiator";
 import { createClient } from "@/lib/supabase/server";
 import { logAgentRun } from "@/lib/telemetry/runs";
+import { tracer } from "@/lib/tracer";
 
 /**
  * Streaming chat for venue hosts to tune minimum spend and dietary menu packages.
@@ -29,9 +31,10 @@ const Body = z.object({
   venueId: z.uuid().optional(), // admins only
 });
 
-export async function POST(request: NextRequest) {
+async function handleNegotiator(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  tracer.annotate({ role: member.role });
   if (member.role !== "PROPERTY" && member.role !== "ADMIN") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const model = getLanguageModel();
@@ -50,14 +53,16 @@ export async function POST(request: NextRequest) {
   const venueId = member.role === "ADMIN" ? parsed.data.venueId : member.venueId;
   if (!venueId) return NextResponse.json({ error: "venueId is required" }, { status: 400 });
 
-  const tools = negotiatorTools(await createClient(), venueId);
+  const tools = traceTools(negotiatorTools(await createClient(), venueId));
   const validated = await safeValidateUIMessages<NegotiatorUIMessage>({ messages: parsed.data.messages, tools });
   if (!validated.success) return NextResponse.json({ error: "invalid_messages" }, { status: 400 });
   const messages = validated.data;
 
   const started = Date.now();
   const task = `Pricing session for venue ${venueId.slice(0, 8)}`;
-  const result = streamText({
+  const modelMessages = await convertToModelMessages(messages, { tools });
+  const llm = tracer.startSpan("llm.stream", { attributes: { model: model.modelId, messages: messages.length } });
+  const result = llm.run(() => streamText({
     model,
     instructions: [
       "You are a revenue assistant for a hospitality venue on a corporate events marketplace in India.",
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
       "Propose one change per tool call with a concise reason. If the host declines a change, do not retry it; ask what they'd prefer.",
       "Be brief: a short recommendation, then the tool call.",
     ].join("\n"),
-    messages: await convertToModelMessages(messages, { tools }),
+    messages: modelMessages,
     tools,
     toolApproval: {
       setMinimumSpend: { type: "user-approval", reason: "Changes the minimum spend on every new quote" },
@@ -76,12 +81,17 @@ export async function POST(request: NextRequest) {
     experimental_toolApprovalSecret: approvalSecret,
     stopWhen: isStepCount(5),
     onError({ error }) {
+      llm.recordError(error);
+      llm.end();
       console.error("property-negotiator: stream failed", error);
       void logAgentRun("property-negotiator", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: error instanceof Error ? error.message : "Stream failed" });
     },
-    onEnd: ({ totalUsage, steps }) =>
-      logAgentRun("property-negotiator", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: steps.length }),
-  });
+    onEnd: ({ totalUsage, steps }) => {
+      llm.setAttributes({ tokens: totalUsage.totalTokens, steps: steps.length });
+      llm.end();
+      return logAgentRun("property-negotiator", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: steps.length });
+    },
+  }));
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
@@ -90,3 +100,5 @@ export async function POST(request: NextRequest) {
     }),
   });
 }
+
+export const POST = tracer.traceResponse("api.ai.property-negotiator", handleNegotiator);
