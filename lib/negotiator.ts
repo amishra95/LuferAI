@@ -3,7 +3,8 @@ import "server-only";
 import { tool, type InferUITools, type UIDataTypes, type UIMessage } from "ai";
 import { z } from "zod";
 
-import { DIETARY_TAGS } from "@/lib/quotes";
+import { checkToolCall, menuPackageRules, minimumSpendRules } from "@/lib/guardrails/engine";
+import { setMinimumSpendInput, upsertMenuPackageInput } from "@/lib/guardrails/schemas";
 import type { createClient } from "@/lib/supabase/server";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -12,7 +13,8 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
  * Tools for the property AI negotiator, bound to one venue. Writes go through the
  * signed-in user's Supabase client, so RLS ("property updates own venue",
  * "property manages own menu packages") is enforced on top of the venue scoping.
- * Mutating tools require the host's explicit approval (see the route's toolApproval).
+ * Mutating tools require the host's explicit approval (see the route's toolApproval),
+ * then pass the guardrails in lib/guardrails before writing.
  */
 export function negotiatorTools(db: ServerClient, venueId: string) {
   return {
@@ -37,14 +39,23 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
 
     setMinimumSpend: tool({
       description: "Change the venue's minimum spend (pre-GST INR) applied to every new quote.",
-      inputSchema: z.object({
-        min_spend_inr: z.number().min(0).max(10_000_000),
-        reason: z.string().describe("Why this change, in one sentence, for the host to review"),
-      }),
-      execute: async ({ min_spend_inr }) => {
+      inputSchema: setMinimumSpendInput,
+      execute: async (input) => {
+        // Runs after the host approved; the guardrail still bounds how far one change can move it.
+        const check = await checkToolCall(
+          "setMinimumSpend",
+          input,
+          async (a) => {
+            const { data, error } = await db.from("venues").select("min_spend_inr").eq("id", venueId).single();
+            if (error) throw new Error(error.message);
+            return minimumSpendRules(a, { current: Number(data.min_spend_inr) });
+          },
+          { venueId }
+        );
+        if (!check.ok) return { ok: false, refused: check.code, message: check.message };
         const { data, error } = await db
           .from("venues")
-          .update({ min_spend_inr })
+          .update({ min_spend_inr: check.args.min_spend_inr })
           .eq("id", venueId)
           .select("min_spend_inr")
           .single();
@@ -56,16 +67,23 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
     upsertMenuPackage: tool({
       description:
         "Create or update a menu package (per-head price and the dietary needs it fully covers). Pass package_id to update an existing one.",
-      inputSchema: z.object({
-        package_id: z.uuid().nullable().describe("Existing package id to update, or null to create"),
-        name: z.string().min(1).max(80),
-        per_head_inr: z.number().positive().max(100_000),
-        dietary_tags: z.array(z.enum(DIETARY_TAGS)),
-        description: z.string().max(280).nullable(),
-        is_active: z.boolean(),
-        reason: z.string().describe("Why this change, in one sentence, for the host to review"),
-      }),
-      execute: async ({ package_id, name, per_head_inr, dietary_tags, description, is_active }) => {
+      inputSchema: upsertMenuPackageInput,
+      execute: async (input) => {
+        const check = await checkToolCall(
+          "upsertMenuPackage",
+          input,
+          async (a) => {
+            const { data, error } = await db.from("venue_menu_packages").select("id, is_active").eq("venue_id", venueId);
+            if (error) throw new Error(error.message);
+            return menuPackageRules(a, {
+              activePackageIds: data.filter((p) => p.is_active).map((p) => p.id),
+              packageExists: a.package_id === null || data.some((p) => p.id === a.package_id),
+            });
+          },
+          { venueId }
+        );
+        if (!check.ok) return { ok: false, refused: check.code, message: check.message };
+        const { package_id, name, per_head_inr, dietary_tags, description, is_active } = check.args;
         const fields = { name, per_head_inr, dietary_tags, description, is_active };
         const query = package_id
           ? db.from("venue_menu_packages").update(fields).eq("id", package_id).eq("venue_id", venueId)
