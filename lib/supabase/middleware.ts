@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canAccess, canAccessWorkspace, homeFor, portalFor, workspaceRouteFor } from "@/lib/auth/roles";
 import { isAiApiPath, limitAiRequest } from "@/lib/ratelimit";
 import type { Database, PortalRole } from "./database.types";
-import { clean, isHttpUrl } from "./env";
+import { clean, isAuthConfigured } from "./env";
 
 /**
  * Refreshes the Supabase session cookie on every matched request and gates the portals:
@@ -24,17 +24,15 @@ export async function updateSession(request: NextRequest) {
   const workspace = workspaceRouteFor(request.nextUrl.pathname);
   const gated = portal ?? workspace;
 
-  const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const anonKey = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   // A malformed URL would make createServerClient throw on every request; treat it
   // as unconfigured instead (portals fail closed to /login, public pages still load).
-  if (!url || !anonKey || !isHttpUrl(url)) {
+  if (!isAuthConfigured()) {
     if (isAiApiPath(request.nextUrl.pathname)) return (await limitAiRequest(request, null)) ?? response;
     // Auth can't work without Supabase — fail closed rather than expose the portals.
     return gated ? redirectToLogin(request, response, { error: "auth_unconfigured" }) : response;
   }
 
-  const supabase = createServerClient<Database>(url, anonKey, {
+  const supabase = createServerClient<Database>(clean(process.env.NEXT_PUBLIC_SUPABASE_URL), clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY), {
     cookies: {
       getAll() {
         return request.cookies.getAll();

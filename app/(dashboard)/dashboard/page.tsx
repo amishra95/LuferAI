@@ -10,8 +10,9 @@ import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header
 import { agentSnapshot } from "@/lib/agents/store";
 import { isChannelConfigured } from "@/lib/channels/config";
 import { channelStore } from "@/lib/channels/store";
+import { isRedisConfigured } from "@/lib/data/local-store";
 import { getActivity } from "@/lib/telemetry/activity";
-import { getTelemetryMetrics, TELEMETRY_SOURCE } from "@/lib/telemetry/sample-data";
+import { computeTelemetryMetrics } from "@/lib/telemetry/runs";
 import type { TaskChannel } from "@/types/channels";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -22,8 +23,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const { channel } = await searchParams;
   const filter: ChannelFilterValue = FILTERS.includes(channel as ChannelFilterValue) ? (channel as ChannelFilterValue) : "all";
 
-  const metrics = getTelemetryMetrics();
-  const { now, events, liveCount, channelEvents: allChannelEvents, liveError } = await getActivity();
+  const [{ now, events, runs, channelEvents: allChannelEvents, liveError }, snapshot] = await Promise.all([getActivity(), agentSnapshot()]);
+  const enabledAgents = snapshot.agents.filter(({ agent }) => agent.enabled).length;
+  const metrics = computeTelemetryMetrics(runs, now.getTime(), enabledAgents);
   const counts = Object.fromEntries(
     FILTERS.map((f) => [f, f === "all" ? events.length : events.filter((e) => e.channel === f).length])
   ) as Record<ChannelFilterValue, number>;
@@ -44,14 +46,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     messages: channelEvents.filter((e) => e.channel === id).length,
     bookings: channelEvents.filter((e) => e.channel === id && e.status === "booked").length,
   }));
-  const agents = agentSnapshot().agents.map(({ agent, status }) => ({ id: agent.id, name: agent.name, status, runs: agent.runCount }));
+  const agents = snapshot.agents.map(({ agent, status }) => ({ id: agent.id, name: agent.name, status, runs: agent.runCount }));
 
   return (
     <Page>
       <PageHeader
         title="Overview"
         description="Agent fleet health and booking traffic over the last two hours."
-        badge={TELEMETRY_SOURCE === "sample" && <NoticePill>sample metrics</NoticePill>}
+        badge={!isRedisConfigured() && <NoticePill>this instance only</NoticePill>}
         actions={
           <Link href="/chat" className="btn">
             Open workspace
@@ -70,14 +72,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 Activity
               </h2>
               <p className="text-fg-subtle mt-0.5 font-mono text-[11px] tabular-nums">
-                {liveCount} live · {events.length - liveCount} sample · times in IST
+                {events.length} recent · times in IST
               </p>
             </div>
             <ChannelFilter value={filter} counts={counts} />
           </div>
           {liveError && (
             <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-xl border px-4 py-2.5 text-[12.5px]">
-              Live channel activity is unavailable right now ({liveError}). Showing sample rows only.
+              Some activity couldn&apos;t be loaded right now ({liveError}).
             </p>
           )}
           <ActivityFeed events={visible} now={now} emptyChannel={filter === "all" ? undefined : (filter as TaskChannel)} />

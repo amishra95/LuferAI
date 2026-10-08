@@ -20,18 +20,25 @@ import type {
 } from "@/lib/supabase/database.types";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
-import { mockDb, mockGstType } from "./mock-store";
+import type { Department } from "@/lib/supabase/database.types";
+import { isRedisConfigured, mutateDb, readDb } from "./local-store";
+import { mockGstType, type MockDb } from "./mock-store";
 
 /**
  * Single data-access layer for all three portals.
  * - Supabase mode: when NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set.
- * - Mock mode: otherwise, backed by an in-memory copy of supabase/seed.sql.
+ * - Redis mode: otherwise, when UPSTASH_REDIS_REST_URL / _TOKEN are set. Persistent,
+ *   shared across instances, seeded once from supabase/seed.sql (lib/data/local-store.ts).
+ * - Mock mode: neither; an in-memory copy of supabase/seed.sql.
+ * Redis and mock share one code path (`local()` below) over the same collections.
  * Tax, commission and payout figures are always computed via lib/gst-engine.ts
  * so the UI and invoices share one source of truth.
  */
 
-export type DataSource = "supabase" | "mock";
-export const dataSource = (): DataSource => (isSupabaseConfigured() ? "supabase" : "mock");
+export type DataSource = "supabase" | "redis" | "mock";
+export const dataSource = (): DataSource => (isSupabaseConfigured() ? "supabase" : isRedisConfigured() ? "redis" : "mock");
+/** Redis or in-memory: served by lib/data/local-store.ts rather than Postgres. */
+const local = () => dataSource() !== "supabase";
 
 export interface BookingDetail extends Booking {
   company: Pick<Company, "id" | "legal_name" | "gstin" | "state_code">;
@@ -76,14 +83,14 @@ function enrich(
 // ----------------------------------------------------------------------------
 
 export async function listCompanies(): Promise<Company[]> {
-  if (dataSource() === "mock") return [...mockDb.companies];
+  if (local()) return [...(await readDb()).companies].sort((a, b) => a.legal_name.localeCompare(b.legal_name));
   const { data, error } = await createAdminClient().from("companies").select("*").order("legal_name");
   if (error) throw error;
   return data;
 }
 
 export async function listVenues(): Promise<Venue[]> {
-  if (dataSource() === "mock") return mockDb.venues.filter((v) => v.is_active);
+  if (local()) return (await readDb()).venues.filter((v) => v.is_active).sort((a, b) => a.name.localeCompare(b.name));
   const { data, error } = await createAdminClient()
     .from("venues")
     .select("*")
@@ -94,15 +101,16 @@ export async function listVenues(): Promise<Venue[]> {
 }
 
 export async function listBookings(filter: { companyId?: string; venueId?: string } = {}): Promise<BookingDetail[]> {
-  if (dataSource() === "mock") {
-    return mockDb.bookings
+  if (local()) {
+    const db = await readDb();
+    return db.bookings
       .filter((b) => (!filter.companyId || b.company_id === filter.companyId) && (!filter.venueId || b.venue_id === filter.venueId))
       // Venues never see bookings still awaiting the company's internal sign-off.
       .filter((b) => !filter.venueId || b.status !== "PENDING_APPROVAL")
       .sort((a, b) => b.event_date.localeCompare(a.event_date))
       .map((b) => {
-        const c = mockDb.companies.find((x) => x.id === b.company_id)!;
-        const v = mockDb.venues.find((x) => x.id === b.venue_id)!;
+        const c = db.companies.find((x) => x.id === b.company_id)!;
+        const v = db.venues.find((x) => x.id === b.venue_id)!;
         return enrich(b, c, v);
       });
   }
@@ -123,8 +131,8 @@ export async function listBookings(filter: { companyId?: string; venueId?: strin
 }
 
 export async function listOnboardingRequests(): Promise<VenueOnboardingRequest[]> {
-  if (dataSource() === "mock") {
-    return mockDb.onboarding
+  if (local()) {
+    return (await readDb()).onboarding
       .filter((r) => r.status === "SUBMITTED" || r.status === "UNDER_REVIEW")
       .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
   }
@@ -135,6 +143,21 @@ export async function listOnboardingRequests(): Promise<VenueOnboardingRequest[]
     .order("submitted_at", { ascending: false });
   if (error) throw error;
   return data;
+}
+
+/** Departments with their FY budgets, optionally for some companies. */
+export async function listDepartments(filter: { companyIds?: string[] } = {}): Promise<Department[]> {
+  const { companyIds } = filter;
+  if (local()) {
+    return (await readDb()).departments
+      .filter((d) => !companyIds || companyIds.includes(d.company_id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+  let query = createAdminClient().from("departments").select("*").order("name");
+  if (companyIds) query = query.in("company_id", companyIds);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data.map((d) => ({ ...d, annual_budget_inr: Number(d.annual_budget_inr) }));
 }
 
 // ----------------------------------------------------------------------------
@@ -268,14 +291,14 @@ export async function createBookingRequest(
     rate_card_id: input.rate_card_id ?? null,
   };
 
-  if (dataSource() === "mock") {
-    const c = mockDb.companies.find((x) => x.id === input.company_id);
-    const v = mockDb.venues.find((x) => x.id === input.venue_id);
+  if (local()) return mutateDb((db) => {
+    const c = db.companies.find((x) => x.id === input.company_id);
+    const v = db.venues.find((x) => x.id === input.venue_id);
     if (!c || !v) throw new Error("Unknown company or venue");
     const now = new Date().toISOString();
-    // Mock equivalent of the inventory_holds_before_insert conflict check.
-    if (hold && mockDb.holds.some((h) => h.venue_id === v.id && h.status === "ACTIVE" && h.hold_expires_at > now &&
-        mockDb.bookings.find((b) => b.id === h.booking_id)?.event_date === input.event_date)) {
+    // Local equivalent of the inventory_holds_before_insert conflict check.
+    if (hold && db.holds.some((h) => h.venue_id === v.id && h.status === "ACTIVE" && h.hold_expires_at > now &&
+        db.bookings.find((b) => b.id === h.booking_id)?.event_date === input.event_date)) {
       throw new HoldConflictError(v.name, input.event_date);
     }
     const booking: Booking = {
@@ -283,16 +306,16 @@ export async function createBookingRequest(
       ...row,
       total_amount_inr: total,
       sac_code: "998596",
-      gst_type: mockGstType(input.company_id, input.venue_id, row.billing_gstin),
-      // Mock equivalent of the bookings_snapshot_commission_rate trigger.
+      gst_type: mockGstType(db, input.company_id, input.venue_id, row.billing_gstin),
+      // Local equivalent of the bookings_snapshot_commission_rate trigger.
       commission_rate: v.commission_rate,
       status,
       created_at: now,
       updated_at: now,
     };
-    mockDb.bookings.push(booking);
+    db.bookings.push(booking);
     for (const approval of approvals) {
-      mockDb.approvals.push({
+      db.approvals.push({
         id: crypto.randomUUID(),
         tenant_id: input.company_id,
         booking_id: booking.id,
@@ -305,7 +328,7 @@ export async function createBookingRequest(
       });
     }
     if (hold) {
-      mockDb.holds.push({
+      db.holds.push({
         id: crypto.randomUUID(),
         venue_id: v.id,
         tenant_id: c.id,
@@ -317,7 +340,7 @@ export async function createBookingRequest(
       });
     }
     return enrich(booking, c, v);
-  }
+  });
 
   // commission_rate is snapshotted from the venue by the bookings_snapshot_commission_rate trigger.
   const supabase = createAdminClient();
@@ -358,11 +381,11 @@ export async function createBookingRequest(
   return created;
 }
 
-/** Mock equivalent of the bookings_sync_inventory_holds trigger. */
-function mockSyncHolds(bookingId: string, status: BookingStatus) {
+/** Local equivalent of the bookings_sync_inventory_holds trigger. */
+function syncLocalHolds(db: MockDb, bookingId: string, status: BookingStatus) {
   if (status !== "CONFIRMED" && status !== "CANCELLED") return;
   const now = new Date().toISOString();
-  for (const h of mockDb.holds) {
+  for (const h of db.holds) {
     if (h.booking_id === bookingId && h.status === "ACTIVE") {
       h.status = status === "CONFIRMED" ? "CONVERTED" : "RELEASED";
       h.updated_at = now;
@@ -379,16 +402,17 @@ const ALLOWED_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
 };
 
 export async function updateBookingStatus(id: string, next: BookingStatus, scope: { venueId?: string } = {}) {
-  if (dataSource() === "mock") {
-    const b = mockDb.bookings.find((x) => x.id === id && (!scope.venueId || x.venue_id === scope.venueId));
-    if (!b) throw new Error("Booking not found");
-    if (!ALLOWED_TRANSITIONS[b.status].includes(next)) {
-      throw new Error(`Cannot move a ${b.status} booking to ${next}`);
-    }
-    b.status = next;
-    b.updated_at = new Date().toISOString();
-    mockSyncHolds(b.id, next);
-    return;
+  if (local()) {
+    return mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id && (!scope.venueId || x.venue_id === scope.venueId));
+      if (!b) throw new Error("Booking not found");
+      if (!ALLOWED_TRANSITIONS[b.status].includes(next)) {
+        throw new Error(`Cannot move a ${b.status} booking to ${next}`);
+      }
+      b.status = next;
+      b.updated_at = new Date().toISOString();
+      syncLocalHolds(db, b.id, next);
+    });
   }
 
   // The DB trigger bookings_guard_status_transition enforces the same rules, and
@@ -416,8 +440,8 @@ export interface PortalUser {
 
 /** Client-portal users (platform_users with role CLIENT), optionally for one tenant. */
 export async function listPortalUsers(filter: { companyId?: string } = {}): Promise<PortalUser[]> {
-  if (dataSource() === "mock") {
-    return mockDb.users
+  if (local()) {
+    return (await readDb()).users
       .filter((u) => !filter.companyId || u.company_id === filter.companyId)
       .map((u) => ({ id: u.user_id, companyId: u.company_id, name: u.name, role: u.corporate_role }));
   }
@@ -436,7 +460,7 @@ export async function listPortalUsers(filter: { companyId?: string } = {}): Prom
 }
 
 export async function getCorporatePolicy(tenantId: string): Promise<CorporatePolicy | null> {
-  if (dataSource() === "mock") return mockDb.policies.find((p) => p.tenant_id === tenantId) ?? null;
+  if (local()) return (await readDb()).policies.find((p) => p.tenant_id === tenantId) ?? null;
   const { data, error } = await createAdminClient()
     .from("corporate_policies")
     .select("*")
@@ -457,8 +481,8 @@ const numOrNull = (v: number | string | null) => (v === null ? null : Number(v))
 
 /** The tenant's approvers, lowest tier first. */
 export async function listApprovalChain(tenantId: string): Promise<ApprovalChain[]> {
-  if (dataSource() === "mock") {
-    return mockDb.approvalChains.filter((c) => c.tenant_id === tenantId).sort((a, b) => a.tier_level - b.tier_level);
+  if (local()) {
+    return (await readDb()).approvalChains.filter((c) => c.tenant_id === tenantId).sort((a, b) => a.tier_level - b.tier_level);
   }
   const { data, error } = await createAdminClient()
     .from("approval_chains")
@@ -472,8 +496,8 @@ export async function listApprovalChain(tenantId: string): Promise<ApprovalChain
 /** Approver → tier, keyed "tenantId:userId" (optionally for one tenant). */
 async function approverTiers(tenantId?: string): Promise<Map<string, number>> {
   let rows: ApprovalChain[];
-  if (dataSource() === "mock") {
-    rows = mockDb.approvalChains.filter((c) => !tenantId || c.tenant_id === tenantId);
+  if (local()) {
+    rows = (await readDb()).approvalChains.filter((c) => !tenantId || c.tenant_id === tenantId);
   } else {
     let q = createAdminClient().from("approval_chains").select("*");
     if (tenantId) q = q.eq("tenant_id", tenantId);
@@ -507,8 +531,9 @@ export async function listApprovals(
     tier: tiers.get(`${a.tenant_id}:${a.approver_id}`) ?? null,
   });
 
-  if (dataSource() === "mock") {
-    return mockDb.approvals
+  if (local()) {
+    const db = await readDb();
+    return db.approvals
       .filter(
         (a) =>
           (!filter.tenantId || a.tenant_id === filter.tenantId) &&
@@ -517,9 +542,9 @@ export async function listApprovals(
       )
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((a) => {
-        const c = mockDb.companies.find((x) => x.id === a.tenant_id)!;
-        const b = mockDb.bookings.find((x) => x.id === a.booking_id)!;
-        const v = mockDb.venues.find((x) => x.id === b.venue_id)!;
+        const c = db.companies.find((x) => x.id === a.tenant_id)!;
+        const b = db.bookings.find((x) => x.id === a.booking_id)!;
+        const v = db.venues.find((x) => x.id === b.venue_id)!;
         const { id, event_date, party_size, budget_per_head_inr, total_amount_inr, status } = b;
         return named({
           ...a,
@@ -573,22 +598,23 @@ export async function decideApproval(
   // Sign-off is sequential: a tier-2 approver decides only after every lower tier has approved.
   if (decision === "APPROVED") await assertLowerTiersApproved(id, scope.tenantId);
 
-  if (dataSource() === "mock") {
-    const a = mockDb.approvals.find(
-      (x) => x.id === id && x.approver_id === scope.approverId && x.tenant_id === scope.tenantId && x.status === "PENDING"
-    );
-    if (!a) throw new Error("This approval was not found or has already been decided.");
-    const now = new Date().toISOString();
-    Object.assign(a, { status: decision, decision_note: note ?? null, decided_at: now, updated_at: now });
+  if (local()) {
+    return mutateDb((db) => {
+      const a = db.approvals.find(
+        (x) => x.id === id && x.approver_id === scope.approverId && x.tenant_id === scope.tenantId && x.status === "PENDING"
+      );
+      if (!a) throw new Error("This approval was not found or has already been decided.");
+      const now = new Date().toISOString();
+      Object.assign(a, { status: decision, decision_note: note ?? null, decided_at: now, updated_at: now });
 
-    const booking = mockDb.bookings.find((b) => b.id === a.booking_id);
-    const othersOpen = mockDb.approvals.some((x) => x.booking_id === a.booking_id && x.id !== a.id && x.status !== "APPROVED");
-    if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
-      booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
-      booking.updated_at = now;
-      mockSyncHolds(booking.id, booking.status);
-    }
-    return;
+      const booking = db.bookings.find((b) => b.id === a.booking_id);
+      const othersOpen = db.approvals.some((x) => x.booking_id === a.booking_id && x.id !== a.id && x.status !== "APPROVED");
+      if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
+        booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
+        booking.updated_at = now;
+        syncLocalHolds(db, booking.id, booking.status);
+      }
+    });
   }
 
   const { data, error } = await createAdminClient()
@@ -604,9 +630,10 @@ export async function decideApproval(
 }
 
 async function approvalsForBookingOf(approvalId: string, tenantId: string): Promise<BookingApproval[]> {
-  if (dataSource() === "mock") {
-    const a = mockDb.approvals.find((x) => x.id === approvalId && x.tenant_id === tenantId);
-    return a ? mockDb.approvals.filter((x) => x.booking_id === a.booking_id) : [];
+  if (local()) {
+    const { approvals } = await readDb();
+    const a = approvals.find((x) => x.id === approvalId && x.tenant_id === tenantId);
+    return a ? approvals.filter((x) => x.booking_id === a.booking_id) : [];
   }
   const db = createAdminClient();
   const { data: a, error } = await db.from("booking_approvals").select("booking_id").eq("id", approvalId).eq("tenant_id", tenantId).maybeSingle();
@@ -642,8 +669,8 @@ export async function listApprovalComments(approvalIds: string[], tenantId: stri
   if (approvalIds.length === 0) return [];
   const names = new Map((await listPortalUsers({ companyId: tenantId })).map((u) => [u.id, u.name]));
   let rows: ApprovalComment[];
-  if (dataSource() === "mock") {
-    rows = mockDb.approvalComments.filter((c) => c.tenant_id === tenantId && approvalIds.includes(c.approval_id));
+  if (local()) {
+    rows = (await readDb()).approvalComments.filter((c) => c.tenant_id === tenantId && approvalIds.includes(c.approval_id));
   } else {
     const { data, error } = await createAdminClient()
       .from("approval_comments")
@@ -662,18 +689,19 @@ export async function listApprovalComments(approvalIds: string[], tenantId: stri
 export async function addApprovalComment(input: { approvalId: string; tenantId: string; authorId: string; body: string }) {
   const body = input.body.trim();
   if (!body || body.length > 2000) throw new Error("Comments are 1–2000 characters.");
-  if (dataSource() === "mock") {
-    if (!mockDb.approvals.some((a) => a.id === input.approvalId && a.tenant_id === input.tenantId)) throw new Error("Approval not found.");
-    if (!mockDb.users.some((u) => u.user_id === input.authorId && u.company_id === input.tenantId)) throw new Error("Unknown author.");
-    mockDb.approvalComments.push({
-      id: crypto.randomUUID(),
-      approval_id: input.approvalId,
-      tenant_id: input.tenantId,
-      author_id: input.authorId,
-      body,
-      created_at: new Date().toISOString(),
+  if (local()) {
+    return mutateDb((db) => {
+      if (!db.approvals.some((a) => a.id === input.approvalId && a.tenant_id === input.tenantId)) throw new Error("Approval not found.");
+      if (!db.users.some((u) => u.user_id === input.authorId && u.company_id === input.tenantId)) throw new Error("Unknown author.");
+      db.approvalComments.push({
+        id: crypto.randomUUID(),
+        approval_id: input.approvalId,
+        tenant_id: input.tenantId,
+        author_id: input.authorId,
+        body,
+        created_at: new Date().toISOString(),
+      });
     });
-    return;
   }
   // The approval_comments_author_fkey (author, tenant) FK enforces membership in Postgres.
   const db = createAdminClient();
@@ -695,7 +723,7 @@ export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "receip
 
 /** The existing export for a booking/event, if any (exports are idempotent per booking + event). */
 export async function findExpenseExport(bookingId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
-  if (dataSource() === "mock") return mockDb.expenseExports.find((e) => e.booking_id === bookingId && e.event === event) ?? null;
+  if (local()) return (await readDb()).expenseExports.find((e) => e.booking_id === bookingId && e.event === event) ?? null;
   const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("booking_id", bookingId).eq("event", event).maybeSingle();
   if (error) throw error;
   return data;
@@ -703,10 +731,12 @@ export async function findExpenseExport(bookingId: string, event: ExpenseExportE
 
 /** Records an export. Returns false if one already exists for this booking + event. */
 export async function recordExpenseExport(row: NewExpenseExport): Promise<boolean> {
-  if (dataSource() === "mock") {
-    if (mockDb.expenseExports.some((e) => e.booking_id === row.booking_id && e.event === row.event)) return false;
-    mockDb.expenseExports.push({ ...row, id: crypto.randomUUID(), created_at: new Date().toISOString() });
-    return true;
+  if (local()) {
+    return mutateDb((db) => {
+      if (db.expenseExports.some((e) => e.booking_id === row.booking_id && e.event === row.event)) return false;
+      db.expenseExports.push({ ...row, id: crypto.randomUUID(), created_at: new Date().toISOString() });
+      return true;
+    });
   }
   const { error } = await createAdminClient().from("expense_exports").insert(row);
   if (error?.code === "23505") return false; // unique (booking_id, event)
@@ -716,8 +746,8 @@ export async function recordExpenseExport(row: NewExpenseExport): Promise<boolea
 
 export async function listExpenseExports(filter: { tenantId?: string; limit?: number } = {}): Promise<ExpenseExport[]> {
   const limit = filter.limit ?? 50;
-  if (dataSource() === "mock") {
-    return mockDb.expenseExports
+  if (local()) {
+    return (await readDb()).expenseExports
       .filter((e) => !filter.tenantId || e.tenant_id === filter.tenantId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit);
@@ -730,7 +760,7 @@ export async function listExpenseExports(filter: { tenantId?: string; limit?: nu
 }
 
 export async function getExpenseExport(id: string): Promise<ExpenseExport | null> {
-  if (dataSource() === "mock") return mockDb.expenseExports.find((e) => e.id === id) ?? null;
+  if (local()) return (await readDb()).expenseExports.find((e) => e.id === id) ?? null;
   const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data;
@@ -747,10 +777,11 @@ export type HoldWithEventDate = InventoryHold & { event_date: string };
 /** A venue's ACTIVE holds that haven't expired, with each held booking's event date. */
 export async function listLiveHolds(venueId: string): Promise<HoldWithEventDate[]> {
   const now = new Date().toISOString();
-  if (dataSource() === "mock") {
-    return mockDb.holds
+  if (local()) {
+    const db = await readDb();
+    return db.holds
       .filter((h) => h.venue_id === venueId && h.status === "ACTIVE" && h.hold_expires_at > now)
-      .map((h) => ({ ...h, event_date: mockDb.bookings.find((b) => b.id === h.booking_id)!.event_date }));
+      .map((h) => ({ ...h, event_date: db.bookings.find((b) => b.id === h.booking_id)!.event_date }));
   }
 
   // Two FKs reach bookings (booking_id alone and the consistency key), so name one.
@@ -770,8 +801,8 @@ export async function listConfirmedVenueBookings(
   venueId: string,
   range: { from: string; to: string }
 ): Promise<Pick<Booking, "id" | "status" | "event_date">[]> {
-  if (dataSource() === "mock") {
-    return mockDb.bookings
+  if (local()) {
+    return (await readDb()).bookings
       .filter((b) => b.venue_id === venueId && b.status === "CONFIRMED" && b.event_date >= range.from && b.event_date <= range.to)
       .map(({ id, status, event_date }) => ({ id, status, event_date }));
   }
@@ -794,8 +825,8 @@ export async function getActiveRateCard(
 ): Promise<CorporateRateCard | null> {
   // eventDate is interpolated into the PostgREST .or() filter below; only allow a plain date.
   if (!ISO_DATE.test(eventDate)) throw new Error(`Invalid event date: ${eventDate}`);
-  if (dataSource() === "mock") {
-    return mockDb.rateCards.find((c) => c.tenant_id === tenantId && c.venue_id === venueId && isRateCardActive(c, eventDate)) ?? null;
+  if (local()) {
+    return (await readDb()).rateCards.find((c) => c.tenant_id === tenantId && c.venue_id === venueId && isRateCardActive(c, eventDate)) ?? null;
   }
   const { data, error } = await createAdminClient()
     .from("corporate_rate_cards")
@@ -818,12 +849,13 @@ export async function getActiveRateCard(
 
 /** Releases a live hold early. Scoped to the venue so one property can't touch another's holds. */
 export async function releaseHold(holdId: string, scope: { venueId: string }) {
-  if (dataSource() === "mock") {
-    const h = mockDb.holds.find((x) => x.id === holdId && x.venue_id === scope.venueId && x.status === "ACTIVE");
-    if (!h) throw new Error("This hold was not found or is no longer active.");
-    h.status = "RELEASED";
-    h.updated_at = new Date().toISOString();
-    return;
+  if (local()) {
+    return mutateDb((db) => {
+      const h = db.holds.find((x) => x.id === holdId && x.venue_id === scope.venueId && x.status === "ACTIVE");
+      if (!h) throw new Error("This hold was not found or is no longer active.");
+      h.status = "RELEASED";
+      h.updated_at = new Date().toISOString();
+    });
   }
   const { data, error } = await createAdminClient()
     .from("inventory_holds")

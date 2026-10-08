@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { safeNextPath } from "@/lib/auth/roles";
 import { siteUrl } from "@/lib/site-url";
+import { isAuthConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 export interface MagicLinkState {
@@ -44,6 +45,7 @@ function magicLinkErrorMessage(error: AuthError): string {
 
 export async function signInWithGoogle(formData: FormData) {
   const next = safeNextPath(String(formData.get("next") ?? ""));
+  if (!isAuthConfigured()) redirect("/login?error=auth_unconfigured");
   const supabase = await createClient();
   // PKCE: the code verifier is stored in a cookie here and consumed by /auth/callback.
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -59,6 +61,7 @@ export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): 
   const email = String(formData.get("email") ?? "").trim();
   const next = safeNextPath(String(formData.get("next") ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Enter a valid email address." };
+  if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -74,6 +77,7 @@ export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): 
 }
 
 export async function signOut() {
+  if (!isAuthConfigured()) redirect("/login");
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");

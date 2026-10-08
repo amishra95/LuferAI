@@ -53,7 +53,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
       <PageHeader
         title="Venues"
         description="Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries."
-        badge={<NoticePill>{source === "mock" ? "mock data" : "supabase"}</NoticePill>}
+        badge={<NoticePill>{source === "mock" ? "mock data" : source}</NoticePill>}
       />
 
       {/* GET form: filters live in the URL, so views are shareable and work without JS. */}

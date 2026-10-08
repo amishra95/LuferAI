@@ -100,7 +100,6 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
               </span>
               <span>{formatDuration(e.durationMs)}</span>
               <span>{e.tokens.toLocaleString("en-US")} tok</span>
-              {e.sample && <span className="text-fg-faint">sample</span>}
             </p>
           </div>
 

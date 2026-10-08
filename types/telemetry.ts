@@ -34,6 +34,4 @@ export type AgentTaskEvent = {
   log: string;
   /** Where the task came from: WhatsApp, Slack or the web app. */
   channel: TaskChannel;
-  /** Illustrative sample row rather than a recorded event. */
-  sample: boolean;
 };

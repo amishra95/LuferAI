@@ -11,6 +11,7 @@ import { listCompanies, listPortalUsers } from "@/lib/data";
 import { getPreferences } from "@/lib/settings/preferences";
 import { canEditEnvFile, getOpenAIStatus, getSupabaseStatus } from "@/lib/settings/status";
 import { cn } from "@/lib/utils";
+import { isRedisConfigured } from "@/lib/data/local-store";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -145,13 +146,14 @@ export default async function SettingsPage() {
           title="Supabase"
           description={
             <>
-              Venue, booking and policy data. Without it the app uses the built-in mock store. Set these in{" "}
+              Venue, booking and policy data. Without it the app uses Upstash Redis (seeded from the demo data) when configured,
+              otherwise an in-memory mock store. Set these in{" "}
               <code className="text-fg-muted font-mono">.env.local</code> and restart the dev server.
             </>
           }
           status={
             !supabase.configured ? (
-              <StatusPill tone="off">mock data</StatusPill>
+              <StatusPill tone="off">{isRedisConfigured() ? "redis data" : "mock data"}</StatusPill>
             ) : supabase.ping?.ok ? (
               <StatusPill tone="ok">connected · {supabase.ping.latencyMs} ms</StatusPill>
             ) : (

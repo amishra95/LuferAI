@@ -8,13 +8,13 @@ import {
 } from "ai";
 
 import { getAgent, recordRun } from "@/lib/agents/store";
+import { clip } from "@/lib/telemetry/runs";
 import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
 import { allowedTools, financeFirstStep } from "@/lib/ai/chat-policy";
 import { createChatTools } from "@/lib/ai/chat-tools";
-import type { AnalyticsScope } from "@/lib/analytics/service";
+import { analyticsScopeFor } from "@/lib/analytics/service";
 import { canAccessWorkspace } from "@/lib/auth/roles";
-import { getCurrentMember, type Member } from "@/lib/auth/session";
-import { listCompanies } from "@/lib/data";
+import { getCurrentMember } from "@/lib/auth/session";
 import type { LuferUIMessage } from "@/types/chat";
 
 export const maxDuration = 60;
@@ -30,13 +30,6 @@ const SYSTEM =
   "Amounts are INR. Answer concisely in Markdown and use fenced code blocks for code or config.";
 
 /** Admins analyse the platform; client users only ever their own company. */
-async function scopeFor(member: Member): Promise<AnalyticsScope | null> {
-  if (member.role === "ADMIN") return { kind: "platform" };
-  if (member.role !== "CLIENT" || !member.companyId) return null;
-  const company = (await listCompanies()).find((c) => c.id === member.companyId);
-  return company ? { kind: "company", companyId: company.id, companyName: company.legal_name.replace(" Private Limited", "") } : null;
-}
-
 /**
  * Workspace chat: a live model (lib/ai/model.ts) streamed token by token to the
  * client via the AI SDK UI message stream.
@@ -51,7 +44,7 @@ export async function POST(req: Request) {
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
   if (!canAccessWorkspace(member.role, member.corporateRole, "/chat")) return Response.json({ error: "forbidden" }, { status: 403 });
 
-  const scope = await scopeFor(member);
+  const scope = await analyticsScopeFor(member);
   if (!scope) return Response.json({ error: "forbidden" }, { status: 403 });
   const chatTools = createChatTools(scope);
 
@@ -73,8 +66,8 @@ export async function POST(req: Request) {
   }
 
   const started = Date.now();
-  const record = (ok: boolean, error?: string) =>
-    recordRun("workspace-agent", { at: new Date().toISOString(), ok, durationMs: Date.now() - started, source: "chat", error });
+  const record = (ok: boolean, extra: { error?: string; tokens?: number; steps?: number } = {}) =>
+    recordRun("workspace-agent", { at: new Date().toISOString(), ok, durationMs: Date.now() - started, source: "chat", task: `Chat: “${clip(lastUserText)}”`, ...extra });
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
@@ -98,7 +91,7 @@ export async function POST(req: Request) {
     // A forced tool call needs a follow-up step to write the answer.
     stopWhen: isStepCount(financeStep ? Math.max(agent.maxSteps, 2) : agent.maxSteps),
     ...(agent.temperature !== null && { temperature: agent.temperature }),
-    onEnd: () => record(true),
+    onEnd: ({ totalUsage, steps }) => record(true, { tokens: totalUsage.totalTokens, steps: steps.length }),
   });
 
   return createUIMessageStreamResponse({
@@ -112,7 +105,7 @@ export async function POST(req: Request) {
       },
       onError: (err) => {
         console.error("chat: stream failed", err);
-        record(false, err instanceof Error ? err.message : "Stream failed");
+        void record(false, { error: err instanceof Error ? err.message : "Stream failed" });
         return "The model request failed. Try again.";
       },
     }),

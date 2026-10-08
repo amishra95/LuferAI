@@ -29,7 +29,7 @@ export function PortalShell({
       <PageHeader
         title={title}
         description={subtitle}
-        badge={<NoticePill>{source === "mock" ? "mock data" : "supabase"}</NoticePill>}
+        badge={<NoticePill>{source === "mock" ? "mock data" : source}</NoticePill>}
         actions={actions}
       />
       {children}

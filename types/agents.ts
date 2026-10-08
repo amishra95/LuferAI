@@ -19,7 +19,8 @@ export type AgentRun = {
   at: string; // ISO
   ok: boolean;
   durationMs: number;
-  source: "chat" | "test" | "whatsapp" | "slack";
+  /** "api": one of the /api/ai/* routes. */
+  source: "chat" | "test" | "whatsapp" | "slack" | "api";
   error?: string;
 };
 

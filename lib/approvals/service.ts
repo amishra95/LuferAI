@@ -6,6 +6,7 @@ import {
   getCorporatePolicy,
   listApprovals,
   listBookings,
+  listDepartments,
   type ApprovalDetail as ApprovalRow,
   type BookingDetail,
 } from "@/lib/data";
@@ -96,12 +97,8 @@ export async function approvalItemisation(
 
   // Department budgets are informational here: routing is by corporate_policies.
   let department: ApprovalItemisation["department"] = null;
-  if (booking.department_id && dataSource() === "supabase") {
-    const { data: dept } = await createAdminClient()
-      .from("departments")
-      .select("id, name, annual_budget_inr")
-      .eq("id", booking.department_id)
-      .maybeSingle();
+  if (booking.department_id) {
+    const dept = (await listDepartments({ companyIds: [booking.company_id] })).find((d) => d.id === booking.department_id);
     if (dept) {
       const fy = financialYear(booking.event_date);
       const committed = bookings.filter(
@@ -112,7 +109,7 @@ export async function approvalItemisation(
           b.event_date >= fy.start &&
           b.event_date <= fy.end
       );
-      department = { ...dept, annual_budget_inr: Number(dept.annual_budget_inr), fyCommittedInr: sumInr(committed.map((b) => b.total_amount_inr)) };
+      department = { id: dept.id, name: dept.name, annual_budget_inr: dept.annual_budget_inr, fyCommittedInr: sumInr(committed.map((b) => b.total_amount_inr)) };
     }
   }
 

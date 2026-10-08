@@ -20,7 +20,23 @@ npx supabase start   # needs Docker; prints the URL, anon key and service-role k
 npx supabase db reset  # applies supabase/migrations/* then supabase/seed.sql
 ```
 
-Put the printed values in `.env.local` and restart `npm run dev`. The header badge switches from **Mock data** to **Supabase**. For a hosted project, use `npx supabase link` then `npx supabase db push`.
+Put the printed values in `.env.local` and restart `npm run dev`. The header badge switches from **mock data** (or **redis**) to **supabase**.
+
+### Data sources
+
+`lib/data` picks one store per process: **Supabase** when configured; otherwise **Upstash Redis** (`UPSTASH_REDIS_REST_URL` / `_TOKEN`), seeded once from the demo data under `lufer:db:*` and shared by all instances; otherwise an in-memory mock. Agent telemetry (Overview metrics, activity, run counts) is always recorded in Redis when it's configured.
+
+### Data API
+
+Auth-scoped JSON for client components, mobile and integrations. Server Components call `lib/data` directly instead (no extra hop). Every response includes `source`.
+
+| Route | Who | Returns |
+| --- | --- | --- |
+| `GET /api/venues` | workspace users | Venue directory; same `q`, `tier`, `area`, `pdr`, `min`, `sort`, `dir`, `page`, `size` params as `/venues` |
+| `GET /api/bookings` | admin, client, venue | Bookings with GST invoices + platform metrics / ITC summary / monthly payouts. Clients and venues are pinned to their own; admins may pass `company`, `venue`. Optional `status` |
+| `GET /api/spend` | admin, client | FY spend analytics (monthly, cumulative, savings, department budgets); admins may pass `company` (id) |
+| `GET /api/analytics` | admin, client | Spend by `period` × `groupBy`; admins may pass `company` (name) |
+| `GET /api/analytics/forecast` | admin, client | Spend forecast vs budget: `horizonMonths`, `department`, `costCenter`, `budgetInr`, `company` | For a hosted project, use `npx supabase link` then `npx supabase db push`.
 
 ## Portals
 

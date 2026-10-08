@@ -7,6 +7,7 @@ import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
 import { broadcastRfp, RfpRequirements } from "@/lib/rfp/service";
+import { clip, logAgentRun } from "@/lib/telemetry/runs";
 
 /**
  * POST { brief, companyId? } → structured RFP broadcast to matching venues.
@@ -44,9 +45,11 @@ export async function POST(request: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
 
   const today = todayInIndia();
+  const started = Date.now();
+  const task = `RFP from brief: “${clip(parsed.data.brief)}”`;
   let requirements: RfpRequirements;
   try {
-    const { output } = await generateText({
+    const { output, totalUsage } = await generateText({
       model,
       output: Output.object({ schema: RfpRequirements }),
       instructions: [
@@ -59,7 +62,9 @@ export async function POST(request: NextRequest) {
       prompt: parsed.data.brief,
     });
     requirements = output;
+    await logAgentRun("rfp-broadcaster", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: 1 });
   } catch (err) {
+    await logAgentRun("rfp-broadcaster", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: err instanceof Error ? err.message : "Extraction failed" });
     if (NoOutputGeneratedError.isInstance(err)) {
       return NextResponse.json({ error: "Couldn't read that brief — add the guest count and date." }, { status: 422 });
     }

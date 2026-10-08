@@ -1,7 +1,7 @@
 import "server-only";
 
 import { channelStore } from "@/lib/channels/store";
-import { getSampleAgentTasks } from "@/lib/telemetry/sample-data";
+import { listAgentRuns, type LoggedRun } from "@/lib/telemetry/runs";
 import type { ChannelEvent } from "@/types/channels";
 import type { AgentTaskEvent, TaskStatus } from "@/types/telemetry";
 
@@ -35,27 +35,55 @@ function fromChannelEvent(e: ChannelEvent): AgentTaskEvent {
     startedAt: e.at,
     log,
     channel: e.channel,
-    sample: false,
+  };
+}
+
+function fromRun(r: LoggedRun): AgentTaskEvent {
+  return {
+    id: r.id.slice(0, 8),
+    agent: r.agent,
+    task: r.task,
+    status: r.ok ? "succeeded" : "failed",
+    step: r.steps,
+    totalSteps: Math.max(r.steps, 1),
+    durationMs: r.durationMs,
+    tokens: r.tokens,
+    // Runs are logged when they finish; the feed is ordered by start.
+    startedAt: new Date(new Date(r.at).getTime() - r.durationMs).toISOString(),
+    log: r.ok ? `Completed in ${(r.durationMs / 1000).toFixed(2)} s` : (r.error ?? "Run failed"),
+    channel: r.channel,
   };
 }
 
 /**
- * Activity for the Overview: live WhatsApp/Slack runs first, then sample rows.
- * If the message log can't be read, sample rows still render and liveError says why.
+ * Activity for the Overview, all recorded: WhatsApp/Slack runs from the channel
+ * message log, plus web runs (workspace chat, AI routes, agent tests) from the
+ * Redis run log. Channel runs are also in the run log (for the metrics) but are
+ * shown from the message log, which has the sender and reply.
+ * Either source failing leaves the other rendering; `liveError` says why.
  */
-export async function getActivity(limit = 10) {
+export async function getActivity(limit = 25) {
   const now = new Date();
-  let channelEvents: ChannelEvent[] = [];
-  let liveError: string | undefined;
-  try {
-    channelEvents = await channelStore().listEvents({ limit: 50 });
-  } catch (err) {
-    console.error("overview: could not load channel activity", err);
-    liveError = err instanceof Error ? err.message : "Could not load channel activity";
-  }
-  const live = channelEvents.filter((e) => e.status !== "ignored").map(fromChannelEvent);
-  const events = [...live, ...getSampleAgentTasks(now)]
+  const errors: string[] = [];
+  const [channelEvents, runs] = await Promise.all([
+    channelStore()
+      .listEvents({ limit: 50 })
+      .catch((err): ChannelEvent[] => {
+        console.error("overview: could not load channel activity", err);
+        errors.push(err instanceof Error ? err.message : "Could not load channel activity");
+        return [];
+      }),
+    listAgentRuns(500).catch((err): LoggedRun[] => {
+      console.error("overview: could not load agent runs", err);
+      errors.push(err instanceof Error ? err.message : "Could not load agent runs");
+      return [];
+    }),
+  ]);
+  const events = [
+    ...channelEvents.filter((e) => e.status !== "ignored").map(fromChannelEvent),
+    ...runs.filter((r) => r.channel === "web").map(fromRun),
+  ]
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
-    .slice(0, Math.max(limit, live.length));
-  return { now, events, liveCount: live.length, channelEvents, liveError };
+    .slice(0, limit);
+  return { now, events, runs, channelEvents, liveError: errors.length ? errors.join("; ") : undefined };
 }

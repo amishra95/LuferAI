@@ -5,6 +5,7 @@ import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
 import { matchVenues, venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
+import { clip, logAgentRun } from "@/lib/telemetry/runs";
 
 export const maxDuration = 30;
 
@@ -40,9 +41,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unknown company account." }, { status: 404 });
   }
 
+  const started = Date.now();
+  const task = `Venue search: “${clip(prompt)}”`;
   let filters;
   try {
-    ({ output: filters } = await generateText({
+    const result = await generateText({
       model,
       output: Output.object({ schema: venueSearchSchema }),
       system:
@@ -50,9 +53,12 @@ export async function POST(req: Request) {
         "Amounts are INR. Convert totals to a per-head budget when the guest count is known. " +
         "Never invent values the request does not imply.",
       prompt,
-    }));
+    });
+    filters = result.output;
+    await logAgentRun("venue-sourcer", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: result.totalUsage.totalTokens, steps: 1 });
   } catch (err) {
     console.error("source-venues: model call failed", err);
+    await logAgentRun("venue-sourcer", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: err instanceof Error ? err.message : "Model call failed" });
     return Response.json({ error: "Couldn't interpret that request. Try rephrasing it." }, { status: 502 });
   }
 

@@ -1,11 +1,13 @@
 import "server-only";
 
-import type { AgentConfig, AgentId, AgentRecord, AgentRun, AgentStatus } from "@/types/agents";
+import { agentRunStats, logAgentRun, type NewRun } from "@/lib/telemetry/runs";
+import type { AgentConfig, AgentId, AgentRecord, AgentStatus } from "@/types/agents";
 
 /**
- * Agent configs and run history, held in server memory on globalThis (same
- * approach as lib/data/mock-store.ts): survives hot reloads, resets on restart,
- * and is per-instance when deployed. Move to a Supabase table to persist.
+ * Agent configs, held in server memory on globalThis (same approach as
+ * lib/data/mock-store.ts): survives hot reloads, resets on restart, and is
+ * per-instance when deployed. Run history (counts, last run, the Overview
+ * metrics) is recorded in Upstash Redis by lib/telemetry/runs.ts.
  */
 const DEFAULTS: AgentConfig[] = [
   {
@@ -74,11 +76,13 @@ export function updateAgent(id: AgentId, patch: Partial<Omit<AgentConfig, "id" |
   return getAgent(id)!;
 }
 
-export function recordRun(id: AgentId, run: AgentRun) {
+/** Records a run in the shared run log. Resolves once written; never rejects. */
+export function recordRun(id: AgentId, run: NewRun): Promise<void> {
   const a = agents.get(id);
-  if (!a) return;
+  if (!a) return Promise.resolve();
   a.lastRun = run;
   a.runCount += 1;
+  return logAgentRun(id, run);
 }
 
 export function agentStatus(a: AgentRecord, now = Date.now()): AgentStatus {
@@ -88,8 +92,19 @@ export function agentStatus(a: AgentRecord, now = Date.now()): AgentStatus {
   return "idle";
 }
 
-/** All agents with their derived status, as of one instant. */
-export function agentSnapshot() {
+/** All agents with run history from the shared log and their derived status, as of one instant. */
+export async function agentSnapshot() {
   const now = Date.now();
-  return { now, agents: listAgents().map((agent) => ({ agent, status: agentStatus(agent, now) })) };
+  const stats = await agentRunStats().catch((err) => {
+    console.error("agents: run log unavailable; showing this instance's runs", err);
+    return null;
+  });
+  return {
+    now,
+    agents: listAgents().map((a) => {
+      const s = stats?.get(a.id);
+      const agent: AgentRecord = s ? { ...a, runCount: s.runCount, lastRun: s.lastRun } : a;
+      return { agent, status: agentStatus(agent, now) };
+    }),
+  };
 }

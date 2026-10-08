@@ -2,10 +2,10 @@ import "server-only";
 
 import {
   createBookingRequest,
-  dataSource,
   HoldConflictError,
   listApprovalChain,
   listCompanies,
+  listDepartments,
   listPortalUsers,
   listVenues,
   type NewApprovalRequest,
@@ -17,7 +17,6 @@ import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { formatINR } from "@/lib/utils";
 
 export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | ExpenseField;
@@ -85,14 +84,8 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
 
   if (!company) return { status: "error", message: "Unknown company account." };
   const departmentId = input.departmentId || null;
-  if (departmentId && dataSource() === "supabase") {
-    const { data: dept } = await createAdminClient()
-      .from("departments")
-      .select("id")
-      .eq("id", departmentId)
-      .eq("company_id", company.id)
-      .maybeSingle();
-    if (!dept) return { status: "error", message: "Unknown department." };
+  if (departmentId && !(await listDepartments({ companyIds: [company.id] })).some((d) => d.id === departmentId)) {
+    return { status: "error", message: "Unknown department." };
   }
   const expense = validateExpense(input.expense, company.gstin);
   if (!expense.ok) Object.assign(fieldErrors, expense.errors);

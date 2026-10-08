@@ -9,6 +9,15 @@ export function clean(value: string | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, "");
 }
 
+/**
+ * True when sign-in can work: the public URL (a real http(s) URL) and anon key are set.
+ * Shared by middleware, the login actions and /auth/callback so all fail the same way.
+ */
+export function isAuthConfigured(): boolean {
+  const url = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  return Boolean(url && clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) && isHttpUrl(url));
+}
+
 /** True for an absolute http(s) URL — guards against e.g. a key pasted into the URL slot. */
 export function isHttpUrl(value: string): boolean {
   try {

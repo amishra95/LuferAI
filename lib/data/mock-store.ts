@@ -9,6 +9,7 @@ import type {
   CorporatePolicy,
   CorporateRateCard,
   CorporateRole,
+  Department,
   ExpenseExport,
   InventoryHold,
   PlatformUser,
@@ -18,8 +19,10 @@ import type {
 import { determineGstType } from "@/lib/gst-engine";
 
 /**
- * In-memory mirror of supabase/seed.sql, used when Supabase env vars are not set.
- * Lives on globalThis so it survives hot reloads in `next dev`. Resets on restart.
+ * Mirror of supabase/seed.sql, used when Supabase env vars are not set: seeds the
+ * Upstash Redis store (lib/data/local-store.ts) once, or backs an in-memory copy
+ * when Redis isn't configured either. The in-memory copy lives on globalThis so it
+ * survives hot reloads in `next dev`, and resets on restart.
  */
 
 const ts = "2026-09-01T09:00:00.000Z";
@@ -138,7 +141,7 @@ const bookings: Booking[] = [
     sac_code: "998596",
     gst_type: "CGST_SGST",
     commission_rate: venues[0].commission_rate,
-    department_id: null,
+    department_id: "dddddddd-0001-4000-8000-000000000001",
     list_budget_per_head_inr: null,
     rate_card_id: null,
     status: "CONFIRMED",
@@ -160,7 +163,7 @@ const bookings: Booking[] = [
     sac_code: "998596",
     gst_type: "IGST",
     commission_rate: venues[4].commission_rate,
-    department_id: null,
+    department_id: "dddddddd-0004-4000-8000-000000000004",
     list_budget_per_head_inr: null,
     rate_card_id: null,
     status: "COMPLETED",
@@ -182,7 +185,7 @@ const bookings: Booking[] = [
     sac_code: "998596",
     gst_type: "CGST_SGST",
     commission_rate: venues[2].commission_rate,
-    department_id: null,
+    department_id: "dddddddd-0002-4000-8000-000000000002",
     list_budget_per_head_inr: null,
     rate_card_id: null,
     status: "PENDING",
@@ -299,8 +302,27 @@ const rateCards: CorporateRateCard[] = [
     effective_from: "2026-01-01", effective_to: null, created_at: ts, updated_at: ts },
 ];
 
-interface MockDb {
+const department = (id: string, company_id: string, name: string, annual_budget_inr: number): Department => ({
+  id,
+  company_id,
+  name,
+  annual_budget_inr,
+  created_at: ts,
+  updated_at: ts,
+});
+
+// FY budgets, pre-GST (seed.sql "Departments").
+const departments: Department[] = [
+  department("dddddddd-0001-4000-8000-000000000001", NIMBUS, "Engineering", 600000),
+  department("dddddddd-0002-4000-8000-000000000002", NIMBUS, "Sales", 900000),
+  department("dddddddd-0003-4000-8000-000000000003", NIMBUS, "People & Culture", 250000),
+  department("dddddddd-0004-4000-8000-000000000004", VERTEX, "Investor Relations", 1500000),
+  department("dddddddd-0005-4000-8000-000000000005", VERTEX, "Leadership", 800000),
+];
+
+export interface MockDb {
   companies: Company[];
+  departments: Department[];
   venues: Venue[];
   bookings: Booking[];
   onboarding: VenueOnboardingRequest[];
@@ -316,10 +338,30 @@ interface MockDb {
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
 
+/** A fresh copy of the seed rows (structuredClone so callers can't mutate the originals). */
+export function seedDb(): MockDb {
+  return structuredClone({
+    companies,
+    departments,
+    venues,
+    bookings,
+    onboarding,
+    users,
+    policies,
+    approvalChains,
+    approvals: [],
+    approvalComments: [],
+    holds: [],
+    rateCards,
+    expenseExports: [],
+  });
+}
+
 // Spread the existing store last so a hot reload keeps its state but still
 // picks up collections added since it was created.
 export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   companies,
+  departments,
   venues,
   bookings,
   onboarding,
@@ -335,9 +377,9 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
 });
 
 /** Mock equivalent of the bookings_derive_gst_type trigger (billing GSTIN decides the place of supply when set). */
-export function mockGstType(companyId: string, venueId: string, billingGstin?: string | null) {
-  const c = mockDb.companies.find((x) => x.id === companyId);
-  const v = mockDb.venues.find((x) => x.id === venueId);
+export function mockGstType(db: MockDb, companyId: string, venueId: string, billingGstin?: string | null) {
+  const c = db.companies.find((x) => x.id === companyId);
+  const v = db.venues.find((x) => x.id === venueId);
   if (!c || !v) throw new Error("Unknown company or venue");
   return determineGstType(billingGstin || c.gstin, v.gstin);
 }

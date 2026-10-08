@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import { AGENT_GRID, AgentRow } from "@/components/agents/agent-row";
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { agentSnapshot } from "@/lib/agents/store";
+import { isRedisConfigured } from "@/lib/data/local-store";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Agents" };
 
-export default function AgentsPage() {
-  const { now, agents } = agentSnapshot();
+export default async function AgentsPage() {
+  const { now, agents } = await agentSnapshot();
   const counts = agents.reduce<Record<string, number>>((acc, { status }) => ({ ...acc, [status]: (acc[status] ?? 0) + 1 }), {});
 
   return (
@@ -16,7 +17,7 @@ export default function AgentsPage() {
       <PageHeader
         title="Agents"
         description="Switch agents on, assign their tools and smoke-test them against live app data."
-        badge={<NoticePill>in memory</NoticePill>}
+        badge={<NoticePill>{isRedisConfigured() ? "settings in memory · runs in redis" : "in memory"}</NoticePill>}
         actions={
           <p className="text-fg-subtle font-mono text-[11.5px]">
             {(["active", "idle", "error", "disabled"] as const)
@@ -44,7 +45,7 @@ export default function AgentsPage() {
 
       <p className="text-fg-subtle mt-4 text-[12.5px] leading-5">
         Test runs call each assigned tool once with a sample input and don&apos;t call the model. Chat messages count as workspace-agent
-        runs. Settings live in server memory and reset on restart.
+        runs. Settings live in server memory and reset on restart; run counts are kept in Upstash Redis when it&apos;s configured.
       </p>
     </Page>
   );

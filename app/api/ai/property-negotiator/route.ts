@@ -14,6 +14,7 @@ import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { negotiatorTools, type NegotiatorUIMessage } from "@/lib/negotiator";
 import { createClient } from "@/lib/supabase/server";
+import { logAgentRun } from "@/lib/telemetry/runs";
 
 /**
  * Streaming chat for venue hosts to tune minimum spend and dietary menu packages.
@@ -53,6 +54,8 @@ export async function POST(request: NextRequest) {
   if (!validated.success) return NextResponse.json({ error: "invalid_messages" }, { status: 400 });
   const messages = validated.data;
 
+  const started = Date.now();
+  const task = `Pricing session for venue ${venueId.slice(0, 8)}`;
   const result = streamText({
     model,
     instructions: [
@@ -71,6 +74,12 @@ export async function POST(request: NextRequest) {
     },
     experimental_toolApprovalSecret: approvalSecret,
     stopWhen: isStepCount(5),
+    onError({ error }) {
+      console.error("property-negotiator: stream failed", error);
+      void logAgentRun("property-negotiator", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: error instanceof Error ? error.message : "Stream failed" });
+    },
+    onEnd: ({ totalUsage, steps }) =>
+      logAgentRun("property-negotiator", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: steps.length }),
   });
 
   return createUIMessageStreamResponse({

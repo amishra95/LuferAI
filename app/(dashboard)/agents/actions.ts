@@ -89,7 +89,7 @@ export async function runAgentTest(id: string): Promise<AgentTestResult> {
   );
 
   const result: AgentTestResult = { ok: tools.every((t) => t.ok), durationMs: Math.round(performance.now() - started), tools };
-  recordRun(id, {
+  await recordRun(id, {
     at: new Date().toISOString(),
     ok: result.ok,
     durationMs: result.durationMs,

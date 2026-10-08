@@ -1,6 +1,6 @@
 import "server-only";
 
-import { dataSource, listVenues } from "@/lib/data";
+import { dataSource, listDepartments, listVenues } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
@@ -45,7 +45,7 @@ export async function getVenueCatalog(companyId: string): Promise<{ venues: Cata
   if (dataSource() !== "supabase") {
     return {
       venues: venues.map((v) => ({ ...v, min_spend_inr: Number(v.min_spend_inr), latitude: v.latitude, longitude: v.longitude, rate_card: null, packages: [] })),
-      departments: [],
+      departments: await listDepartments({ companyIds: [companyId] }),
     };
   }
 

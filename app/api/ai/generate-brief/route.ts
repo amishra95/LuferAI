@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
 import { getCurrentMember } from "@/lib/auth/session";
 import { listBookings, listVenues } from "@/lib/data";
+import { logAgentRun } from "@/lib/telemetry/runs";
 import { formatDate, formatINR } from "@/lib/utils";
 
 export const maxDuration = 30;
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
     `Private dining room: ${venue.pdr_available ? "available" : "not available"}`,
   ].join("\n");
 
+  const started = Date.now();
+  const task = `Event brief for booking ${booking.id.slice(0, 8)}`;
   const result = streamText({
     model,
     system:
@@ -62,7 +65,10 @@ export async function POST(req: Request) {
     prompt: `${facts}\n\nClient notes:\n"""\n${booking.notes ?? "(none)"}\n"""`,
     onError({ error }) {
       console.error("generate-brief: stream failed", error);
+      void logAgentRun("brief-writer", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: error instanceof Error ? error.message : "Stream failed" });
     },
+    onEnd: ({ totalUsage, steps }) =>
+      logAgentRun("brief-writer", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: steps.length }),
   });
 
   return createUIMessageStreamResponse({

@@ -2,8 +2,7 @@ import "server-only";
 
 import { financialYear } from "@/lib/fiscal-year";
 import { roundInr, sumInr, todayInIndia } from "@/lib/gst-engine";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { dataSource, listBookings, type BookingDetail } from "./index";
+import { listBookings, listCompanies, listDepartments, type BookingDetail } from "./index";
 
 /**
  * Executive spend analytics for /admin. "Spend" is the pre-GST taxable value
@@ -64,10 +63,12 @@ function fyMonths(start: string, through: string): string[] {
   return out;
 }
 
-export async function getSpendAnalytics(bookings?: BookingDetail[]): Promise<SpendAnalytics> {
+/** Platform-wide, or one company's with `companyId` (its bookings and departments only). */
+export async function getSpendAnalytics(bookings?: BookingDetail[], scope: { companyId?: string } = {}): Promise<SpendAnalytics> {
+  const { companyId } = scope;
   const today = todayInIndia();
   const fy = financialYear(today);
-  const all = (bookings ?? (await listBookings())).filter(committed);
+  const all = (bookings ?? (await listBookings({ companyId }))).filter((b) => committed(b) && (!companyId || b.company_id === companyId));
   const inFy = all.filter((b) => b.event_date >= fy.start && b.event_date <= fy.end);
   const toDate = inFy.filter((b) => b.event_date <= today);
 
@@ -85,21 +86,16 @@ export async function getSpendAnalytics(bookings?: BookingDetail[]): Promise<Spe
     };
   });
 
-  let departments: DepartmentUsage[] = [];
-  if (dataSource() === "supabase") {
-    const { data } = await createAdminClient()
-      .from("departments")
-      .select("id, name, annual_budget_inr, company:companies(legal_name)")
-      .gt("annual_budget_inr", 0);
-    departments = (data ?? [])
-      .map((d) => {
-        const spent = sumInr(inFy.filter((b) => b.department_id === d.id).map((b) => b.total_amount_inr));
-        const budget = Number(d.annual_budget_inr);
-        const company = (d.company as { legal_name: string } | null)?.legal_name.replace(" Private Limited", "") ?? "";
-        return { id: d.id, label: d.name, company, spent, budget, pct: budget > 0 ? (spent / budget) * 100 : 0 };
-      })
-      .sort((a, b) => b.pct - a.pct);
-  }
+  const [allDepartments, companies] = await Promise.all([listDepartments({ companyIds: companyId ? [companyId] : undefined }), listCompanies()]);
+  const companyName = new Map(companies.map((c) => [c.id, c.legal_name.replace(" Private Limited", "")]));
+  const departments: DepartmentUsage[] = allDepartments
+    .filter((d) => d.annual_budget_inr > 0)
+    .map((d) => {
+      const spent = sumInr(inFy.filter((b) => b.department_id === d.id).map((b) => b.total_amount_inr));
+      const budget = Number(d.annual_budget_inr);
+      return { id: d.id, label: d.name, company: companyName.get(d.company_id) ?? "", spent, budget, pct: (spent / budget) * 100 };
+    })
+    .sort((a, b) => b.pct - a.pct);
 
   return {
     fyLabel: fy.label,

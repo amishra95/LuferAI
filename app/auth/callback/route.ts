@@ -2,6 +2,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { canAccess, homeFor, portalFor, safeNextPath } from "@/lib/auth/roles";
+import { isAuthConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = safeNextPath(searchParams.get("next"));
+  if (!isAuthConfigured()) return NextResponse.redirect(new URL("/login?error=auth_unconfigured", request.url));
 
   const supabase = await createClient();
   const { error } = code

@@ -4,6 +4,7 @@ import { generateText, isStepCount, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 
 import { getAgent, recordRun } from "@/lib/agents/store";
+import { clip } from "@/lib/telemetry/runs";
 import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
 import { getLanguageModel } from "@/lib/ai/model";
 import { venueSearchSchema } from "@/lib/ai/venue-sourcing";
@@ -312,7 +313,16 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
       console.error("channels: failed to update message log", err);
     }
     if (r.status !== "ignored") {
-      recordRun("channel-concierge", { at: new Date().toISOString(), ok: r.status !== "failed" && !r.error, durationMs, source: msg.channel, error: r.error });
+      void recordRun("channel-concierge", {
+        at: new Date().toISOString(),
+        ok: r.status !== "failed" && !r.error,
+        durationMs,
+        source: msg.channel,
+        error: r.error,
+        task: `${msg.channel === "whatsapp" ? "WhatsApp" : "Slack"}: “${clip(msg.text)}”`,
+        tokens: extra.tokens,
+        steps: extra.steps ?? r.tools.length,
+      });
     }
     return { eventId, ...r };
   };

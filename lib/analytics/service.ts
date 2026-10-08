@@ -1,9 +1,9 @@
 import "server-only";
 
+import type { Member } from "@/lib/auth/session";
 import { financialYear } from "@/lib/fiscal-year";
 import { roundInr, todayInIndia } from "@/lib/gst-engine";
-import { dataSource, listBookings, listCompanies, type BookingDetail } from "@/lib/data";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { listBookings, listCompanies, listDepartments as listCompanyDepartments, type BookingDetail } from "@/lib/data";
 import {
   analyzeSpend,
   budgetOutlook,
@@ -25,6 +25,14 @@ import {
  */
 export type AnalyticsScope = { kind: "platform" } | { kind: "company"; companyId: string; companyName: string };
 
+/** Admins see the platform; client users their own company; everyone else nothing. */
+export async function analyticsScopeFor(member: Pick<Member, "role" | "companyId">): Promise<AnalyticsScope | null> {
+  if (member.role === "ADMIN") return { kind: "platform" };
+  if (member.role !== "CLIENT" || !member.companyId) return null;
+  const company = (await listCompanies()).find((c) => c.id === member.companyId);
+  return company ? { kind: "company", companyId: company.id, companyName: company.legal_name.replace(" Private Limited", "") } : null;
+}
+
 interface Department {
   id: string;
   name: string;
@@ -33,12 +41,7 @@ interface Department {
 }
 
 async function listDepartments(companyIds?: string[]): Promise<Department[]> {
-  if (dataSource() !== "supabase") return [];
-  let query = createAdminClient().from("departments").select("id, name, company_id, annual_budget_inr");
-  if (companyIds) query = query.in("company_id", companyIds);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data.map((d) => ({ ...d, annual_budget_inr: Number(d.annual_budget_inr) }));
+  return (await listCompanyDepartments({ companyIds })).map(({ id, name, company_id, annual_budget_inr }) => ({ id, name, company_id, annual_budget_inr }));
 }
 
 function toFinance(bookings: BookingDetail[], departments: Map<string, string>): FinanceBooking[] {
