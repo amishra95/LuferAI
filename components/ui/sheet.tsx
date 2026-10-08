@@ -76,7 +76,7 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close
             className={cn(
-              "absolute right-2 grid size-11 place-items-center rounded-md text-fg-subtle transition-colors hover:bg-surface-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden disabled:pointer-events-none",
+              "absolute right-2 z-10 grid size-11 place-items-center rounded-full bg-background/70 backdrop-blur-sm text-fg-subtle transition-colors hover:bg-surface-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden disabled:pointer-events-none",
               // Side drawers are full height: clear the status bar.
               side === "bottom" ? "top-2" : "top-[calc(0.5rem+var(--app-safe-top))]"
             )}
