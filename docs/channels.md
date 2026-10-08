@@ -18,7 +18,8 @@ policy and manager approval.
 1. The signature is checked over the raw body (`X-Hub-Signature-256` / `X-Slack-Signature`, with
    Slack's 5-minute replay window). Unsigned or stale requests get `401`.
 2. The delivery ID is recorded in `channel_webhook_receipts`; platform retries are acknowledged and
-   dropped, across server instances.
+   dropped, across server instances. If the hand-off to the reply workflow fails, the receipt is
+   released before the `503`, so the retry is processed rather than dropped.
 3. The route answers `200` immediately. The agent runs in `after()`, then the reply is sent via
    the Graph API / `chat.postMessage` and the outcome is written to `channel_messages.delivery_status`.
 4. If storage is unavailable the route answers `503`, so Meta and Slack retry later instead of

@@ -1,5 +1,6 @@
 import { env, isChannelConfigured } from "@/lib/channels/config";
 import { dispatchReply } from "@/lib/channels/dispatch";
+import { handOff } from "@/lib/channels/handoff";
 import { tokensMatch, verifyMetaSignature } from "@/lib/channels/signatures";
 import { channelStore } from "@/lib/channels/store";
 import { extractWhatsAppMessages } from "@/lib/channels/whatsapp";
@@ -41,8 +42,7 @@ async function handleWhatsApp(req: Request) {
     if (!(await store.isEnabled("whatsapp"))) return new Response(null, { status: 200 });
 
     for (const m of extractWhatsAppMessages(payload)) {
-      if (!(await store.firstDelivery(`wa:${m.id}`))) continue;
-      await dispatchReply({ senderId: m.from, text: m.text, target: { channel: "whatsapp", to: m.from } });
+      await handOff(store, `wa:${m.id}`, () => dispatchReply({ senderId: m.from, text: m.text, target: { channel: "whatsapp", to: m.from } }));
     }
   } catch (err) {
     // Store unavailable: a 5xx makes Meta retry later instead of dropping the message.

@@ -65,4 +65,7 @@ export const memoryStore: ChannelStore = {
     state.seen.set(key, now);
     return true;
   },
+  async releaseDelivery(key) {
+    state.seen.delete(key);
+  },
 };

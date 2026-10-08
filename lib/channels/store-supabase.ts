@@ -183,4 +183,8 @@ export const supabaseStore: ChannelStore = {
     if (error.code === "23505") return false; // unique violation: already received
     fail("record webhook receipt", error);
   },
+  async releaseDelivery(key) {
+    const { error } = await createAdminClient().from("channel_webhook_receipts").delete().eq("key", key);
+    if (error) fail("release webhook receipt", error);
+  },
 };
