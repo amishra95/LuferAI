@@ -42,7 +42,7 @@ export default function Home() {
       <div className="mt-10 grid gap-4 md:grid-cols-3">
         {portals.map(({ href, icon: Icon, title, audience, body }) => (
           <Link key={href} href={href} className="group">
-            <Card className="h-full transition-shadow group-hover:shadow-md">
+            <Card className="h-full transition-shadow">
               <CardHeader>
                 <Icon className="text-fg-subtle mb-2 size-5" strokeWidth={1.75} aria-hidden />
                 <CardTitle className="flex items-center gap-1">

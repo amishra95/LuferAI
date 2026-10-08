@@ -45,7 +45,7 @@ export function PromptBar({
         e.preventDefault();
         submit();
       }}
-      className="border-line-strong bg-elevated/85 focus-within:border-copper-deep/50 focus-within:ring-[3px] focus-within:ring-copper/15 rounded-2xl border shadow-[0_1px_2px_rgb(9_9_11/0.05),0_16px_40px_-18px_rgb(9_9_11/0.22)] backdrop-blur-xl transition-colors"
+      className="border-line-strong bg-elevated/85 focus-within:border-fg/50 focus-within:ring-[3px] focus-within:ring-fg/15 rounded-lg border transition-colors"
     >
       <label htmlFor="prompt" className="sr-only">
         Message the agent
@@ -77,7 +77,7 @@ export function PromptBar({
           aria-pressed={inspectorOpen}
           className={cn("btn btn-ghost h-7 rounded-lg px-2 text-[12px]", inspectorOpen && "text-fg")}
         >
-          <PanelRight className={cn("size-3.5", inspectorOpen && "text-copper-deep")} aria-hidden /> Inspector
+          <PanelRight className={cn("size-3.5", inspectorOpen && "text-fg")} aria-hidden /> Inspector
         </button>
         <span className="text-fg-subtle ml-auto hidden pr-2 font-mono text-[10.5px] sm:inline">
           {value.length > MAX_LENGTH * 0.8 ? `${value.length}/${MAX_LENGTH}` : "↵ send  ⇧↵ newline"}
@@ -87,7 +87,7 @@ export function PromptBar({
             type="button"
             onClick={onStop}
             aria-label="Stop generating"
-            className="border-copper-deep/30 bg-copper/10 text-copper-ink hover:bg-copper/15 grid size-8 place-items-center rounded-xl border transition-colors"
+            className="border-fg/30 bg-fg/10 text-fg hover:bg-fg/15 grid size-8 place-items-center rounded-lg border transition-colors"
           >
             <Square className="size-2.5 fill-current" aria-hidden />
           </button>
@@ -96,7 +96,7 @@ export function PromptBar({
             type="submit"
             disabled={!text || disabled}
             aria-label="Send message"
-            className="bg-copper-deep hover:bg-copper-ink disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-xl text-white shadow-[0_1px_2px_rgb(180_83_9/0.35)] transition-colors disabled:shadow-none"
+            className="bg-fg text-canvas hover:bg-fg-muted disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-md transition-colors"
           >
             <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
           </button>

@@ -116,7 +116,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             )}
           >
             {t.label}
-            {activeTab === t.key && <span aria-hidden className="bg-copper-deep absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
+            {activeTab === t.key && <span aria-hidden className="bg-fg absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
           </Link>
         ))}
       </nav>
@@ -153,7 +153,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                           </div>
                           {can.has("listing.edit") ? (
                             <details className="mt-2">
-                              <summary className="text-copper-ink cursor-pointer text-[12px] hover:underline">Edit details</summary>
+                              <summary className="text-fg cursor-pointer text-[12px] hover:underline">Edit details</summary>
                               <div className="mt-3">
                                 <ListingForm
                                   partnerId={formPartnerId}

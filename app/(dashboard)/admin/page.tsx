@@ -221,7 +221,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                         {e.payload_sha256.slice(0, 16)}…
                       </TableCell>
                       <TableCell className="text-right">
-                        <a href={`/api/exports/${e.id}`} download className="text-copper-ink text-[12px] hover:underline">
+                        <a href={`/api/exports/${e.id}`} download className="text-fg text-[12px] hover:underline">
                           receipt.json
                         </a>
                       </TableCell>

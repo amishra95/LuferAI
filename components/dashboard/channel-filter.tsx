@@ -29,7 +29,7 @@ export function ChannelFilter({ value, counts }: { value: ChannelFilterValue; co
             aria-current={active ? "page" : undefined}
             className={cn(
               "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] whitespace-nowrap transition-colors",
-              active ? "bg-surface text-fg font-medium shadow-[0_1px_2px_rgb(9_9_11/0.08)] ring-1 ring-line" : "text-fg-subtle hover:text-fg"
+              active ? "bg-surface text-fg font-medium ring-1 ring-line" : "text-fg-subtle hover:text-fg"
             )}
           >
             {o.label}

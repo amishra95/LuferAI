@@ -135,8 +135,8 @@ export function ChannelCard(props: ChannelCardProps) {
       <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden /> setup needed
     </span>
   ) : enabled ? (
-    <span className="pill pill-copper">
-      <span className="live-dot" aria-hidden /> live
+    <span className="pill">
+      <span className="status-dot bg-sage" aria-hidden /> live
     </span>
   ) : (
     <span className="pill">
@@ -161,7 +161,7 @@ export function ChannelCard(props: ChannelCardProps) {
       </header>
 
       {loadError && (
-        <p role="alert" className="border-rose/20 bg-rose/[0.04] text-rose mx-5 mb-4 flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] sm:mx-6">
+        <p role="alert" className="border-rose/20 bg-rose/[0.04] text-rose mx-5 mb-4 flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-[12.5px] sm:mx-6">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             Couldn&apos;t load this channel&apos;s state: <span className="font-mono text-[11.5px]">{loadError}</span>. Webhooks answer with 503 (so Meta and
@@ -181,7 +181,7 @@ export function ChannelCard(props: ChannelCardProps) {
             className={cn("relative h-10 px-2.5 text-[12.5px] capitalize transition-colors", tab === t ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
           >
             {t === "senders" ? `Senders · ${props.links.length}` : t}
-            {tab === t && <span aria-hidden className="bg-copper-deep absolute inset-x-2 -bottom-px h-[2px] rounded-full" />}
+            {tab === t && <span aria-hidden className="bg-fg absolute inset-x-2 -bottom-px h-[2px] rounded-full" />}
           </button>
         ))}
       </div>
@@ -281,7 +281,7 @@ function SendersTab({
       </p>
 
       {links.length > 0 ? (
-        <ul className="border-line divide-line divide-y rounded-xl border">
+        <ul className="border-line divide-line divide-y rounded-lg border">
           {links.map((l) => (
             <li key={l.senderId} className="flex items-center gap-3 px-3.5 py-2.5">
               <span className="text-fg font-mono text-[12px]">{channel === "whatsapp" ? `+${l.senderId}` : l.senderId}</span>
@@ -303,7 +303,7 @@ function SendersTab({
           ))}
         </ul>
       ) : (
-        <p className="border-line text-fg-subtle rounded-xl border border-dashed px-4 py-5 text-center text-[12.5px]">No linked senders yet.</p>
+        <p className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-5 text-center text-[12.5px]">No linked senders yet.</p>
       )}
 
       <form onSubmit={submitWithoutReset(action)} className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem_auto] sm:items-end">
@@ -410,13 +410,13 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
       </form>
 
       {pending ? (
-        <div className="border-line rounded-xl border bg-zinc-50 p-4" aria-hidden>
+        <div className="border-line rounded-lg border bg-surface-hover p-4" aria-hidden>
           <div className="bg-surface-raised h-3 w-24 animate-pulse rounded" />
           <div className="bg-surface-raised mt-3 h-3 w-full animate-pulse rounded" />
           <div className="bg-surface-raised mt-2 h-3 w-2/3 animate-pulse rounded" />
         </div>
       ) : failed && state.status === "error" ? (
-        <div role="alert" className="border-rose/25 bg-rose/[0.04] rounded-xl border p-4">
+        <div role="alert" className="border-rose/25 bg-rose/[0.04] rounded-lg border p-4">
           <p className="text-rose flex items-center gap-2 text-[13px] font-medium">
             <TriangleAlert className="size-4" aria-hidden /> {state.message ?? "The run failed."}
           </p>
@@ -424,10 +424,10 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
           {state.error && <p className="text-fg-subtle mt-2 font-mono text-[11.5px] break-words">{state.error}</p>}
         </div>
       ) : state.reply ? (
-        <div className="border-line rounded-xl border bg-zinc-50 p-4" aria-live="polite">
+        <div className="border-line rounded-lg border bg-surface-hover p-4" aria-live="polite">
           <p className="label-mono mb-2 flex flex-wrap items-center gap-2">
             Reply
-            <span className={cn("pill normal-case", state.outcome === "booked" && "pill-copper")}>{OUTCOME_LABEL[state.outcome ?? "replied"]}</span>
+            <span className={cn("pill normal-case", state.outcome === "booked" && "")}>{OUTCOME_LABEL[state.outcome ?? "replied"]}</span>
             {state.tools?.length ? <span className="text-fg-subtle font-normal tracking-normal normal-case">{state.tools.join(" → ")}</span> : null}
           </p>
           <p className="text-fg text-[13px] leading-6 whitespace-pre-wrap">

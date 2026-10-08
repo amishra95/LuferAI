@@ -16,7 +16,7 @@ export type SessionInfo = {
 };
 
 const PHASE_DOT = {
-  running: "live-dot",
+  running: "status-dot bg-sage",
   done: "size-1.5 rounded-full bg-sage",
   error: "size-1.5 rounded-full bg-rose",
   denied: "size-1.5 rounded-full border border-fg-faint",
@@ -36,7 +36,7 @@ function Section({ title, children, aside }: { title: string; children: React.Re
 
 function Json({ value }: { value: unknown }) {
   return (
-    <pre className="border-line text-fg-muted max-h-72 overflow-auto rounded-lg border bg-zinc-50 p-3 font-mono text-[11px] leading-5">
+    <pre className="border-line text-fg-muted max-h-72 overflow-auto rounded-lg border bg-surface-hover p-3 font-mono text-[11px] leading-5">
       {value === undefined ? "—" : JSON.stringify(value, null, 2)}
     </pre>
   );
@@ -60,7 +60,7 @@ export function Inspector({
     ["model", session.model],
     [
       "mode",
-      <span key="m" className={session.offline ? "text-fg-muted" : "text-copper-ink"}>
+      <span key="m" className={session.offline ? "text-fg-muted" : "text-fg"}>
         {session.offline ? "offline" : "live"}
       </span>,
     ],

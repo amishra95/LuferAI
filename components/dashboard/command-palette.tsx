@@ -227,9 +227,9 @@ export function CommandPalette({
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Command palette">
-      <div className="animate-in fade-in absolute inset-0 bg-zinc-950/25 backdrop-blur-[2px] duration-150" onClick={close} aria-hidden />
+      <div className="animate-in fade-in absolute inset-0 bg-black/60 duration-100" onClick={close} aria-hidden />
       <div
-        className="bg-elevated border-line animate-in fade-in zoom-in-95 absolute top-[12vh] left-1/2 flex max-h-[min(32rem,76vh)] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border shadow-2xl shadow-zinc-900/20 duration-150"
+        className="bg-elevated border-line animate-in fade-in absolute top-[12vh] left-1/2 flex max-h-[min(32rem,76vh)] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-lg border duration-100"
         onKeyDown={onKeyDown}
       >
         <div className="border-line flex items-center gap-2.5 border-b px-4">
@@ -288,7 +288,7 @@ export function CommandPalette({
                             selected ? "bg-surface-raised text-fg" : "text-fg-muted"
                           )}
                         >
-                          <Icon className={cn("size-4 shrink-0", selected ? "text-copper-deep" : "text-fg-faint")} strokeWidth={1.75} aria-hidden />
+                          <Icon className={cn("size-4 shrink-0", selected ? "text-fg" : "text-fg-faint")} strokeWidth={1.75} aria-hidden />
                           <span className="min-w-0 flex-1">
                             <span className="text-fg block truncate text-[13.5px]">{item.title}</span>
                             {item.subtitle && <span className="text-fg-subtle block truncate text-[12px]">{item.subtitle}</span>}

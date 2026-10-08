@@ -8,8 +8,8 @@ import type { DepartmentUsage, MonthPoint } from "@/lib/data/analytics";
 import { formatINR } from "@/lib/utils";
 
 /**
- * Executive spend charts. Each is a single series in --chart-1 (validated on the
- * white surface), so the card title names it and no legend is needed. Status
+ * Executive spend charts. Each is a single series in --chart-1 (light grey on
+ * the carbon surface), so the card title names it and no legend is needed. Status
  * red is reserved for over-budget bars and always comes with an icon + label.
  * Every chart has a hover tooltip and a table view underneath.
  */
@@ -23,7 +23,7 @@ const compactINR = (n: number) =>
         ? `₹${Math.round(n / 1000)}k`
         : `₹${n}`;
 
-const axis = { stroke: "var(--color-zinc-300)", tick: { fill: "var(--color-zinc-500)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
+const axis = { stroke: "var(--color-line-strong)", tick: { fill: "var(--color-fg-subtle)", fontSize: 12 }, tickLine: false, axisLine: false } as const;
 
 export function DataTable({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
   return (
@@ -67,17 +67,11 @@ export function CumulativeSpendChart({ months }: { months: MonthPoint[] }) {
     <div>
       <ChartContainer config={spendConfig} className="aspect-auto h-64 w-full">
         <AreaChart data={months} margin={{ left: 4, right: 12, top: 8 }}>
-          <defs>
-            <linearGradient id="fill-cumulative" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-cumulative)" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="var(--color-cumulative)" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid vertical={false} stroke="var(--color-zinc-700)" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="3 3" />
           <XAxis dataKey="label" {...axis} tickMargin={8} />
           <YAxis {...axis} width={56} tickFormatter={compactINR} />
           <ChartTooltip
-            cursor={{ stroke: "var(--color-zinc-500)" }}
+            cursor={{ stroke: "var(--color-fg-faint)" }}
             content={
               <ChartTooltipContent
                 indicator="line"
@@ -99,8 +93,9 @@ export function CumulativeSpendChart({ months }: { months: MonthPoint[] }) {
             type="monotone"
             stroke="var(--color-cumulative)"
             strokeWidth={2}
-            fill="url(#fill-cumulative)"
-            activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--color-white)" }}
+            fill="var(--color-cumulative)"
+            fillOpacity={0.06}
+            activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--color-canvas)" }}
           />
         </AreaChart>
       </ChartContainer>
@@ -136,18 +131,18 @@ export function DepartmentBudgetChart({ departments }: { departments: Department
   return (
     <div>
       {over > 0 ? (
-        <p className="mb-2 inline-flex items-center gap-1.5 text-xs text-red-700">
+        <p className="mb-2 inline-flex items-center gap-1.5 text-xs text-rose">
           <AlertTriangle className="size-3.5" aria-hidden /> {over} department{over === 1 ? "" : "s"} over budget
         </p>
       ) : null}
       <ChartContainer config={deptConfig} className="aspect-auto w-full" style={{ height: Math.max(160, data.length * 44 + 40) }}>
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 64, top: 22, bottom: 4 }} barCategoryGap={10}>
-          <CartesianGrid horizontal={false} stroke="var(--color-zinc-700)" strokeDasharray="3 3" />
+          <CartesianGrid horizontal={false} stroke="var(--color-line)" strokeDasharray="3 3" />
           <XAxis type="number" domain={[0, xMax]} ticks={ticks} {...axis} tickFormatter={(v) => `${v}%`} />
           <YAxis type="category" dataKey="name" {...axis} width={148} tickMargin={6} />
-          <ReferenceLine x={100} stroke="var(--color-zinc-500)" strokeDasharray="4 4" label={{ value: "Budget", fill: "var(--color-zinc-500)", fontSize: 11, position: "top", offset: 8 }} />
+          <ReferenceLine x={100} stroke="var(--color-fg-faint)" strokeDasharray="4 4" label={{ value: "Budget", fill: "var(--color-fg-subtle)", fontSize: 11, position: "top", offset: 8 }} />
           <ChartTooltip
-            cursor={{ fill: "var(--color-zinc-700)", opacity: 0.4 }}
+            cursor={{ fill: "var(--color-surface-raised)" }}
             content={
               <ChartTooltipContent
                 hideIndicator
@@ -167,7 +162,7 @@ export function DepartmentBudgetChart({ departments }: { departments: Department
             {data.map((d) => (
               <Cell key={d.id} fill={d.pct > 100 ? "var(--chart-critical)" : "var(--color-pct)"} />
             ))}
-            <LabelList dataKey="tag" position="right" offset={8} fill="var(--color-zinc-700)" fontSize={12} />
+            <LabelList dataKey="tag" position="right" offset={8} fill="var(--color-fg-subtle)" fontSize={12} />
           </Bar>
         </BarChart>
       </ChartContainer>
@@ -193,11 +188,11 @@ export function SavingsChart({ months }: { months: MonthPoint[] }) {
     <div>
       <ChartContainer config={savingsConfig} className="aspect-auto h-56 w-full">
         <BarChart data={months} margin={{ left: 4, right: 8, top: 8 }} barCategoryGap="30%">
-          <CartesianGrid vertical={false} stroke="var(--color-zinc-700)" strokeDasharray="3 3" />
+          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="3 3" />
           <XAxis dataKey="label" {...axis} tickMargin={8} />
           <YAxis {...axis} width={52} tickFormatter={compactINR} />
           <ChartTooltip
-            cursor={{ fill: "var(--color-zinc-700)", opacity: 0.4 }}
+            cursor={{ fill: "var(--color-surface-raised)" }}
             content={<ChartTooltipContent formatter={(v) => <span className="font-medium text-fg tabular-nums">{formatINR(Number(v))} saved</span>} />}
           />
           <Bar dataKey="savings" fill="var(--color-savings)" radius={[4, 4, 0, 0]} maxBarSize={28} />

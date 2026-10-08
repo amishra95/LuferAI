@@ -29,7 +29,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
   if (member.role !== "ADMIN" && !member.canApprove) {
     return (
       <PortalShell portal="/client/approvals" title="Approvals" subtitle="Bookings outside company policy">
-        <div className="glass mx-auto grid max-w-md justify-items-center gap-3 rounded-2xl p-8 text-center">
+        <div className="glass mx-auto grid max-w-md justify-items-center gap-3 rounded-lg p-8 text-center">
           <ClipboardCheck className="size-6 text-fg-subtle" aria-hidden />
           <p className="text-sm text-fg-muted">
             You&apos;re not on {company.legal_name.replace(" Private Limited", "")}&apos;s approval chain. Ask a platform
@@ -55,13 +55,13 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
       title="Approvals"
       subtitle={`${company.legal_name.replace(" Private Limited", "")} · ${queue.length} request${queue.length === 1 ? "" : "s"} awaiting your sign-off`}
     >
-      <div className="grid overflow-hidden rounded-2xl border border-line/60 bg-surface lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="grid overflow-hidden rounded-lg border border-line/60 bg-surface lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* Queue */}
         <section aria-label="Pending approvals" className={cn("lg:border-r lg:border-line/60", detail && "max-lg:hidden")}>
           {queue.length === 0 ? (
             <div className="grid min-h-64 place-items-center p-8 text-center text-sm text-fg-subtle">
               <div className="grid justify-items-center gap-2">
-                <CircleCheck className="size-6 text-emerald-700" aria-hidden />
+                <CircleCheck className="size-6 text-sage" aria-hidden />
                 Nothing waiting for you.
               </div>
             </div>
@@ -74,7 +74,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
                     aria-current={a.id === selected?.id ? "true" : undefined}
                     className={cn(
                       "grid min-h-11 gap-1.5 px-4 py-4 transition hover:bg-surface-hover",
-                      a.id === selected?.id && "bg-surface-raised shadow-[inset_3px_0_0] shadow-amber-400"
+                      a.id === selected?.id && "bg-surface-raised shadow-[inset_3px_0_0]"
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -91,7 +91,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
                     <div className="text-xs text-fg-faint">
                       Requested by {a.requester_name} · {formatDate(a.created_at.slice(0, 10))}
                     </div>
-                    {a.reason ? <p className="line-clamp-2 text-xs text-red-700">{a.reason}</p> : null}
+                    {a.reason ? <p className="line-clamp-2 text-xs text-rose">{a.reason}</p> : null}
                   </Link>
                 </li>
               ))}
@@ -156,7 +156,7 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
 
       <div>
         <h3 className="mb-2 text-sm font-medium text-fg-muted">GST itemisation</h3>
-        <dl className="divide-y divide-line rounded-xl border border-line/60 bg-surface">
+        <dl className="divide-y divide-line rounded-lg border border-line/60 bg-surface">
           {lines.map((l) => (
             <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-sm">
               <dt className={l.muted ? "text-fg-faint" : l.strong ? "font-medium text-fg" : "text-fg-muted"}>{l.label}</dt>
@@ -180,16 +180,16 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
               key={c.rule}
               className={cn(
                 "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm",
-                c.ok ? "border-line/60 bg-surface" : "border-red-400/30 bg-red-400/5"
+                c.ok ? "border-line/60 bg-surface" : "border-rose/30 bg-rose/10"
               )}
             >
               {c.ok ? (
-                <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-700" aria-label="Pass" />
+                <CircleCheck className="mt-0.5 size-4 shrink-0 text-sage" aria-label="Pass" />
               ) : (
-                <CircleX className="mt-0.5 size-4 shrink-0 text-red-700" aria-label="Breach" />
+                <CircleX className="mt-0.5 size-4 shrink-0 text-rose" aria-label="Breach" />
               )}
               <div>
-                <div className={c.ok ? "text-fg" : "font-medium text-red-700"}>{c.label}</div>
+                <div className={c.ok ? "text-fg" : "font-medium text-rose"}>{c.label}</div>
                 <div className="text-xs text-fg-subtle tabular-nums">{c.detail}</div>
               </div>
             </li>
@@ -211,7 +211,7 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
 
       <ApprovalDecisionForm
         approvalId={approval.id}
-        className="glass sticky bottom-[calc(4.5rem+var(--app-safe-bottom))] grid gap-3 rounded-xl p-3 md:bottom-4"
+        className="glass sticky bottom-[calc(4.5rem+var(--app-safe-bottom))] grid gap-3 rounded-lg p-3 md:bottom-4"
       />
     </div>
   );

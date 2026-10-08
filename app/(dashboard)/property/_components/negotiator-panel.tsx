@@ -65,7 +65,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="min-h-11 rounded-xl border border-line/60 bg-surface px-3 py-2 text-left text-sm text-fg-muted transition hover:border-line-strong hover:text-fg"
+                  className="min-h-11 rounded-lg border border-line/60 bg-surface px-3 py-2 text-left text-sm text-fg-muted transition hover:border-line-strong hover:text-fg"
                 >
                   {s}
                 </button>
@@ -76,7 +76,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
 
         {messages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className="ml-10 self-end rounded-2xl rounded-br-md bg-surface-raised px-3.5 py-2 text-sm text-fg">
+            <div key={m.id} className="ml-10 self-end rounded-lg rounded-br-md bg-surface-raised px-3.5 py-2 text-sm text-fg">
               {m.parts.map((part, i) => (part.type === "text" ? <span key={i}>{part.text}</span> : null))}
             </div>
           ) : (
@@ -92,7 +92,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
                   case "tool-getVenueTerms":
                     return (
                       <p key={i} className="flex items-center gap-1.5 text-xs text-fg-faint">
-                        <Sparkles className="size-3 text-emerald-700" aria-hidden />
+                        <Sparkles className="size-3 text-sage" aria-hidden />
                         {part.state === "output-available" ? "Checked your current terms and open RFPs" : "Checking your terms…"}
                       </p>
                     );
@@ -108,7 +108,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
         )}
         {status === "submitted" ? <Loader2 className="size-4 animate-spin text-fg-faint" aria-label="Thinking" /> : null}
         {error ? (
-          <p className="text-sm text-red-700">{error.message.includes("429") ? "Too many requests — wait a minute." : "Something went wrong. Try again."}</p>
+          <p className="text-sm text-rose">{error.message.includes("429") ? "Too many requests — wait a minute." : "Something went wrong. Try again."}</p>
         ) : null}
       </div>
 
@@ -117,7 +117,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
           e.preventDefault();
           send(input);
         }}
-        className="glass m-3 flex items-center gap-2 rounded-2xl p-1.5"
+        className="glass m-3 flex items-center gap-2 rounded-lg p-1.5"
       >
         <Input
           value={input}
@@ -127,11 +127,11 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
           className="border-0 bg-transparent shadow-none focus-visible:ring-0"
         />
         {busy ? (
-          <Button type="button" variant="outline" size="icon" onClick={stop} aria-label="Stop" className="shrink-0 rounded-xl">
+          <Button type="button" variant="outline" size="icon" onClick={stop} aria-label="Stop" className="shrink-0 rounded-lg">
             <Square aria-hidden />
           </Button>
         ) : (
-          <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send" className="shrink-0 rounded-xl">
+          <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send" className="shrink-0 rounded-lg">
             <Send aria-hidden />
           </Button>
         )}
@@ -165,7 +165,7 @@ function ProposedChange({
   const { title, detail } = describe(part);
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-3 shadow-[0_0_20px_-10px] shadow-emerald-400/40">
+    <div className="rounded-lg border border-line bg-surface p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{title}</span>
         {part.state === "output-available" ? <Badge variant="success">Applied</Badge> : null}

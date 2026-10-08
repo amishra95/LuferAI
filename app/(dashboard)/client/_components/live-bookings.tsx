@@ -104,7 +104,7 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
         ) : (
           <>
             <span className={cn("inline-flex items-center gap-1.5", status === "error" && "text-rose")}>
-              <span aria-hidden className={status === "live" ? "live-dot" : "size-1.5 rounded-full bg-current"} />
+              <span aria-hidden className={status === "live" ? "status-dot bg-sage" : "size-1.5 rounded-full bg-current"} />
               {status === "live" ? "Live" : "Can't refresh · retrying"}
             </span>
             {checkedAt ? <span>· updated {CLOCK.format(checkedAt)}</span> : null}
@@ -123,7 +123,7 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
       </div>
       <ul aria-live="polite" className="grid gap-0.5 text-[12.5px]">
         {changes.map((c) => (
-          <li key={`${c.id}-${c.kind}`} className="bg-copper/10 text-copper-ink rounded-md px-2 py-0.5">
+          <li key={`${c.id}-${c.kind}`} className="bg-fg/10 text-fg rounded-md px-2 py-0.5">
             {c.message}
           </li>
         ))}

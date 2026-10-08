@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Standard page frame: one width, one gutter, one vertical rhythm for every module. */
 export function Page({ children, width = "default" }: { children: React.ReactNode; width?: "default" | "narrow" }) {
   return (
-    <div className={cn("mx-auto w-full px-4 pt-8 pb-16 sm:px-8 sm:pt-10", width === "narrow" ? "max-w-4xl" : "max-w-6xl")}>
+    <div className={cn("mx-auto w-full px-4 pt-6 pb-12 sm:px-6 sm:pt-8", width === "narrow" ? "max-w-4xl" : "max-w-6xl")}>
       {children}
     </div>
   );
@@ -21,20 +21,20 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 data-slot="page-title" className="text-fg flex flex-wrap items-center gap-2.5 text-[22px] font-semibold tracking-[-0.025em]">
+        <h1 data-slot="page-title" className="text-fg flex flex-wrap items-center gap-2.5 text-lg font-semibold tracking-tight">
           {title}
           {badge}
         </h1>
-        <p data-slot="page-description" className="text-fg-subtle mt-1.5 text-[13.5px]">{description}</p>
+        <p data-slot="page-description" className="text-fg-subtle mt-1 text-[13px]">{description}</p>
       </div>
       {actions}
     </div>
   );
 }
 
-/** Quiet page-level notice ("sample data", "in memory"). Neutral by design: copper is reserved for live state. */
+/** Quiet page-level notice ("sample data", "in memory"). Neutral by design. */
 export function NoticePill({ children }: { children: React.ReactNode }) {
   return (
     <span className="pill font-normal">

@@ -6,8 +6,8 @@ import { TOOL_META, toolName, toolPhase, toolResultSummary, type LuferToolPart }
 import { cn } from "@/lib/utils";
 
 const PHASE_STYLE = {
-  running: "border-copper-deep/30 bg-copper/[0.08]",
-  done: "border-line bg-surface shadow-[0_1px_2px_rgb(9_9_11/0.04)] hover:border-line-strong",
+  running: "border-fg/30 bg-fg/[0.08]",
+  done: "border-line bg-surface hover:border-line-strong",
   error: "border-rose/25 bg-rose/[0.06] text-rose",
   denied: "border-line bg-surface text-fg-subtle",
 } as const;
@@ -38,14 +38,14 @@ export function ToolStatus({
       className={cn(
         "inline-flex h-7 max-w-full items-center gap-2 rounded-full border pr-3 pl-1.5 text-left text-[12.5px] transition-colors",
         PHASE_STYLE[phase],
-        selected && "ring-copper-deep/50 ring-1"
+        selected && "ring-fg/50 ring-1"
       )}
     >
       <span className="bg-surface-raised text-fg-subtle grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-[10px] leading-none tabular-nums">
         {String(step).padStart(2, "0")}
       </span>
       {phase === "running" ? (
-        <span className="live-dot shrink-0" aria-hidden />
+        <span className="status-dot bg-sage shrink-0" aria-hidden />
       ) : (
         <Icon className={cn("size-3.5 shrink-0", phase === "done" ? "text-fg-subtle" : "")} strokeWidth={1.75} aria-hidden />
       )}

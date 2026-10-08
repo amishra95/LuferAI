@@ -8,7 +8,6 @@ import { ChartCardSkeleton, LoadingRegion, MetricSkeleton, Skeleton, TableSkelet
 export default function Loading() {
   return (
     <PortalShell
-      theme="concierge"
       title="Agent analytics"
       subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
       actions={
@@ -32,7 +31,7 @@ export default function Loading() {
           <ChartCardSkeleton />
           <ChartCardSkeleton delay={150} />
         </div>
-        <div className="panel mb-6 py-5 backdrop-blur-xl">
+        <div className="panel mb-6 py-5">
           <div className="mb-4 grid gap-2 px-5">
             <Skeleton className="h-3.5 w-20" />
             <Skeleton className="h-3 w-28" />

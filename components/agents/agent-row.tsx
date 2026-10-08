@@ -28,8 +28,8 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   switch (status) {
     case "active":
       return (
-        <span className="pill pill-copper">
-          <span className="live-dot" aria-hidden /> active
+        <span className="pill">
+          <span className="status-dot bg-sage" aria-hidden /> active
         </span>
       );
     case "idle":
@@ -151,7 +151,7 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
 
       {(test || testError) && (
         <div className="px-5 pb-4" aria-live="polite">
-          <div className="border-line rounded-xl border bg-zinc-50 px-4 py-3">
+          <div className="border-line rounded-lg border bg-surface-hover px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="label-mono">
                 test run{test && <span className="text-fg-muted normal-case"> · {test.durationMs} ms</span>}
@@ -202,7 +202,7 @@ function ConfigDialog({ agent, ref }: { agent: AgentRecord; ref: React.RefObject
     <dialog
       ref={ref}
       aria-labelledby={`${agent.id}-config`}
-      className="border-line bg-elevated text-fg m-auto w-[min(30rem,calc(100vw-2rem))] rounded-2xl border p-0 shadow-2xl shadow-zinc-900/15 backdrop:bg-zinc-950/25 backdrop:backdrop-blur-[2px]"
+      className="border-line bg-elevated text-fg m-auto w-[min(30rem,calc(100vw-2rem))] rounded-lg border p-0 backdrop:bg-black/60"
     >
       {/* key resets the uncontrolled inputs to the saved values each time the agent changes. */}
       <form onSubmit={submitWithoutReset(action)} key={`${agent.tools.join()}|${agent.temperature}|${agent.maxSteps}`}>
@@ -226,7 +226,7 @@ function ConfigDialog({ agent, ref }: { agent: AgentRecord; ref: React.RefObject
               {ALL_TOOLS.map((t, i) => (
                 <label
                   key={t}
-                  className="border-line hover:border-line-strong has-checked:border-copper-deep/40 has-checked:bg-copper/[0.06] flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors"
+                  className="border-line hover:border-line-strong has-checked:border-fg/40 has-checked:bg-fg/[0.06] flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -234,7 +234,7 @@ function ConfigDialog({ agent, ref }: { agent: AgentRecord; ref: React.RefObject
                     value={t}
                     defaultChecked={agent.tools.includes(t)}
                     autoFocus={i === 0}
-                    className="accent-copper mt-0.5 size-3.5"
+                    className="accent-fg mt-0.5 size-3.5"
                   />
                   <span>
                     <span className="text-fg block font-mono text-[12px]">{t}</span>

@@ -25,7 +25,7 @@ export interface VenuePickerOption {
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
 
 /**
- * The inside of a concierge venue card: name, area, starting price, capacity,
+ * The inside of a venue card: name, area, starting price, capacity,
  * minimum spend, rate card and (with a guest count) whether the group fits.
  * Shared by the booking wizard's VenuePicker and the client portal's venue
  * list, which wrap it in a radio label and a button respectively.
@@ -50,8 +50,8 @@ export function VenueCardBody({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="display-heading line-clamp-2 text-[18px] leading-[1.15] text-balance">{v.name}</p>
-          <p className="text-fg-subtle mt-1.5 truncate text-[12px]">
+          <p className="text-fg line-clamp-2 text-[13.5px] leading-snug font-medium">{v.name}</p>
+          <p className="text-fg-subtle mt-0.5 truncate text-[12px]">
             {v.neighborhood} · {v.city}
           </p>
         </div>
@@ -61,16 +61,16 @@ export function VenueCardBody({
       <p className="flex items-baseline gap-1.5">
         {v.from_per_head_inr != null ? (
           <>
-            <span className="text-fg-subtle font-mono text-[10.5px] tracking-wider uppercase">from</span>
-            <span className="figure text-[17px] font-medium text-amber-400">{formatINR(v.from_per_head_inr)}</span>
-            <span className="text-fg-subtle font-mono text-[10.5px] tracking-wider uppercase">/ head</span>
+            <span className="text-fg-subtle text-[11.5px]">from</span>
+            <span className="figure text-fg text-[13px] font-medium">{formatINR(v.from_per_head_inr)}</span>
+            <span className="text-fg-subtle text-[11.5px]">/ head</span>
           </>
         ) : (
           <span className="text-fg-subtle text-[12px]">Packages on request</span>
         )}
       </p>
 
-      <div id={metaId} className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px]">
+      <div id={metaId} className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
         <span className="inline-flex items-center gap-1">
           <Users className="size-3.5" aria-hidden /> Up to <span className="figure text-fg-muted">{v.capacity_max}</span>
         </span>
@@ -102,7 +102,7 @@ export function VenueCardBody({
           {v.rate_card_label ? (
             <span
               title="Your company's negotiated rate applies"
-              className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-[11px] tracking-wider text-amber-300"
+              className="border-line text-fg-muted inline-flex h-5 items-center gap-1 rounded-[4px] border px-1.5 font-mono text-[10.5px]"
             >
               <BadgePercent className="size-3.5" aria-hidden /> Rate card {v.rate_card_label}
             </span>
@@ -115,7 +115,7 @@ export function VenueCardBody({
 }
 
 /**
- * Venue choice as a grid of concierge cards, one radio per card. Native radios
+ * Venue choice as a grid of cards, one radio per card. Native radios
  * (visually hidden) keep the form working without JS, give arrow-key movement
  * within the group, and submit `name` like the select it replaces. With a
  * guest count, each card says whether the group fits.
@@ -141,14 +141,14 @@ export function VenuePicker({
 
   return (
     <fieldset aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-3">
-      <legend className="mb-3 flex w-full items-baseline justify-between gap-3">
-        <span className="display-heading text-[17px]">Choose your venue</span>
+      <legend className="mb-2 flex w-full items-baseline justify-between gap-3">
+        <span className="label-mono">Choose your venue</span>
         <span className="text-fg-subtle font-mono text-[11px] tabular-nums">
           {venues.length} {venues.length === 1 ? "venue" : "venues"} · pre-GST
         </span>
       </legend>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         {venues.map((v) => {
           const selected = v.id === value;
           const metaId = `${id}-${v.id}-meta`;
@@ -156,7 +156,7 @@ export function VenuePicker({
             <label
               key={v.id}
               className={cn(
-                "concierge-card animate-in fade-in flex cursor-pointer flex-col gap-3.5 p-5 duration-300",
+                "panel-interactive flex cursor-pointer flex-col gap-2 p-3",
                 guests > v.capacity_max && !selected && "opacity-70 hover:opacity-100"
               )}
             >
@@ -177,11 +177,11 @@ export function VenuePicker({
                   <span
                     aria-hidden
                     className={cn(
-                      "grid size-5 shrink-0 place-items-center rounded-full border transition-colors duration-200",
-                      selected ? "badge-pulse border-amber-400 bg-amber-400 text-zinc-950" : "border-line-strong"
+                      "grid size-4 shrink-0 place-items-center rounded-full border",
+                      selected ? "border-fg bg-fg text-canvas" : "border-line-strong"
                     )}
                   >
-                    {selected ? <Check className="size-3" strokeWidth={3} /> : null}
+                    {selected ? <Check className="size-2.5" strokeWidth={3} /> : null}
                   </span>
                 }
               />

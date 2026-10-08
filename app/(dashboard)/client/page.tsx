@@ -118,7 +118,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   return (
     <PortalShell
-      theme="concierge"
       portal="/client"
       title={company.legal_name}
       subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
@@ -154,7 +153,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       </p>
 
       {deposit === "success" || deposit === "cancelled" ? (
-        <p role="status" className="bg-surface-raised mb-6 rounded-xl px-4 py-3 text-[13px]">
+        <p role="status" className="bg-surface-raised mb-6 rounded-lg px-4 py-3 text-[13px]">
           {deposit === "success"
             ? "Deposit authorised — it's captured only when the venue confirms. Status updates here in a moment."
             : "Checkout cancelled. Nothing was charged."}
@@ -181,7 +180,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             {t.key === "signoffs" && t.count > 0 ? (
               <Badge variant={waitingOnMe > 0 ? "warning" : "secondary"}>{waitingOnMe > 0 ? `${waitingOnMe} for you` : t.count}</Badge>
             ) : null}
-            {activeTab === t.key && <span aria-hidden className="bg-copper-deep absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
+            {activeTab === t.key && <span aria-hidden className="bg-fg absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
           </Link>
         ))}
       </nav>
@@ -223,7 +222,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                       {s.approvals.map((a) => {
                         const blocked = a.status === "PENDING" && s.approvals.some((x) => x.status === "PENDING" && (x.tier ?? 1) < (a.tier ?? 1));
                         return (
-                          <li key={a.id} className="border-line flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-2.5">
+                          <li key={a.id} className="border-line flex flex-wrap items-center gap-3 rounded-lg border px-3.5 py-2.5">
                             <span className="label-mono">Tier {a.tier ?? 1}</span>
                             <span className="text-fg text-[13px]">{a.approver_name}</span>
                             <span className="ml-auto">
@@ -244,7 +243,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     </ol>
 
                     {mine && user ? (
-                      <div className="bg-surface-raised rounded-xl p-4">
+                      <div className="bg-surface-raised rounded-lg p-4">
                         <p className="text-fg mb-2 text-[13px] font-medium">Your sign-off</p>
                         <ApprovalDecisionForm approvalId={mine.id} />
                       </div>
@@ -413,7 +412,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         </TableCell>
                         <TableCell>
                           {exp ? (
-                            <a href={`/api/exports/${exp.id}`} download className="text-copper-ink inline-flex items-center gap-1 text-[12px] hover:underline">
+                            <a href={`/api/exports/${exp.id}`} download className="text-fg inline-flex items-center gap-1 text-[12px] hover:underline">
                               <Download className="size-3" aria-hidden /> JSON
                             </a>
                           ) : (
@@ -449,7 +448,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           {rfps.length > 0 ? (
             <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
               <div>
-                <h2 id="rfp-heading" className="display-heading text-[26px] leading-tight">
+                <h2 id="rfp-heading" className="text-fg text-[15px] font-semibold tracking-tight">
                   RFP comparisons
                 </h2>
                 <p className="text-fg-subtle text-[13px]">Instant quotes from your packages and rate card; venues can counter-offer.</p>

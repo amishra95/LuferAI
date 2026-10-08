@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /*
  * Loading placeholders shaped like the real components (StatCard, chart
  * cards, tables) so nothing jumps when data arrives. Theme tokens throughout:
- * hairline white/10 borders and charcoal glass inside the concierge scope,
+ * hairline white/10 borders and charcoal glass inside the scope,
  * zinc on the light pages. Pulses are decorative (aria-hidden); wrap a screen
  * in LoadingRegion for a single announcement. Reduced motion stops the pulse
  * (globals.css).
@@ -27,15 +27,14 @@ export function LoadingRegion({ label, children, className }: { label: string; c
 /** Same box as StatCard: label + icon row, 30px figure (24px off-scope), change pill and context. */
 export function MetricSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="panel relative isolate flex flex-col overflow-hidden p-5 backdrop-blur-xl">
-      <span aria-hidden className="pointer-events-none absolute -top-14 -right-12 -z-10 hidden size-40 animate-pulse rounded-full bg-white/5 blur-3xl concierge:block" />
+    <div className="panel flex flex-col p-4">
       <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-2.5 w-20" delay={delay} />
         <Skeleton className="size-4 rounded-full" delay={delay} />
       </div>
-      <Skeleton className="concierge:mt-5 concierge:h-[30px] mt-4 h-6 w-28" delay={delay + 80} />
-      <div className="concierge:mt-3 mt-2.5 flex items-center gap-2">
-        <Skeleton className="h-[22px] w-16 rounded-full" delay={delay + 160} />
+      <Skeleton className="mt-3 h-[22px] w-28" delay={delay + 80} />
+      <div className="mt-2 flex items-center gap-2">
+        <Skeleton className="h-3.5 w-12" delay={delay + 160} />
         <Skeleton className="h-3 w-24" delay={delay + 160} />
       </div>
     </div>
@@ -47,15 +46,15 @@ const BAR_HEIGHTS = [58, 72, 64, 80, 70, 86, 62];
 /** Card with a title, description and a faint bar chart. */
 export function ChartCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="panel flex flex-col gap-5 py-5 backdrop-blur-xl">
-      <div className="grid gap-2 px-5">
+    <div className="panel flex flex-col gap-4 py-4">
+      <div className="grid gap-2 px-4">
         <Skeleton className="h-3.5 w-24" delay={delay} />
         <Skeleton className="h-3 w-40" delay={delay} />
       </div>
-      <div className="border-line mx-5 flex h-60 items-end gap-[6%] border-b px-4 pb-px">
+      <div className="border-line mx-4 flex h-60 items-end gap-[6%] border-b px-4 pb-px">
         {BAR_HEIGHTS.map((h, i) => (
           <div key={i} className="flex-1" style={{ height: `${h}%` }}>
-            <Skeleton className="h-full rounded-t-md rounded-b-none" delay={delay + i * 90} />
+            <Skeleton className="h-full rounded-t-sm rounded-b-none" delay={delay + i * 90} />
           </div>
         ))}
       </div>
@@ -68,13 +67,13 @@ export function TableSkeleton({ rows = 5, columns = 4, className }: { rows?: num
   const widths = ["w-40", "w-16", "w-12", "w-20", "w-14", "w-24"];
   return (
     <div className={cn("w-full", className)}>
-      <div className="border-line flex h-11 items-center gap-6 border-b px-4">
+      <div className="border-line flex h-9 items-center gap-6 border-b px-3">
         {Array.from({ length: columns }, (_, c) => (
           <Skeleton key={c} className={cn("h-2.5", c === 0 ? "w-16" : "ml-auto w-10")} />
         ))}
       </div>
       {Array.from({ length: rows }, (_, r) => (
-        <div key={r} className="border-line flex h-[3.25rem] items-center gap-6 border-b px-4 last:border-b-0">
+        <div key={r} className="border-line flex h-10 items-center gap-6 border-b px-3 last:border-b-0">
           {Array.from({ length: columns }, (_, c) => (
             <Skeleton key={c} className={cn("h-3", c === 0 ? widths[r % 2 === 0 ? 0 : 5] : cn("ml-auto", widths[(r + c) % widths.length]))} delay={r * 110} />
           ))}

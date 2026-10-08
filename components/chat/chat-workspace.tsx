@@ -124,7 +124,7 @@ export function ChatWorkspace({
                   no model
                 </span>
                 Chat is unavailable until an OpenAI key is configured.
-                <Link href="/settings" className="text-fg-muted hover:text-copper-ink inline-flex items-center gap-0.5 transition-colors">
+                <Link href="/settings" className="text-fg-muted hover:text-fg inline-flex items-center gap-0.5 transition-colors">
                   Connect a key <ArrowUpRight className="size-3" aria-hidden />
                 </Link>
               </div>
@@ -146,7 +146,7 @@ export function ChatWorkspace({
                         disabled={offline}
                         className="disabled:pointer-events-none disabled:opacity-60 group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
                       >
-                        <Icon className="text-fg-faint group-hover:text-copper-deep size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
+                        <Icon className="text-fg-faint group-hover:text-fg size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
                         <span className="flex-1">{text}</span>
                         <ArrowUpRight className="text-fg-faint size-3.5 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
                       </button>
@@ -175,7 +175,7 @@ export function ChatWorkspace({
             )}
 
             {error && (
-              <div role="alert" className="border-rose/20 bg-rose/[0.05] text-rose mt-8 flex items-center gap-3 rounded-xl border px-4 py-3 text-[13px]">
+              <div role="alert" className="border-rose/20 bg-rose/[0.05] text-rose mt-8 flex items-center gap-3 rounded-lg border px-4 py-3 text-[13px]">
                 <AlertTriangle className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1">{errorText(error)}</span>
                 <button type="button" onClick={() => void regenerate()} className="btn btn-ghost text-rose hover:text-rose h-7 px-2 text-[12px]">
@@ -186,7 +186,7 @@ export function ChatWorkspace({
           </div>
         </div>
 
-        <div className="from-canvas via-canvas/90 pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-4 pt-12 pb-4 sm:px-6 sm:pb-6">
+        <div className="bg-canvas border-line pointer-events-none absolute inset-x-0 bottom-0 border-t px-4 pt-3 pb-4 sm:px-6 sm:pb-5">
           <div className="pointer-events-auto mx-auto max-w-[46rem]">
             <PromptBar
               busy={busy}

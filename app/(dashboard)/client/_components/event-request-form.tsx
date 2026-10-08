@@ -261,18 +261,18 @@ export function EventRequestForm({
                 disabled={i > step}
                 aria-current={active ? "step" : undefined}
                 className={cn(
-                  "flex w-full items-center gap-2 border-t-2 pt-2.5 text-left font-mono text-[11px] tracking-wider uppercase transition-[color,border-color,transform] duration-200 active:scale-[0.98] pointer-coarse:min-h-11",
-                  active ? "border-copper-deep text-fg font-medium" : done ? "border-fg text-fg hover:text-copper-ink" : "border-line text-fg-subtle"
+                  "flex w-full items-center gap-2 border-t pt-2 text-left text-[12.5px] transition-colors duration-100 pointer-coarse:min-h-11",
+                  active ? "border-fg text-fg font-medium" : done ? "border-line-strong text-fg-muted hover:text-fg" : "border-line text-fg-faint"
                 )}
               >
                 <span
                   aria-hidden
                   className={cn(
-                    "grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10.5px]",
-                    done ? "bg-fg text-canvas" : active ? "badge-pulse bg-copper-deep text-canvas" : "bg-surface-raised text-fg-subtle"
+                    "grid size-4 shrink-0 place-items-center rounded-full font-mono text-[10px]",
+                    active ? "bg-fg text-canvas" : done ? "bg-surface-raised text-fg" : "border-line-strong text-fg-faint border"
                   )}
                 >
-                  {done ? <Check className="size-3" /> : i + 1}
+                  {done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
                 </span>
                 {s.title}
                 <span className="sr-only">{done ? " (done)" : active ? " (current)" : ""}</span>
@@ -287,7 +287,7 @@ export function EventRequestForm({
       </h3>
 
       {/* ── Step 1 · Event ─────────────────────────────────────────────── */}
-      <div hidden={current.id !== "event"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
+      <div hidden={current.id !== "event"} className="grid gap-4">
         <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -364,7 +364,7 @@ export function EventRequestForm({
       </div>
 
       {/* ── Step 2 · Billing ───────────────────────────────────────────── */}
-      <div hidden={current.id !== "billing"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
+      <div hidden={current.id !== "billing"} className="grid gap-4">
         {departments.length > 0 ? (
           <div className="grid content-start gap-2">
             <Label htmlFor="department_id">Charge to department</Label>
@@ -462,8 +462,8 @@ export function EventRequestForm({
       </div>
 
       {/* ── Step 3 · Review ────────────────────────────────────────────── */}
-      <div hidden={current.id !== "review"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
-        <dl className="divide-line border-line grid divide-y rounded-xl border text-sm">
+      <div hidden={current.id !== "review"} className="grid gap-4">
+        <dl className="divide-line border-line grid divide-y rounded-md border text-sm">
           <ReviewRow label="Venue" onEdit={() => setStep(0)}>
             {venue ? `${venue.name}, ${venue.neighborhood}` : "—"}
           </ReviewRow>
@@ -495,7 +495,7 @@ export function EventRequestForm({
         </dl>
 
         {preview ? (
-          <dl className="border-line/60 bg-surface grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-2.5 rounded-xl border p-4 text-sm" aria-label="Invoice estimate">
+          <dl className="border-line/60 bg-surface grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-2 rounded-md border p-3 text-sm" aria-label="Invoice estimate">
             <dt className="label-mono">Taxable value</dt>
             <dd className="figure text-right">{formatINR(preview.taxable_value, true)}</dd>
             <dt className="label-mono">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
@@ -516,8 +516,8 @@ export function EventRequestForm({
 
       {/* ── Outcome & navigation ──────────────────────────────────────── */}
       {succeeded && state.approval ? (
-        <div className="text-copper-ink animate-in fade-in flex gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm" role="status">
-          <Hourglass className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <div className="text-fg border-line bg-surface flex gap-3 rounded-md border p-3 text-sm" role="status">
+          <Hourglass className="text-warn mt-0.5 size-4 shrink-0" aria-hidden />
           <div>
             <p className="font-medium">{state.message}</p>
             <p className="text-muted-foreground mt-0.5">
@@ -556,7 +556,7 @@ export function EventRequestForm({
           </p>
         ) : null}
         {succeeded && !state.approval ? (
-          <p className="text-sage animate-in fade-in flex items-center gap-1.5 text-sm" role="status">
+          <p className="text-sage flex items-center gap-1.5 text-sm" role="status">
             <CheckCircle2 className="size-4" aria-hidden />
             {state.message}
           </p>
@@ -584,10 +584,10 @@ function ReviewRow({ label, onEdit, children }: { label: string; onEdit: () => v
 
 function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
   return (
-    <div className="animate-in fade-in grid gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm duration-300" aria-live="polite">
+    <div className="border-line bg-surface grid gap-2 rounded-md border p-3 text-sm" aria-live="polite">
       {pricing.source !== "list" ? (
-        <p className="text-copper-ink flex items-center gap-1.5 font-medium">
-          <BadgePercent className="size-4" aria-hidden />
+        <p className="text-fg flex items-center gap-1.5 font-medium">
+          <BadgePercent className="text-fg-subtle size-4" aria-hidden />
           Your company&apos;s negotiated rate applies
         </p>
       ) : null}

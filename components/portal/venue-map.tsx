@@ -103,7 +103,7 @@ export function VenueMap({
 
   if (!KEY || failed || placed.length === 0) {
     return (
-      <div className={cn("grid place-items-center rounded-xl border border-dashed border-line bg-surface p-6 text-center", className)}>
+      <div className={cn("grid place-items-center rounded-lg border border-dashed border-line bg-surface p-6 text-center", className)}>
         <div className="grid justify-items-center gap-2 text-sm text-fg-subtle">
           <MapPinOff className="size-5" aria-hidden />
           {placed.length === 0
@@ -116,5 +116,5 @@ export function VenueMap({
     );
   }
 
-  return <div ref={container} className={cn("overflow-hidden rounded-xl border border-line/60", className)} role="region" aria-label="Venue map" />;
+  return <div ref={container} className={cn("overflow-hidden rounded-lg border border-line/60", className)} role="region" aria-label="Venue map" />;
 }

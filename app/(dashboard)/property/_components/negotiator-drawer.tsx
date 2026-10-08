@@ -21,14 +21,14 @@ export function NegotiatorDrawer({ venueId, venueName }: { venueId: string; venu
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button className="shadow-[0_0_24px_-6px] shadow-emerald-400/60">
+        <Button className="">
           <Sparkles aria-hidden /> AI negotiator
         </Button>
       </SheetTrigger>
       <ResponsiveSheetContent wide className="h-dvh max-md:h-[88dvh]">
         <SheetHeader className="border-b border-line/60 px-5 pt-5 pb-4 pr-14">
           <SheetTitle className="flex items-center gap-2 text-fg">
-            <Sparkles className="size-4 text-emerald-700" aria-hidden /> AI negotiator
+            <Sparkles className="size-4 text-sage" aria-hidden /> AI negotiator
           </SheetTitle>
           <SheetDescription>Tune {venueName}&apos;s minimum spend and menu packages.</SheetDescription>
         </SheetHeader>

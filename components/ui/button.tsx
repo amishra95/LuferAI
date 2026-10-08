@@ -11,18 +11,18 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "btn-primary",
-        destructive: "border-rose bg-rose text-white hover:border-rose hover:bg-rose/90",
+        destructive: "border-rose bg-rose text-canvas hover:border-rose hover:bg-rose/90",
         outline: "",
-        secondary: "bg-surface-raised border-transparent shadow-none hover:border-transparent hover:bg-zinc-200/70 dark:hover:bg-white/10",
+        secondary: "bg-surface-raised border-transparent hover:border-transparent hover:bg-line",
         ghost: "btn-ghost",
-        link: "text-copper-ink h-auto border-transparent bg-transparent px-0 shadow-none underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
+        link: "text-fg h-auto border-transparent bg-transparent px-0 underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
       },
       size: {
         // pointer-coarse: 44px minimum touch targets on touch screens (WCAG 2.5.5).
-        default: "h-9 px-4 text-[13px] has-[>svg]:px-3.5 pointer-coarse:min-h-11",
-        sm: "h-8 px-3 has-[>svg]:px-2.5 pointer-coarse:min-h-11",
-        lg: "h-10 px-5 text-[13.5px] pointer-coarse:min-h-11",
-        icon: "size-9 px-0 pointer-coarse:size-11",
+        default: "h-8 px-3 text-[13px] has-[>svg]:px-2.5 pointer-coarse:min-h-11",
+        sm: "h-7 px-2.5 has-[>svg]:px-2 pointer-coarse:min-h-11",
+        lg: "h-9 px-4 text-[13.5px] pointer-coarse:min-h-11",
+        icon: "size-8 px-0 pointer-coarse:size-11",
       },
     },
     defaultVariants: {

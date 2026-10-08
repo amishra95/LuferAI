@@ -1,84 +1,55 @@
-import type { LucideIcon } from "lucide-react";
-import { BadgePercent, CircleSlash, Clock, ShieldAlert, ShieldCheck, Timer } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 
 /**
- * Status pills: high-contrast text on a tinted fill with a soft glow ring. Every
- * pill pairs an icon with a label, so state never rides on colour alone.
+ * Status labels: a solid dot plus mono text in a flat 1px box. The dot carries
+ * the state's colour; the text always names it, so state never rides on colour
+ * alone.
  */
-const TONES = {
-  emerald: "border-emerald-400/40 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 shadow-[0_0_14px_-4px] shadow-emerald-400/60",
-  amber: "border-amber-400/40 bg-amber-400/10 text-amber-800 dark:text-amber-300 shadow-[0_0_14px_-4px] shadow-amber-400/60",
-  sky: "border-sky-400/40 bg-sky-400/10 text-sky-700 dark:text-sky-300 shadow-[0_0_14px_-4px] shadow-sky-400/60",
-  violet: "border-violet-400/40 bg-violet-400/10 text-violet-700 shadow-[0_0_14px_-4px] shadow-violet-400/60 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300 dark:shadow-amber-400/40",
-  red: "border-red-400/40 bg-red-400/10 text-red-700 dark:text-red-300 shadow-[0_0_14px_-4px] shadow-red-400/60",
-  zinc: "border-line bg-surface-raised text-fg",
+const DOT = {
+  ok: "bg-sage",
+  warn: "bg-warn",
+  error: "bg-rose",
+  neutral: "bg-fg-faint",
 } as const;
 
-export type PillTone = keyof typeof TONES;
+export type PillTone = keyof typeof DOT;
 
-export function Pill({
-  tone,
-  icon: Icon,
-  children,
-  title,
-  className,
-}: {
-  tone: PillTone;
-  icon?: LucideIcon;
-  children: React.ReactNode;
-  title?: string;
-  className?: string;
-}) {
+export function Pill({ tone, children, title, className }: { tone: PillTone; children: React.ReactNode; title?: string; className?: string }) {
   return (
     <span
       title={title}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap concierge:font-mono concierge:text-[11px] concierge:tracking-wider",
-        TONES[tone],
+        "border-line text-fg-muted inline-flex h-5 items-center gap-1.5 rounded-[4px] border px-1.5 font-mono text-[10.5px] whitespace-nowrap",
         className
       )}
     >
-      {Icon ? <Icon className="size-3.5" aria-hidden /> : null}
+      <span aria-hidden className={cn("status-dot", DOT[tone])} />
       {children}
     </span>
   );
 }
 
-export const InPolicyPill = () => (
-  <Pill tone="emerald" icon={ShieldCheck}>
-    In Policy
-  </Pill>
-);
+export const InPolicyPill = () => <Pill tone="ok">In policy</Pill>;
 
 export const OutOfPolicyPill = ({ reasons }: { reasons?: string }) => (
-  <Pill tone="red" icon={ShieldAlert} title={reasons}>
-    Out of Policy
+  <Pill tone="error" title={reasons}>
+    Out of policy
   </Pill>
 );
 
-export const PendingApprovalPill = () => (
-  <Pill tone="amber" icon={Clock}>
-    Pending Approval
-  </Pill>
-);
+export const PendingApprovalPill = () => <Pill tone="warn">Pending approval</Pill>;
 
-export const RejectedPill = () => (
-  <Pill tone="red" icon={CircleSlash}>
-    Rejected
-  </Pill>
-);
+export const RejectedPill = () => <Pill tone="error">Rejected</Pill>;
 
 /** `label` summarises the corporate rate card, e.g. "−15%" or "₹1,600/head". */
 export const RateCardPill = ({ label }: { label: string }) => (
-  <Pill tone="violet" icon={BadgePercent} title="Your company's negotiated rate applies">
-    Rate Card {label}
+  <Pill tone="neutral" title="Your company's negotiated rate applies">
+    Rate card {label}
   </Pill>
 );
 
 export const HoldActivePill = ({ label }: { label?: string }) => (
-  <Pill tone="sky" icon={Timer}>
-    Hold Active{label ? ` · ${label}` : ""}
+  <Pill tone="warn">
+    Hold active{label ? ` · ${label}` : ""}
   </Pill>
 );

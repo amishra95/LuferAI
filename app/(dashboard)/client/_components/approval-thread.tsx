@@ -33,7 +33,7 @@ export function ApprovalThread({
       {comments.length > 0 && (
         <ol className="mb-3 space-y-2.5">
           {comments.map((c) => (
-            <li key={c.id} className={c.mine ? "bg-surface-raised rounded-xl px-3.5 py-2.5" : "border-line rounded-xl border px-3.5 py-2.5"}>
+            <li key={c.id} className={c.mine ? "bg-surface-raised rounded-lg px-3.5 py-2.5" : "border-line rounded-lg border px-3.5 py-2.5"}>
               <p className="flex items-baseline justify-between gap-3 text-[12px]">
                 <span className="text-fg font-medium">{c.author}</span>
                 <time className="text-fg-subtle font-mono text-[11px]">{c.at}</time>

@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { Check, Globe, Hash, MessageCircle, X, type LucideIcon } from "lucide-react";
+import { Globe, Hash, MessageCircle, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { TaskChannel } from "@/types/channels";
 import type { AgentTaskEvent, TaskStatus } from "@/types/telemetry";
 
 export const CHANNEL: Record<TaskChannel, { label: string; icon: LucideIcon; dot: string }> = {
-  whatsapp: { label: "WhatsApp", icon: MessageCircle, dot: "bg-[#25a35a]" },
-  slack: { label: "Slack", icon: Hash, dot: "bg-[#6b2a6e]" },
+  whatsapp: { label: "WhatsApp", icon: MessageCircle, dot: "bg-fg-subtle" },
+  slack: { label: "Slack", icon: Hash, dot: "bg-fg-subtle" },
   web: { label: "Web", icon: Globe, dot: "bg-fg-faint" },
 };
 
@@ -15,7 +15,7 @@ export const CHANNEL: Record<TaskChannel, { label: string; icon: LucideIcon; dot
 export function ChannelTile({ channel, className }: { channel: TaskChannel; className?: string }) {
   const { label, icon: Icon, dot } = CHANNEL[channel];
   return (
-    <span className={cn("border-line bg-canvas relative grid size-9 shrink-0 place-items-center rounded-[10px] border", className)} title={label}>
+    <span className={cn("border-line bg-canvas relative grid size-7 shrink-0 place-items-center rounded-md border", className)} title={label}>
       <Icon className="text-fg-muted size-4" strokeWidth={1.75} aria-hidden />
       <span className={cn("ring-surface absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2", dot)} aria-hidden />
       <span className="sr-only">{label}</span>
@@ -24,13 +24,13 @@ export function ChannelTile({ channel, className }: { channel: TaskChannel; clas
 }
 
 const STATUS: Record<TaskStatus, { label: string; className: string; glyph: React.ReactNode }> = {
-  running: { label: "running", className: "pill-copper", glyph: <span className="live-dot" /> },
-  succeeded: { label: "done", className: "text-sage", glyph: <Check className="size-3" strokeWidth={2.5} /> },
-  failed: { label: "failed", className: "border-rose/25 bg-rose/[0.06] text-rose", glyph: <X className="size-3" strokeWidth={2.5} /> },
-  queued: { label: "queued", className: "", glyph: <span className="border-fg-faint size-1.5 rounded-full border border-dashed" /> },
+  running: { label: "running", className: "text-fg-muted", glyph: <span className="status-dot bg-warn" /> },
+  succeeded: { label: "done", className: "text-fg-muted", glyph: <span className="status-dot bg-sage" /> },
+  failed: { label: "failed", className: "text-rose", glyph: <span className="status-dot bg-rose" /> },
+  queued: { label: "queued", className: "", glyph: <span className="border-fg-faint size-1.5 rounded-full border" /> },
 };
 
-/** Status as a small pill: glyph + word, never colour alone. */
+/** Status as a small label: solid dot + word, never colour alone. */
 export function StatusPill({ status }: { status: TaskStatus }) {
   const { label, className, glyph } = STATUS[status];
   return (
@@ -68,7 +68,7 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
           {emptyChannel && emptyChannel !== "web" ? (
             <>
               Messages appear here once the channel is connected.{" "}
-              <Link href="/settings" className="text-copper-ink underline-offset-2 hover:underline">
+              <Link href="/settings" className="text-fg underline-offset-2 hover:underline">
                 Set it up in Settings
               </Link>
             </>
@@ -83,7 +83,7 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
   return (
     <ol className="panel overflow-hidden" aria-label="Agent activity">
       {events.map((e) => (
-        <li key={`${e.channel}-${e.id}`} className="border-line hover:bg-surface-hover flex gap-4 border-b px-5 py-4 transition-colors last:border-b-0">
+        <li key={`${e.channel}-${e.id}`} className="border-line hover:bg-surface-hover flex gap-3 border-b px-4 py-2.5 transition-colors last:border-b-0">
           <ChannelTile channel={e.channel} />
 
           <div className="min-w-0 flex-1">
@@ -92,7 +92,7 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
               <StatusPill status={e.status} />
             </div>
             <p className={cn("mt-1 truncate text-[12.5px]", e.status === "failed" ? "text-rose" : "text-fg-subtle")}>{e.log}</p>
-            <p className="text-fg-subtle mt-2 flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[11px] tabular-nums">
+            <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[11px] tabular-nums">
               <span className="text-fg-muted">{e.agent}</span>
               <span className="sm:hidden">{CLOCK.format(new Date(e.startedAt))}</span>
               <span>

@@ -25,7 +25,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   }
 
   return (
-    <div className="border-line my-4 overflow-hidden rounded-xl border bg-zinc-50">
+    <div className="border-line my-4 overflow-hidden rounded-lg border bg-surface-hover">
       <div className="border-line flex h-9 items-center justify-between border-b pr-1.5 pl-3.5">
         <span className="text-fg-subtle font-mono text-[11px]">{language || "text"}</span>
         <button type="button" onClick={copy} className="btn btn-ghost h-6 gap-1 rounded-md px-2 text-[11px]">
@@ -51,7 +51,7 @@ const components: Components = {
   },
   a({ children, href }) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className="text-copper-ink decoration-copper/50 underline underline-offset-[3px] hover:decoration-copper-deep">
+      <a href={href} target="_blank" rel="noreferrer" className="text-fg decoration-fg/50 underline underline-offset-[3px] hover:decoration-fg">
         {children}
       </a>
     );
@@ -63,7 +63,7 @@ const components: Components = {
   h2: ({ children }) => <h3 className="text-fg mt-6 mb-2 text-[15px] font-semibold tracking-[-0.01em]">{children}</h3>,
   h3: ({ children }) => <h4 className="text-fg mt-5 mb-1.5 text-[14px] font-semibold">{children}</h4>,
   strong: ({ children }) => <strong className="text-fg font-semibold">{children}</strong>,
-  blockquote: ({ children }) => <blockquote className="border-copper/40 text-fg-muted my-3 border-l-2 pl-4">{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote className="border-fg/40 text-fg-muted my-3 border-l-2 pl-4">{children}</blockquote>,
   hr: () => <hr className="border-line my-6" />,
 };
 
