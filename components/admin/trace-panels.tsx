@@ -1,5 +1,7 @@
-import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Waypoints } from "lucide-react";
 
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMs } from "@/lib/telemetry/format";
@@ -135,15 +137,17 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
       </div>
 
       {summary.traces === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <p className="text-fg text-[13.5px] font-medium">No traces in the last {rangeLabel}</p>
-            <p className="text-fg-subtle mx-auto mt-1 max-w-md text-[12.5px]">
-              Chat, the AI tools in the portals, the WhatsApp/Slack webhooks and their reply workflow are traced as they run.
-              {source === "memory" && " Upstash Redis isn't configured, so traces only cover this server instance."}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          compact
+          icon={Waypoints}
+          title={`No traces in the last ${rangeLabel}`}
+          description={`Chat, the AI tools in the portals, the WhatsApp/Slack webhooks and their reply workflow are traced as they run.${source === "memory" ? " Upstash Redis isn't configured, so traces only cover this server instance." : ""}`}
+          action={
+            <Link href="/chat" className="btn">
+              Open workspace chat
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-4">
           <div className="grid gap-4 2xl:grid-cols-2">

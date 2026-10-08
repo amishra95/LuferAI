@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, Search, SearchX } from "lucide-react";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
+import { EmptyState } from "@/components/portal/empty-state";
 import { dataSource } from "@/lib/data";
 import { listDirectory } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
@@ -114,83 +115,97 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
       )}
 
       <section className="panel overflow-hidden">
-        {/* Phones: stacked rows. The full table starts at md. */}
-        <ul className="md:hidden">
-          {rows.map((v) => (
-            <li key={v.id} className="border-line border-b px-4 py-3.5 last:border-b-0">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-fg truncate text-[13.5px] font-medium">{v.name}</p>
-                <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(v.min_spend_inr)}</p>
-              </div>
-              <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
-                <span className="text-fg-muted font-sans text-[12.5px]">{v.neighborhood}</span>
-                <span>{v.capacity_max} guests</span>
-                <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
-                {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
-              </p>
-            </li>
-          ))}
-          {rows.length === 0 && <li className="text-fg-muted px-4 py-12 text-center text-[13.5px]">No venues match these filters.</li>}
-        </ul>
-
-        <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[46rem] text-[13px]">
-            <thead>
-              <tr className="border-line border-b">
-                {COLUMNS.map((c) => (
-                  <th
-                    key={c.label}
-                    scope="col"
-                    aria-sort={c.key && query.sort === c.key ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
-                    className={cn("label-mono h-10 px-4 font-medium first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
-                  >
-                    <SortHeader column={c} query={query} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+        {rows.length === 0 ? (
+          <div className="p-4 sm:p-6">
+            {filtered ? (
+              <EmptyState
+                icon={SearchX}
+                title="No venues match these filters"
+                description={`Try a wider area or a smaller guest count, or clear the filters to see all ${venues.length} venues.`}
+                action={
+                  <Link href="/venues" className="btn">
+                    Clear filters
+                  </Link>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={Building2}
+                title="The directory is empty"
+                description="Venues appear here once they're onboarded or a partner network is connected."
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Phones: stacked rows. The full table starts at md. */}
+            <ul className="md:hidden">
               {rows.map((v) => (
-                <tr key={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
-                  <td className="max-w-80 py-3 pr-4 pl-5">
-                    <p className="text-fg truncate font-medium">{v.name}</p>
-                    <p className="text-fg-subtle mt-0.5 truncate text-[12px]" title={v.address}>
-                      {v.address}
-                    </p>
-                  </td>
-                  <td className="px-4">
-                    <TierBadge venue={v} />
-                  </td>
-                  <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
-                  <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
-                  <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
-                  <td className="px-4 text-center">
-                    {v.pdr_available ? (
-                      <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
-                    ) : (
-                      <span className="text-fg-faint font-mono">–</span>
-                    )}
-                    <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
-                  </td>
-                  <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
-                    {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
-                  </td>
-                  <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
-                </tr>
+                <li key={v.id} className="border-line border-b px-4 py-3.5 last:border-b-0">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-fg truncate text-[13.5px] font-medium">{v.name}</p>
+                    <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(v.min_spend_inr)}</p>
+                  </div>
+                  <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
+                    <span className="text-fg-muted font-sans text-[12.5px]">{v.neighborhood}</span>
+                    <span>{v.capacity_max} guests</span>
+                    <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
+                    {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
+                  </p>
+                </li>
               ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={COLUMNS.length} className="px-5 py-16 text-center">
-                    <p className="text-fg-muted text-[13.5px]">No venues match these filters.</p>
-                    <Link href="/venues" className="text-fg-subtle hover:text-copper-ink mt-1 inline-block text-[12.5px] transition-colors">
-                      Clear filters
-                    </Link>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[46rem] text-[13px]">
+                <thead>
+                  <tr className="border-line border-b">
+                    {COLUMNS.map((c) => (
+                      <th
+                        key={c.label}
+                        scope="col"
+                        aria-sort={c.key && query.sort === c.key ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
+                        className={cn("label-mono h-10 px-4 font-medium first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
+                      >
+                        <SortHeader column={c} query={query} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((v) => (
+                    <tr key={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
+                      <td className="max-w-80 py-3 pr-4 pl-5">
+                        <p className="text-fg truncate font-medium">{v.name}</p>
+                        <p className="text-fg-subtle mt-0.5 truncate text-[12px]" title={v.address}>
+                          {v.address}
+                        </p>
+                      </td>
+                      <td className="px-4">
+                        <TierBadge venue={v} />
+                      </td>
+                      <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
+                      <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
+                      <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
+                      <td className="px-4 text-center">
+                        {v.pdr_available ? (
+                          <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
+                        ) : (
+                          <span className="text-fg-faint font-mono">–</span>
+                        )}
+                        <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
+                      </td>
+                      <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
+                        {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
+                      </td>
+                      <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-[11.5px]">
           <span className="tabular-nums">
