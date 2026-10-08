@@ -291,7 +291,7 @@ export function EventRequestForm({
         <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="event_date">Event date</Label>
             <Input
               id="event_date"
@@ -320,7 +320,7 @@ export function EventRequestForm({
               </p>
             ) : null}
           </div>
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="party_size">Guests</Label>
             <Input
               id="party_size"
@@ -336,7 +336,7 @@ export function EventRequestForm({
             />
             <FieldError message={err("party_size")} />
           </div>
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="budget_per_head_inr">Budget / head (₹)</Label>
             <Input
               id="budget_per_head_inr"
@@ -366,7 +366,7 @@ export function EventRequestForm({
       {/* ── Step 2 · Billing ───────────────────────────────────────────── */}
       <div hidden={current.id !== "billing"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
         {departments.length > 0 ? (
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="department_id">Charge to department</Label>
             <NativeSelect id="department_id" name="department_id" value={values.department_id} onChange={(e) => set("department_id", e.target.value)}>
               <option value="">No department</option>
@@ -383,7 +383,7 @@ export function EventRequestForm({
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="cost_center">Cost centre</Label>
             <Input
               id="cost_center"
@@ -397,24 +397,25 @@ export function EventRequestForm({
             />
             <FieldError message={err("cost_center")} />
           </div>
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="project_code">
-              Project code <span className="text-fg-subtle font-normal">(optional)</span>
+              Project code
             </Label>
             <Input
               id="project_code"
               name="project_code"
               value={values.project_code}
               onChange={(e) => set("project_code", e.target.value.toUpperCase())}
+              placeholder="Optional"
               maxLength={32}
               aria-invalid={Boolean(err("project_code"))}
               className="font-mono tracking-wider"
             />
             <FieldError message={err("project_code")} />
           </div>
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="billing_gstin">
-              Billing GSTIN <span className="text-fg-subtle font-normal">(optional)</span>
+              Billing GSTIN
             </Label>
             <Input
               id="billing_gstin"
@@ -431,13 +432,13 @@ export function EventRequestForm({
               <FieldError message={err("billing_gstin")} />
             ) : (
               <p id="billing-gstin-help" className="text-muted-foreground text-xs">
-                Blank bills your registered GSTIN.
+                Optional. Blank bills your registered GSTIN.
               </p>
             )}
           </div>
         </div>
 
-        <div className="grid gap-2">
+        <div className="grid content-start gap-2">
           <Label htmlFor="notes">
             Notes for the venue <span className="text-fg-subtle font-normal">(optional)</span>
           </Label>
@@ -494,15 +495,18 @@ export function EventRequestForm({
         </dl>
 
         {preview ? (
-          <dl className="border-line/60 bg-surface grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border p-4 text-sm sm:grid-cols-4" aria-label="Invoice estimate">
-            <dt className="label-mono self-center">Taxable value</dt>
-            <dd className="figure text-right sm:text-left">{formatINR(preview.taxable_value, true)}</dd>
-            <dt className="label-mono self-center">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
-            <dd className="figure text-right sm:text-left">{formatINR(preview.total_tax, true)}</dd>
-            <dt className="label-mono text-fg self-center">Invoice total</dt>
-            <dd className="figure text-right font-medium sm:text-left">{formatINR(preview.invoice_total, true)}</dd>
-            <dt className="label-mono self-center">Supply</dt>
-            <dd className="figure text-right sm:text-left">{preview.supply_type === "INTER_STATE" ? "Inter-state" : "Intra-state"}</dd>
+          <dl className="border-line/60 bg-surface grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-2.5 rounded-xl border p-4 text-sm" aria-label="Invoice estimate">
+            <dt className="label-mono">Taxable value</dt>
+            <dd className="figure text-right">{formatINR(preview.taxable_value, true)}</dd>
+            <dt className="label-mono">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
+            <dd className="figure text-right">{formatINR(preview.total_tax, true)}</dd>
+            <dt className="label-mono">Supply</dt>
+            <dd className="figure text-right">{preview.supply_type === "INTER_STATE" ? "Inter-state" : "Intra-state"}</dd>
+            {/* One unbroken rule above the total (a <div> may group a dt/dd pair). */}
+            <div className="border-line col-span-2 mt-1 grid grid-cols-subgrid items-baseline border-t pt-3">
+              <dt className="label-mono text-fg">Invoice total</dt>
+              <dd className="figure text-right text-[15px] font-medium">{formatINR(preview.invoice_total, true)}</dd>
+            </div>
           </dl>
         ) : null}
         <p className="text-fg-subtle text-xs">
@@ -587,9 +591,9 @@ function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
           Your company&apos;s negotiated rate applies
         </p>
       ) : null}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        <dt className="label-mono self-center">Per head</dt>
-        <dd className="figure">
+      <dl className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-2.5">
+        <dt className="label-mono">Per head</dt>
+        <dd className="figure text-right">
           {pricing.source !== "list" ? (
             <>
               <s className="text-muted-foreground">{formatINR(pricing.listPerHead, true)}</s> {formatINR(pricing.negotiatedPerHead, true)}
@@ -598,12 +602,12 @@ function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
             formatINR(pricing.listPerHead, true)
           )}
         </dd>
-        <dt className="label-mono self-center">Minimum spend</dt>
-        <dd className="figure">{formatINR(pricing.minimumSpend)}</dd>
+        <dt className="label-mono">Minimum spend</dt>
+        <dd className="figure text-right">{formatINR(pricing.minimumSpend)}</dd>
         {pricing.savings > 0 ? (
           <>
-            <dt className="label-mono self-center">You save</dt>
-            <dd className="figure text-sage">{formatINR(pricing.savings, true)}</dd>
+            <dt className="label-mono">You save</dt>
+            <dd className="figure text-sage text-right">{formatINR(pricing.savings, true)}</dd>
           </>
         ) : null}
       </dl>
