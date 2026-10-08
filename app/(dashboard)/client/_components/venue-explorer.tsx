@@ -71,10 +71,10 @@ export function VenueExplorer({
     <section aria-labelledby="venues-heading" className="relative">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 id="venues-heading" className="text-lg font-semibold text-fg">
+          <h2 id="venues-heading" className="display-heading text-[26px] leading-tight">
             Venues
           </h2>
-          <p className="text-sm text-fg-subtle">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
+          <p className="mt-1.5 text-sm text-fg-subtle">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ export function VenueExplorer({
                   aria-current={active ? "true" : undefined}
                   aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
                   data-selected={active}
-                  className="concierge-card group flex w-full cursor-pointer flex-col gap-3 p-4 text-left"
+                  className="concierge-card group flex w-full cursor-pointer flex-col gap-3.5 p-5 text-left"
                 >
                   <VenueCardBody
                     venue={v}
@@ -158,7 +158,7 @@ export function VenueExplorer({
           {selected ? (
             <div className="grid gap-6 overflow-y-auto p-5 sm:p-6">
               <SheetHeader className="p-0 pr-10">
-                <SheetTitle className="text-2xl font-semibold tracking-tight text-fg">{selected.name}</SheetTitle>
+                <SheetTitle className="display-heading text-[30px] leading-tight">{selected.name}</SheetTitle>
                 <SheetDescription>{selected.address}</SheetDescription>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selected.rate_card ? <RateCardPill label={selected.rate_card.label} /> : null}
@@ -171,13 +171,13 @@ export function VenueExplorer({
 
               {selected.packages.length ? (
                 <div className="grid gap-2">
-                  <h3 className="text-sm font-medium text-fg-muted">Menu packages</h3>
+                  <h3 className="label-mono">Menu packages</h3>
                   <ul className="grid gap-2">
                     {selected.packages.map((p) => (
                       <li key={p.id} className="concierge-card p-3">
                         <div className="flex justify-between gap-3 text-sm">
                           <span className="font-medium text-fg">{p.name}</span>
-                          <span className="text-copper-ink tabular-nums">{formatINR(p.per_head_inr)}/head</span>
+                          <span className="figure text-copper-ink">{formatINR(p.per_head_inr)}<span className="text-fg-subtle">/head</span></span>
                         </div>
                         {p.description ? <p className="mt-0.5 text-xs text-fg-subtle">{p.description}</p> : null}
                         {p.dietary_tags.length ? (
@@ -190,7 +190,7 @@ export function VenueExplorer({
               ) : null}
 
               <div className="grid gap-3">
-                <h3 className="text-sm font-medium text-fg-muted">Request this venue</h3>
+                <h3 className="label-mono">Request this venue</h3>
                 <EventRequestForm
                   key={selected.id}
                   companyId={company.id}

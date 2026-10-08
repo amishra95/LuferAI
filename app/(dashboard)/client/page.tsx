@@ -449,7 +449,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           {rfps.length > 0 ? (
             <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
               <div>
-                <h2 id="rfp-heading" className="text-fg text-lg font-semibold">
+                <h2 id="rfp-heading" className="display-heading text-[26px] leading-tight">
                   RFP comparisons
                 </h2>
                 <p className="text-fg-subtle text-[13px]">Instant quotes from your packages and rate card; venues can counter-offer.</p>

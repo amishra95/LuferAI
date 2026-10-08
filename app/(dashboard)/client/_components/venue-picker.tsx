@@ -50,8 +50,8 @@ export function VenueCardBody({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-fg truncate text-[15px] leading-tight font-semibold tracking-tight">{v.name}</p>
-          <p className="text-fg-subtle mt-1 truncate text-[12px]">
+          <p className="display-heading line-clamp-2 text-[18px] leading-[1.15] text-balance">{v.name}</p>
+          <p className="text-fg-subtle mt-1.5 truncate text-[12px]">
             {v.neighborhood} · {v.city}
           </p>
         </div>
@@ -61,9 +61,9 @@ export function VenueCardBody({
       <p className="flex items-baseline gap-1.5">
         {v.from_per_head_inr != null ? (
           <>
-            <span className="text-fg-subtle text-[11px]">from</span>
-            <span className="text-[17px] font-semibold tracking-tight text-amber-400 tabular-nums">{formatINR(v.from_per_head_inr)}</span>
-            <span className="text-fg-subtle text-[11px]">/ head</span>
+            <span className="text-fg-subtle font-mono text-[10.5px] tracking-wider uppercase">from</span>
+            <span className="figure text-[17px] font-medium text-amber-400">{formatINR(v.from_per_head_inr)}</span>
+            <span className="text-fg-subtle font-mono text-[10.5px] tracking-wider uppercase">/ head</span>
           </>
         ) : (
           <span className="text-fg-subtle text-[12px]">Packages on request</span>
@@ -72,17 +72,17 @@ export function VenueCardBody({
 
       <div id={metaId} className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px]">
         <span className="inline-flex items-center gap-1">
-          <Users className="size-3.5" aria-hidden /> Up to {v.capacity_max}
+          <Users className="size-3.5" aria-hidden /> Up to <span className="figure text-fg-muted">{v.capacity_max}</span>
         </span>
         {v.pdr_available ? (
           <span className="inline-flex items-center gap-1">
             <DoorClosed className="size-3.5" aria-hidden /> Private room
           </span>
         ) : null}
-        <span className="tabular-nums">
+        <span>
           <span className="sr-only">Minimum spend </span>
           <span aria-hidden>Min </span>
-          {compact(v.min_spend_inr)}
+          <span className="figure text-fg-muted">{compact(v.min_spend_inr)}</span>
         </span>
         {guests > 0 ? (
           tooSmall ? (
@@ -102,7 +102,7 @@ export function VenueCardBody({
           {v.rate_card_label ? (
             <span
               title="Your company's negotiated rate applies"
-              className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-300"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-[11px] tracking-wider text-amber-300"
             >
               <BadgePercent className="size-3.5" aria-hidden /> Rate card {v.rate_card_label}
             </span>
@@ -142,7 +142,7 @@ export function VenuePicker({
   return (
     <fieldset aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-3">
       <legend className="mb-3 flex w-full items-baseline justify-between gap-3">
-        <span className="text-fg text-[13px] font-medium tracking-tight">Choose your venue</span>
+        <span className="display-heading text-[17px]">Choose your venue</span>
         <span className="text-fg-subtle font-mono text-[11px] tabular-nums">
           {venues.length} {venues.length === 1 ? "venue" : "venues"} · pre-GST
         </span>
@@ -156,7 +156,7 @@ export function VenuePicker({
             <label
               key={v.id}
               className={cn(
-                "concierge-card animate-in fade-in flex cursor-pointer flex-col gap-3 p-4 duration-300",
+                "concierge-card animate-in fade-in flex cursor-pointer flex-col gap-3.5 p-5 duration-300",
                 guests > v.capacity_max && !selected && "opacity-70 hover:opacity-100"
               )}
             >

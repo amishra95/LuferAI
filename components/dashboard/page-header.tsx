@@ -23,11 +23,11 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-fg flex flex-wrap items-center gap-2.5 text-[22px] font-semibold tracking-[-0.025em]">
+        <h1 data-slot="page-title" className="text-fg flex flex-wrap items-center gap-2.5 text-[22px] font-semibold tracking-[-0.025em]">
           {title}
           {badge}
         </h1>
-        <p className="text-fg-subtle mt-1.5 text-[13.5px]">{description}</p>
+        <p data-slot="page-description" className="text-fg-subtle mt-1.5 text-[13.5px]">{description}</p>
       </div>
       {actions}
     </div>

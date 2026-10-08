@@ -261,7 +261,7 @@ export function EventRequestForm({
                 disabled={i > step}
                 aria-current={active ? "step" : undefined}
                 className={cn(
-                  "flex w-full items-center gap-2 border-t-2 pt-2 text-left text-[12.5px] transition-colors pointer-coarse:min-h-11",
+                  "flex w-full items-center gap-2 border-t-2 pt-2.5 text-left font-mono text-[11px] tracking-wider uppercase transition-[color,border-color,transform] duration-200 active:scale-[0.98] pointer-coarse:min-h-11",
                   active ? "border-copper-deep text-fg font-medium" : done ? "border-fg text-fg hover:text-copper-ink" : "border-line text-fg-subtle"
                 )}
               >
@@ -287,7 +287,7 @@ export function EventRequestForm({
       </h3>
 
       {/* ── Step 1 · Event ─────────────────────────────────────────────── */}
-      <div hidden={current.id !== "event"} className="grid gap-4">
+      <div hidden={current.id !== "event"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
         <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -364,7 +364,7 @@ export function EventRequestForm({
       </div>
 
       {/* ── Step 2 · Billing ───────────────────────────────────────────── */}
-      <div hidden={current.id !== "billing"} className="grid gap-4">
+      <div hidden={current.id !== "billing"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
         {departments.length > 0 ? (
           <div className="grid gap-2">
             <Label htmlFor="department_id">Charge to department</Label>
@@ -393,7 +393,7 @@ export function EventRequestForm({
               placeholder="ENG-BLR"
               maxLength={32}
               aria-invalid={Boolean(err("cost_center"))}
-              className="font-mono"
+              className="font-mono tracking-wider"
             />
             <FieldError message={err("cost_center")} />
           </div>
@@ -408,7 +408,7 @@ export function EventRequestForm({
               onChange={(e) => set("project_code", e.target.value.toUpperCase())}
               maxLength={32}
               aria-invalid={Boolean(err("project_code"))}
-              className="font-mono"
+              className="font-mono tracking-wider"
             />
             <FieldError message={err("project_code")} />
           </div>
@@ -425,7 +425,7 @@ export function EventRequestForm({
               maxLength={15}
               aria-invalid={Boolean(err("billing_gstin"))}
               aria-describedby="billing-gstin-help"
-              className="font-mono"
+              className="font-mono tracking-wider"
             />
             {err("billing_gstin") ? (
               <FieldError message={err("billing_gstin")} />
@@ -461,28 +461,30 @@ export function EventRequestForm({
       </div>
 
       {/* ── Step 3 · Review ────────────────────────────────────────────── */}
-      <div hidden={current.id !== "review"} className="grid gap-4">
-        <dl className="divide-line border-line grid divide-y rounded-lg border text-sm">
+      <div hidden={current.id !== "review"} className="animate-in fade-in slide-in-from-right-2 grid gap-4 duration-300 ease-out">
+        <dl className="divide-line border-line grid divide-y rounded-xl border text-sm">
           <ReviewRow label="Venue" onEdit={() => setStep(0)}>
             {venue ? `${venue.name}, ${venue.neighborhood}` : "—"}
           </ReviewRow>
           <ReviewRow label="Date & guests" onEdit={() => setStep(0)}>
-            {eventDate ? formatDate(eventDate) : "—"} · {partySize || "—"} guests ·{" "}
-            {pricing && pricing.source !== "list" ? (
-              <>
-                <s className="text-muted-foreground">{formatINR(pricing.listPerHead, true)}</s> {formatINR(pricing.negotiatedPerHead, true)}
-              </>
-            ) : (
-              formatINR(Number(perHead) || 0, true)
-            )}{" "}
+            {eventDate ? formatDate(eventDate) : "—"} · <span className="figure">{partySize || "—"}</span> guests ·{" "}
+            <span className="figure">
+              {pricing && pricing.source !== "list" ? (
+                <>
+                  <s className="text-muted-foreground">{formatINR(pricing.listPerHead, true)}</s> {formatINR(pricing.negotiatedPerHead, true)}
+                </>
+              ) : (
+                formatINR(Number(perHead) || 0, true)
+              )}
+            </span>{" "}
             / head
           </ReviewRow>
           <ReviewRow label="Billing" onEdit={() => setStep(1)}>
-            <span className="font-mono">
+            <span className="figure">
               {values.cost_center || "—"}
               {values.project_code ? ` / ${values.project_code}` : ""}
             </span>
-            {departmentName ? ` · ${departmentName}` : ""} · GSTIN <span className="font-mono">{billedGstin}</span>
+            {departmentName ? ` · ${departmentName}` : ""} · GSTIN <span className="figure">{billedGstin}</span>
           </ReviewRow>
           {values.notes ? (
             <ReviewRow label="Notes" onEdit={() => setStep(1)}>
@@ -492,15 +494,15 @@ export function EventRequestForm({
         </dl>
 
         {preview ? (
-          <dl className="border-line/60 bg-surface grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border p-3 text-sm sm:grid-cols-4" aria-label="Invoice estimate">
-            <dt className="text-muted-foreground">Taxable value</dt>
-            <dd className="text-right tabular-nums sm:text-left">{formatINR(preview.taxable_value, true)}</dd>
-            <dt className="text-muted-foreground">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
-            <dd className="text-right tabular-nums sm:text-left">{formatINR(preview.total_tax, true)}</dd>
-            <dt className="font-medium">Invoice total</dt>
-            <dd className="text-right font-medium tabular-nums sm:text-left">{formatINR(preview.invoice_total, true)}</dd>
-            <dt className="text-muted-foreground">Supply</dt>
-            <dd className="text-right sm:text-left">{preview.supply_type === "INTER_STATE" ? "Inter-state" : "Intra-state"}</dd>
+          <dl className="border-line/60 bg-surface grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border p-4 text-sm sm:grid-cols-4" aria-label="Invoice estimate">
+            <dt className="label-mono self-center">Taxable value</dt>
+            <dd className="figure text-right sm:text-left">{formatINR(preview.taxable_value, true)}</dd>
+            <dt className="label-mono self-center">{preview.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"}</dt>
+            <dd className="figure text-right sm:text-left">{formatINR(preview.total_tax, true)}</dd>
+            <dt className="label-mono text-fg self-center">Invoice total</dt>
+            <dd className="figure text-right font-medium sm:text-left">{formatINR(preview.invoice_total, true)}</dd>
+            <dt className="label-mono self-center">Supply</dt>
+            <dd className="figure text-right sm:text-left">{preview.supply_type === "INTER_STATE" ? "Inter-state" : "Intra-state"}</dd>
           </dl>
         ) : null}
         <p className="text-fg-subtle text-xs">
@@ -566,8 +568,8 @@ function FieldError({ message }: { message?: string }) {
 
 function ReviewRow({ label, onEdit, children }: { label: string; onEdit: () => void; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 px-3 py-2.5">
-      <dt className="text-muted-foreground w-28 shrink-0">{label}</dt>
+    <div className="flex items-start gap-3 px-4 py-3.5">
+      <dt className="label-mono w-28 shrink-0 pt-0.5">{label}</dt>
       <dd className="text-fg min-w-0 flex-1 break-words">{children}</dd>
       <button type="button" onClick={onEdit} className="text-fg-subtle hover:text-fg -my-1 inline-flex items-center gap-1 rounded px-1 py-1 text-xs pointer-coarse:min-h-11">
         <Pencil className="size-3" aria-hidden /> Edit<span className="sr-only"> {label.toLowerCase()}</span>
@@ -578,16 +580,16 @@ function ReviewRow({ label, onEdit, children }: { label: string; onEdit: () => v
 
 function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
   return (
-    <div className="animate-in fade-in grid gap-1 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 text-sm duration-300" aria-live="polite">
+    <div className="animate-in fade-in grid gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm duration-300" aria-live="polite">
       {pricing.source !== "list" ? (
         <p className="text-copper-ink flex items-center gap-1.5 font-medium">
           <BadgePercent className="size-4" aria-hidden />
           Your company&apos;s negotiated rate applies
         </p>
       ) : null}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
-        <dt className="text-muted-foreground">Per head</dt>
-        <dd className="tabular-nums">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+        <dt className="label-mono self-center">Per head</dt>
+        <dd className="figure">
           {pricing.source !== "list" ? (
             <>
               <s className="text-muted-foreground">{formatINR(pricing.listPerHead, true)}</s> {formatINR(pricing.negotiatedPerHead, true)}
@@ -596,12 +598,12 @@ function PricingPanel({ pricing }: { pricing: NegotiatedPricing }) {
             formatINR(pricing.listPerHead, true)
           )}
         </dd>
-        <dt className="text-muted-foreground">Minimum spend</dt>
-        <dd className="tabular-nums">{formatINR(pricing.minimumSpend)}</dd>
+        <dt className="label-mono self-center">Minimum spend</dt>
+        <dd className="figure">{formatINR(pricing.minimumSpend)}</dd>
         {pricing.savings > 0 ? (
           <>
-            <dt className="text-muted-foreground">You save</dt>
-            <dd className="text-sage tabular-nums">{formatINR(pricing.savings, true)}</dd>
+            <dt className="label-mono self-center">You save</dt>
+            <dd className="figure text-sage">{formatINR(pricing.savings, true)}</dd>
           </>
         ) : null}
       </dl>

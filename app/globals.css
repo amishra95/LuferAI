@@ -7,6 +7,8 @@
  * apply dark variants on the light pages too).
  */
 @custom-variant dark (&:is(.concierge, .concierge *));
+/* Same scope, for non-colour tweaks (type, spacing) that only the concierge pages take. */
+@custom-variant concierge (&:is(.concierge, .concierge *));
 
 /*
  * Lufer design tokens (dashboard). Warm off-white canvas, crisp white cards
@@ -39,6 +41,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -228,6 +231,35 @@ html:has(.lufer) {
     0 4px 14px -6px rgb(9 9 11 / 0.06);
 }
 
+/*
+ * Editorial type. `display-title` for page titles, `display-heading` for
+ * section headings and venue names (Fraunces, optical sizing on), `figure` for
+ * money, counts and codes: Geist Mono, tabular, slightly open tracking.
+ */
+@utility display-title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-optical-sizing: auto;
+  color: var(--color-fg);
+}
+
+@utility display-heading {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  font-optical-sizing: auto;
+  color: var(--color-fg);
+}
+
+@utility figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 /* Mono micro-label for section and column headings. */
 @utility label-mono {
   font-family: var(--font-mono);
@@ -253,7 +285,10 @@ html:has(.lufer) {
   font-weight: 500;
   white-space: nowrap;
   box-shadow: 0 1px 2px rgb(9 9 11 / 0.05);
-  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, box-shadow 150ms;
+  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, box-shadow 150ms, transform 120ms ease-out;
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
   &:hover {
     background: #fafafa;
     border-color: #c4c4ca;
@@ -505,16 +540,49 @@ html:has(.lufer) {
     box-shadow: 0 0 0 3px rgb(245 158 11 / 0.22);
   }
 }
-/* Cards and panels: flat charcoal that warms with an amber hairline and glow on hover. */
+/* Cards and panels: flat charcoal with a faint lit top edge that warms with an amber hairline and glow on hover. */
 .concierge .panel {
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   transition:
     border-color 200ms ease,
     box-shadow 300ms ease;
   &:hover {
     border-color: rgb(251 191 36 / 0.2);
-    box-shadow: 0 0 0 1px rgb(251 191 36 / 0.05), 0 12px 40px -18px rgb(245 158 11 / 0.35);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 0 1px rgb(251 191 36 / 0.05), 0 12px 40px -18px rgb(245 158 11 / 0.35);
   }
+}
+
+/* Editorial hierarchy inside the scope: serif page titles, stark headings, roomy tables. */
+.concierge [data-slot="page-title"] {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-optical-sizing: auto;
+}
+.concierge [data-slot="page-description"] {
+  margin-top: 0.5rem;
+  color: var(--color-fg-subtle);
+}
+.concierge [data-slot="card-title"] {
+  letter-spacing: -0.015em;
+}
+.concierge [data-slot="table"] {
+  font-variant-numeric: tabular-nums;
+}
+.concierge [data-slot="table-head"] {
+  height: 2.75rem;
+  padding-inline: 1rem;
+}
+.concierge [data-slot="table-cell"] {
+  padding: 0.875rem 1rem;
+}
+/* Right-aligned cells are figures (counts, money, latency): tabular mono. */
+.concierge [data-slot="table-cell"].text-right {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
 }
 /* A full page in the scope: midnight canvas with a faint amber light from above. */
 .concierge-page {
@@ -538,6 +606,7 @@ html:has(.lufer) {
   border-radius: 1rem;
   border: 1px solid var(--color-line);
   background: var(--color-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   backdrop-filter: blur(24px);
   transition:
     border-color 200ms ease,
@@ -559,9 +628,13 @@ html:has(.lufer) {
       0 0 0 1px rgb(251 191 36 / 0.25),
       0 16px 48px -16px rgb(245 158 11 / 0.55);
   }
-  &:has(:focus-visible) {
+  &:has(:focus-visible),
+  &:focus-visible {
     outline: 2px solid rgb(251 191 36 / 0.7);
     outline-offset: 2px;
+  }
+  &:active {
+    transform: scale(0.98);
   }
 }
 
