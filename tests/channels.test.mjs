@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 
 import { mergeParsed, parseReservationText } from "../lib/channels/parse-reservation.ts";
+import { handOff } from "../lib/channels/handoff.ts";
 import { tokensMatch, verifyMetaSignature, verifySlackSignature } from "../lib/channels/signatures.ts";
 
 const catalogue = {
@@ -116,4 +117,53 @@ test("delivery failures: rate limits retry later, bad config stops, outages retr
   assert.equal(classifyDeliveryFailure("WhatsApp send failed (503): Service Unavailable"), "transient");
   assert.equal(classifyDeliveryFailure("Slack post failed: 500"), "transient");
   assert.equal(classifyDeliveryFailure("fetch failed"), "transient");
+});
+
+function receiptStore() {
+  const seen = new Set();
+  return {
+    seen,
+    async firstDelivery(key) {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    },
+    async releaseDelivery(key) {
+      seen.delete(key);
+    },
+  };
+}
+
+test("handOff dispatches a delivery once; platform retries of a handed-off message are dropped", async () => {
+  const store = receiptStore();
+  let dispatched = 0;
+  const dispatch = async () => void dispatched++;
+  await handOff(store, "slack:Ev1", dispatch);
+  await handOff(store, "slack:Ev1", dispatch);
+  assert.equal(dispatched, 1);
+});
+
+test("handOff releases the receipt when dispatch fails, so the retry after a 503 is processed", async () => {
+  const store = receiptStore();
+  await assert.rejects(
+    handOff(store, "wa:m1", async () => {
+      throw new Error("workflow down");
+    }),
+    /workflow down/
+  );
+  assert.equal(store.seen.has("wa:m1"), false);
+  let dispatched = 0;
+  await handOff(store, "wa:m1", async () => void dispatched++);
+  assert.equal(dispatched, 1);
+});
+
+test("handOff still surfaces the dispatch error if releasing the receipt fails", async () => {
+  const store = { ...receiptStore(), releaseDelivery: async () => { throw new Error("db down"); } };
+  const logged = console.error;
+  console.error = () => {};
+  try {
+    await assert.rejects(handOff(store, "slack:Ev2", async () => { throw new Error("workflow down"); }), /workflow down/);
+  } finally {
+    console.error = logged;
+  }
 });

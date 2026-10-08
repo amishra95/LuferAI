@@ -27,6 +27,8 @@ export interface ChannelStore {
   conversation(opts: { channel: ChannelId; senderId: string; test: boolean; sinceMinutes: number; limit: number }): Promise<ChannelEvent[]>;
   /** True the first time a webhook message/event ID is seen; false for platform retries. */
   firstDelivery(key: string): Promise<boolean>;
+  /** Forgets a receipt whose message couldn't be handed off, so the platform's retry is processed. */
+  releaseDelivery(key: string): Promise<void>;
 }
 
 export const channelStore = (): ChannelStore => (isSupabaseConfigured() ? supabaseStore : memoryStore);
