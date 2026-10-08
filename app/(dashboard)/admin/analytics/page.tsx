@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, CheckCircle2, Coins, Timer } from "lucide-reac
 
 import { LatencyChart, RunsChart } from "@/components/admin/run-charts";
 import { TracePanels } from "@/components/admin/trace-panels";
+import { LiveBadge } from "@/components/portal/live-badge";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePortal } from "@/lib/auth/session";
 import { isRedisConfigured } from "@/lib/data/local-store";
 import { formatMs } from "@/lib/telemetry/format";
-import { RUN_RANGES, summarizeRuns, type RunRange, type RunTotals } from "@/lib/telemetry/metrics";
+import { metricChange, RUN_RANGES, summarizeRuns, type RunRange } from "@/lib/telemetry/metrics";
 import { listAgentRuns, RUN_LOG_LIMIT } from "@/lib/telemetry/runs";
 import { summarizeTraces, TRACE_LIST_LIMIT, tracer } from "@/lib/tracer";
 
@@ -24,20 +25,6 @@ const CHANNEL_LABEL: Record<string, string> = { web: "Web app", whatsapp: "Whats
 const when = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 const int = (n: number) => n.toLocaleString("en-IN");
 const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
-
-/** "+12% vs previous 24 hours", or why there's no comparison. */
-function change(now: number | null, before: number | null, range: RunRange, unit: "%" | "pts" = "%") {
-  if (now === null || before === null) return "No runs in the previous period to compare";
-  if (unit === "pts") {
-    const d = now - before;
-    return `${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(1)} pts vs previous ${RANGE_LABEL[range]}`;
-  }
-  if (before === 0) return "No runs in the previous period to compare";
-  const d = (now - before) / before;
-  return `${d >= 0 ? "+" : "−"}${Math.abs(d * 100).toFixed(0)}% vs previous ${RANGE_LABEL[range]}`;
-}
-
-const nonZero = (t: RunTotals, v: number) => (t.runs ? v : null);
 
 async function loadSummary(range: RunRange) {
   const errors: string[] = [];
@@ -74,6 +61,14 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
 
   const { s, traceSummary, loadError, oldest, truncated } = await loadSummary(range);
   const { totals: t, previous: p } = s;
+  const asOf = new Date(s.to);
+  const versus = `vs previous ${RANGE_LABEL[range]}`;
+  const noComparison = "No runs in the previous period to compare";
+  // Volume (runs, tokens) is neither good nor bad; reliability up and latency down are.
+  const runsChange = metricChange(t.runs, p.runs, { unit: "%", better: "neither" });
+  const successChange = metricChange(t.successRate, p.successRate, { unit: "pts", better: "up" });
+  const latencyChange = metricChange(t.p50Ms, p.p50Ms, { unit: "%", better: "down" });
+  const tokensChange = t.runs && p.runs ? metricChange(t.tokens, p.tokens, { unit: "%", better: "neither" }) : null;
 
   return (
     <PortalShell
@@ -82,13 +77,16 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
       title="Agent analytics"
       subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
       actions={
-        <nav aria-label="Time range" className="flex gap-1.5">
-          {RUN_RANGES.map((r) => (
-            <Link key={r} href={`/admin/analytics?range=${r}`} scroll={false} aria-current={r === range ? "page" : undefined} className={segmentClass(r === range)}>
-              {r}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex flex-wrap items-center gap-3">
+          <LiveBadge asOf={asOf} partial={Boolean(loadError)} />
+          <nav aria-label="Time range" className="flex gap-1.5">
+            {RUN_RANGES.map((r) => (
+              <Link key={r} href={`/admin/analytics?range=${r}`} scroll={false} aria-current={r === range ? "page" : undefined} className={segmentClass(r === range)}>
+                {r}
+              </Link>
+            ))}
+          </nav>
+        </div>
       }
     >
       {loadError && (
@@ -98,15 +96,22 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
       )}
 
       <section aria-label={`Summary, last ${RANGE_LABEL[range]}`} className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Runs" value={int(t.runs)} hint={change(t.runs, p.runs, range)} icon={Activity} />
+        <StatCard label="Runs" value={int(t.runs)} change={runsChange} hint={runsChange ? versus : noComparison} icon={Activity} />
         <StatCard
           label="Success rate"
           value={pct(t.successRate)}
-          hint={t.runs ? `${int(t.failed)} failed · ${change(t.successRate, p.successRate, range, "pts")}` : "No runs yet"}
+          change={successChange}
+          hint={t.runs ? `${int(t.failed)} failed${successChange ? ` · ${versus}` : ""}` : "No runs yet"}
           icon={CheckCircle2}
         />
-        <StatCard label="Median latency" value={formatMs(t.p50Ms)} hint={t.runs ? `p95 ${formatMs(t.p95Ms)}` : "No runs to measure"} icon={Timer} />
-        <StatCard label="Tokens" value={int(t.tokens)} hint={change(nonZero(t, t.tokens), nonZero(p, p.tokens), range)} icon={Coins} />
+        <StatCard
+          label="Median latency"
+          value={formatMs(t.p50Ms)}
+          change={latencyChange}
+          hint={t.runs ? `p95 ${formatMs(t.p95Ms)}${latencyChange ? ` · ${versus}` : ""}` : "No runs to measure"}
+          icon={Timer}
+        />
+        <StatCard label="Tokens" value={int(t.tokens)} change={tokensChange} hint={tokensChange ? versus : noComparison} icon={Coins} />
       </section>
 
       {t.runs === 0 ? (

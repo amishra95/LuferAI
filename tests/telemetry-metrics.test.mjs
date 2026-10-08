@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeTelemetryMetrics } from "../lib/telemetry/metrics.ts";
+import { computeTelemetryMetrics, metricChange } from "../lib/telemetry/metrics.ts";
 
 const NOW = Date.parse("2026-10-08T12:00:00.000Z");
 const run = (minutesAgo, over = {}) => ({
@@ -85,4 +85,27 @@ test("summarizeRuns: 24h uses IST hour buckets; empty buckets have no latency", 
   assert.equal(s.buckets.at(-1).p50Ms, 700);
   assert.equal(s.buckets[0].p50Ms, null);
   assert.equal(summarizeRuns([], NOW, "30d").totals.successRate, null);
+});
+
+test("metricChange: relative change with a sign, rounded to whole percent", () => {
+  assert.deepEqual(metricChange(112, 100, { unit: "%", better: "neither" }), { label: "+12%", direction: "up", intent: "neutral" });
+  assert.deepEqual(metricChange(85, 100, { unit: "%", better: "neither" }), { label: "−15%", direction: "down", intent: "neutral" });
+});
+
+test("metricChange: intent follows which direction is better", () => {
+  assert.equal(metricChange(2400, 2000, { unit: "%", better: "down" })?.intent, "bad"); // latency up
+  assert.equal(metricChange(1600, 2000, { unit: "%", better: "down" })?.intent, "good"); // latency down
+  assert.deepEqual(metricChange(90.7, 91.9, { unit: "pts", better: "up" }), { label: "−1.2 pts", direction: "down", intent: "bad" });
+});
+
+test("metricChange: changes that round to zero are flat and neutral", () => {
+  assert.deepEqual(metricChange(1004, 1000, { unit: "%", better: "up" }), { label: "0%", direction: "flat", intent: "neutral" });
+  assert.deepEqual(metricChange(91.92, 91.9, { unit: "pts", better: "up" }), { label: "0.0 pts", direction: "flat", intent: "neutral" });
+});
+
+test("metricChange: nothing to compare gives null", () => {
+  assert.equal(metricChange(null, 10, { unit: "%", better: "up" }), null);
+  assert.equal(metricChange(10, null, { unit: "pts", better: "up" }), null);
+  assert.equal(metricChange(10, 0, { unit: "%", better: "up" }), null); // relative change from zero
+  assert.deepEqual(metricChange(0, 0, { unit: "pts", better: "up" })?.label, "0.0 pts");
 });
