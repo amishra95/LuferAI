@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, CheckCircle2, Coins, Timer } from "lucide-reac
 
 import { LatencyChart, RunsChart } from "@/components/admin/run-charts";
 import { TracePanels } from "@/components/admin/trace-panels";
+import { EmptyState } from "@/components/portal/empty-state";
 import { LiveBadge } from "@/components/portal/live-badge";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
@@ -115,18 +116,25 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
       </section>
 
       {t.runs === 0 ? (
-        <Card className="mb-6">
-          <CardContent className="py-12 text-center">
-            <p className="text-fg text-[13.5px] font-medium">No agent runs in the last {RANGE_LABEL[range]}</p>
-            <p className="text-fg-subtle mx-auto mt-1 max-w-md text-[12.5px]">
-              Runs are recorded from workspace chat, WhatsApp and Slack replies, the AI tools in the portals and agent tests on the{" "}
-              <Link href="/agents" className="underline underline-offset-2">
-                Agents
-              </Link>{" "}
-              page.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          className="mb-6"
+          headingLevel={2}
+          icon={Activity}
+          title={`No agent runs in the last ${RANGE_LABEL[range]}`}
+          description="Runs are recorded from workspace chat, WhatsApp and Slack replies, the AI tools in the portals and agent tests."
+          action={
+            <>
+              <Link href="/agents" className="btn btn-primary">
+                Run an agent test
+              </Link>
+              {range !== "30d" ? (
+                <Link href="/admin/analytics?range=30d" scroll={false} className="btn">
+                  View last 30 days
+                </Link>
+              ) : null}
+            </>
+          }
+        />
       ) : (
         <>
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
