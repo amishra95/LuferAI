@@ -154,7 +154,7 @@ export function VenueExplorer({
 
       <Sheet open={open && !!selected} onOpenChange={setOpen}>
         {/* The drawer is portaled outside the page, so it carries its own concierge scope. */}
-        <ResponsiveSheetContent wide className="concierge dark border-line bg-zinc-950/85 backdrop-blur-xl">
+        <ResponsiveSheetContent wide className="concierge border-line bg-zinc-950/85 backdrop-blur-xl">
           {selected ? (
             <div className="grid gap-6 overflow-y-auto p-5 sm:p-6">
               <SheetHeader className="p-0 pr-10">

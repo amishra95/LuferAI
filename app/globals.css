@@ -1,7 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * `dark:` means "inside the concierge scope", not the `dark` class on <html>
+ * (that one is always present for shadcn charts/sheets, so keying on it would
+ * apply dark variants on the light pages too).
+ */
+@custom-variant dark (&:is(.concierge, .concierge *));
 
 /*
  * Lufer design tokens (dashboard). Warm off-white canvas, crisp white cards
@@ -401,7 +406,7 @@ html:has(.lufer) {
 
 /*
  * Deep midnight canvas, charcoal glass cards, hairline white borders and warm
- * amber metal for accents. Add `concierge dark` to a container (it also enables
+ * amber metal for accents. Add `concierge` to a container (it also enables
  * `dark:` variants) and every token-based utility (text-fg, bg-surface,
  * border-line, …) and shadcn primitive inside it switches over. Portaled
  * content (sheets, dialogs) needs the classes on its own root.

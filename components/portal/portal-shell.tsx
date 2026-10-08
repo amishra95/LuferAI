@@ -38,5 +38,5 @@ export function PortalShell({
       {children}
     </Page>
   );
-  return theme === "concierge" ? <div className="concierge concierge-page dark flex-1">{page}</div> : page;
+  return theme === "concierge" ? <div className="concierge concierge-page flex-1">{page}</div> : page;
 }
