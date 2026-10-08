@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { canAccess, canAccessWorkspace, homeFor, portalFor, workspaceRouteFor } from "@/lib/auth/roles";
+import { canAccess, canAccessWorkspace, homeFor, membershipFromClaims, portalFor, workspaceRouteFor } from "@/lib/auth/roles";
 import { isAiApiPath, limitAiRequest } from "@/lib/ratelimit";
 import type { Database, PortalRole } from "./database.types";
 import { clean, isAuthConfigured } from "./env";
@@ -60,16 +60,23 @@ export async function updateSession(request: NextRequest) {
     return redirectToLogin(request, response, { next: request.nextUrl.pathname + request.nextUrl.search });
   }
 
-  // RLS policy "users read own membership" lets the user's own client read this row.
-  const { data: member } = await supabase
-    .from("platform_users")
-    .select("role, corporate_role")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const role: PortalRole | undefined = member?.role;
+  // Role from the token's claims (custom_access_token_hook) when present: no
+  // database round trip. Without them (hook not enabled yet), look it up; RLS
+  // policy "users read own membership" lets the user's own client read the row.
+  // Either way this is optimistic: layouts and actions re-check platform_users.
+  let membership = membershipFromClaims(data?.claims);
+  if (!membership) {
+    const { data: member } = await supabase
+      .from("platform_users")
+      .select("role, corporate_role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    membership = member ? { role: member.role, corporateRole: member.corporate_role } : null;
+  }
+  const role: PortalRole | undefined = membership?.role;
 
   if (!role) return redirectToLogin(request, response, { error: "no_access" });
-  const allowed = portal ? canAccess(role, portal) : canAccessWorkspace(role, member?.corporate_role, workspace!);
+  const allowed = portal ? canAccess(role, portal) : canAccessWorkspace(role, membership?.corporateRole, workspace!);
   if (!allowed) return withSessionCookies(NextResponse.redirect(new URL(homeFor(role), request.url)), response);
 
   return response;

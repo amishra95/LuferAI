@@ -82,3 +82,17 @@ test("workspaceRouteFor matches the area and its sub-paths only", () => {
   assert.equal(workspaceRouteFor("/settingsx"), null);
   assert.equal(workspaceRouteFor("/client"), null);
 });
+
+import { membershipFromClaims } from "../lib/auth/roles.ts";
+
+test("membershipFromClaims reads app_metadata.lufer from the hook, and nothing malformed", () => {
+  const claims = (lufer) => ({ sub: "u1", role: "authenticated", app_metadata: { provider: "email", lufer } });
+  assert.deepEqual(membershipFromClaims(claims({ v: 1, role: "CLIENT", company_id: "c1", corporate_role: "APPROVER" })), { role: "CLIENT", corporateRole: "APPROVER" });
+  assert.deepEqual(membershipFromClaims(claims({ v: 1, role: "ADMIN" })), { role: "ADMIN", corporateRole: null });
+  assert.deepEqual(membershipFromClaims(claims({ v: 1, role: "CLIENT", corporate_role: "OWNER" })), { role: "CLIENT", corporateRole: null });
+  assert.equal(membershipFromClaims(claims(undefined)), null); // hook not enabled
+  assert.equal(membershipFromClaims(claims({ v: 2, role: "ADMIN" })), null); // unknown shape: look it up instead
+  assert.equal(membershipFromClaims(claims({ v: 1, role: "SUPERUSER" })), null);
+  assert.equal(membershipFromClaims({ sub: "u1", lufer: { v: 1, role: "ADMIN" } }), null); // only app_metadata counts
+  assert.equal(membershipFromClaims(null), null);
+});

@@ -82,3 +82,25 @@ export function safeNextPath(raw: string | null | undefined): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
   return raw;
 }
+
+/** Portal membership carried in the access token by public.custom_access_token_hook (app_metadata.lufer). */
+export interface TokenMembership {
+  role: PortalRole;
+  corporateRole: CorporateRole | null;
+}
+
+const PORTAL_ROLES: readonly PortalRole[] = ["ADMIN", "CLIENT", "PROPERTY", "PARTNER"];
+const CORPORATE_ROLES: readonly CorporateRole[] = ["ORGANIZER", "APPROVER", "FINANCE_VIEWER"];
+
+/**
+ * The membership claims from a verified JWT payload, or null when the hook isn't
+ * enabled or the claims are malformed (callers then look the membership up).
+ * Only for optimistic checks: authoritative checks read platform_users, and RLS
+ * never trusts these claims.
+ */
+export function membershipFromClaims(claims: unknown): TokenMembership | null {
+  const lufer = (claims as { app_metadata?: { lufer?: { v?: unknown; role?: unknown; corporate_role?: unknown } } } | null)?.app_metadata?.lufer;
+  if (!lufer || lufer.v !== 1 || !PORTAL_ROLES.includes(lufer.role as PortalRole)) return null;
+  const corporate = CORPORATE_ROLES.includes(lufer.corporate_role as CorporateRole) ? (lufer.corporate_role as CorporateRole) : null;
+  return { role: lufer.role as PortalRole, corporateRole: corporate };
+}

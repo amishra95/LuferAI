@@ -1478,6 +1478,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["portal_role"]
       }
       current_venue_id: { Args: never; Returns: string }
+      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       gstin_checksum: { Args: { p_first14: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
