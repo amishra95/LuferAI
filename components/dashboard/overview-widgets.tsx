@@ -24,8 +24,8 @@ export type ChannelSummary = { id: ChannelId; label: string; state: "live" | "pa
 
 const STATE_PILL = {
   live: (
-    <span className="pill pill-copper">
-      <span className="live-dot" aria-hidden /> live
+    <span className="pill">
+      <span className="status-dot bg-sage" aria-hidden /> live
     </span>
   ),
   paused: (
@@ -62,7 +62,7 @@ export function ChannelsWidget({ channels }: { channels: ChannelSummary[] }) {
 }
 
 const AGENT_DOT: Record<AgentStatus, string> = {
-  active: "live-dot",
+  active: "status-dot bg-sage",
   idle: "size-1.5 rounded-full bg-fg-subtle",
   error: "size-1.5 rounded-full bg-rose",
   disabled: "size-1.5 rounded-full border border-fg-faint",

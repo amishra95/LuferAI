@@ -5,11 +5,11 @@ import { isLuferToolPart } from "@/components/chat/tool-meta";
 import { ToolStatus } from "@/components/chat/tool-status";
 import type { LuferUIMessage } from "@/types/chat";
 
-/** The agent's mark: a copper core in a hairline ring. */
+/** The agent's mark: a solid core in a hairline ring. */
 export function AgentMark({ live = false }: { live?: boolean }) {
   return (
     <span aria-hidden className="border-line-strong bg-surface grid size-6 shrink-0 place-items-center rounded-full border">
-      <span className={live ? "live-dot" : "bg-copper size-1.5 rounded-full"} />
+      <span className={live ? "status-dot bg-sage" : "bg-fg size-1.5 rounded-full"} />
     </span>
   );
 }
@@ -30,7 +30,7 @@ export function ChatMessage({
     const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
     return (
       <div className="flex justify-end">
-        <div className="bg-surface border-line text-fg max-w-[85%] rounded-2xl rounded-br-md border px-4 py-2.5 shadow-[0_1px_2px_rgb(9_9_11/0.05)] text-[14px] leading-6 whitespace-pre-wrap">
+        <div className="bg-surface border-line text-fg max-w-[85%] rounded-lg rounded-br-md border px-4 py-2.5 text-[14px] leading-6 whitespace-pre-wrap">
           {text}
         </div>
       </div>

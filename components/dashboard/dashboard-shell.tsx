@@ -60,11 +60,6 @@ export function DashboardShell({
         </Drawer>
 
         <div className="relative flex min-w-0 flex-1 flex-col">
-          {/* A single, very faint copper bloom: the only ornament in the chrome. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(48rem_16rem_at_30%_-6rem,rgb(245_158_11/0.07),transparent)]"
-          />
           <Header
             workspaceName={workspaceName}
             system={system}

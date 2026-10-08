@@ -48,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role={t.tone === "error" ? "alert" : "status"}
             className={cn(
-              "animate-in fade-in slide-in-from-bottom-2 border-line bg-elevated pointer-events-auto flex w-full items-start gap-3 rounded-xl border px-4 py-3 shadow-[0_12px_32px_-12px_rgb(9_9_11/0.25)] duration-200 sm:w-[22rem]",
+              "animate-in fade-in slide-in-from-bottom-2 border-line bg-elevated pointer-events-auto flex w-full items-start gap-3 rounded-lg border px-4 py-3 duration-200 sm:w-[22rem]",
               t.tone === "error" && "border-rose/25"
             )}
           >

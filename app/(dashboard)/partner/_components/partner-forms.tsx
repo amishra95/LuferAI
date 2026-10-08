@@ -92,7 +92,7 @@ export function ListingForm({ partnerId, listing }: { partnerId: string | null; 
         <Field id={key} label="Capacity (guests)" name="capacity" type="number" min={1} max={5000} defaultValue={listing?.capacity} required error={err.capacity} />
         <Field id={key} label="Minimum spend (₹, pre-GST)" name="min_spend_inr" type="number" min={0} step="1" defaultValue={listing?.min_spend_inr ?? 0} error={err.min_spend_inr} />
         <label className="text-fg flex items-center gap-2 self-end pb-2 text-[13px]">
-          <input type="checkbox" name="private_dining" defaultChecked={listing?.private_dining} className="accent-copper-deep size-4" />
+          <input type="checkbox" name="private_dining" defaultChecked={listing?.private_dining} className="accent-fg size-4" />
           Private dining room
         </label>
       </div>

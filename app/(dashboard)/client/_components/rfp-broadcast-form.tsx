@@ -63,12 +63,12 @@ export function RfpBroadcastForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-3">
-      <div className="glass group relative rounded-2xl p-2 shadow-[0_0_40px_-12px] shadow-amber-500/20 backdrop-blur-xl transition-[box-shadow,border-color] duration-300 focus-within:border-amber-400/40 focus-within:shadow-amber-500/45">
+      <div className="panel focus-within:border-line-strong relative p-2 transition-colors duration-100">
         <label htmlFor="brief" className="sr-only">
           Describe your event
         </label>
         <div className="flex items-start gap-2">
-          <Sparkles className="text-copper-ink mt-3 ml-2 size-5 shrink-0" aria-hidden />
+          <Sparkles className="text-fg-subtle mt-2.5 ml-1.5 size-4 shrink-0" aria-hidden />
           <textarea
             ref={textarea}
             id="brief"
@@ -83,15 +83,15 @@ export function RfpBroadcastForm() {
             placeholder="Describe the event — guests, date, area, budget, dietary needs…"
             rows={2}
             maxLength={4000}
-            className="field-sizing-content max-h-48 min-h-12 flex-1 resize-none bg-transparent py-2.5 text-base text-fg placeholder:text-fg-faint focus:outline-none"
+            className="field-sizing-content text-fg placeholder:text-fg-faint max-h-48 min-h-10 flex-1 resize-none bg-transparent py-2 text-[13.5px] focus:outline-none"
           />
           <button
             type="submit"
             disabled={pending || brief.trim().length < 20}
             aria-label="Broadcast RFP to matching venues"
-            className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl bg-amber-400 text-zinc-950 shadow-[0_8px_24px_-10px_rgb(245_158_11/0.7)] transition hover:bg-amber-300 disabled:bg-surface-raised disabled:text-fg-faint disabled:shadow-none"
+            className="bg-fg text-canvas hover:bg-fg-muted disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
           >
-            {pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <ArrowUp className="size-5" aria-hidden />}
+            {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}
           </button>
         </div>
 
@@ -105,10 +105,10 @@ export function RfpBroadcastForm() {
                 aria-pressed={on}
                 onClick={() => toggle(r)}
                 className={cn(
-                  "inline-flex min-h-8 items-center gap-1 rounded-full border px-3 text-xs transition pointer-coarse:min-h-11",
+                  "inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-xs transition-colors duration-100 pointer-coarse:min-h-11",
                   on
-                    ? "border-amber-400/50 bg-amber-400/15 text-amber-200 shadow-[0_0_12px_-4px] shadow-amber-400/60"
-                    : "border-line bg-surface text-fg-muted hover:border-line-strong hover:text-fg"
+                    ? "border-fg bg-surface-raised text-fg"
+                    : "border-line text-fg-subtle hover:border-line-strong hover:text-fg"
                 )}
               >
                 {on ? <X className="size-3" aria-hidden /> : <Plus className="size-3" aria-hidden />}
@@ -129,7 +129,7 @@ export function RfpBroadcastForm() {
                 setBrief(ex);
                 textarea.current?.focus();
               }}
-              className="min-h-11 max-w-72 shrink-0 rounded-xl border border-line/60 bg-surface px-3 py-2 text-left text-xs text-fg-subtle transition hover:border-line-strong hover:text-fg"
+              className="min-h-11 max-w-72 shrink-0 rounded-md border border-line bg-surface px-3 py-2 text-left text-xs text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
             >
               {ex}
             </button>

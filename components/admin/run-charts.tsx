@@ -130,7 +130,7 @@ export function LatencyChart({ buckets, bucketMs }: { buckets: RunBucket[]; buck
             strokeWidth={2}
             connectNulls={false}
             dot={{ r: 3, strokeWidth: 2, stroke: "var(--color-surface)", fill: "var(--color-p50Ms)" }}
-            activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--color-white)" }}
+            activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--color-canvas)" }}
           />
         </LineChart>
       </ChartContainer>

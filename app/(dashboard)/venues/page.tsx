@@ -35,7 +35,7 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
       aria-label={`Sort by ${column.label} ${nextDir === "asc" ? "ascending" : "descending"}`}
     >
       {column.label}
-      {active && <Icon className="text-copper-deep size-3" aria-hidden />}
+      {active && <Icon className="text-fg size-3" aria-hidden />}
     </Link>
   );
 }
@@ -109,7 +109,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
       </form>
 
       {partners.status === "unavailable" && (
-        <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-xl border px-4 py-2.5 text-[12.5px]">
+        <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-[12.5px]">
           {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
         </p>
       )}

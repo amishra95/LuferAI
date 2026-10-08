@@ -6,16 +6,17 @@ import { cn } from "@/lib/utils";
 
 /** Status pill in the Lufer style: mono, rounded, tinted. Always carries a text label. */
 const badgeVariants = cva(
-  "inline-flex h-[22px] w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2 font-mono text-[10.5px] tracking-[0.02em] whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
+  // Flat label; status variants lead with a solid dot (the text always names the state).
+  "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-[4px] border px-1.5 font-mono text-[10.5px] whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "border-line bg-surface text-fg shadow-[0_1px_1px_rgb(9_9_11/0.03)]",
+        default: "border-line text-fg",
         secondary: "border-transparent bg-surface-raised text-fg-muted",
-        destructive: "border-rose/25 bg-rose/[0.06] text-rose",
-        outline: "border-line bg-transparent text-fg-muted",
-        success: "border-sage/25 bg-sage/[0.07] text-sage",
-        warning: "border-copper-deep/30 bg-copper/10 text-copper-ink",
+        destructive: "border-line text-fg-muted before:status-dot before:bg-rose before:content-['']",
+        outline: "border-line text-fg-subtle",
+        success: "border-line text-fg-muted before:status-dot before:bg-sage before:content-['']",
+        warning: "border-line text-fg-muted before:status-dot before:bg-warn before:content-['']",
       },
     },
     defaultVariants: {

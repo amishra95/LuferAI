@@ -44,13 +44,13 @@ function Section({
 
 function StatusPill({ tone, children }: { tone: "live" | "ok" | "off" | "error"; children: React.ReactNode }) {
   const dot = {
-    live: "live-dot",
+    live: "status-dot bg-sage",
     ok: "size-1.5 rounded-full bg-sage",
     off: "size-1.5 rounded-full border border-fg-faint",
     error: "size-1.5 rounded-full bg-rose",
   }[tone];
   return (
-    <span className={cn("pill", tone === "live" && "pill-copper", tone === "error" && "border-rose/25 text-rose", tone === "ok" && "text-sage")}>
+    <span className={cn("pill", tone === "live" && "", tone === "error" && "border-rose/25 text-rose", tone === "ok" && "text-sage")}>
       <span className={dot} aria-hidden />
       {children}
     </span>

@@ -78,7 +78,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <ChannelFilter value={filter} counts={counts} />
           </div>
           {liveError && (
-            <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-xl border px-4 py-2.5 text-[12.5px]">
+            <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-lg border px-4 py-2.5 text-[12.5px]">
               Some activity couldn&apos;t be loaded right now ({liveError}).
             </p>
           )}

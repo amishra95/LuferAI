@@ -72,10 +72,10 @@ export function VenueExplorer({
     <section aria-labelledby="venues-heading" className="relative">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 id="venues-heading" className="display-heading text-[26px] leading-tight">
+          <h2 id="venues-heading" className="text-fg text-[15px] font-semibold tracking-tight">
             Venues
           </h2>
-          <p className="mt-1.5 text-sm text-fg-subtle">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
+          <p className="text-fg-subtle mt-0.5 text-[13px]">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
         </div>
       </div>
 
@@ -91,8 +91,8 @@ export function VenueExplorer({
         />
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <ul className={cn("grid content-start gap-3 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2 lg:pb-8 lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-3rem),transparent)]", mobileView === "map" && "max-lg:hidden")}>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            <ul className={cn("grid content-start gap-3 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2 ", mobileView === "map" && "max-lg:hidden")}>
               {options.map((v) => {
                 const active = v.id === selectedId;
                 return (
@@ -104,7 +104,7 @@ export function VenueExplorer({
                       aria-current={active ? "true" : undefined}
                       aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
                       data-selected={active}
-                      className="concierge-card group flex w-full cursor-pointer flex-col gap-3.5 p-5 text-left"
+                      className="panel-interactive group flex w-full cursor-pointer flex-col gap-2 p-3 text-left"
                     >
                       <VenueCardBody
                         venue={v}
@@ -112,8 +112,8 @@ export function VenueExplorer({
                           <ArrowUpRight
                             aria-hidden
                             className={cn(
-                              "size-4 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-amber-400",
-                              active ? "text-amber-400" : "text-fg-faint"
+                              "size-3.5 shrink-0 group-hover:text-fg",
+                              active ? "text-fg" : "text-fg-faint"
                             )}
                           />
                         }
@@ -142,7 +142,7 @@ export function VenueExplorer({
 
           {/* Mobile list/map dock — floats above the bottom nav. */}
           <div className="pointer-events-none sticky bottom-[calc(5rem+var(--app-safe-bottom))] z-20 mt-4 flex justify-center lg:hidden">
-            <div className="glass pointer-events-auto flex rounded-full p-1 shadow-lg" role="group" aria-label="Venue view">
+            <div className="glass pointer-events-auto flex rounded-full p-1" role="group" aria-label="Venue view">
               {(["list", "map"] as const).map((view) => (
                 <button
                   key={view}
@@ -151,7 +151,7 @@ export function VenueExplorer({
                   onClick={() => setMobileView(view)}
                   className={cn(
                     "inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm capitalize transition",
-                    mobileView === view ? "bg-amber-400 text-zinc-950" : "text-fg-muted"
+                    mobileView === view ? "bg-fg text-canvas" : "text-fg-muted"
                   )}
                 >
                   {view === "list" ? <List className="size-4" aria-hidden /> : <MapIcon className="size-4" aria-hidden />}
@@ -164,12 +164,12 @@ export function VenueExplorer({
       )}
 
       <Sheet open={open && !!selected} onOpenChange={setOpen}>
-        {/* The drawer is portaled outside the page, so it carries its own concierge scope. */}
-        <ResponsiveSheetContent wide className="concierge border-line bg-zinc-950/85 backdrop-blur-xl">
+        {/* The drawer is portaled outside the page, so it carries its own scope. */}
+        <ResponsiveSheetContent wide className="border-line bg-canvas">
           {selected ? (
-            <div className="grid gap-6 overflow-y-auto p-5 sm:p-6">
+            <div className="grid gap-5 overflow-y-auto p-4 sm:p-5">
               <SheetHeader className="p-0 pr-10">
-                <SheetTitle className="display-heading text-[30px] leading-tight">{selected.name}</SheetTitle>
+                <SheetTitle className="text-fg text-lg font-semibold tracking-tight">{selected.name}</SheetTitle>
                 <SheetDescription>{selected.address}</SheetDescription>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selected.rate_card ? <RateCardPill label={selected.rate_card.label} /> : null}
@@ -185,10 +185,10 @@ export function VenueExplorer({
                   <h3 className="label-mono">Menu packages</h3>
                   <ul className="grid gap-2">
                     {selected.packages.map((p) => (
-                      <li key={p.id} className="concierge-card p-3">
+                      <li key={p.id} className="panel px-3 py-2.5">
                         <div className="flex justify-between gap-3 text-sm">
                           <span className="font-medium text-fg">{p.name}</span>
-                          <span className="figure text-copper-ink">{formatINR(p.per_head_inr)}<span className="text-fg-subtle">/head</span></span>
+                          <span className="figure text-fg">{formatINR(p.per_head_inr)}<span className="text-fg-subtle">/head</span></span>
                         </div>
                         {p.description ? <p className="mt-0.5 text-xs text-fg-subtle">{p.description}</p> : null}
                         {p.dietary_tags.length ? (

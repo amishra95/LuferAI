@@ -42,7 +42,7 @@ export function Header({
       <nav aria-label="Breadcrumb" className="min-w-0">
         <ol className="flex items-center gap-2 text-[13px]">
           <li className="hidden sm:block">
-            <Link href="/dashboard" className="display-heading text-fg-muted hover:text-fg text-[15px] transition-colors">
+            <Link href="/dashboard" className="text-fg-subtle hover:text-fg transition-colors">
               {workspaceName}
             </Link>
           </li>
@@ -85,11 +85,11 @@ export function Header({
       <Link
         href="/settings"
         title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat is unavailable"}
-        className={system.mode === "live" ? "pill pill-copper hover:brightness-110" : "pill hover:text-fg transition-colors"}
+        className={system.mode === "live" ? "pill hover:brightness-110" : "pill hover:text-fg transition-colors"}
       >
         {system.mode === "live" ? (
           <>
-            <span className="live-dot" aria-hidden />
+            <span className="status-dot bg-sage" aria-hidden />
             <span className="max-w-[9rem] truncate">{system.model}</span>
           </>
         ) : (

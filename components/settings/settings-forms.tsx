@@ -82,7 +82,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
     // method="post": if JS hasn't loaded, a native submit must never put the key in the URL.
     <form method="post" onSubmit={save} className="space-y-5">
       {!editable && (
-        <p className="border-line bg-zinc-50 text-fg-subtle flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[12.5px] leading-5">
+        <p className="border-line bg-surface-hover text-fg-subtle flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-[12.5px] leading-5">
           <Lock className="text-fg-faint mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             Read-only here. Keys can only be changed from <code className="text-fg-muted font-mono">next dev</code> on localhost, because
@@ -204,7 +204,7 @@ export function PreferencesForm({ workspaceName, inspectorOpen }: { workspaceNam
         <span className="text-fg-subtle mt-2 block text-[12.5px]">Shown in the sidebar and breadcrumb.</span>
       </label>
       <label className="flex cursor-pointer items-center gap-3 text-[13px]">
-        <input type="checkbox" name="inspectorOpen" defaultChecked={inspectorOpen} className="accent-copper size-3.5" />
+        <input type="checkbox" name="inspectorOpen" defaultChecked={inspectorOpen} className="accent-fg size-3.5" />
         <span className="text-fg-muted">Open the Chat inspector by default</span>
       </label>
       <div className="flex flex-wrap items-center gap-3">

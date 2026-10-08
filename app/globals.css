@@ -1,39 +1,32 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/*
- * `dark:` means "inside the concierge scope", not the `dark` class on <html>
- * (that one is always present for shadcn charts/sheets, so keying on it would
- * apply dark variants on the light pages too).
- */
-@custom-variant dark (&:is(.concierge, .concierge *));
-/* Same scope, for non-colour tweaks (type, spacing) that only the concierge pages take. */
-@custom-variant concierge (&:is(.concierge, .concierge *));
+/* The app is dark-only; <html> always carries `dark` (shadcn charts/sheets key on it). */
+@custom-variant dark (&:is(.dark *));
 
 /*
- * Lufer design tokens (dashboard). Warm off-white canvas, crisp white cards
- * with hairline zinc borders and soft shadows, charcoal ink. Copper is kept for
- * live/active state only; copper-ink is its text-safe shade on light surfaces.
- * Hover/raised fills are translucent charcoal so they read on white and canvas.
- * Status hues (sage, rose) always ship with an icon + label.
+ * Lufer design tokens. One theme: carbon canvas, flat surfaces one step up,
+ * solid 1px zinc borders, near-white text. No accent hue: emphasis is
+ * contrast (fg vs fg-subtle) and weight. Colour is reserved for status
+ * (ok / warn / error) and always ships with a label or icon.
+ *
+ * Type: Geist Sans for UI, Geist Mono for numbers, tables, timestamps and IDs.
  */
 @theme {
-  --color-canvas: #f8f9fa;
-  --color-elevated: #ffffff;
-  --color-fg: #09090b;
-  --color-fg-muted: #3f3f46;
-  --color-fg-subtle: #71717a;
-  --color-fg-faint: #a1a1aa;
-  --color-surface: #ffffff;
-  --color-surface-raised: rgb(9 9 11 / 0.045);
-  --color-surface-hover: rgb(9 9 11 / 0.028);
-  --color-line: rgb(228 228 231 / 0.8);
-  --color-line-strong: #d4d4d8;
-  --color-copper: #f59e0b;
-  --color-copper-deep: #d97706;
-  --color-copper-ink: #b45309;
-  --color-sage: #2f7a52;
-  --color-rose: #c2352b;
+  --color-canvas: #09090b; /* zinc-950 */
+  --color-elevated: #111113; /* popovers, menus */
+  --color-fg: #fafafa;
+  --color-fg-muted: #d4d4d8; /* zinc-300 */
+  --color-fg-subtle: #a1a1aa; /* zinc-400 */
+  --color-fg-faint: #71717a; /* zinc-500 */
+  --color-surface: #0e0e10; /* panels, cards, inputs */
+  --color-surface-raised: #1c1c1f; /* selected rows/chips, pressed */
+  --color-surface-hover: #141417; /* row and item hover */
+  --color-line: #27272a; /* zinc-800 */
+  --color-line-strong: #3f3f46; /* zinc-700: inputs, buttons */
+  --color-sage: #4ade80; /* ok (green-400) */
+  --color-warn: #fbbf24; /* pending / attention (amber-400) */
+  --color-rose: #f87171; /* error (red-400) */
 }
 
 @theme inline {
@@ -41,7 +34,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-fraunces);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -64,45 +56,42 @@
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
 :root {
-  /*
-   * shadcn tokens, mapped onto the Lufer warm light palette so the portal
-   * primitives (components/ui) match the dashboard. Light only: the app no
-   * longer follows the OS dark preference.
-   */
-  --radius: 0.625rem;
-  --background: #f8f9fa;
-  --foreground: #09090b;
-  --card: #ffffff;
-  --card-foreground: #09090b;
-  --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #09090b;
-  --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #3f3f46;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #09090b;
-  --destructive: #c2352b;
-  --border: rgb(228 228 231 / 0.8);
-  --input: #d4d4d8;
-  --ring: #d97706;
-  --success: #2f7a52;
-  --warning: #b45309;
-  --brand: #d97706;
-  /* Chart series (dataviz reference steps; mid-luminance, readable on white too). */
-  --chart-1: #3987e5;
-  --chart-2: #d95926;
-  --chart-3: #199e70;
-  --chart-critical: #d03b3b;
+  /* shadcn tokens mapped onto the Lufer palette so components/ui matches the dashboard. */
+  color-scheme: dark;
+  --radius: 0.375rem;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #0e0e10;
+  --card-foreground: #fafafa;
+  --popover: #111113;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1c1c1f;
+  --secondary-foreground: #d4d4d8;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a1aa;
+  --accent: #1c1c1f;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #a1a1aa;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --brand: #fafafa;
+  /* Chart series: greys by luminance (series are always labelled); red for failures only. */
+  --chart-1: #e4e4e7;
+  --chart-2: #71717a;
+  --chart-3: #a1a1aa;
+  --chart-critical: #f87171;
 
   /* Safe areas (notch, status bar, home indicator, landscape cut-outs). Capacitor
      injects --safe-area-inset-* on <html> (Android WebView < 140 reports wrong env()
@@ -120,9 +109,9 @@
   padding-bottom: var(--app-safe-bottom);
 }
 
-/* Frosted overlay for floating bars, docks and mobile drawers. */
+/* Floating bars, docks and mobile sheets: an opaque surface with a border (no blur). */
 @utility glass {
-  @apply border-line border bg-white/75 backdrop-blur-md;
+  @apply border-line bg-canvas border;
 }
 
 @layer base {
@@ -143,34 +132,32 @@
 
 /* Venue map markers (components/portal/venue-map.tsx). */
 .venue-marker {
-  min-height: 2rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
-  border: 1px solid oklch(0.37 0.013 285.805);
-  background: oklch(0.21 0.006 285.885 / 0.9);
-  color: oklch(0.985 0 0);
-  font: 600 12px/1.2 var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 1.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #3f3f46;
+  background: #09090b;
+  color: #fafafa;
+  font: 500 11.5px/1.2 var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .venue-marker:hover,
 .venue-marker:focus-visible {
-  transform: translateY(-1px);
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  border-color: #a1a1aa;
+  outline: none;
 }
 .venue-marker[data-selected="true"] {
-  background: oklch(0.985 0 0);
-  color: oklch(0.141 0.005 285.823);
-  box-shadow: 0 0 18px -2px oklch(0.765 0.177 163.223 / 0.8);
+  background: #fafafa;
+  border-color: #fafafa;
+  color: #09090b;
   z-index: 1;
 }
 @media (pointer: coarse) {
   .venue-marker {
     min-height: 2.75rem;
-    padding-inline: 0.875rem;
+    padding-inline: 0.75rem;
   }
 }
 
@@ -178,9 +165,9 @@
 .streaming-caret > :last-child::after {
   content: "";
   display: inline-block;
-  width: 0.45em;
-  height: 1em;
-  margin-left: 2px;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 3px;
   vertical-align: text-bottom;
   background: currentColor;
   animation: caret-blink 1s steps(2, start) infinite;
@@ -193,12 +180,11 @@
 }
 
 /* ------------------------------------------------------------------------- */
-/* Lufer dashboard scope                                                       */
+/* Dashboard scope                                                             */
 /* ------------------------------------------------------------------------- */
 
 html:has(.lufer) {
   background: var(--color-canvas);
-  color-scheme: light;
 }
 
 /* In the base layer so utilities (e.g. outline-none on a focus target) still win. */
@@ -207,57 +193,54 @@ html:has(.lufer) {
     background: var(--color-canvas);
     color: var(--color-fg);
     font-feature-settings: "ss01", "cv11";
-    scrollbar-color: rgb(9 9 11 / 0.16) transparent;
+    scrollbar-color: #3f3f46 transparent;
     scrollbar-width: thin;
   }
 
   .lufer ::selection {
-    background: rgb(245 158 11 / 0.22);
+    background: rgb(250 250 250 / 0.2);
   }
 
   .lufer :focus-visible {
-    outline: 2px solid rgb(217 119 6 / 0.65);
+    outline: 1px solid var(--color-fg);
     outline-offset: 2px;
   }
 }
 
-/* White card: hairline border plus a soft, natural two-layer shadow. */
+/* Flat container: surface fill, 1px border, small radius. */
 @utility panel {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgb(9 9 11 / 0.04),
-    0 4px 14px -6px rgb(9 9 11 / 0.06);
+  border-radius: 8px;
 }
 
-/*
- * Editorial type. `display-title` for page titles, `display-heading` for
- * section headings and venue names (Fraunces, optical sizing on), `figure` for
- * money, counts and codes: Geist Mono, tabular, slightly open tracking.
- */
-@utility display-title {
-  font-family: var(--font-display);
-  font-size: 30px;
-  line-height: 1.1;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  font-optical-sizing: auto;
-  color: var(--color-fg);
+/* A clickable panel (venue cards, pickers): border steps up on hover, white when selected. */
+@utility panel-interactive {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  transition:
+    border-color 100ms,
+    background-color 100ms;
+  &:hover {
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-hover);
+  }
+  &:has(:checked),
+  &[data-selected="true"] {
+    border-color: var(--color-fg);
+  }
+  &:has(:focus-visible),
+  &:focus-visible {
+    outline: 1px solid var(--color-fg);
+    outline-offset: 2px;
+  }
 }
 
-@utility display-heading {
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  font-optical-sizing: auto;
-  color: var(--color-fg);
-}
-
+/* Money, counts, codes, timestamps: Geist Mono with tabular digits. */
 @utility figure {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
 }
 
 /* Mono micro-label for section and column headings. */
@@ -265,7 +248,7 @@ html:has(.lufer) {
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-fg-subtle);
 }
@@ -275,46 +258,53 @@ html:has(.lufer) {
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  height: 2rem;
-  padding-inline: 0.75rem;
-  border-radius: 9px;
+  height: 1.875rem;
+  padding-inline: 0.625rem;
+  border-radius: 6px;
   border: 1px solid var(--color-line-strong);
   background: var(--color-surface);
   color: var(--color-fg);
   font-size: 12.5px;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgb(9 9 11 / 0.05);
-  transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, box-shadow 150ms, transform 120ms ease-out;
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
+  transition:
+    background-color 100ms,
+    border-color 100ms,
+    color 100ms;
   &:hover {
-    background: #fafafa;
-    border-color: #c4c4ca;
+    background: var(--color-surface-raised);
+    border-color: #52525b;
   }
   &:disabled,
   &[aria-disabled="true"] {
-    opacity: 0.45;
+    opacity: 0.4;
     pointer-events: none;
+  }
+}
+
+/* Touch screens: every button is at least 44px (WCAG 2.5.5), whatever its desktop size. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 2.75rem;
+  }
+  .btn-icon {
+    min-width: 2.75rem;
   }
 }
 
 @utility btn-primary {
   background: var(--color-fg);
   border-color: var(--color-fg);
-  color: #ffffff;
-  box-shadow: 0 1px 2px rgb(9 9 11 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.1);
+  color: var(--color-canvas);
   &:hover {
-    background: #27272a;
-    border-color: #27272a;
+    background: #d4d4d8;
+    border-color: #d4d4d8;
   }
 }
 
 @utility btn-ghost {
   background: transparent;
   border-color: transparent;
-  box-shadow: none;
   color: var(--color-fg-subtle);
   &:hover {
     background: var(--color-surface-raised);
@@ -324,82 +314,61 @@ html:has(.lufer) {
 }
 
 @utility btn-icon {
-  width: 2rem;
+  width: 1.875rem;
   padding-inline: 0;
 }
 
 @utility field {
-  height: 2.25rem;
+  height: 2rem;
   width: 100%;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid var(--color-line-strong);
-  background: var(--color-surface);
-  padding-inline: 0.75rem;
+  background: var(--color-canvas);
+  padding-inline: 0.625rem;
   color: var(--color-fg);
   font-size: 13px;
-  box-shadow: 0 1px 2px rgb(9 9 11 / 0.04);
-  transition: border-color 150ms, box-shadow 150ms;
+  transition: border-color 100ms;
   &::placeholder {
     color: var(--color-fg-faint);
   }
   &:hover {
-    border-color: #c4c4ca;
+    border-color: #52525b;
   }
   &:focus {
     outline: none;
-    border-color: var(--color-copper-deep);
-    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.18);
+    border-color: var(--color-fg-subtle);
   }
   &:disabled {
-    opacity: 0.55;
-    background: var(--color-canvas);
+    opacity: 0.5;
   }
 }
 
-/* Small status pill; pair with a dot or icon so state is never colour-only. */
+/* Small status label; pair with a status dot or icon so state is never colour-only. */
 @utility pill {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  height: 1.375rem;
-  padding-inline: 0.5rem;
-  border-radius: 9999px;
+  height: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: 4px;
   border: 1px solid var(--color-line);
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-fg-subtle);
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.02em;
   white-space: nowrap;
-  box-shadow: 0 1px 1px rgb(9 9 11 / 0.03);
 }
 
-@utility pill-copper {
-  border-color: rgb(217 119 6 / 0.3);
-  background: rgb(245 158 11 / 0.1);
-  color: var(--color-copper-ink);
-}
-
-/* Soft copper pulse for live indicators. */
-@keyframes lufer-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgb(245 158 11 / 0);
-  }
-}
-
-@utility live-dot {
+/* Solid status dot: 6px, no animation. Set the colour with bg-sage / bg-warn / bg-rose / bg-fg-faint. */
+@utility status-dot {
+  display: inline-block;
   width: 6px;
   height: 6px;
+  flex-shrink: 0;
   border-radius: 9999px;
-  background: var(--color-copper);
-  animation: lufer-pulse 2s ease-in-out infinite;
 }
 
-/* Copper shimmer across a running tool pill's label (dark-to-bright copper reads on white). */
+/* Running state on a tool label: a slow grey sweep, no hue. */
 @keyframes lufer-shimmer {
   from {
     background-position: 200% 0;
@@ -410,11 +379,20 @@ html:has(.lufer) {
 }
 
 @utility text-shimmer {
-  background: linear-gradient(90deg, var(--color-copper-ink) 0%, var(--color-copper) 50%, var(--color-copper-ink) 100%) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, var(--color-fg-faint) 0%, var(--color-fg) 50%, var(--color-fg-faint) 100%) 0 0 / 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   animation: lufer-shimmer 2.4s linear infinite;
+}
+
+/* Tables: tabular digits everywhere; right-aligned cells hold figures, so they're mono. */
+[data-slot="table"] {
+  font-variant-numeric: tabular-nums;
+}
+[data-slot="table-cell"].text-right {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -423,244 +401,5 @@ html:has(.lufer) {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
-  }
-}
-
-/* In the dashboard the streaming caret is a thin copper bar. */
-.lufer .streaming-caret > :last-child::after {
-  width: 2px;
-  height: 1.1em;
-  margin-left: 3px;
-  border-radius: 1px;
-  background: var(--color-copper-deep);
-}
-
-/* ------------------------------------------------------------------------- */
-/* Concierge scope (luxury dark)                                               */
-/* ------------------------------------------------------------------------- */
-
-/*
- * Deep midnight canvas, charcoal glass cards, hairline white borders and warm
- * amber metal for accents. Add `concierge` to a container (it also enables
- * `dark:` variants) and every token-based utility (text-fg, bg-surface,
- * border-line, …) and shadcn primitive inside it switches over. Portaled
- * content (sheets, dialogs) needs the classes on its own root.
- */
-@layer base {
-  .concierge {
-    color-scheme: dark;
-    --color-canvas: #09090b; /* zinc-950 */
-    --color-elevated: #18181b; /* zinc-900 */
-    --color-fg: #fafafa;
-    --color-fg-muted: #d4d4d8; /* zinc-300 */
-    --color-fg-subtle: #a1a1aa; /* zinc-400 */
-    --color-fg-faint: #71717a; /* zinc-500 */
-    --color-surface: rgb(24 24 27 / 0.6); /* zinc-900/60 */
-    --color-surface-raised: rgb(255 255 255 / 0.06);
-    --color-surface-hover: rgb(255 255 255 / 0.04);
-    --color-line: rgb(255 255 255 / 0.1);
-    --color-line-strong: rgb(255 255 255 / 0.16);
-    --color-copper: #f59e0b; /* amber-500 */
-    --color-copper-deep: #f59e0b;
-    --color-copper-ink: #fbbf24; /* amber-400: text-safe on dark */
-    --color-sage: #34d399; /* emerald-400 */
-    --color-rose: #fb7185; /* rose-400 */
-
-    --background: #09090b;
-    --foreground: #fafafa;
-    --card: rgb(24 24 27 / 0.6);
-    --card-foreground: #fafafa;
-    --popover: #18181b;
-    --popover-foreground: #fafafa;
-    --primary: #fbbf24;
-    --primary-foreground: #09090b;
-    --secondary: rgb(255 255 255 / 0.06);
-    --secondary-foreground: #d4d4d8;
-    --muted: rgb(255 255 255 / 0.06);
-    --muted-foreground: #a1a1aa;
-    --accent: rgb(255 255 255 / 0.06);
-    --accent-foreground: #fafafa;
-    --destructive: #fb7185;
-    --border: rgb(255 255 255 / 0.1);
-    --input: rgb(255 255 255 / 0.16);
-    --ring: #f59e0b;
-    --success: #34d399;
-    --warning: #fbbf24;
-    --brand: #f59e0b;
-    /* Charts: amber metal for the main series, rose for failures (always labelled too). */
-    --chart-1: #f59e0b;
-    --chart-critical: #fb7185;
-
-    background: var(--color-canvas);
-    color: var(--color-fg);
-    font-feature-settings: "ss01", "cv11";
-    scrollbar-color: rgb(255 255 255 / 0.14) transparent;
-    scrollbar-width: thin;
-  }
-
-  .concierge ::selection {
-    background: rgb(245 158 11 / 0.3);
-  }
-
-  .concierge :focus-visible {
-    outline: 2px solid rgb(251 191 36 / 0.7);
-    outline-offset: 2px;
-  }
-
-  .concierge :is(h1, h2, h3, h4) {
-    letter-spacing: -0.025em;
-  }
-}
-
-/* The shared primitives hard-code a few light values; restate them for dark. */
-.concierge .btn {
-  box-shadow: none;
-  &:hover {
-    background: rgb(255 255 255 / 0.06);
-    border-color: rgb(255 255 255 / 0.24);
-  }
-}
-.concierge .btn-primary {
-  border-color: rgb(251 191 36 / 0.6);
-  background: linear-gradient(180deg, #fbbf24, #f59e0b);
-  color: #09090b;
-  box-shadow: 0 0 0 1px rgb(251 191 36 / 0.15), 0 8px 24px -10px rgb(245 158 11 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.35);
-  &:hover {
-    border-color: #fcd34d;
-    background: linear-gradient(180deg, #fcd34d, #fbbf24);
-  }
-}
-.concierge .field {
-  background: rgb(9 9 11 / 0.6);
-  box-shadow: none;
-  &:hover {
-    border-color: rgb(255 255 255 / 0.24);
-  }
-  &:focus {
-    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.22);
-  }
-}
-/* Cards and panels: flat charcoal with a faint lit top edge that warms with an amber hairline and glow on hover. */
-.concierge .panel {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
-  transition:
-    border-color 200ms ease,
-    box-shadow 300ms ease;
-  &:hover {
-    border-color: rgb(251 191 36 / 0.2);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 0 1px rgb(251 191 36 / 0.05), 0 12px 40px -18px rgb(245 158 11 / 0.35);
-  }
-}
-
-/* Editorial hierarchy inside the scope: serif page titles, stark headings, roomy tables. */
-.concierge [data-slot="page-title"] {
-  font-family: var(--font-display);
-  font-size: 30px;
-  line-height: 1.1;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  font-optical-sizing: auto;
-}
-.concierge [data-slot="page-description"] {
-  margin-top: 0.5rem;
-  color: var(--color-fg-subtle);
-}
-.concierge [data-slot="card-title"] {
-  letter-spacing: -0.015em;
-}
-.concierge [data-slot="table"] {
-  font-variant-numeric: tabular-nums;
-}
-.concierge [data-slot="table-head"] {
-  height: 2.75rem;
-  padding-inline: 1rem;
-}
-.concierge [data-slot="table-cell"] {
-  padding: 0.875rem 1rem;
-}
-/* Right-aligned cells are figures (counts, money, latency): tabular mono. */
-.concierge [data-slot="table-cell"].text-right {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  letter-spacing: 0.02em;
-}
-/* A full page in the scope: midnight canvas with a faint amber light from above. */
-.concierge-page {
-  background:
-    radial-gradient(60rem 22rem at 25% -8rem, rgb(245 158 11 / 0.09), transparent 70%),
-    var(--color-canvas);
-}
-/* Mobile bottom sheets use `glass`; make it midnight glass here. */
-.concierge.glass,
-.concierge .glass {
-  background: rgb(9 9 11 / 0.82);
-  border-color: var(--color-line);
-}
-
-/*
- * Charcoal card that warms on hover: amber hairline plus a soft luminous glow.
- * Selected state via aria-checked / data-selected / :has(:checked).
- */
-@utility concierge-card {
-  position: relative;
-  border-radius: 1rem;
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
-  backdrop-filter: blur(24px);
-  transition:
-    border-color 200ms ease,
-    box-shadow 300ms ease,
-    transform 200ms ease,
-    background-color 200ms ease;
-  &:hover {
-    border-color: rgb(251 191 36 / 0.3);
-    box-shadow:
-      0 0 0 1px rgb(251 191 36 / 0.08),
-      0 12px 40px -14px rgb(245 158 11 / 0.45);
-    transform: translateY(-1px);
-  }
-  &:has(:checked),
-  &[data-selected="true"] {
-    border-color: rgb(251 191 36 / 0.55);
-    background: linear-gradient(160deg, rgb(245 158 11 / 0.1), rgb(24 24 27 / 0.6) 55%);
-    box-shadow:
-      0 0 0 1px rgb(251 191 36 / 0.25),
-      0 16px 48px -16px rgb(245 158 11 / 0.55);
-  }
-  &:has(:focus-visible),
-  &:focus-visible {
-    outline: 2px solid rgb(251 191 36 / 0.7);
-    outline-offset: 2px;
-  }
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-/* Amber halo that breathes around a small badge or dot. */
-@keyframes concierge-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgb(251 191 36 / 0);
-  }
-}
-
-@utility badge-pulse {
-  animation: concierge-pulse 2.4s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .concierge *,
-  .concierge *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-  .concierge .concierge-card:hover {
-    transform: none;
   }
 }

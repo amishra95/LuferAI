@@ -48,7 +48,7 @@ export function HoldCountdown({ createdAt, expiresAt, className }: { createdAt: 
   const total = Math.max(end - start, 1);
   const left = t == null ? null : end - t;
   const pct = left == null ? 100 : Math.min(100, Math.max(0, (left / total) * 100));
-  const tone = left == null || left > 12 * 3_600_000 ? "sky" : left > 2 * 3_600_000 ? "amber" : "red";
+  const tone = left == null || left > 12 * 3_600_000 ? "neutral" : left > 2 * 3_600_000 ? "warn" : "error";
 
   return (
     <div className={cn("grid min-w-36 gap-1", className)}>
@@ -56,15 +56,15 @@ export function HoldCountdown({ createdAt, expiresAt, className }: { createdAt: 
         <span
           className={cn(
             "inline-flex items-center gap-1 font-medium",
-            tone === "sky" && "text-sky-700 dark:text-sky-300",
-            tone === "amber" && "text-amber-800 dark:text-amber-300",
-            tone === "red" && "text-red-700 dark:text-red-300"
+            tone === "neutral" && "text-fg-muted",
+            tone === "warn" && "text-warn",
+            tone === "error" && "text-rose"
           )}
         >
           <Timer className="size-3.5" aria-hidden />
           Hold
         </span>
-        <span className="text-fg-muted tabular-nums">{t == null ? "—" : formatHoldCountdown(expiresAt, t)}</span>
+        <span className="text-fg-muted font-mono tabular-nums">{t == null ? "—" : formatHoldCountdown(expiresAt, t)}</span>
       </div>
       <div
         role="meter"
@@ -73,14 +73,14 @@ export function HoldCountdown({ createdAt, expiresAt, className }: { createdAt: 
         aria-valuemax={100}
         aria-valuenow={Math.round(pct)}
         aria-valuetext={t == null ? undefined : formatHoldCountdown(expiresAt, t)}
-        className="h-1.5 overflow-hidden rounded-full bg-surface-raised"
+        className="h-1 overflow-hidden rounded-full bg-surface-raised"
       >
         <div
           className={cn(
-            "h-full rounded-full transition-[width] duration-700",
-            tone === "sky" && "bg-sky-400 shadow-[0_0_8px] shadow-sky-400/70",
-            tone === "amber" && "bg-amber-400 shadow-[0_0_8px] shadow-amber-400/70",
-            tone === "red" && "bg-red-400 shadow-[0_0_8px] shadow-red-400/70"
+            "h-full rounded-full",
+            tone === "neutral" && "bg-fg-subtle",
+            tone === "warn" && "bg-warn",
+            tone === "error" && "bg-rose"
           )}
           style={{ width: `${pct}%` }}
         />

@@ -73,7 +73,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
 
   return (
     <PortalShell
-      theme="concierge"
       portal="/admin"
       title="Agent analytics"
       subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
@@ -91,7 +90,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
       }
     >
       {loadError && (
-        <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-xl border px-4 py-2.5 text-[12.5px]">
+        <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-lg border px-4 py-2.5 text-[12.5px]">
           Some analytics couldn&apos;t be loaded right now ({loadError}).
         </p>
       )}
