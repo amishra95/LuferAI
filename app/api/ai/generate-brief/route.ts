@@ -1,7 +1,7 @@
 import { createUIMessageStreamResponse, streamText, toUIMessageStream } from "ai";
 import { z } from "zod";
 
-import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { getCurrentMember } from "@/lib/auth/session";
 import { listBookings, listVenues } from "@/lib/data";
 import { logAgentRun } from "@/lib/telemetry/runs";
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  if (aiCircuitOpen()) return aiUnavailableResponse();
 
   // Scoped to the venue (and excludes bookings awaiting the client's internal
   // sign-off), so a host can only brief bookings they can already see.
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
     stream: toUIMessageStream({
       stream: result.stream,
       // Shown to the host; the real error is logged above.
-      onError: () => "Couldn't generate the brief right now. Try again in a moment.",
+      onError: (err) => (isAiUnavailable(err) ? AI_UNAVAILABLE : "Couldn't generate the brief right now. Try again in a moment."),
     }),
   });
 }

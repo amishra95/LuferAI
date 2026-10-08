@@ -9,7 +9,7 @@ import {
 
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
-import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { allowedTools, financeFirstStep } from "@/lib/ai/chat-policy";
 import { createChatTools } from "@/lib/ai/chat-tools";
 import { analyticsScopeFor } from "@/lib/analytics/service";
@@ -71,6 +71,8 @@ export async function POST(req: Request) {
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  // Provider known to be down: answer at once instead of waiting on retries.
+  if (aiCircuitOpen()) return aiUnavailableResponse();
 
   const tools = allowedTools(member.role, agent.tools);
   const lastUserText =
@@ -106,7 +108,7 @@ export async function POST(req: Request) {
       onError: (err) => {
         console.error("chat: stream failed", err);
         void record(false, { error: err instanceof Error ? err.message : "Stream failed" });
-        return "The model request failed. Try again.";
+        return isAiUnavailable(err) ? AI_UNAVAILABLE : "The model request failed. Try again.";
       },
     }),
   });

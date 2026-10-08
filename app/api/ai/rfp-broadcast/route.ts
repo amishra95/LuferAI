@@ -2,7 +2,7 @@ import { generateText, NoOutputGeneratedError, Output } from "ai";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
-import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
   if (member.role !== "CLIENT" && member.role !== "ADMIN") return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const model = getLanguageModel();
   if (!model) return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  if (aiCircuitOpen()) return aiUnavailableResponse();
   if (dataSource() !== "supabase") {
     return NextResponse.json({ error: "RFP broadcast needs the live database." }, { status: 503 });
   }
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Couldn't read that brief — add the guest count and date." }, { status: 422 });
     }
     console.error("rfp-broadcast extraction failed", err);
+    if (isAiUnavailable(err)) return aiUnavailableResponse();
     return NextResponse.json({ error: "The AI service is unavailable. Try again shortly." }, { status: 502 });
   }
 

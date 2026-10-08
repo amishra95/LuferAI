@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
-import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { matchVenues, venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
 
   const model = getLanguageModel();
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  if (aiCircuitOpen()) return aiUnavailableResponse();
 
   const companies = await listCompanies();
   if (!companies.some((c) => c.id === companyId)) {
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("source-venues: model call failed", err);
     await logAgentRun("venue-sourcer", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: err instanceof Error ? err.message : "Model call failed" });
+    if (isAiUnavailable(err)) return aiUnavailableResponse();
     return Response.json({ error: "Couldn't interpret that request. Try rephrasing it." }, { status: 502 });
   }
 

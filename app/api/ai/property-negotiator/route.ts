@@ -9,7 +9,7 @@ import {
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
-import { AI_NOT_CONFIGURED, getLanguageModel } from "@/lib/ai/model";
+import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { negotiatorTools, type NegotiatorUIMessage } from "@/lib/negotiator";
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
 
   const model = getLanguageModel();
   if (!model) return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  if (aiCircuitOpen()) return aiUnavailableResponse();
   const approvalSecret = process.env.TOOL_APPROVAL_SECRET;
   if (dataSource() !== "supabase" || !approvalSecret) {
     return NextResponse.json(
@@ -83,6 +84,9 @@ export async function POST(request: NextRequest) {
   });
 
   return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
+    stream: toUIMessageStream({
+      stream: result.stream,
+      onError: (err) => (isAiUnavailable(err) ? AI_UNAVAILABLE : "The negotiator couldn't respond. Try again."),
+    }),
   });
 }

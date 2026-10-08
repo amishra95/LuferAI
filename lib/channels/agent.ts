@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
 import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
-import { getLanguageModel } from "@/lib/ai/model";
+import { aiCircuitOpen, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/place-booking";
 import { mergeParsed, parseReservationText } from "@/lib/channels/parse-reservation";
@@ -336,9 +336,16 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
   try {
     const [venues, directory] = await Promise.all([listVenues(), listDirectory()]);
     const model = getLanguageModel();
-    if (!model) return finish(await runDeterministic(msg.text, turns, link, venues, directory.venues));
-    const { steps, tokens, ...r } = await runModel(model, msg, turns, link, venues, agent);
-    return finish(r, { steps, tokens });
+    // No model, or the provider is down (circuit open / retries exhausted): the deterministic parser still answers.
+    if (!model || aiCircuitOpen()) return finish(await runDeterministic(msg.text, turns, link, venues, directory.venues));
+    try {
+      const { steps, tokens, ...r } = await runModel(model, msg, turns, link, venues, agent);
+      return finish(r, { steps, tokens });
+    } catch (err) {
+      if (!isAiUnavailable(err)) throw err;
+      console.warn(`channels: ${msg.channel} model unavailable, answering with the parser`, err);
+      return finish(await runDeterministic(msg.text, turns, link, venues, directory.venues));
+    }
   } catch (err) {
     console.error(`channels: ${msg.channel} agent run failed`, err);
     return finish({
