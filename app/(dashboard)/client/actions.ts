@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePortal, type Member } from "@/lib/auth/session";
-import { lockOwner, placeBookingRequest, type BookingField } from "@/lib/bookings/place-booking";
+import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
+import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
 import { addApprovalComment, decideApproval, listApprovals, listCompanies, listPortalUsers, listVenues } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
@@ -13,7 +14,7 @@ import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegoti
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
   message?: string;
-  fieldErrors?: Partial<Record<BookingField, string>>;
+  fieldErrors?: Partial<Record<BookingFormField, string>>;
   invoice?: TaxInvoicePayload;
   /** Set when the booking breached policy and is waiting for sign-off (tiers: 1 manager, 2 manager + senior). */
   approval?: { reason: string; approverName: string; tiers: number };
@@ -72,28 +73,23 @@ export async function submitBookingRequest(
   // The requester is the signed-in employee (admins can't request sign-off for a company).
   const companyId = tenantFor(member, formData.get("company_id"));
   const userId = member.role === "CLIENT" ? member.userId : "";
-  const departmentId = String(formData.get("department_id") ?? "") || null;
-  const venueId = String(formData.get("venue_id") ?? "");
-  const eventDate = String(formData.get("event_date") ?? "");
-  const partySize = Number(formData.get("party_size"));
-  const budgetPerHead = Number(formData.get("budget_per_head_inr"));
-  const notes = String(formData.get("notes") ?? "").trim() || undefined;
-  const expense = {
-    costCenter: String(formData.get("cost_center") ?? ""),
-    projectCode: String(formData.get("project_code") ?? ""),
-    taxId: String(formData.get("billing_gstin") ?? ""),
-  };
+
+  // Same schema the form validates with step by step; this pass is authoritative.
+  // Checks that need data (capacity, minimum spend, the company's GSTIN, policy) run in placeBookingRequest.
+  const parsed = validateBookingForm(bookingFormInput(formData), { today: new Date().toISOString().slice(0, 10) });
+  if (!parsed.ok) return { status: "error", fieldErrors: parsed.errors, message: "Please fix the highlighted fields." };
+  const v = parsed.value;
 
   const result = await placeBookingRequest({
     companyId,
     userId,
-    venueId,
-    eventDate,
-    partySize,
-    budgetPerHead,
-    notes,
-    departmentId,
-    expense,
+    venueId: v.venue_id,
+    eventDate: v.event_date,
+    partySize: v.party_size,
+    budgetPerHead: v.budget_per_head_inr,
+    notes: v.notes,
+    departmentId: v.department_id,
+    expense: { costCenter: v.cost_center, projectCode: v.project_code, taxId: v.billing_gstin },
     checkoutToken: String(formData.get("slot_token") ?? "") || null,
   });
   if (result.status === "success") {

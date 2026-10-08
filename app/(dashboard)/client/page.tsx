@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
 import { requirePortal } from "@/lib/auth/session";
+import { statusCounts } from "@/lib/bookings/live";
 import { getVenueCatalog } from "@/lib/catalog";
 import {
   computeItcSummary,
@@ -36,6 +37,7 @@ import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "./_components/approval-decision-form";
 import { ApprovalThread, type ThreadComment } from "./_components/approval-thread";
 import { ItcCalculator } from "./_components/itc-calculator";
+import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
@@ -256,6 +258,21 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : (
         <>
+          <section aria-label="Booking status" className="mb-10 flex flex-wrap items-start justify-between gap-4">
+            <dl className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+              {statusCounts(bookings).map((c) => (
+                <div key={c.status} className="panel px-4 py-3">
+                  <dt className="label-mono">{c.label}</dt>
+                  <dd className={cn("mt-1.5 font-mono text-[22px] leading-none tabular-nums", c.count ? "text-fg" : "text-fg-faint")}>{c.count}</dd>
+                </div>
+              ))}
+            </dl>
+            <LiveBookings
+              initial={bookings.map((b) => ({ id: b.id, status: b.status, venue: b.venue.name, eventDate: b.event_date }))}
+              companyId={member.role === "ADMIN" ? company.id : undefined}
+            />
+          </section>
+
           {canRequest ? (
             <div className="mb-10 space-y-10">
               {live ? (
