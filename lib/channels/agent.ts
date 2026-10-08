@@ -1,7 +1,6 @@
 import "server-only";
 
 import { generateText, isStepCount, tool, type ModelMessage } from "ai";
-import { z } from "zod";
 
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
@@ -12,6 +11,9 @@ import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/pla
 import { mergeParsed, parseReservationText } from "@/lib/channels/parse-reservation";
 import { channelStore, maskSender } from "@/lib/channels/store";
 import { listVenues } from "@/lib/data";
+import { bookingRules, checkToolCall } from "@/lib/guardrails/engine";
+import { createBookingInput, type CreateBookingInput } from "@/lib/guardrails/schemas";
+import { bookingActivity, recordBooking } from "@/lib/guardrails/state";
 import { listDirectory } from "@/lib/venues/directory";
 import { formatDate, formatINR } from "@/lib/utils";
 import type { ChannelEvent, ChannelEventStatus, ChannelId, ChannelLink } from "@/types/channels";
@@ -65,34 +67,57 @@ function bookingReply(r: PlaceBookingResult): string {
   return `*Request sent${ref}* to ${r.venueName}. The date is held for ${r.holdHours}h while they confirm.`;
 }
 
-async function createBooking(
-  link: ChannelLink | undefined,
-  venues: Venue[],
-  args: { venueName: string; eventDate: string; partySize: number; budgetPerHead: number; notes?: string; costCenter?: string; projectCode?: string }
-): Promise<PlaceBookingResult> {
-  if (!link) {
-    return { status: "error", message: "This sender isn't linked to a Lufer.ai account, so I can only search. Ask your admin to link you in Settings → Channels." };
-  }
-  const venue = matchVenue(venues, args.venueName);
-  if (!venue) {
-    // Partner-network venues are listed but booked through their supplier.
-    const partner = matchVenue((await listDirectory()).venues.filter((v) => v.tier === "partner"), args.venueName);
-    if (partner) {
-      const supplier = partner.supplier ?? "its supplier network";
-      return { status: "error", message: `${partner.name} is a partner venue listed by ${supplier}. Partner venues are booked through the supplier, so I can't file it here; pick one of Lufer.ai's own venues or ask your admin for a supplier quote.` };
-    }
-    return { status: "error", message: `No catalogue venue called "${args.venueName}".` };
-  }
-  return placeBookingRequest({
-    companyId: link.companyId,
-    userId: link.userId,
-    venueId: venue.id,
+/**
+ * Files a booking for a linked sender (model tool and deterministic parser alike).
+ * The guardrail (lib/guardrails) runs before anything is written: unlinked
+ * senders, events beyond the booking horizon, repeat requests for the same venue
+ * and date, and senders over the hourly limit are refused and audited.
+ * placeBookingRequest then applies the usual role, capacity, spend, policy and
+ * availability checks.
+ */
+async function createBooking(link: ChannelLink | undefined, venues: Venue[], rawArgs: CreateBookingInput): Promise<PlaceBookingResult> {
+  const venue = link ? matchVenue(venues, rawArgs.venueName) : undefined;
+  if (link && !venue) return unknownVenue(rawArgs.venueName);
+
+  const check = await checkToolCall(
+    "createBooking",
+    rawArgs,
+    async (a) =>
+      bookingRules(a, {
+        today: new Date().toISOString().slice(0, 10),
+        linked: Boolean(link),
+        ...(link && venue ? await bookingActivity(link.channel, link.senderId, venue.id, a.eventDate) : { bookingsLastHour: 0, duplicate: false }),
+      }),
+    { channel: link?.channel, sender: link ? maskSender(link.channel, link.senderId) : undefined, companyId: link?.companyId, venueId: venue?.id }
+  );
+  if (!check.ok) return { status: "error", message: check.message };
+  const args = check.args;
+
+  const result = await placeBookingRequest({
+    companyId: link!.companyId,
+    userId: link!.userId,
+    venueId: venue!.id,
     eventDate: args.eventDate,
     partySize: args.partySize,
     budgetPerHead: args.budgetPerHead,
     notes: args.notes,
-    expense: { costCenter: args.costCenter || link.defaultCostCenter, projectCode: args.projectCode },
+    expense: { costCenter: args.costCenter || link!.defaultCostCenter, projectCode: args.projectCode },
   });
+  if (result.status === "success") {
+    await recordBooking(link!.channel, link!.senderId, venue!.id, args.eventDate).catch((err) => console.error("guardrails: could not record booking activity", err));
+  }
+  return result;
+}
+
+/** Why a named venue can't be booked here: a partner listing, or not in the catalogue. */
+async function unknownVenue(venueName: string): Promise<PlaceBookingResult> {
+  // Partner-network venues are listed but booked through their supplier.
+  const partner = matchVenue((await listDirectory()).venues.filter((v) => v.tier === "partner"), venueName);
+  if (partner) {
+    const supplier = partner.supplier ?? "its supplier network";
+    return { status: "error", message: `${partner.name} is a partner venue listed by ${supplier}. Partner venues are booked through the supplier, so I can't file it here; pick one of Lufer.ai's own venues or ask your admin for a supplier quote.` };
+  }
+  return { status: "error", message: `No catalogue venue called "${venueName}".` };
 }
 
 /**
@@ -199,15 +224,7 @@ async function runModel(
     createBooking: tool({
       description:
         "File a booking request at a catalogue venue for the sender's company. Call only when the sender has asked to book and venue, date, guests and per-head budget are all known (from this or earlier messages).",
-      inputSchema: z.object({
-        venueName: z.string().describe("Venue name exactly as in the catalogue."),
-        eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD"),
-        partySize: z.number().int().min(1),
-        budgetPerHead: z.number().positive().describe("INR per guest, pre-GST."),
-        notes: z.string().max(500).optional(),
-        costCenter: z.string().max(32).optional().describe("Cost centre if the sender named one; otherwise their default is used."),
-        projectCode: z.string().max(32).optional().describe("Project code if the sender named one."),
-      }),
+      inputSchema: createBookingInput,
       execute: (args) =>
         guard("createBooking", async () => {
           const r = await createBooking(link, venues, args);
