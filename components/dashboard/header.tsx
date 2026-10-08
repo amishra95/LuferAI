@@ -42,7 +42,7 @@ export function Header({
       <nav aria-label="Breadcrumb" className="min-w-0">
         <ol className="flex items-center gap-2 text-[13px]">
           <li className="hidden sm:block">
-            <Link href="/dashboard" className="text-fg-subtle hover:text-fg transition-colors">
+            <Link href="/dashboard" className="display-heading text-fg-muted hover:text-fg text-[15px] transition-colors">
               {workspaceName}
             </Link>
           </li>

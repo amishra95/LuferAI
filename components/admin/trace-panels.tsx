@@ -125,7 +125,7 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
   return (
     <section aria-labelledby="traces-heading" className="mb-6">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <h2 id="traces-heading" className="text-fg text-[15px] font-semibold tracking-[-0.01em]">
+        <h2 id="traces-heading" className="display-heading text-[24px] leading-tight">
           Traces
         </h2>
         <p className="text-fg-subtle font-mono text-[11px] tabular-nums">

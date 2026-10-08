@@ -58,7 +58,7 @@ export function Sidebar({
       <div className={cn("flex h-14 shrink-0 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
         <Link href="/dashboard" onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
           <Monogram name={workspaceName} />
-          {!collapsed && <span className="text-fg truncate text-[13.5px] font-semibold tracking-[-0.01em]">{workspaceName}</span>}
+          {!collapsed && <span className="display-heading truncate text-[17px] leading-none">{workspaceName}</span>}
         </Link>
         {onClose && (
           <button type="button" onClick={onClose} aria-label="Close navigation" className="btn btn-ghost btn-icon ml-auto size-8">
@@ -88,7 +88,7 @@ export function Sidebar({
                       title={collapsed ? label : undefined}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors",
+                        "group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] tracking-[-0.005em] transition-[color,background-color,box-shadow,transform] duration-150 active:scale-[0.98]",
                         collapsed && "justify-center px-0",
                         active ? "bg-surface text-fg shadow-[0_1px_2px_rgb(9_9_11/0.06)] ring-1 ring-line" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
                       )}
@@ -118,7 +118,7 @@ export function Sidebar({
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={`${collapsed ? "Expand" : "Collapse"} sidebar (⌘B)`}
             className={cn(
-              "text-fg-subtle hover:bg-surface-raised hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] transition-colors",
+              "text-fg-subtle hover:bg-surface-raised hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] transition-[color,background-color,transform] duration-150 active:scale-[0.98]",
               collapsed && "justify-center px-0"
             )}
           >
