@@ -35,6 +35,7 @@ const companies: Company[] = [
     state_code: "29",
     primary_contact_email: "events@nimbusanalytics.example",
     monthly_spend_limit_inr: 500000,
+    expense_provider: "ramp",
     created_at: ts,
     updated_at: ts,
   },
@@ -45,12 +46,26 @@ const companies: Company[] = [
     state_code: "07",
     primary_contact_email: "ea.office@vertexcapital.example",
     monthly_spend_limit_inr: 1200000,
+    expense_provider: "concur",
     created_at: ts,
     updated_at: ts,
   },
 ];
 
-const venue = (v: Omit<Venue, "state_code" | "city" | "is_active" | "created_at" | "updated_at">): Venue => ({
+/** Venue profile columns (seed.sql "Venue profiles"); every venue has them, most seeds set a few. */
+type VenueProfile = Pick<Venue, "min_spend_per_head_inr" | "private_suites" | "seating_layouts" | "serves_alcohol" | "entertainment" | "cancellation_terms">;
+
+export const VENUE_PROFILE_DEFAULTS: VenueProfile = {
+  min_spend_per_head_inr: 0,
+  private_suites: [],
+  seating_layouts: [],
+  serves_alcohol: true,
+  entertainment: [],
+  cancellation_terms: [],
+};
+
+const venue = (v: Omit<Venue, "state_code" | "city" | "is_active" | "created_at" | "updated_at" | keyof VenueProfile> & Partial<VenueProfile>): Venue => ({
+  ...VENUE_PROFILE_DEFAULTS,
   ...v,
   city: "Bengaluru",
   state_code: v.gstin.slice(0, 2),
@@ -72,6 +87,11 @@ const venues: Venue[] = [
     commission_rate: 0.15,
     latitude: 12.9719,
     longitude: 77.6411,
+    min_spend_per_head_inr: 1500,
+    private_suites: [{ name: "The Ember Room", seats: 24, min_spend_inr: 45000 }, { name: "Courtyard Loft", seats: 40, min_spend_inr: 70000 }],
+    seating_layouts: [{ layout: "banquet", capacity: 64 }, { layout: "cocktail", capacity: 80 }, { layout: "boardroom", capacity: 20 }],
+    entertainment: ["live_music"],
+    cancellation_terms: [{ days_before: 14, refund_pct: 100 }, { days_before: 7, refund_pct: 50 }],
   }),
   venue({
     id: "aaaaaaaa-0002-4000-8000-000000000002",
@@ -85,6 +105,10 @@ const venues: Venue[] = [
     commission_rate: 0.15,
     latitude: 12.9784,
     longitude: 77.6408,
+    min_spend_per_head_inr: 1200,
+    seating_layouts: [{ layout: "banquet", capacity: 50 }, { layout: "cocktail", capacity: 70 }],
+    entertainment: ["dj"],
+    cancellation_terms: [{ days_before: 10, refund_pct: 100 }, { days_before: 3, refund_pct: 25 }],
   }),
   venue({
     id: "aaaaaaaa-0003-4000-8000-000000000003",
@@ -98,6 +122,11 @@ const venues: Venue[] = [
     commission_rate: 0.12,
     latitude: 12.9345,
     longitude: 77.6266,
+    min_spend_per_head_inr: 1000,
+    private_suites: [{ name: "Tile Room", seats: 30, min_spend_inr: 35000 }],
+    seating_layouts: [{ layout: "banquet", capacity: 90 }, { layout: "cocktail", capacity: 120 }, { layout: "theatre", capacity: 100 }],
+    entertainment: ["live_music", "karaoke", "games"],
+    cancellation_terms: [{ days_before: 21, refund_pct: 100 }, { days_before: 7, refund_pct: 50 }],
   }),
   venue({
     id: "aaaaaaaa-0004-4000-8000-000000000004",
@@ -111,6 +140,11 @@ const venues: Venue[] = [
     commission_rate: 0.15,
     latitude: 12.9352,
     longitude: 77.6144,
+    min_spend_per_head_inr: 1800,
+    private_suites: [{ name: "Library", seats: 16, min_spend_inr: 40000 }],
+    seating_layouts: [{ layout: "boardroom", capacity: 16 }, { layout: "classroom", capacity: 36 }, { layout: "banquet", capacity: 48 }],
+    serves_alcohol: false,
+    cancellation_terms: [{ days_before: 7, refund_pct: 100 }],
   }),
   venue({
     id: "aaaaaaaa-0005-4000-8000-000000000005",
@@ -124,6 +158,11 @@ const venues: Venue[] = [
     commission_rate: 0.18,
     latitude: 12.9716,
     longitude: 77.5961,
+    min_spend_per_head_inr: 3000,
+    private_suites: [{ name: "Strongroom", seats: 12, min_spend_inr: 60000 }, { name: "Gallery", seats: 36, min_spend_inr: 150000 }],
+    seating_layouts: [{ layout: "banquet", capacity: 60 }, { layout: "cocktail", capacity: 100 }],
+    entertainment: ["live_music", "comedy"],
+    cancellation_terms: [{ days_before: 30, refund_pct: 100 }, { days_before: 14, refund_pct: 50 }, { days_before: 7, refund_pct: 25 }],
   }),
 ];
 
@@ -144,6 +183,10 @@ const bookings: Booking[] = [
     department_id: "dddddddd-0001-4000-8000-000000000001",
     list_budget_per_head_inr: null,
     rate_card_id: null,
+    alcohol_included: true,
+    entertainment: [],
+    settled_at: null,
+    expense_reference: null,
     status: "CONFIRMED",
     event_date: "2026-10-16",
     notes: "Q3 engineering offsite dinner, PDR required",
@@ -166,6 +209,10 @@ const bookings: Booking[] = [
     department_id: "dddddddd-0004-4000-8000-000000000004",
     list_budget_per_head_inr: null,
     rate_card_id: null,
+    alcohol_included: true,
+    entertainment: ["live_music"],
+    settled_at: null,
+    expense_reference: null,
     status: "COMPLETED",
     event_date: "2026-09-18",
     notes: "Bengaluru LP roadshow cocktail evening",
@@ -188,6 +235,10 @@ const bookings: Booking[] = [
     department_id: "dddddddd-0002-4000-8000-000000000002",
     list_budget_per_head_inr: null,
     rate_card_id: null,
+    alcohol_included: false,
+    entertainment: ["live_music"],
+    settled_at: null,
+    expense_reference: null,
     status: "PENDING",
     event_date: "2026-11-06",
     notes: "Annual sales kickoff, live music preferred",
@@ -282,9 +333,11 @@ const users: MockPortalUser[] = [
 
 const policies: CorporatePolicy[] = [
   { id: "eeeeeeee-0001-4000-8000-000000000001", tenant_id: NIMBUS, max_budget_per_head: 3000, currency: "INR",
-    requires_approval_above: 150000, high_value_threshold: 300000, created_at: ts, updated_at: ts },
+    requires_approval_above: 150000, high_value_threshold: 300000, alcohol_policy: "approval", restricted_entertainment: ["dj", "karaoke"],
+    created_at: ts, updated_at: ts },
   { id: "eeeeeeee-0002-4000-8000-000000000002", tenant_id: VERTEX, max_budget_per_head: 6000, currency: "INR",
-    requires_approval_above: 400000, high_value_threshold: 800000, created_at: ts, updated_at: ts },
+    requires_approval_above: 400000, high_value_threshold: 800000, alcohol_policy: "allowed", restricted_entertainment: [],
+    created_at: ts, updated_at: ts },
 ];
 
 const approvalChains: ApprovalChain[] = [
@@ -375,6 +428,32 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   expenseExports: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
+
+/**
+ * Fills columns added after a store was seeded (a Redis store seeded before
+ * migration 0019, or a hot-reloaded memory copy) with the database defaults.
+ * Mutates in place; idempotent.
+ */
+export function backfillDefaults(db: MockDb): MockDb {
+  for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
+  for (const c of db.companies) c.expense_provider ??= "webhook";
+  for (const p of db.policies) {
+    p.alcohol_policy ??= "allowed";
+    p.restricted_entertainment ??= [];
+  }
+  for (const b of db.bookings) {
+    b.alcohol_included ??= false;
+    b.entertainment ??= [];
+    b.settled_at ??= null;
+    b.expense_reference ??= null;
+  }
+  for (const e of db.expenseExports) {
+    e.provider ??= "webhook";
+    e.attempts ??= 1;
+    e.updated_at ??= e.created_at;
+  }
+  return db;
+}
 
 /** Mock equivalent of the bookings_derive_gst_type trigger (billing GSTIN decides the place of supply when set). */
 export function mockGstType(db: MockDb, companyId: string, venueId: string, billingGstin?: string | null) {

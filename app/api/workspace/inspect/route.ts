@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
 
   try {
-    const entity = await loadEntity(kind, id);
+    const entity = await loadEntity(kind, id, auth.member);
     return entity ? json(entity) : json({ error: "not found" }, 404);
   } catch (err) {
     return failed("api/workspace/inspect", err);

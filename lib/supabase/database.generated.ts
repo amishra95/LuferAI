@@ -193,66 +193,78 @@ export type Database = {
       }
       bookings: {
         Row: {
+          alcohol_included: boolean
           billing_gstin: string | null
-          cost_center: string | null
-          project_code: string | null
           budget_per_head_inr: number
           commission_rate: number
           company_id: string
+          cost_center: string | null
           created_at: string
           department_id: string | null
+          entertainment: string[]
           event_date: string
+          expense_reference: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id: string
           list_budget_per_head_inr: number | null
           notes: string | null
           party_size: number
+          project_code: string | null
           rate_card_id: string | null
           sac_code: string
+          settled_at: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
           updated_at: string
           venue_id: string
         }
         Insert: {
+          alcohol_included?: boolean
           billing_gstin?: string | null
-          cost_center?: string | null
-          project_code?: string | null
           budget_per_head_inr: number
           commission_rate: number
           company_id: string
+          cost_center?: string | null
           created_at?: string
           department_id?: string | null
+          entertainment?: string[]
           event_date: string
+          expense_reference?: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id?: string
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size: number
+          project_code?: string | null
           rate_card_id?: string | null
           sac_code?: string
+          settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
           updated_at?: string
           venue_id: string
         }
         Update: {
+          alcohol_included?: boolean
           billing_gstin?: string | null
-          cost_center?: string | null
-          project_code?: string | null
           budget_per_head_inr?: number
           commission_rate?: number
           company_id?: string
+          cost_center?: string | null
           created_at?: string
           department_id?: string | null
+          entertainment?: string[]
           event_date?: string
+          expense_reference?: string | null
           gst_type?: Database["public"]["Enums"]["gst_type"]
           id?: string
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size?: number
+          project_code?: string | null
           rate_card_id?: string | null
           sac_code?: string
+          settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr?: number
           updated_at?: string
@@ -438,6 +450,7 @@ export type Database = {
       companies: {
         Row: {
           created_at: string
+          expense_provider: string
           gstin: string
           id: string
           legal_name: string
@@ -448,6 +461,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expense_provider?: string
           gstin: string
           id?: string
           legal_name: string
@@ -458,6 +472,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expense_provider?: string
           gstin?: string
           id?: string
           legal_name?: string
@@ -478,32 +493,38 @@ export type Database = {
       }
       corporate_policies: {
         Row: {
-          high_value_threshold: number | null
+          alcohol_policy: string
           created_at: string
           currency: string
+          high_value_threshold: number | null
           id: string
           max_budget_per_head: number | null
           requires_approval_above: number | null
+          restricted_entertainment: string[]
           tenant_id: string
           updated_at: string
         }
         Insert: {
-          high_value_threshold?: number | null
+          alcohol_policy?: string
           created_at?: string
           currency?: string
+          high_value_threshold?: number | null
           id?: string
           max_budget_per_head?: number | null
           requires_approval_above?: number | null
+          restricted_entertainment?: string[]
           tenant_id: string
           updated_at?: string
         }
         Update: {
-          high_value_threshold?: number | null
+          alcohol_policy?: string
           created_at?: string
           currency?: string
+          high_value_threshold?: number | null
           id?: string
           max_budget_per_head?: number | null
           requires_approval_above?: number | null
+          restricted_entertainment?: string[]
           tenant_id?: string
           updated_at?: string
         }
@@ -608,46 +629,55 @@ export type Database = {
       }
       expense_exports: {
         Row: {
-          payload: string
+          attempts: number
           booking_id: string
           created_at: string
           destination: string
           error: string | null
           event: string
           id: string
+          payload: string
           payload_sha256: string
+          provider: string
           receipt: Json
           response_code: number | null
           status: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
-          payload: string
+          attempts?: number
           booking_id: string
           created_at?: string
           destination: string
           error?: string | null
           event: string
           id?: string
+          payload: string
           payload_sha256: string
+          provider?: string
           receipt: Json
           response_code?: number | null
           status: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
-          payload?: string
+          attempts?: number
           booking_id?: string
           created_at?: string
           destination?: string
           error?: string | null
           event?: string
           id?: string
+          payload?: string
           payload_sha256?: string
+          provider?: string
           receipt?: Json
           response_code?: number | null
           status?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1321,55 +1351,73 @@ export type Database = {
       venues: {
         Row: {
           address: string
+          cancellation_terms: Json
           capacity_max: number
           city: string
           commission_rate: number
           created_at: string
+          entertainment: string[]
           gstin: string
           id: string
           is_active: boolean
           latitude: number | null
           longitude: number | null
           min_spend_inr: number
+          min_spend_per_head_inr: number
           name: string
           neighborhood: string
           pdr_available: boolean
+          private_suites: Json
+          seating_layouts: Json
+          serves_alcohol: boolean
           state_code: string | null
           updated_at: string
         }
         Insert: {
           address: string
+          cancellation_terms?: Json
           capacity_max: number
           city: string
           commission_rate?: number
           created_at?: string
+          entertainment?: string[]
           gstin: string
           id?: string
           is_active?: boolean
           latitude?: number | null
           longitude?: number | null
           min_spend_inr?: number
+          min_spend_per_head_inr?: number
           name: string
           neighborhood: string
           pdr_available?: boolean
+          private_suites?: Json
+          seating_layouts?: Json
+          serves_alcohol?: boolean
           state_code?: string | null
           updated_at?: string
         }
         Update: {
           address?: string
+          cancellation_terms?: Json
           capacity_max?: number
           city?: string
           commission_rate?: number
           created_at?: string
+          entertainment?: string[]
           gstin?: string
           id?: string
           is_active?: boolean
           latitude?: number | null
           longitude?: number | null
           min_spend_inr?: number
+          min_spend_per_head_inr?: number
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          private_suites?: Json
+          seating_layouts?: Json
+          serves_alcohol?: boolean
           state_code?: string | null
           updated_at?: string
         }
@@ -1496,6 +1544,7 @@ export type Database = {
         | "PENDING"
         | "CONFIRMED"
         | "COMPLETED"
+        | "SETTLED"
         | "CANCELLED"
       gst_type: "CGST_SGST" | "IGST"
       hold_status: "ACTIVE" | "RELEASED" | "CONVERTED"
@@ -1650,6 +1699,7 @@ export const Constants = {
         "PENDING",
         "CONFIRMED",
         "COMPLETED",
+        "SETTLED",
         "CANCELLED",
       ],
       gst_type: ["CGST_SGST", "IGST"],

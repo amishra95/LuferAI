@@ -2,6 +2,8 @@ import type { TraceRecord } from "@/lib/tracer";
 import type { DirectoryVenue } from "@/lib/venues/partner-network";
 import type { AgentRecord, AgentRun, AgentStatus } from "@/types/agents";
 import type { TaskChannel } from "@/types/channels";
+import type { LifecycleStatus } from "@/lib/bookings/lifecycle";
+import type { CancellationTier, LayoutCapacity, PrivateSuite } from "@/lib/venues/profile";
 
 /** One entry of the agent run log, as the inspector shows it. */
 export interface RunDetail extends AgentRun {
@@ -25,10 +27,56 @@ export interface AgentDetail {
   recentRuns: RunDetail[];
 }
 
+/** The corporate profile of a Lufer.ai venue (partner listings don't carry one). */
+export interface VenueProfileInfo {
+  minSpendPerHead: number;
+  suites: PrivateSuite[];
+  layouts: LayoutCapacity[];
+  cancellation: CancellationTier[];
+  cancellationText: string;
+  servesAlcohol: boolean;
+  entertainment: string[];
+}
+
+/** A negotiated corporate rate at this venue (only the viewer's company's, unless they're an admin). */
+export interface VenueRateInfo {
+  id: string;
+  company: string;
+  discountPct: number;
+  customPerHead: number | null;
+  minimumSpendOverride: number | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  active: boolean;
+  /** Within the 10–15% enterprise band. */
+  enterpriseBand: boolean;
+}
+
+/** One booking at this venue, newest activity first: the venue's audit trail. */
+export interface VenueAuditEntry {
+  bookingId: string;
+  at: string;
+  status: LifecycleStatus;
+  eventDate: string;
+  partySize: number;
+  total: number;
+  /** Admins see whose booking it is. */
+  company: string | null;
+  alcohol: boolean;
+  entertainment: string[];
+  expense: { provider: string; status: string; attempts: number } | null;
+  settledAt: string | null;
+}
+
 export interface VenueDetail {
   kind: "venue";
   id: string;
   venue: DirectoryVenue;
+  profile: VenueProfileInfo | null;
+  rates: VenueRateInfo[];
+  audit: VenueAuditEntry[];
+  /** What the viewer may do here. */
+  viewer: { canBook: boolean; canSyncExpenses: boolean };
 }
 
 export interface TraceDetail {

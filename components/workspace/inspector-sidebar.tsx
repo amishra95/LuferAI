@@ -11,13 +11,14 @@ import { useAgentMutations } from "@/components/agents/use-agent-mutations";
 import { Switch } from "@/components/dashboard/switch";
 import { useVenueSync } from "@/components/venues/use-venue-sync";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
+import { VenueProfile } from "@/components/workspace/venue-profile";
 import { InspectButton } from "@/components/workspace/inspect";
 import { useTelemetry, useWorkspace } from "@/components/workspace/workspace-provider";
 import type { TelemetryEvent } from "@/lib/telemetry/events";
 import { formatMs } from "@/lib/telemetry/format";
 import { latestVenueSync, liveTrace, refreshSeqFor, type LiveTrace, type StreamStatus } from "@/lib/telemetry/stream-state";
 import { isConfiguredAgent, isPromptable } from "@/lib/agents/config";
-import { cn, formatINR } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { EntityKind, EntityRef } from "@/lib/workspace/state";
 import type { AgentRecord, AgentStatus, AgentTestResult } from "@/types/agents";
 import type { AgentDetail, InspectedEntity, RunDetail, TraceDetail, VenueDetail } from "@/types/workspace";
@@ -399,7 +400,8 @@ function RetryTest({ agentId }: { agentId: string }) {
   );
 }
 
-function VenueBody({ entity: { venue }, sync }: { entity: VenueDetail; sync: Extract<TelemetryEvent, { type: "venue-sync" }> | null }) {
+function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<TelemetryEvent, { type: "venue-sync" }> | null }) {
+  const { venue } = entity;
   return (
     <>
       <Title aside={<span className="pill">{venue.tier === "internal" ? "Lufer.ai" : "partner"}</span>}>
@@ -410,22 +412,14 @@ function VenueBody({ entity: { venue }, sync }: { entity: VenueDetail; sync: Ext
         <Fields
           rows={[
             ["area", `${venue.neighborhood}, ${venue.city}`],
-            ["guests", `up to ${venue.capacity_max}`],
-            ["min spend", formatINR(venue.min_spend_inr)],
-            ["private dining", venue.pdr_available ? "yes" : "no"],
             ["booking", venue.bookable ? "direct" : `quote via ${venue.supplier ?? "supplier"}`],
-          ]}
-        />
-      </Section>
-      <Section title="Commercial">
-        <Fields
-          rows={[
+            ["private dining", venue.pdr_available ? "yes" : "no"],
             ["GSTIN", venue.gstin],
             ["commission", venue.commission_rate === null ? null : `${(venue.commission_rate * 100).toFixed(1)}%`],
-            ["supplier", venue.supplier],
           ]}
         />
       </Section>
+      <VenueProfile entity={entity} />
       <Section title="Directory sync">
         {sync && (
           <div className="mb-3">

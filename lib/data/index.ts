@@ -18,6 +18,7 @@ import type {
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
+import { canTransition } from "@/lib/bookings/lifecycle";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
@@ -244,6 +245,9 @@ export interface NewBookingInput {
   list_budget_per_head_inr?: number | null;
   /** corporate_rate_cards row used to price the booking, if any. */
   rate_card_id?: string | null;
+  /** What the event includes, for policy compliance (alcohol, entertainment types). */
+  alcohol_included?: boolean;
+  entertainment?: string[];
 }
 
 export interface NewApprovalRequest {
@@ -289,6 +293,8 @@ export async function createBookingRequest(
     department_id: input.department_id ?? null,
     list_budget_per_head_inr: input.list_budget_per_head_inr ?? null,
     rate_card_id: input.rate_card_id ?? null,
+    alcohol_included: input.alcohol_included ?? false,
+    entertainment: input.entertainment ?? [],
   };
 
   if (local()) return mutateDb((db) => {
@@ -310,6 +316,8 @@ export async function createBookingRequest(
       // Local equivalent of the bookings_snapshot_commission_rate trigger.
       commission_rate: v.commission_rate,
       status,
+      settled_at: null,
+      expense_reference: null,
       created_at: now,
       updated_at: now,
     };
@@ -393,31 +401,28 @@ function syncLocalHolds(db: MockDb, bookingId: string, status: BookingStatus) {
   }
 }
 
-const ALLOWED_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  PENDING_APPROVAL: ["PENDING", "CANCELLED"],
-  PENDING: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["COMPLETED", "CANCELLED"],
-  COMPLETED: [],
-  CANCELLED: [],
-};
-
-export async function updateBookingStatus(id: string, next: BookingStatus, scope: { venueId?: string } = {}) {
+/**
+ * Moves a booking along its lifecycle (lib/bookings/lifecycle.ts). SETTLED
+ * stamps settled_at and, when given, the expense system's reference.
+ */
+export async function updateBookingStatus(id: string, next: BookingStatus, scope: { venueId?: string; companyId?: string; expenseReference?: string | null } = {}) {
+  const settled = next === "SETTLED" ? { settled_at: new Date().toISOString(), expense_reference: scope.expenseReference ?? null } : {};
   if (local()) {
     return mutateDb((db) => {
-      const b = db.bookings.find((x) => x.id === id && (!scope.venueId || x.venue_id === scope.venueId));
+      const b = db.bookings.find((x) => x.id === id && (!scope.venueId || x.venue_id === scope.venueId) && (!scope.companyId || x.company_id === scope.companyId));
       if (!b) throw new Error("Booking not found");
-      if (!ALLOWED_TRANSITIONS[b.status].includes(next)) {
+      if (!canTransition(b.status, next)) {
         throw new Error(`Cannot move a ${b.status} booking to ${next}`);
       }
-      b.status = next;
-      b.updated_at = new Date().toISOString();
+      Object.assign(b, { status: next, updated_at: new Date().toISOString() }, settled);
       syncLocalHolds(db, b.id, next);
     });
   }
 
   // The DB trigger bookings_guard_status_transition enforces the same rules, and
   // bookings_sync_inventory_holds converts/releases the booking's live hold.
-  let query = createAdminClient().from("bookings").update({ status: next }).eq("id", id);
+  let query = createAdminClient().from("bookings").update({ status: next, ...settled }).eq("id", id);
+  if (scope.companyId) query = query.eq("company_id", scope.companyId);
   if (scope.venueId) query = query.eq("venue_id", scope.venueId);
   // Zero rows means another venue's booking (or a missing one): fail loudly rather
   // than let the caller capture a deposit for a booking it didn't change.
@@ -719,7 +724,7 @@ export async function addApprovalComment(input: { approvalId: string; tenantId: 
 // ----------------------------------------------------------------------------
 
 export type ExpenseExportEvent = "booking.confirmed";
-export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "receipt"> & { receipt: Json };
+export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "updated_at" | "attempts" | "receipt"> & { receipt: Json };
 
 /** The existing export for a booking/event, if any (exports are idempotent per booking + event). */
 export async function findExpenseExport(bookingId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
@@ -734,7 +739,8 @@ export async function recordExpenseExport(row: NewExpenseExport): Promise<boolea
   if (local()) {
     return mutateDb((db) => {
       if (db.expenseExports.some((e) => e.booking_id === row.booking_id && e.event === row.event)) return false;
-      db.expenseExports.push({ ...row, id: crypto.randomUUID(), created_at: new Date().toISOString() });
+      const now = new Date().toISOString();
+      db.expenseExports.push({ ...row, id: crypto.randomUUID(), attempts: 1, created_at: now, updated_at: now });
       return true;
     });
   }
@@ -742,6 +748,33 @@ export async function recordExpenseExport(row: NewExpenseExport): Promise<boolea
   if (error?.code === "23505") return false; // unique (booking_id, event)
   if (error) throw error;
   return true;
+}
+
+/**
+ * Re-sends a failed export in place (one row per booking + event). Returns false
+ * if it is no longer failed (another retry got there first).
+ */
+export async function retryExpenseExport(id: string, row: NewExpenseExport): Promise<boolean> {
+  if (local()) {
+    return mutateDb((db) => {
+      const e = db.expenseExports.find((x) => x.id === id && x.status === "failed");
+      if (!e) return false;
+      Object.assign(e, row, { attempts: e.attempts + 1, updated_at: new Date().toISOString() });
+      return true;
+    });
+  }
+  const db = createAdminClient();
+  const { data: current, error: readError } = await db.from("expense_exports").select("attempts").eq("id", id).eq("status", "failed").maybeSingle();
+  if (readError) throw readError;
+  if (!current) return false;
+  const { data, error } = await db
+    .from("expense_exports")
+    .update({ ...row, attempts: current.attempts + 1 })
+    .eq("id", id)
+    .eq("status", "failed")
+    .select("id");
+  if (error) throw error;
+  return data.length > 0;
 }
 
 export async function listExpenseExports(filter: { tenantId?: string; limit?: number } = {}): Promise<ExpenseExport[]> {
@@ -818,6 +851,32 @@ export async function listConfirmedVenueBookings(
 }
 
 /** The tenant's rate card for a venue covering eventDate, if any (ranges never overlap). */
+/** Active menu packages (Supabase only: the local stores don't model them yet). */
+export async function listMenuPackages(): Promise<{ id: string; venue_id: string; name: string; per_head_inr: number }[]> {
+  if (local()) return [];
+  const { data, error } = await createAdminClient().from("venue_menu_packages").select("id, venue_id, name, per_head_inr").eq("is_active", true);
+  if (error) throw error;
+  return data.map((p) => ({ ...p, per_head_inr: Number(p.per_head_inr) }));
+}
+
+/** Negotiated rate cards, optionally for one tenant and/or venue (admins see all; scope clients to their company). */
+export async function listRateCards(filter: { tenantId?: string; venueId?: string } = {}): Promise<CorporateRateCard[]> {
+  if (local()) {
+    return (await readDb()).rateCards.filter((c) => (!filter.tenantId || c.tenant_id === filter.tenantId) && (!filter.venueId || c.venue_id === filter.venueId));
+  }
+  let q = createAdminClient().from("corporate_rate_cards").select("*").order("effective_from", { ascending: false });
+  if (filter.tenantId) q = q.eq("tenant_id", filter.tenantId);
+  if (filter.venueId) q = q.eq("venue_id", filter.venueId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data.map((c) => ({
+    ...c,
+    discount_percentage: Number(c.discount_percentage),
+    custom_per_head_rate: numOrNull(c.custom_per_head_rate),
+    minimum_spend_override: numOrNull(c.minimum_spend_override),
+  }));
+}
+
 export async function getActiveRateCard(
   tenantId: string,
   venueId: string,

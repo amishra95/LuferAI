@@ -6,13 +6,14 @@ import {
   getCorporatePolicy,
   listApprovals,
   listBookings,
+  listCompanies,
   listDepartments,
   type ApprovalDetail as ApprovalRow,
   type BookingDetail,
 } from "@/lib/data";
 import { financialYear } from "@/lib/fiscal-year";
 import { sumInr } from "@/lib/gst-engine";
-import { describePolicyChecks, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
+import { describePolicyChecks, monthToDateSpend, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Department } from "@/lib/supabase/database.types";
 
@@ -90,10 +91,18 @@ export async function approvalItemisation(
   const booking = bookings.find((b) => b.id === approval.booking_id);
   if (!booking) return null;
 
-  const checks = describePolicyChecks(policy, {
-    total_amount: booking.total_amount_inr,
-    per_head_amount: booking.budget_per_head_inr,
-  });
+  const company = (await listCompanies()).find((c) => c.id === companyId);
+  const limit = Number(company?.monthly_spend_limit_inr ?? 0);
+  const checks = describePolicyChecks(
+    policy,
+    {
+      total_amount: booking.total_amount_inr,
+      per_head_amount: booking.budget_per_head_inr,
+      alcohol_included: booking.alcohol_included,
+      entertainment: booking.entertainment,
+    },
+    limit > 0 ? { monthly_limit: limit, month_to_date: monthToDateSpend(bookings, companyId, booking.event_date, booking.id) } : null
+  );
 
   // Department budgets are informational here: routing is by corporate_policies.
   let department: ApprovalItemisation["department"] = null;
