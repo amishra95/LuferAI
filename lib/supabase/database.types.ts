@@ -84,3 +84,5 @@ export type PurchaseOrder = Tables<"purchase_orders">;
 export type PoAllocation = Tables<"po_allocations">;
 export type CatalogItem = Tables<"catalog_items">;
 export type CatalogOrder = Tables<"catalog_orders">;
+export type EventWorkspace = Tables<"event_workspaces">;
+export type EventAttendee = Tables<"event_attendees">;

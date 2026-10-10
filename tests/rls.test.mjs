@@ -169,3 +169,91 @@ test("the planner evaluates helpers once per statement (InitPlan), not per row",
   const plan = await as(U.client, async (tx) => (await tx.query(`explain select * from bookings`)).rows.map((r) => r["QUERY PLAN"]).join("\n"));
   assert.match(plan, /InitPlan/);
 });
+
+// --- event workspaces & RSVPs (migration 0022) -------------------------------------------
+
+test("event guest lists: the company and admins read them; venues, strangers and anon see nothing", async () => {
+  const booking = (await db.query(`select id from bookings where company_id = $1 order by event_date limit 1`, [NIMBUS])).rows[0].id;
+  await db.query(`insert into event_workspaces (booking_id, tenant_id, title) values ($1, $2, 'Offsite dinner')`, [booking, NIMBUS]);
+  await db.query(`insert into event_attendees (booking_id, tenant_id, name, email) values ($1, $2, 'Asha Rao', 'asha@nimbus.in'), ($1, $2, 'Dev Iyer', 'dev@nimbus.in')`, [booking, NIMBUS]);
+
+  for (const tbl of ["event_attendees", "event_workspaces"]) {
+    const total = await count(db, `select count(*) n from ${tbl}`);
+    assert.equal(await as(U.client, (tx) => count(tx, `select count(*) n from ${tbl}`)), total, `client ${tbl}`);
+    assert.equal(await as(U.admin, (tx) => count(tx, `select count(*) n from ${tbl}`)), total, `admin ${tbl}`);
+    assert.equal(await as(U.property, (tx) => count(tx, `select count(*) n from ${tbl}`)), 0, `property ${tbl}`);
+    assert.equal(await as(U.stranger, (tx) => count(tx, `select count(*) n from ${tbl}`)), 0, `stranger ${tbl}`);
+    assert.equal(await asUser(db, { role: "anon" }, (tx) => count(tx, `select count(*) n from ${tbl}`)), 0, `anon ${tbl}`);
+  }
+
+  // Writes go through the app (service role); a client's own token can't write.
+  await assert.rejects(
+    as(U.client, (tx) => tx.query(`insert into event_attendees (booking_id, tenant_id, name, email) values ($1, $2, 'Eve', 'eve@x.in')`, [booking, NIMBUS])),
+    /row-level security/
+  );
+  assert.equal(await as(U.client, async (tx) => (await tx.query(`update event_attendees set rsvp_status = 'ACCEPTED'`)).affectedRows), 0);
+  assert.equal(await as(U.client, async (tx) => (await tx.query(`delete from event_attendees`)).affectedRows), 0);
+
+  // A guest can't be filed under another company's booking.
+  await assert.rejects(db.query(`insert into event_attendees (booking_id, tenant_id, name, email) values ($1, $2, 'Eve', 'eve@x.in')`, [booking, VERTEX]), /event_attendees_booking_fkey/);
+});
+
+test("event guest lists: replies are timestamped, tokens fixed, declines bring no one; schedule edits bump SEQUENCE", async () => {
+  const booking = (await db.query(`select id from bookings where company_id = $1 order by event_date limit 1`, [NIMBUS])).rows[0].id;
+  const { rows: [g] } = await db.query(`insert into event_attendees (booking_id, tenant_id, name, email, plus_ones) values ($1, $2, 'Meera Shah', 'meera@nimbus.in', 2) returning *`, [booking, NIMBUS]);
+  assert.match(g.rsvp_token, /^[0-9a-f]{64}$/);
+  assert.equal(g.responded_at, null);
+
+  const { rows: [declined] } = await db.query(`update event_attendees set rsvp_status = 'DECLINED', rsvp_token = repeat('0', 64) where id = $1 returning *`, [g.id]);
+  assert.equal(declined.rsvp_token, g.rsvp_token);
+  assert.equal(declined.plus_ones, 0);
+  assert.ok(declined.responded_at);
+  const { rows: [reset] } = await db.query(`update event_attendees set rsvp_status = 'INVITED' where id = $1 returning responded_at`, [g.id]);
+  assert.equal(reset.responded_at, null);
+
+  await assert.rejects(db.query(`insert into event_attendees (booking_id, tenant_id, name, email) values ($1, $2, 'Bad', 'Bad;x@nimbus.in')`, [booking, NIMBUS]), /check/);
+  await assert.rejects(db.query(`insert into event_attendees (booking_id, tenant_id, name, email) values ($1, $2, 'Twice', 'meera@nimbus.in')`, [booking, NIMBUS]), /duplicate key/);
+
+  const seq = async () => (await db.query(`select ics_sequence from event_workspaces where booking_id = $1`, [booking])).rows[0].ics_sequence;
+  const start = await seq();
+  await db.query(`update event_workspaces set rsvp_deadline = current_date where booking_id = $1`, [booking]);
+  assert.equal(await seq(), start, "the deadline isn't on the invite");
+  await db.query(`update event_workspaces set starts_at = '20:00', ics_sequence = 0 where booking_id = $1`, [booking]);
+  assert.equal(await seq(), start + 1);
+});
+
+test("event channels: Realtime authorises `event:<booking id>` to the booking's company and admins; tables are published", async () => {
+  // A stand-in for the parts of Supabase Realtime migration 0022 hooks into.
+  const rt = await createDatabase({
+    prelude: `
+      create schema realtime;
+      create table realtime.messages (id uuid primary key default gen_random_uuid(), topic text not null, extension text not null, payload jsonb);
+      alter table realtime.messages enable row level security;
+      grant usage on schema realtime to authenticated;
+      grant select, insert on realtime.messages to authenticated;
+      create function realtime.topic() returns text language sql stable as $$ select current_setting('realtime.topic', true) $$;
+      grant execute on function realtime.topic() to authenticated;
+      create publication supabase_realtime;`,
+  });
+  const nimbus = (await rt.query(`select id from bookings where company_id = $1 limit 1`, [NIMBUS])).rows[0].id;
+  const vertex = (await rt.query(`select id from bookings where company_id = $1 limit 1`, [VERTEX])).rows[0].id;
+  await rt.query(`insert into auth.users (id, email) values ($1, 'c@x.test'), ($2, 'a@x.test')`, [U.client, U.admin]);
+  await rt.query(`insert into platform_users (user_id, role, company_id, corporate_role) values ($1, 'CLIENT', $2, 'ORGANIZER'), ($3, 'ADMIN', null, null)`, [U.client, NIMBUS, U.admin]);
+
+  const canJoin = (user, topic) =>
+    asUser(rt, { claims: { sub: user } }, async (tx) => {
+      await tx.query(`select set_config('realtime.topic', $1, true)`, [topic]);
+      await tx.query(`insert into realtime.messages (topic, extension) values ($1, 'presence')`, [topic]);
+      return true;
+    }).catch((err) => (/row-level security/.test(err.message) ? false : Promise.reject(err)));
+
+  assert.equal(await canJoin(U.client, `event:${nimbus}`), true);
+  assert.equal(await canJoin(U.client, `event:${vertex}`), false);
+  assert.equal(await canJoin(U.client, `event:${nimbus}x`), false);
+  assert.equal(await canJoin(U.client, `booking:${nimbus}`), false);
+  assert.equal(await canJoin(U.admin, `event:${vertex}`), true);
+  assert.equal(await canJoin(U.stranger, `event:${nimbus}`), false);
+
+  const published = (await rt.query(`select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by 1`)).rows.map((r) => r.tablename);
+  assert.deepEqual(published, ["event_attendees", "event_workspaces"]);
+});
