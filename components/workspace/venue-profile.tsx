@@ -217,6 +217,7 @@ type AgentRun = { key: string; request: AgentBookingRequest; outcome: AgentBooki
 const OUTCOME: Record<AgentBookingOutcome["status"], string> = {
   confirmed: "Confirmed",
   with_venue: "Sent to venue",
+  with_supplier: "Sent to supplier",
   awaiting_approval: "Awaiting approval",
   failed: "Not booked",
 };

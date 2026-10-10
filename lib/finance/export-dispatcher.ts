@@ -2,7 +2,9 @@ import "server-only";
 
 import { createHash, createHmac } from "node:crypto";
 
-import { findExpenseExport, listBookings, listCompanies, recordExpenseExport, retryExpenseExport } from "@/lib/data";
+import { findExpenseExport, listBookings, listCatalogOrders, listCompanies, recordExpenseExport, retryExpenseExport } from "@/lib/data";
+import type { TaxInvoicePayload } from "@/lib/gst-engine";
+import type { ExpenseExport } from "@/lib/supabase/database.types";
 import { buildExpenseRequest, isExpenseProvider, providerEnv, type ExpenseProvider } from "@/lib/finance/expense-adapters";
 import { buildExpenseReceipt, type ExpenseReceipt } from "@/lib/finance/receipt";
 import type { Json } from "@/lib/supabase/database.generated";
@@ -22,6 +24,103 @@ function audit(entry: Record<string, unknown>) {
 /** Statuses a booking can be exported from: confirmed onwards. */
 const EXPORTABLE = new Set(["CONFIRMED", "COMPLETED", "SETTLED"]);
 
+interface ExportSubject {
+  kind: "booking" | "order";
+  id: string;
+  tenantId: string;
+  costCenter: string | null;
+  projectCode: string | null;
+  receipt: ExpenseReceipt;
+}
+
+/** Sends one receipt to the company's provider and records it (retrying a failed export in place). */
+async function deliver(subject: ExportSubject, existing: ExpenseExport | null): Promise<DispatchOutcome> {
+  const companies = await listCompanies();
+  const company = companies.find((c) => c.id === subject.tenantId);
+  const provider: ExpenseProvider = isExpenseProvider(company?.expense_provider) ? company.expense_provider : "webhook";
+  const event = subject.receipt.event;
+  const request = buildExpenseRequest(provider, subject.receipt);
+  const body = JSON.stringify(request.body);
+  const sha256 = createHash("sha256").update(body).digest("hex");
+  const keys = providerEnv(provider);
+  const url = env(keys.url);
+
+  let status: "delivered" | "mocked" | "failed" = "mocked";
+  let responseCode: number | null = null;
+  let error: string | null = null;
+  if (url) {
+    try {
+      const secret = env(keys.token);
+      const auth: Record<string, string> =
+        provider === "webhook"
+          ? secret
+            ? { "X-Lufer-Signature": `sha256=${createHmac("sha256", secret).update(body).digest("hex")}` }
+            : {}
+          : secret
+            ? { Authorization: `Bearer ${secret}` }
+            : {};
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Lufer-Event": event,
+          "X-Lufer-Payload-SHA256": sha256,
+          ...auth,
+          // Lets the receiver dedupe retries.
+          "Idempotency-Key": request.idempotencyKey,
+        },
+        body,
+        signal: AbortSignal.timeout(10_000),
+      });
+      responseCode = res.status;
+      status = res.ok ? "delivered" : "failed";
+      if (!res.ok) error = `Receiver returned ${res.status}`;
+    } catch (err) {
+      status = "failed";
+      error = err instanceof Error ? err.message : "Delivery failed";
+    }
+  }
+
+  const row = {
+    booking_id: subject.kind === "booking" ? subject.id : null,
+    catalog_order_id: subject.kind === "order" ? subject.id : null,
+    tenant_id: subject.tenantId,
+    event,
+    provider,
+    receipt: subject.receipt as unknown as Json,
+    payload: body,
+    payload_sha256: sha256,
+    destination: url || "mock",
+    status,
+    response_code: responseCode,
+    error,
+  };
+  const recorded = existing ? await retryExpenseExport(existing.id, row) : await recordExpenseExport(row);
+  audit({
+    [subject.kind === "booking" ? "booking_id" : "order_id"]: subject.id,
+    tenant_id: subject.tenantId,
+    provider,
+    status: recorded ? status : "skipped",
+    attempt: existing ? existing.attempts + 1 : 1,
+    destination: url ? new URL(url).host : "mock",
+    payload_sha256: sha256,
+    cost_center: subject.costCenter,
+    project_code: subject.projectCode,
+    invoice_total: subject.receipt.tax.invoice_total,
+    ...(error && { error }),
+  });
+  if (!recorded) return { status: "skipped", provider, duplicate: true };
+  return status === "failed" ? { status, provider, error: error ?? "Delivery failed" } : { status, provider };
+}
+
+/** A delivered or mocked export is final; a failed one is retried. */
+function alreadyExported(existing: ExpenseExport | null, subjectId: string): DispatchOutcome | null {
+  if (!existing || existing.status === "failed") return null;
+  const provider = isExpenseProvider(existing.provider) ? existing.provider : "webhook";
+  audit({ subject: subjectId, status: "skipped", reason: "already exported", provider });
+  return { status: "skipped", provider, duplicate: true };
+}
+
 /**
  * Exports a confirmed booking to the company's expense system
  * (companies.expense_provider: signed webhook, Ramp, Brex or Concur; see
@@ -33,90 +132,13 @@ const EXPORTABLE = new Set(["CONFIRMED", "COMPLETED", "SETTLED"]);
 export async function exportBookingExpense(bookingId: string): Promise<DispatchOutcome> {
   try {
     const existing = await findExpenseExport(bookingId, "booking.confirmed");
-    if (existing && existing.status !== "failed") {
-      const provider = isExpenseProvider(existing.provider) ? existing.provider : "webhook";
-      audit({ booking_id: bookingId, status: "skipped", reason: "already exported", provider });
-      return { status: "skipped", provider, duplicate: true };
-    }
-    const [booking, companies] = await Promise.all([listBookings().then((bs) => bs.find((b) => b.id === bookingId)), listCompanies()]);
+    const done = alreadyExported(existing, bookingId);
+    if (done) return done;
+    const booking = (await listBookings()).find((b) => b.id === bookingId);
     if (!booking) throw new Error(`Booking ${bookingId} not found`);
     if (!EXPORTABLE.has(booking.status)) throw new Error(`Booking ${bookingId} is ${booking.status}, not confirmed`);
-    const company = companies.find((c) => c.id === booking.company.id);
-    const provider: ExpenseProvider = isExpenseProvider(company?.expense_provider) ? company.expense_provider : "webhook";
-
-    const receipt: ExpenseReceipt = buildExpenseReceipt({ ...booking, company: booking.company, venue: { ...booking.venue } }, new Date().toISOString());
-    const request = buildExpenseRequest(provider, receipt);
-    const body = JSON.stringify(request.body);
-    const sha256 = createHash("sha256").update(body).digest("hex");
-    const keys = providerEnv(provider);
-    const url = env(keys.url);
-
-    let status: "delivered" | "mocked" | "failed" = "mocked";
-    let responseCode: number | null = null;
-    let error: string | null = null;
-    if (url) {
-      try {
-        const secret = env(keys.token);
-        const auth: Record<string, string> =
-          provider === "webhook"
-            ? secret
-              ? { "X-Lufer-Signature": `sha256=${createHmac("sha256", secret).update(body).digest("hex")}` }
-              : {}
-            : secret
-              ? { Authorization: `Bearer ${secret}` }
-              : {};
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Lufer-Event": "booking.confirmed",
-            "X-Lufer-Payload-SHA256": sha256,
-            ...auth,
-            // Lets the receiver dedupe retries.
-            "Idempotency-Key": request.idempotencyKey,
-          },
-          body,
-          signal: AbortSignal.timeout(10_000),
-        });
-        responseCode = res.status;
-        status = res.ok ? "delivered" : "failed";
-        if (!res.ok) error = `Receiver returned ${res.status}`;
-      } catch (err) {
-        status = "failed";
-        error = err instanceof Error ? err.message : "Delivery failed";
-      }
-    }
-
-    const row = {
-      booking_id: booking.id,
-      tenant_id: booking.company.id,
-      event: "booking.confirmed",
-      provider,
-      receipt: receipt as unknown as Json,
-      payload: body,
-      payload_sha256: sha256,
-      destination: url || "mock",
-      status,
-      response_code: responseCode,
-      error,
-    };
-    // A failed export is retried in place; a new one is inserted (once per booking + event).
-    const recorded = existing ? await retryExpenseExport(existing.id, row) : await recordExpenseExport(row);
-    audit({
-      booking_id: booking.id,
-      tenant_id: booking.company.id,
-      provider,
-      status: recorded ? status : "skipped",
-      attempt: existing ? existing.attempts + 1 : 1,
-      destination: url ? new URL(url).host : "mock",
-      payload_sha256: sha256,
-      cost_center: booking.cost_center,
-      project_code: booking.project_code,
-      invoice_total: receipt.tax.invoice_total,
-      ...(error && { error }),
-    });
-    if (!recorded) return { status: "skipped", provider, duplicate: true };
-    return status === "failed" ? { status, provider, error: error ?? "Delivery failed" } : { status, provider };
+    const receipt = buildExpenseReceipt({ ...booking, company: booking.company, venue: { ...booking.venue } }, new Date().toISOString());
+    return await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     audit({ booking_id: bookingId, status: "error", error: message });
@@ -126,3 +148,49 @@ export async function exportBookingExpense(bookingId: string): Promise<DispatchO
 
 /** The export run when a venue confirms a booking. */
 export const dispatchBookingConfirmed = exportBookingExpense;
+
+const ORDER_EXPORTABLE = new Set(["CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED"]);
+
+/**
+ * Exports a confirmed catalogue order, the same way: the supplier is the
+ * receipt's "venue", units its party size, and the invoice is the order's own
+ * (at the item's HSN/SAC rate). Never throws.
+ */
+export async function exportOrderExpense(orderId: string): Promise<DispatchOutcome> {
+  try {
+    const existing = await findExpenseExport(orderId, "order.confirmed");
+    const done = alreadyExported(existing, orderId);
+    if (done) return done;
+    const [order] = await listCatalogOrders({ ids: [orderId] });
+    if (!order) throw new Error(`Order ${orderId} not found`);
+    if (!ORDER_EXPORTABLE.has(order.status)) throw new Error(`Order ${orderId} is ${order.status}, not confirmed`);
+    const [company] = (await listCompanies()).filter((c) => c.id === order.tenant_id);
+    const invoice = order.invoice as unknown as TaxInvoicePayload;
+    const receipt = buildExpenseReceipt(
+      {
+        id: order.id,
+        status: order.status,
+        event_date: order.event_date ?? order.needed_by ?? order.created_at.slice(0, 10),
+        party_size: order.quantity,
+        budget_per_head_inr: order.unit_price_inr,
+        total_amount_inr: order.total_amount_inr,
+        notes: order.notes,
+        cost_center: order.cost_center,
+        project_code: order.project_code,
+        billing_gstin: invoice.recipient.gstin === company?.gstin ? null : invoice.recipient.gstin,
+        commission_rate: 0,
+        commission_inr: 0,
+        company: { id: order.tenant_id, legal_name: order.company_name, gstin: company?.gstin ?? invoice.recipient.gstin },
+        venue: { id: order.partner_id, name: order.partner_name, city: invoice.supplier.state_name, gstin: invoice.supplier.gstin },
+        invoice,
+      },
+      new Date().toISOString(),
+      "order.confirmed"
+    );
+    return await deliver({ kind: "order", id: order.id, tenantId: order.tenant_id, costCenter: order.cost_center, projectCode: order.project_code, receipt }, existing);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Export failed";
+    audit({ order_id: orderId, status: "error", error: message });
+    return { status: "failed", error: message };
+  }
+}

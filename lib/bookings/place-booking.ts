@@ -3,7 +3,6 @@ import "server-only";
 import {
   createBookingRequest,
   HoldConflictError,
-  listApprovalChain,
   listCompanies,
   listDepartments,
   listPortalUsers,
@@ -11,8 +10,8 @@ import {
   listPurchaseOrders,
   listVenues,
   PoAllocationError,
-  type NewApprovalRequest,
 } from "@/lib/data";
+import { assignApprovers } from "@/lib/approvals/route";
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
@@ -153,22 +152,16 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       // Tier 1 (manager) signs off; above the high-value threshold or the monthly limit tier 2 (senior)
       // does too, after tier 1. Nobody approves their own request: the requester is skipped and the next tier steps up.
       const reasons = [policy.requiresApproval ? policy.reason : null, po.kind === "over_balance" ? po.reason : null].filter((r): r is string => Boolean(r));
-      const tiers = policy.requiresApproval ? policy.tiers : 1;
-      const approvals: NewApprovalRequest[] = [];
-      let approverNames: string[] = [];
-      if (reasons.length) {
-        const reason = reasons.join("; ");
-        const chain = (await listApprovalChain(company.id)).filter((c) => c.approver_user_id !== userId);
-        const assigned = chain.slice(0, tiers);
-        if (assigned.length < tiers) {
-          return {
-            status: "error",
-            message: `This booking needs ${tiers === 2 ? "two levels of" : ""} sign-off (${reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
-          };
-        }
-        for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason });
-        approverNames = assigned.map((c) => users.find((u) => u.id === c.approver_user_id)?.name ?? "an approver");
-      }
+      const routed = await assignApprovers({
+        companyId: company.id,
+        companyName: company.legal_name,
+        requesterId: userId,
+        users,
+        reasons,
+        tiers: policy.requiresApproval ? policy.tiers : 1,
+      });
+      if (!routed.ok) return { status: "error", message: routed.message };
+      const { approvals, approverNames } = routed;
       const allocation = po.kind === "ok" || po.kind === "over_balance" ? { po_id: po.po.id, over_balance: po.kind === "over_balance" } : undefined;
 
       const { hours, ...hold } = planHold(approvals.length > 0);

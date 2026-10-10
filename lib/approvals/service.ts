@@ -1,19 +1,23 @@
 import "server-only";
 
+import type { TaxInvoicePayload } from "@/lib/gst-engine";
+
 import type { Member } from "@/lib/auth/session";
 import {
   dataSource,
   getCorporatePolicy,
   listApprovals,
   listBookings,
-  listCompanies,
+  listCatalogOrders,
   listDepartments,
+  type CatalogOrderDetail,
   type ApprovalDetail as ApprovalRow,
   type BookingDetail,
 } from "@/lib/data";
 import { financialYear } from "@/lib/fiscal-year";
 import { sumInr } from "@/lib/gst-engine";
-import { describePolicyChecks, monthToDateSpend, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
+import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
+import { describePolicyChecks, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Department } from "@/lib/supabase/database.types";
 
@@ -75,6 +79,24 @@ export async function approvalQueue(member: Member, companyId: string): Promise<
   return listApprovals({ tenantId: companyId, approverId: member.userId, status: "PENDING" });
 }
 
+export interface OrderItemisation {
+  approval: ApprovalRow;
+  order: CatalogOrderDetail;
+  invoice: TaxInvoicePayload;
+  checks: PolicyCheck[];
+}
+
+/** One queued order approval: its invoice (at the item's own HSN/SAC rate) and the policy checks. */
+export async function orderItemisation(approval: ApprovalRow, companyId: string): Promise<OrderItemisation | null> {
+  if (!approval.catalog_order_id) return null;
+  const [[order], policy] = await Promise.all([listCatalogOrders({ tenantId: companyId, ids: [approval.catalog_order_id] }), getCorporatePolicy(companyId)]);
+  if (!order) return null;
+  // The order itself is already committed, so it's left out of "spend so far".
+  const spend = await spendLimitFor(companyId, order.event_date ?? order.needed_by ?? order.created_at.slice(0, 10), order.id);
+  const checks = describePolicyChecks(policy, { total_amount: order.total_amount_inr, per_head_amount: order.unit_price_inr }, spend);
+  return { approval, order, invoice: order.invoice as unknown as TaxInvoicePayload, checks };
+}
+
 export interface ApprovalItemisation {
   approval: ApprovalRow;
   booking: BookingDetail;
@@ -91,8 +113,6 @@ export async function approvalItemisation(
   const booking = bookings.find((b) => b.id === approval.booking_id);
   if (!booking) return null;
 
-  const company = (await listCompanies()).find((c) => c.id === companyId);
-  const limit = Number(company?.monthly_spend_limit_inr ?? 0);
   const checks = describePolicyChecks(
     policy,
     {
@@ -101,8 +121,9 @@ export async function approvalItemisation(
       alcohol_included: booking.alcohol_included,
       entertainment: booking.entertainment,
     },
-    limit > 0 ? { monthly_limit: limit, month_to_date: monthToDateSpend(bookings, companyId, booking.event_date, booking.id) } : null
+    await spendLimitFor(companyId, booking.event_date, booking.id)
   );
+
 
   // Department budgets are informational here: routing is by corporate_policies.
   let department: ApprovalItemisation["department"] = null;

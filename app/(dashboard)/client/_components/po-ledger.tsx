@@ -5,8 +5,7 @@ import { Loader2, Plus } from "lucide-react";
 
 import { createPurchaseOrderAction, reallocateBookingAction, setPurchaseOrderStatusAction } from "../po-actions";
 import { useOptimisticMutation } from "@/components/workspace/use-optimistic-mutation";
-import { STAGE_LABEL, type LifecycleStatus } from "@/lib/bookings/lifecycle";
-import { ineligibility, ledger, poBalance, validateNewPo, type NewPoInput } from "@/lib/procurement/po-ledger";
+import { ineligibility, ledger, poBalance, subjectOf, validateNewPo, type NewPoInput } from "@/lib/procurement/po-ledger";
 import type { PoAllocation, PurchaseOrder } from "@/lib/supabase/database.types";
 import { cn, formatINR } from "@/lib/utils";
 
@@ -19,10 +18,14 @@ import { cn, formatINR } from "@/lib/utils";
  * rolls back with the reason.
  */
 
+/** A booking or a catalogue order, as the ledger labels it. */
 export interface LedgerBooking {
   id: string;
+  kind: "booking" | "order";
   label: string;
-  status: LifecycleStatus;
+  status: string;
+  /** Plain-language stage ("With the venue", "Shipped", …). */
+  statusLabel: string;
   eventDate: string;
   departmentId: string | null;
 }
@@ -51,7 +54,7 @@ export function PoLedger({
   const server = useMemo(() => ({ pos, allocations }), [pos, allocations]);
   const { value: state, mutate } = useOptimisticMutation<State>(server);
   const deptName = (id: string | null) => (id ? (departments.find((d) => d.id === id)?.name ?? "a department") : "Company-wide");
-  const unallocated = bookings.filter((b) => b.status !== "CANCELLED" && !state.allocations.some((a) => a.booking_id === b.id));
+  const unallocated = bookings.filter((b) => b.kind === "booking" && b.status !== "CANCELLED" && !state.allocations.some((a) => subjectOf(a) === b.id));
 
   const setStatus = (po: PurchaseOrder, status: "open" | "closed") =>
     mutate({
@@ -109,7 +112,7 @@ export function PoLedger({
             {unallocated.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 text-[12.5px]">
                 <span className="text-fg min-w-0 flex-1 truncate">{b.label}</span>
-                <span className="text-fg-subtle font-mono text-[11.5px]">{STAGE_LABEL[b.status]}</span>
+                <span className="text-fg-subtle font-mono text-[11.5px]">{b.statusLabel}</span>
                 <PoSelect booking={b} state={state} onPick={(poId) => void reallocate(b.id, poId)} placeholder="Allocate to…" />
               </li>
             ))}
@@ -202,10 +205,10 @@ function PoPanel({
             </thead>
             <tbody>
               {rows.map((a) => {
-                const b = bookings.find((x) => x.id === a.booking_id);
+                const b = bookings.find((x) => x.id === subjectOf(a));
                 return (
                   <tr key={a.id} className={cn("border-line border-b last:border-b-0", a.status === "released" && "text-fg-faint")}>
-                    <td className="text-fg max-w-64 truncate py-2 pr-3 pl-5">{b?.label ?? a.booking_id.slice(0, 8)}</td>
+                    <td className="text-fg max-w-64 truncate py-2 pr-3 pl-5">{b?.label ?? subjectOf(a).slice(0, 8)}</td>
                     <td className="text-fg-subtle px-3 font-mono text-[11.5px]">
                       {a.status}
                       {a.over_balance && <span className="text-rose"> · signed-off overrun</span>}
@@ -213,7 +216,7 @@ function PoPanel({
                     <td className={cn("px-3 text-right font-mono tabular-nums", a.status === "released" && "line-through")}>{formatINR(a.amount_inr)}</td>
                     <td className={cn("px-3 text-right font-mono tabular-nums", a.balanceAfter < 0 && "text-rose")}>{formatINR(a.balanceAfter)}</td>
                     <td className="py-1.5 pr-5 pl-3 text-right">
-                      {canManage && b && a.status === "committed" && (
+                      {canManage && b?.kind === "booking" && a.status === "committed" && (
                         <PoSelect booking={b} state={state} exclude={po.id} onPick={(poId) => onReallocate(b.id, poId)} placeholder="Move to…" />
                       )}
                     </td>

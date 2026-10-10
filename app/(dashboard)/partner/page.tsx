@@ -11,6 +11,7 @@ import { PARTNER_ROLE_LABEL, partnerPermissions } from "@/lib/auth/partner-rbac"
 import { requirePortal } from "@/lib/auth/session";
 import { todayInIndia } from "@/lib/gst-engine";
 import { getPartner, listAudit, listPartnerMembers, listPartnerRateCards, listPartners, listPartnerVenues } from "@/lib/partner/service";
+import { listCatalogItems, listCatalogOrders } from "@/lib/data";
 import { fromPerHead, isRateActiveOn } from "@/lib/partner/validation";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import {
@@ -22,10 +23,13 @@ import {
   MemberRoleForm,
   RateCardForm,
 } from "./_components/partner-forms";
+import { PartnerCatalog, PartnerOrders, type FulfilOrder } from "./_components/catalog-manager";
 
 const TABS = [
   { key: "listings", label: "Listings", permission: "partner.view" },
   { key: "rates", label: "Rate cards", permission: "partner.view" },
+  { key: "catalog", label: "Catalogue", permission: "partner.view" },
+  { key: "orders", label: "Orders", permission: "partner.view" },
   { key: "team", label: "Team", permission: "team.manage" },
   { key: "activity", label: "Activity", permission: "audit.view" },
 ] as const;
@@ -71,11 +75,13 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
   };
 
   const today = todayInIndia();
-  const [listings, rates, members, audit] = await Promise.all([
+  const [listings, rates, members, audit, catalogItems, orders] = await Promise.all([
     listPartnerVenues(partner.id),
     listPartnerRateCards(partner.id),
     activeTab === "team" ? listPartnerMembers(partner.id) : Promise.resolve([]),
     activeTab === "activity" ? listAudit(partner.id) : Promise.resolve([]),
+    activeTab === "catalog" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
+    activeTab === "orders" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
   ]);
   const liveRates = rates.filter((r) => isRateActiveOn(r, today) || r.valid_from > today);
   const listingName = new Map(listings.map((l) => [l.id, l.name]));
@@ -272,6 +278,38 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             </Card>
           ) : null}
         </div>
+      ) : null}
+
+      {activeTab === "catalog" ? (
+        <PartnerCatalog
+          partnerId={formPartnerId}
+          gstin={partner.gstin}
+          items={catalogItems}
+          canEdit={can.has("catalog.edit")}
+          canStatus={can.has("listing.status")}
+          canSetGstin={can.has("team.manage")}
+        />
+      ) : null}
+
+      {activeTab === "orders" ? (
+        <PartnerOrders
+          partnerId={formPartnerId}
+          canFulfil={can.has("orders.fulfil")}
+          orders={orders.map((o) => ({
+            id: o.id,
+            company_name: o.company_name,
+            item_name: o.item_name,
+            category: o.category,
+            quantity: o.quantity,
+            total_amount_inr: o.total_amount_inr,
+            status: o.status,
+            event_date: o.event_date,
+            needed_by: o.needed_by,
+            selections: (o.selections ?? {}) as Record<string, unknown>,
+            recipients: (Array.isArray(o.recipients) ? o.recipients : []) as FulfilOrder["recipients"],
+            tracking: o.tracking as FulfilOrder["tracking"],
+          }))}
+        />
       ) : null}
 
       {activeTab === "team" ? (
