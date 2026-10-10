@@ -7,8 +7,10 @@ import { AlertTriangle, ArrowUpRight, Check, Copy, Loader2, X } from "lucide-rea
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
 import { AgentStatusBadge } from "@/components/agents/agent-row";
 import { InspectButton } from "@/components/workspace/inspect";
-import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { useTelemetry, useWorkspace } from "@/components/workspace/workspace-provider";
+import type { TelemetryEvent } from "@/lib/telemetry/events";
 import { formatMs } from "@/lib/telemetry/format";
+import { latestVenueSync, liveTrace, refreshSeqFor, type LiveTrace, type StreamStatus } from "@/lib/telemetry/stream-state";
 import { cn, formatINR } from "@/lib/utils";
 import type { EntityKind, EntityRef } from "@/lib/workspace/state";
 import type { AgentDetail, InspectedEntity, RunDetail, TraceDetail, VenueDetail } from "@/types/workspace";
@@ -17,6 +19,10 @@ import type { AgentDetail, InspectedEntity, RunDetail, TraceDetail, VenueDetail 
  * Global entity inspector: a right-hand panel the dashboard shell renders on
  * every route. It shows whatever the workspace context is inspecting, loaded
  * from /api/workspace/inspect, so opening it never navigates.
+ *
+ * Live: it follows the telemetry stream (useTelemetry). A trace that's still
+ * running shows its spans as they finish, then loads in full once stored; an
+ * agent reloads when it logs a run; a venue when the directory is synced.
  *
  * Docked beside the page from lg up (the page reflows), a full-height overlay
  * below that. Escape closes it.
@@ -28,7 +34,7 @@ const CHANNEL_LABEL: Record<string, string> = { web: "Web app", whatsapp: "Whats
 const when = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 const int = (n: number) => n.toLocaleString("en-IN");
 
-type Load = { ref: EntityRef; status: "ok"; entity: InspectedEntity } | { ref: EntityRef; status: "error"; message: string };
+type Load = { ref: EntityRef; status: "ok"; entity: InspectedEntity } | { ref: EntityRef; status: "error"; code: number | null; message: string };
 
 const ERROR_TEXT: Record<number, string> = {
   401: "Sign in to inspect this.",
@@ -55,9 +61,12 @@ export function InspectorSidebar() {
   const panel = useRef<HTMLElement>(null);
   const [load, setLoad] = useState<Load | null>(null);
   const [reload, setReload] = useState(0);
+  const telemetry = useTelemetry();
 
   const kind = ref?.kind;
   const id = ref?.id;
+  // Moves when a streamed event changes this entity: the fetch below re-runs.
+  const refreshSeq = kind && id ? refreshSeqFor(telemetry.events, kind, id) : 0;
   useEffect(() => {
     if (!kind || !id) return;
     const ctrl = new AbortController();
@@ -65,11 +74,11 @@ export function InspectorSidebar() {
     fetch(`/api/workspace/inspect?${new URLSearchParams({ kind, id })}`, { signal: ctrl.signal })
       .then(async (r) => {
         if (r.ok) return setLoad({ ref: current, status: "ok", entity: (await r.json()) as InspectedEntity });
-        setLoad({ ref: current, status: "error", message: ERROR_TEXT[r.status] ?? "Couldn't load this right now." });
+        setLoad({ ref: current, status: "error", code: r.status, message: ERROR_TEXT[r.status] ?? "Couldn't load this right now." });
       })
-      .catch(() => !ctrl.signal.aborted && setLoad({ ref: current, status: "error", message: "Couldn't load this right now." }));
+      .catch(() => !ctrl.signal.aborted && setLoad({ ref: current, status: "error", code: null, message: "Couldn't load this right now." }));
     return () => ctrl.abort();
-  }, [kind, id, reload]);
+  }, [kind, id, reload, refreshSeq]);
 
   // Escape closes, unless a dialog (the palette, a config form) is on top and handles it.
   useEffect(() => {
@@ -91,6 +100,8 @@ export function InspectorSidebar() {
   if (!ref) return null;
   // Results for an earlier entity are never shown for this one.
   const current = load && load.ref.kind === ref.kind && load.ref.id === ref.id ? load : null;
+  // A trace isn't stored until its root span ends; until then, show what has streamed.
+  const running = ref.kind === "trace" && (!current || (current.status === "error" && current.code === 404)) ? liveTrace(telemetry.events, ref.id) : null;
 
   return (
     <aside
@@ -110,13 +121,16 @@ export function InspectorSidebar() {
           {ref.id}
         </span>
         <CopyId id={ref.id} />
-        <button type="button" onClick={closeInspector} aria-label="Close inspector" title="Close (esc)" className="btn btn-ghost btn-icon ml-auto size-8">
+        <StreamBadge status={telemetry.status} />
+        <button type="button" onClick={closeInspector} aria-label="Close inspector" title="Close (esc)" className="btn btn-ghost btn-icon size-8">
           <X className="size-4" aria-hidden />
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite" aria-busy={!current}>
-        {!current ? (
+      <div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite" aria-busy={!current && !running}>
+        {running && running.spans.length > 0 ? (
+          <LiveTraceBody trace={running} />
+        ) : !current ? (
           <p className="text-fg-subtle flex items-center gap-2 px-4 py-6 font-mono text-[11.5px]">
             <Loader2 className="size-3.5 animate-spin" aria-hidden /> loading…
           </p>
@@ -131,7 +145,7 @@ export function InspectorSidebar() {
             </button>
           </div>
         ) : (
-          <EntityBody entity={current.entity} />
+          <EntityBody entity={current.entity} events={telemetry.events} />
         )}
       </div>
 
@@ -169,12 +183,36 @@ function CopyId({ id }: { id: string }) {
   );
 }
 
-function EntityBody({ entity }: { entity: InspectedEntity }) {
+const STREAM_LABEL: Record<StreamStatus, string> = {
+  idle: "offline",
+  connecting: "connecting",
+  live: "live",
+  reconnecting: "reconnecting",
+  unavailable: "not live",
+};
+
+/** Connection state of the live stream: a dot plus a word (colour never carries it alone). */
+function StreamBadge({ status }: { status: StreamStatus }) {
+  return (
+    <span
+      className="text-fg-subtle ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[10.5px]"
+      title={status === "live" ? "Receiving live telemetry" : status === "unavailable" ? "The live stream isn't available for this account" : undefined}
+    >
+      <span
+        className={cn("status-dot", status === "live" ? "bg-sage" : status === "reconnecting" || status === "connecting" ? "bg-warn" : "border-fg-faint border")}
+        aria-hidden
+      />
+      {STREAM_LABEL[status]}
+    </span>
+  );
+}
+
+function EntityBody({ entity, events }: { entity: InspectedEntity; events: readonly TelemetryEvent[] }) {
   switch (entity.kind) {
     case "agent":
       return <AgentBody entity={entity} />;
     case "venue":
-      return <VenueBody entity={entity} />;
+      return <VenueBody entity={entity} sync={latestVenueSync(events)} />;
     case "trace":
       return <TraceBody entity={entity} />;
     case "run":
@@ -279,7 +317,7 @@ function AgentBody({ entity }: { entity: AgentDetail }) {
   );
 }
 
-function VenueBody({ entity: { venue } }: { entity: VenueDetail }) {
+function VenueBody({ entity: { venue }, sync }: { entity: VenueDetail; sync: Extract<TelemetryEvent, { type: "venue-sync" }> | null }) {
   return (
     <>
       <Title aside={<span className="pill">{venue.tier === "internal" ? "Lufer.ai" : "partner"}</span>}>
@@ -304,6 +342,65 @@ function VenueBody({ entity: { venue } }: { entity: VenueDetail }) {
             ["commission", venue.commission_rate === null ? null : `${(venue.commission_rate * 100).toFixed(1)}%`],
             ["supplier", venue.supplier],
           ]}
+        />
+      </Section>
+      {sync && (
+        <Section title="Directory sync">
+          <Fields
+            rows={[
+              ["synced", when.format(new Date(sync.at))],
+              ["venues", int(sync.total)],
+              ["partners", sync.partners.status === "ok" ? `${sync.partners.network} · ${int(sync.partners.count)}` : `${sync.partners.network} unavailable`],
+            ]}
+          />
+        </Section>
+      )}
+    </>
+  );
+}
+
+/** A trace still running: the spans that have ended so far, as they stream in. */
+function LiveTraceBody({ trace }: { trace: LiveTrace }) {
+  const start = Math.min(...trace.spans.map((s) => s.start));
+  const end = Math.max(...trace.spans.map((s) => s.start + s.durationMs));
+  const failed = trace.spans.find((s) => s.status === "error" && s.error);
+  return (
+    <>
+      <Title
+        aside={
+          trace.status === "running" ? (
+            <span className="pill">
+              <span className="status-dot bg-warn" aria-hidden /> running
+            </span>
+          ) : (
+            <RunStatus ok={trace.status === "ok"} />
+          )
+        }
+      >
+        <p className="text-fg font-mono text-[13px] font-medium">{trace.name ?? "trace"}</p>
+        <p className="text-fg-subtle mt-0.5 font-mono text-[11.5px] tabular-nums">
+          {when.format(new Date(start))} · {trace.spans.length} span{trace.spans.length === 1 ? "" : "s"} so far ·{" "}
+          {trace.ended ? (trace.storedSeq ? "stored, loading…" : "ended") : "streaming"}
+        </p>
+      </Title>
+      {failed?.error && (
+        <Section title="Error">
+          <p className="text-rose font-mono text-[12px] break-words">
+            {failed.name}: {failed.error.name}: {failed.error.message}
+          </p>
+        </Section>
+      )}
+      <Section title="Spans · live">
+        <TraceWaterfall
+          trace={{
+            traceId: trace.traceId,
+            name: trace.name ?? "trace",
+            start,
+            durationMs: Math.max(end - start, 1),
+            status: trace.status === "error" ? "error" : "ok",
+            spans: trace.spans.map((s) => ({ ...s, attributes: {} })),
+            droppedSpans: 0,
+          }}
         />
       </Section>
     </>
