@@ -26,6 +26,10 @@ export interface OptimisticMutationInput<S, R> extends MutationToasts<R> {
  * shows at once, rolls back on failure with an error toast, and the next
  * server render (actions revalidate and refresh) becomes the new base.
  *
+ * `serverValue` must keep its identity until the server data really changes
+ * (props from a server component, a memo, a state value): each new identity
+ * replaces the base, so an inline `[]` or `{…}` would reset it every render.
+ *
  *   const { value: agent, mutate } = useOptimisticMutation(props.agent);
  *   mutate({ apply: (a) => ({ ...a, enabled: !a.enabled }), action: () => updateAgentConfig(a.id, { enabled }), failure: "Couldn't update" });
  */

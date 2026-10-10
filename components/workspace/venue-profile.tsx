@@ -229,7 +229,9 @@ const ENTERTAINMENT_OPTIONS = ["live_music", "dj", "karaoke", "comedy", "games"]
  * removes it with a toast.
  */
 function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead: number }) {
-  const { value: runs, mutate } = useOptimisticMutation<AgentRun[]>([]);
+  // A stable empty list: a fresh [] each render would reset the base every render.
+  const [noRuns] = useState<AgentRun[]>(() => []);
+  const { value: runs, mutate } = useOptimisticMutation(noRuns);
   const [error, setError] = useState<string | null>(null);
   const venue = entity.venue;
   // Read once, not on every render.
