@@ -2,26 +2,32 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CornerDownLeft, LogOut, MapPin, PanelLeft, Search, type LucideIcon } from "lucide-react";
+import { Bot, CalendarDays, CornerDownLeft, Eraser, History, LogOut, MapPin, PanelLeft, PanelRightClose, RefreshCw, ScanSearch, Search, Waypoints, type LucideIcon } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
+import { syncVenueDirectory } from "@/app/(dashboard)/venues/actions";
 import { NAV_SECTIONS } from "@/components/dashboard/nav-config";
+import { useToast } from "@/components/dashboard/toast";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import type { BookingDetail } from "@/lib/data";
 import type { PortalRole } from "@/lib/supabase/database.types";
 import { rankMatches } from "@/lib/search/match";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import type { DirectoryVenue } from "@/lib/venues/partner-network";
+import { activeId, ENTITY_KINDS, isEmptyWorkspace, isEntityId, type EntityKind } from "@/lib/workspace/state";
+import type { AgentSummary } from "@/types/workspace";
 
 /**
- * ⌘K / Ctrl+K command palette: jump to any page the user may open, search the
- * venue directory and the user's bookings, and run a few shell actions.
+ * ⌘K / Ctrl+K command palette: jump to any page the user may open, look up
+ * agents, venues, bookings, traces and runs, and run workspace actions.
+ * Agents, venues, traces and runs open in the inspector (no navigation).
  *
- * Data comes from the role-scoped API routes (/api/venues, /api/bookings), so the
- * palette can never surface anything the user couldn't open anyway; a 401/403
- * just leaves that group out.
+ * Data comes from the role-scoped API routes (/api/venues, /api/bookings,
+ * /api/workspace/*), so the palette can never surface anything the user
+ * couldn't open anyway; a 401/403 just leaves that group out.
  */
 
-type Group = "Go to" | "Venues" | "Bookings" | "Actions";
+type Group = "Go to" | "Agents" | "Venues" | "Bookings" | "Look up" | "Actions";
 
 interface Item {
   id: string;
@@ -39,7 +45,10 @@ type PaletteBooking = Pick<BookingDetail, "id" | "event_date" | "status" | "part
   venue: { name: string; neighborhood: string };
 };
 
-const GROUP_ORDER: Group[] = ["Go to", "Venues", "Bookings", "Actions"];
+const GROUP_ORDER: Group[] = ["Go to", "Agents", "Venues", "Bookings", "Look up", "Actions"];
+const KIND_LABEL: Record<EntityKind, string> = { agent: "agent", venue: "venue", trace: "trace", run: "run" };
+/** Trace ids are 16 hex chars, run ids uuids: offer an id lookup for anything that looks like one. */
+const LOOKS_LIKE_ID = /^(?=.*\d)[A-Za-z0-9-]{8,}$/;
 const PER_GROUP = 6;
 const STATUS_LABEL: Record<string, string> = {
   PENDING_APPROVAL: "awaiting approval",
@@ -71,6 +80,8 @@ export function CommandPalette({
   onToggleSidebar: () => void;
 }) {
   const router = useRouter();
+  const toast = useToast();
+  const workspace = useWorkspace();
   const listId = useId();
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -78,11 +89,14 @@ export function CommandPalette({
   const [active, setActive] = useState(0);
   // null until this opening's fetch lands (reset on close, so each open is fresh).
   const [bookings, setBookings] = useState<PaletteBooking[] | null>(null);
+  const [agents, setAgents] = useState<AgentSummary[] | null>(null);
   // Tagged with the query it answers, so stale results are never shown.
   const [venueResult, setVenueResult] = useState<{ q: string; venues: DirectoryVenue[] }>({ q: "", venues: [] });
 
   const canVenues = allowedHrefs.includes("/venues");
   const canBookings = role === "ADMIN" || role === "CLIENT" || role === "PROPERTY";
+  // Agents, traces and runs are operator data (see lib/workspace/inspect.ts).
+  const canOps = role === "ADMIN";
 
   // ⌘K / Ctrl+K toggles from anywhere, including text fields (as in most apps).
   useEffect(() => {
@@ -108,14 +122,21 @@ export function CommandPalette({
         .then((body: { bookings: PaletteBooking[] }) => setBookings(body.bookings))
         .catch(() => !ctrl.signal.aborted && setBookings([]));
     }
+    if (canOps) {
+      fetch("/api/workspace/agents", { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : { agents: [] }))
+        .then((body: { agents: AgentSummary[] }) => setAgents(body.agents))
+        .catch(() => !ctrl.signal.aborted && setAgents([]));
+    }
     return () => {
       ctrl.abort();
       setBookings(null);
+      setAgents(null);
       setQuery("");
       setActive(0);
       previous?.focus?.();
     };
-  }, [open, canBookings]);
+  }, [open, canBookings, canOps]);
 
   // Venues are searched on the server (the directory can be large), debounced.
   useEffect(() => {
@@ -142,6 +163,28 @@ export function CommandPalette({
     },
     [close, router]
   );
+  const { inspect, inspectActive, closeInspector, reset, state: ws } = workspace;
+  const inspectEntity = useCallback(
+    (kind: EntityKind, id: string) => {
+      close();
+      inspect(kind, id);
+    },
+    [close, inspect]
+  );
+  const syncVenues = useCallback(async () => {
+    close();
+    try {
+      const { total, partners } = await syncVenueDirectory();
+      router.refresh();
+      toast(
+        partners.status === "ok"
+          ? { tone: "success", title: "Venue directory synced", description: `${total} venues · ${partners.count} from ${partners.network}` }
+          : { tone: "info", title: "Venue directory synced without partners", description: `${partners.network} is unavailable (${partners.error}). ${total} venues listed.` }
+      );
+    } catch {
+      toast({ tone: "error", title: "Venue sync failed", description: "Try again shortly." });
+    }
+  }, [close, router, toast]);
 
   const trimmed = query.trim();
   const venueQuery = canVenues && trimmed.length >= 2 ? trimmed : "";
@@ -164,8 +207,50 @@ export function CommandPalette({
       subtitle: `${v.neighborhood} · up to ${v.capacity_max} guests · min ${formatINR(v.min_spend_inr)}${v.tier === "partner" ? " · partner" : ""}`,
       keywords: `${v.neighborhood} ${v.city} ${v.address} ${v.gstin ?? ""}`,
       icon: MapPin,
-      run: () => go(`/venues?${new URLSearchParams({ q: v.name })}`),
+      run: () => inspectEntity("venue", v.id),
     }));
+
+    const agentItems: Item[] =
+      q && agents
+        ? agents.map((a) => ({
+            id: `agent:${a.id}`,
+            group: "Agents",
+            title: a.name,
+            subtitle: `${a.id} · ${a.status}`,
+            keywords: `${a.id} ${a.description} ${a.status}`,
+            icon: Bot,
+            run: () => inspectEntity("agent", a.id),
+          }))
+        : [];
+
+    // Traces and runs are too many to list: look one up by id.
+    const lookups: Item[] =
+      canOps && LOOKS_LIKE_ID.test(q) && isEntityId(q)
+        ? [
+            { id: `trace:${q}`, group: "Look up", title: `Inspect trace ${q}`, icon: Waypoints, run: () => inspectEntity("trace", q) },
+            { id: `run:${q}`, group: "Look up", title: `Inspect run ${q}`, icon: History, run: () => inspectEntity("run", q) },
+          ]
+        : [];
+
+    const contextActions: Item[] = [
+      ...ENTITY_KINDS.flatMap((kind) => {
+        const id = activeId(ws, kind);
+        if (!id || (ws.inspecting?.kind === kind && ws.inspecting.id === id)) return [];
+        return [{ id: `action:inspect-${kind}`, group: "Actions" as const, title: `Inspect active ${KIND_LABEL[kind]}`, subtitle: id, keywords: "workspace context inspector", icon: ScanSearch, run: () => {
+              close();
+              inspectActive(kind);
+            } }];
+      }),
+      ...(ws.inspecting ? [{ id: "action:close-inspector", group: "Actions" as const, title: "Close inspector", subtitle: "esc", keywords: "hide panel", icon: PanelRightClose, run: () => {
+              close();
+              closeInspector();
+            } }] : []),
+      ...(canVenues ? [{ id: "action:venue-sync", group: "Actions" as const, title: "Trigger venue sync", subtitle: "Re-pull own, partner and extranet listings", keywords: "refresh directory partner feed", icon: RefreshCw, run: () => void syncVenues() }] : []),
+      ...(!isEmptyWorkspace(ws) ? [{ id: "action:clear-context", group: "Actions" as const, title: "Clear context", subtitle: "Active agent, venue, trace, run and filters", keywords: "reset workspace", icon: Eraser, run: () => {
+              close();
+              reset();
+            } }] : []),
+    ];
 
     const bookingItems: Item[] =
       role && q
@@ -181,6 +266,7 @@ export function CommandPalette({
         : [];
 
     const actions: Item[] = [
+      ...contextActions,
       { id: "action:sidebar", group: "Actions", title: "Toggle sidebar", subtitle: "⌘B", keywords: "collapse expand navigation", icon: PanelLeft, run: () => {
           close();
           onToggleSidebar();
@@ -193,8 +279,8 @@ export function CommandPalette({
 
     const pick = (xs: Item[]) => (q ? rankMatches(xs, q, (i) => i, PER_GROUP) : xs.slice(0, PER_GROUP));
     // Venues are already filtered by the server; just rank them.
-    return [...pick(nav), ...pick(venueItems), ...pick(bookingItems), ...(q ? pick(actions) : actions)];
-  }, [query, allowedHrefs, venues, bookings, role, go, close, onToggleSidebar]);
+    return [...pick(nav), ...pick(agentItems), ...pick(venueItems), ...pick(bookingItems), ...lookups, ...(q ? pick(actions) : actions)];
+  }, [query, allowedHrefs, venues, agents, bookings, role, canOps, canVenues, ws, go, close, inspectEntity, inspectActive, closeInspector, reset, syncVenues, onToggleSidebar]);
 
   // Keep the highlight on a real row as results change.
   const current = Math.min(active, Math.max(items.length - 1, 0));
@@ -241,8 +327,8 @@ export function CommandPalette({
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={items.length ? optionId(current) : undefined}
-            aria-label="Search pages, venues and bookings"
-            placeholder={canVenues || canBookings ? "Search pages, venues and bookings…" : "Search pages…"}
+            aria-label="Search pages, agents, venues and bookings, or paste a trace or run id"
+            placeholder={canOps ? "Search pages, agents, venues, bookings or an id…" : canVenues || canBookings ? "Search pages, venues and bookings…" : "Search pages…"}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);

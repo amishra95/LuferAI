@@ -6,6 +6,7 @@ import { Check, Loader2, Play, SlidersHorizontal, X } from "lucide-react";
 import { runAgentTest, saveAgentConfig, setAgentEnabled, type AgentConfigState } from "@/app/(dashboard)/agents/actions";
 import { TOOL_META } from "@/components/chat/tool-meta";
 import { Switch } from "@/components/dashboard/switch";
+import { InspectButton } from "@/components/workspace/inspect";
 import { submitWithoutReset } from "@/lib/form-submit";
 import { cn } from "@/lib/utils";
 import type { AgentRecord, AgentStatus, AgentTestResult } from "@/types/agents";
@@ -89,7 +90,11 @@ export function AgentRow({ agent, status, now }: { agent: AgentRecord; status: A
       <div className={cn("hover:bg-surface-hover flex flex-col gap-3 px-5 py-4 transition-colors", AGENT_GRID)}>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <p className="text-fg truncate text-[13.5px] font-medium">{agent.name}</p>
+            <p className="text-fg min-w-0 truncate text-[13.5px] font-medium">
+              <InspectButton kind="agent" id={agent.id} label={agent.name} className="block truncate">
+                {agent.name}
+              </InspectButton>
+            </p>
             <span className="lg:hidden">
               <AgentStatusBadge status={status} />
             </span>

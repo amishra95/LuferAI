@@ -7,6 +7,8 @@ import type { TelemetryMetric } from "../../types/telemetry.ts";
 
 /** The fields of a logged run the metrics read. */
 export interface MetricRun {
+  /** The run log entry's id (lib/telemetry/runs.ts), for opening it in the inspector. */
+  id?: string;
   agent: string;
   at: string; // ISO, when the run finished
   ok: boolean;
@@ -183,7 +185,7 @@ export interface RunsSummary {
   buckets: RunBucket[];
   agents: AgentBreakdown[];
   channels: { channel: string; runs: number; failed: number; tokens: number }[];
-  failures: { at: string; agent: string; task: string; error: string; channel: string }[];
+  failures: { id: string | null; at: string; agent: string; task: string; error: string; channel: string }[];
 }
 
 /** Whether a move is welcome: success rate up is good, latency up is bad, volume is neither. */
@@ -264,7 +266,7 @@ export function summarizeRuns(runs: MetricRun[], now: number, range: RunRange): 
     .filter((r) => !r.ok)
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 10)
-    .map((r) => ({ at: r.at, agent: r.agent, task: r.task ?? "Agent run", error: r.error ?? "No error message recorded", channel: r.channel ?? "web" }));
+    .map((r) => ({ id: r.id ?? null, at: r.at, agent: r.agent, task: r.task ?? "Agent run", error: r.error ?? "No error message recorded", channel: r.channel ?? "web" }));
 
   return {
     range,
