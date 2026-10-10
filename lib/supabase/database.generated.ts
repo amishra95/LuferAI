@@ -318,6 +318,7 @@ export type Database = {
           partner_id: string
           ref: string
           status: string
+          stock_quantity: number | null
           tax_code: string
           tax_kind: string
           unit_price_inr: number
@@ -336,6 +337,7 @@ export type Database = {
           partner_id: string
           ref: string
           status?: string
+          stock_quantity?: number | null
           tax_code: string
           tax_kind: string
           unit_price_inr: number
@@ -354,6 +356,7 @@ export type Database = {
           partner_id?: string
           ref?: string
           status?: string
+          stock_quantity?: number | null
           tax_code?: string
           tax_kind?: string
           unit_price_inr?: number
@@ -372,6 +375,7 @@ export type Database = {
       catalog_orders: {
         Row: {
           category: string
+          commission_rate: number | null
           cost_center: string
           created_at: string
           department_id: string | null
@@ -397,6 +401,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          commission_rate?: number | null
           cost_center: string
           created_at?: string
           department_id?: string | null
@@ -422,6 +427,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          commission_rate?: number | null
           cost_center?: string
           created_at?: string
           department_id?: string | null
@@ -1233,31 +1239,37 @@ export type Database = {
       }
       partners: {
         Row: {
+          commission_rate: number
           contact_email: string | null
           created_at: string
           gstin: string | null
           id: string
           name: string
+          razorpay_account_id: string | null
           slug: string
           status: string
           updated_at: string
         }
         Insert: {
+          commission_rate?: number
           contact_email?: string | null
           created_at?: string
           gstin?: string | null
           id?: string
           name: string
+          razorpay_account_id?: string | null
           slug: string
           status?: string
           updated_at?: string
         }
         Update: {
+          commission_rate?: number
           contact_email?: string | null
           created_at?: string
           gstin?: string | null
           id?: string
           name?: string
+          razorpay_account_id?: string | null
           slug?: string
           status?: string
           updated_at?: string
@@ -1294,8 +1306,9 @@ export type Database = {
         Row: {
           amount_inr: number
           authorized_at: string | null
-          booking_id: string
+          booking_id: string | null
           captured_at: string | null
+          catalog_order_id: string | null
           created_at: string
           currency: string
           deposit_rate: number
@@ -1312,8 +1325,9 @@ export type Database = {
         Insert: {
           amount_inr: number
           authorized_at?: string | null
-          booking_id: string
+          booking_id?: string | null
           captured_at?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate: number
@@ -1330,8 +1344,9 @@ export type Database = {
         Update: {
           amount_inr?: number
           authorized_at?: string | null
-          booking_id?: string
+          booking_id?: string | null
           captured_at?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate?: number
@@ -1670,6 +1685,163 @@ export type Database = {
           },
         ]
       }
+      tcs_entries: {
+        Row: {
+          catalog_order_id: string
+          cgst_inr: number
+          created_at: string
+          id: string
+          igst_inr: number
+          kind: string
+          partner_id: string
+          place_of_supply: string
+          rate_bps: number
+          return_period: string
+          sgst_inr: number
+          supplier_gstin: string
+          taxable_inr: number
+        }
+        Insert: {
+          catalog_order_id: string
+          cgst_inr?: number
+          created_at?: string
+          id?: string
+          igst_inr?: number
+          kind: string
+          partner_id: string
+          place_of_supply: string
+          rate_bps: number
+          return_period: string
+          sgst_inr?: number
+          supplier_gstin: string
+          taxable_inr: number
+        }
+        Update: {
+          catalog_order_id?: string
+          cgst_inr?: number
+          created_at?: string
+          id?: string
+          igst_inr?: number
+          kind?: string
+          partner_id?: string
+          place_of_supply?: string
+          rate_bps?: number
+          return_period?: string
+          sgst_inr?: number
+          supplier_gstin?: string
+          taxable_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcs_entries_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tcs_entries_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_payouts: {
+        Row: {
+          catalog_order_id: string
+          commission_gst_inr: number
+          commission_inr: number
+          commission_rate: number
+          created_at: string
+          gross_inr: number
+          id: string
+          last_error: string | null
+          linked_account_id: string
+          net_payout_inr: number
+          partner_id: string
+          payment_id: string
+          provider_transfer_id: string | null
+          released_at: string | null
+          reversed_at: string | null
+          settled_at: string | null
+          status: string
+          taxable_inr: number
+          tcs_inr: number
+          tcs_rate_bps: number
+          updated_at: string
+        }
+        Insert: {
+          catalog_order_id: string
+          commission_gst_inr: number
+          commission_inr: number
+          commission_rate: number
+          created_at?: string
+          gross_inr: number
+          id?: string
+          last_error?: string | null
+          linked_account_id: string
+          net_payout_inr: number
+          partner_id: string
+          payment_id: string
+          provider_transfer_id?: string | null
+          released_at?: string | null
+          reversed_at?: string | null
+          settled_at?: string | null
+          status?: string
+          taxable_inr: number
+          tcs_inr: number
+          tcs_rate_bps: number
+          updated_at?: string
+        }
+        Update: {
+          catalog_order_id?: string
+          commission_gst_inr?: number
+          commission_inr?: number
+          commission_rate?: number
+          created_at?: string
+          gross_inr?: number
+          id?: string
+          last_error?: string | null
+          linked_account_id?: string
+          net_payout_inr?: number
+          partner_id?: string
+          payment_id?: string
+          provider_transfer_id?: string | null
+          released_at?: string | null
+          reversed_at?: string | null
+          settled_at?: string | null
+          status?: string
+          taxable_inr?: number
+          tcs_inr?: number
+          tcs_rate_bps?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_payouts_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: true
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_payouts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_payouts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_menu_packages: {
         Row: {
           created_at: string
@@ -1915,6 +2087,20 @@ export type Database = {
           gross_booking_value_inr: number | null
           pending_bookings: number | null
           total_bookings: number | null
+        }
+        Relationships: []
+      }
+      tcs_gstr8_summary: {
+        Row: {
+          cgst_inr: number | null
+          gross_supplies_inr: number | null
+          igst_inr: number | null
+          net_taxable_inr: number | null
+          place_of_supply: string | null
+          return_period: string | null
+          sgst_inr: number | null
+          supplier_gstin: string | null
+          supplies_returned_inr: number | null
         }
         Relationships: []
       }

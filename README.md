@@ -89,6 +89,24 @@ Every booking has a multiplayer planning workspace at `/client/events/<booking i
 
 Rules live in `lib/events/` (`rsvp.ts`, `ics.ts`, `presence.ts`, `invite.ts`); tests in `tests/event-workspace.test.mjs` and `tests/rls.test.mjs`.
 
+## Marketplace settlement (migration `…20261011150000_marketplace_payouts_tcs`)
+
+Partners stay the supplier of record on catalogue invoices; the platform collects payment as the e-commerce operator and settles through **Razorpay Route**:
+
+| Order | Money |
+| --- | --- |
+| Placed | Buyer pays the invoice total from the client Catalogue tab (authorised, not captured) |
+| Confirmed by the partner | Captured; a Route transfer to the partner's linked account is created **on hold** |
+| Delivered | Hold released; Razorpay settles to the partner's bank |
+| Cancelled | Authorisation released, or refunded with the transfer reversed |
+
+The transfer is the invoice total less the platform commission (per partner, snapshotted on each order), 18% GST on that commission (SAC 998599, invoiced under `PLATFORM_GSTIN`), and **Section 52 TCS** (0.5% of the taxable value since 10 July 2024: CGST + SGST intra-state, IGST inter-state). `tcs_entries` is the GSTR-8 ledger (returns reversed in the month they happen); admins download a period at `GET /api/admin/tcs?period=YYYY-MM`.
+
+- `/partner` → **Catalogue** tracks stock (reserved on order, returned on cancel); **Orders** is a fulfilment queue (confirm → ship → deliver, overdue flagged, payment and payout shown); **Payouts** (Owners, Managers) lists each split and TCS by period. Admins connect the linked account (`acc_…`, must be activated in Razorpay) and set the commission there.
+- `/client` → **Purchase orders** reconciles each catalogue order's PO allocation against its payment and payout and flags mismatches.
+- Logic: `lib/marketplace/settlement.ts` (pure: maths, step planner, reconciliation) and `lib/marketplace/service.ts` (Route calls, idempotent `syncOrderSettlement`). Tests: `tests/marketplace-settlement.test.mjs`, `tests/rls.test.mjs`.
+- **Tax review:** confirm the TCS schedule, the commission SAC and the TCS period rule with a tax advisor before going live.
+
 ## GST engine (`lib/gst-engine.ts`)
 
 ```ts

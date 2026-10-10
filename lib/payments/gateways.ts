@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
+import { transferStatus, type TransferOutcome } from "@/lib/marketplace/settlement";
 import type { PaymentProvider } from "@/lib/supabase/database.types";
 
 /**
@@ -18,7 +19,8 @@ import type { PaymentProvider } from "@/lib/supabase/database.types";
 
 export interface DepositCheckoutInput {
   paymentId: string;
-  bookingId: string;
+  /** What's being paid for: a booking deposit, or a catalogue order in full. */
+  subject: { kind: "booking" | "order"; id: string };
   amountPaise: number;
   description: string;
   customerEmail: string | null;
@@ -53,6 +55,8 @@ export type NormalizedStatus = "authorized" | "captured" | "voided" | "failed" |
 export interface NormalizedEvent {
   eventId: string;
   type: string;
+  /** Razorpay Route transfer events (transfer.*), for vendor_payouts. */
+  transfer?: TransferUpdate;
   /** Our payments.id when the provider echoes it back (metadata/notes). */
   paymentId: string | null;
   orderId: string | null;
@@ -61,6 +65,13 @@ export interface NormalizedEvent {
   status: NormalizedStatus | null;
   error: string | null;
   payload: unknown;
+}
+
+export interface TransferUpdate {
+  /** trf_… */
+  ref: string;
+  status: TransferOutcome;
+  error: string | null;
 }
 
 export class WebhookSignatureError extends Error {}
@@ -122,8 +133,7 @@ export function razorpayNotes(input: DepositCheckoutInput): RazorpayNotes {
   const { cgst, sgst, igst } = invoice.tax_breakup;
   const notes: RazorpayNotes = {
     payment_id: input.paymentId,
-    booking_id: input.bookingId,
-    purpose: "event_deposit",
+    ...(input.subject.kind === "booking" ? { booking_id: input.subject.id, purpose: "event_deposit" } : { catalog_order_id: input.subject.id, purpose: "catalog_order" }),
     customer_legal_name: customerLegalName,
     customer_gstin: invoice.recipient.gstin,
     place_of_supply: `${invoice.place_of_supply.state_code}-${invoice.place_of_supply.state_name}`,
@@ -143,21 +153,27 @@ export function razorpayNotes(input: DepositCheckoutInput): RazorpayNotes {
   return Object.fromEntries(entries.map(([k, v]) => [k, v.slice(0, MAX_NOTE_LENGTH)]));
 }
 
-function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
+/** Calls the Razorpay REST API (v1 unless the path starts with /v2/). */
+function razorpayApi(keyId: string, keySecret: string) {
   const auth = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
-
-  async function api<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`https://api.razorpay.com/v1${path}`, {
-      method: "POST",
+  return async function api<T>(path: string, body?: unknown, method: "GET" | "POST" | "PATCH" = "POST"): Promise<T> {
+    const url = path.startsWith("/v2/") ? `https://api.razorpay.com${path}` : `https://api.razorpay.com/v1${path}`;
+    const res = await fetch(url, {
+      method,
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(`Razorpay ${path} failed: ${json?.error?.description ?? res.status}`);
     }
     return json as T;
-  }
+  };
+}
+
+function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
+
+  const api = razorpayApi(keyId, keySecret);
 
   return {
     name: "razorpay",
@@ -207,8 +223,26 @@ function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
 
       const event = JSON.parse(rawBody) as {
         event: string;
-        payload?: { payment?: { entity?: { id: string; order_id: string | null; notes?: Record<string, string>; error_description?: string | null } } };
+        payload?: {
+          payment?: { entity?: { id: string; order_id: string | null; notes?: Record<string, string>; error_description?: string | null } };
+          transfer?: { entity?: { id: string; on_hold?: boolean; settlement_status?: string | null; error?: { description?: string | null } | null } };
+        };
       };
+      const eventId = headers.get("x-razorpay-event-id") ?? null;
+      const transfer = event.payload?.transfer?.entity;
+      if (event.event.startsWith("transfer.") && transfer) {
+        return {
+          eventId: eventId ?? `${event.event}:${transfer.id}:${transfer.settlement_status ?? ""}`,
+          type: event.event,
+          transfer: { ref: transfer.id, status: transferStatus(event.event, transfer), error: transfer.error?.description ?? null },
+          paymentId: null,
+          orderId: null,
+          paymentRef: null,
+          status: null,
+          error: null,
+          payload: event,
+        };
+      }
       const payment = event.payload?.payment?.entity;
       const status: Record<string, NormalizedStatus> = {
         "payment.authorized": "authorized",
@@ -216,7 +250,7 @@ function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
         "payment.failed": "failed",
       };
       return {
-        eventId: headers.get("x-razorpay-event-id") ?? `${event.event}:${payment?.id ?? "unknown"}`,
+        eventId: eventId ?? `${event.event}:${payment?.id ?? "unknown"}`,
         type: event.event,
         paymentId: payment?.notes?.payment_id ?? null,
         orderId: payment?.order_id ?? null,
@@ -225,6 +259,72 @@ function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
         error: payment?.error_description ?? null,
         payload: event,
       };
+    },
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Razorpay Route (marketplace transfers to partners' linked accounts)
+// ----------------------------------------------------------------------------
+
+export interface RouteTransferInput {
+  /** pay_… (captured). */
+  paymentRef: string;
+  /** acc_… */
+  account: string;
+  amountPaise: number;
+  /** Shown on the linked account's dashboard too. */
+  notes: Record<string, string>;
+  /** Held until we release it (on delivery). */
+  onHold: boolean;
+}
+
+/**
+ * Razorpay Route: splits a captured payment to a partner's linked account.
+ * https://razorpay.com/docs/api/payments/route/
+ */
+export interface RouteGateway {
+  /** Creates the transfer from the payment; returns its trf_… id. */
+  transfer(input: RouteTransferInput): Promise<string>;
+  /** Lifts the settlement hold; Razorpay settles to the partner on its schedule. */
+  release(transferRef: string): Promise<void>;
+  /** Refunds the payment and reverses every transfer made from it. */
+  refundAndReverse(paymentRef: string, amountPaise: number): Promise<void>;
+  /** The linked account's activation status ("activated" once KYC is done). */
+  accountStatus(accountId: string): Promise<string>;
+}
+
+export function getRouteGateway(): RouteGateway | null {
+  const { RAZORPAY_KEY_ID: id, RAZORPAY_KEY_SECRET: secret } = process.env;
+  if (!id || !secret) return null;
+  const api = razorpayApi(id, secret);
+  return {
+    async transfer(input) {
+      const res = await api<{ items?: { id: string }[] }>(`/payments/${encodeURIComponent(input.paymentRef)}/transfers`, {
+        transfers: [
+          {
+            account: input.account,
+            amount: input.amountPaise,
+            currency: "INR",
+            notes: input.notes,
+            linked_account_notes: Object.keys(input.notes),
+            on_hold: input.onHold,
+          },
+        ],
+      });
+      const ref = res.items?.[0]?.id;
+      if (!ref) throw new Error("Razorpay did not return a transfer id");
+      return ref;
+    },
+    async release(transferRef) {
+      await api(`/transfers/${encodeURIComponent(transferRef)}`, { on_hold: false }, "PATCH");
+    },
+    async refundAndReverse(paymentRef, amountPaise) {
+      await api(`/payments/${encodeURIComponent(paymentRef)}/refund`, { amount: amountPaise, reverse_all: 1 });
+    },
+    async accountStatus(accountId) {
+      const res = await api<{ status?: string }>(`/v2/accounts/${encodeURIComponent(accountId)}`, undefined, "GET");
+      return res.status ?? "unknown";
     },
   };
 }
@@ -240,7 +340,7 @@ function stripeGateway(secretKey: string): PaymentGateway {
     name: "stripe",
 
     async createDepositCheckout(input) {
-      const metadata = { payment_id: input.paymentId, booking_id: input.bookingId };
+      const metadata = { payment_id: input.paymentId, [input.subject.kind === "booking" ? "booking_id" : "catalog_order_id"]: input.subject.id };
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         client_reference_id: input.paymentId,

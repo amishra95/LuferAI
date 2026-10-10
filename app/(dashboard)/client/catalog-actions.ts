@@ -8,6 +8,7 @@ import { isOrderStatus, type OrderStatus } from "@/lib/catalog/orders";
 import { placeCatalogOrder } from "@/lib/catalog/place-order";
 import { CatalogError, listCatalogOrders, listPortalUsers, updateCatalogOrderStatus } from "@/lib/data";
 import { exportOrderExpense } from "@/lib/finance/export-dispatcher";
+import { syncOrderSettlement } from "@/lib/marketplace/service";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import { publishExpense, publishOrder } from "@/lib/telemetry/live";
 
@@ -79,6 +80,8 @@ export async function cancelCatalogOrderAction(orderId: string): Promise<ActionR
       const { companyId } = await buyer();
       try {
         const order = await updateCatalogOrderStatus(orderId, "CANCELLED", { tenantId: companyId });
+        // Releases the authorisation, or refunds and reverses the partner's transfer.
+        await syncOrderSettlement(order.id);
         revalidateOrderViews();
         return { orderId: order.id, partnerId: order.partner_id };
       } catch (err) {

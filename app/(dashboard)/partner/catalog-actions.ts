@@ -5,8 +5,9 @@ import { refresh, revalidatePath } from "next/cache";
 import { PartnerAccessError, requirePartner } from "@/lib/auth/session";
 import { validateItemInput } from "@/lib/catalog/items";
 import { isOrderStatus, supplierActions, validateTracking, type OrderStatus } from "@/lib/catalog/orders";
-import { CatalogError, listCatalogOrders, saveCatalogItem, setCatalogItemStatus, updateCatalogOrderStatus } from "@/lib/data";
+import { CatalogError, listCatalogOrders, saveCatalogItem, setCatalogItemStatus, setCatalogItemStock, updateCatalogOrderStatus } from "@/lib/data";
 import { exportOrderExpense } from "@/lib/finance/export-dispatcher";
+import { syncOrderSettlement } from "@/lib/marketplace/service";
 import { validateGstin } from "@/lib/gst-engine";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import { recordAudit } from "@/lib/partner/service";
@@ -62,6 +63,22 @@ export async function setCatalogItemStatusAction(partnerId: string | null, id: s
   });
 }
 
+/** Sets units in stock (null stops tracking). Owners and Managers. */
+export async function setCatalogItemStockAction(partnerId: string | null, id: string, stock: number | null): Promise<ActionResult<CatalogItem>> {
+  return serverDispatch("partner/setCatalogItemStock", async () => {
+    try {
+      const { member, partnerId: pid } = await requirePartner("catalog.edit", partnerId);
+      if (stock !== null && (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000)) throw new ActionError("Stock is a whole number of units, or empty to stop tracking.");
+      const item = await setCatalogItemStock(pid, id, stock);
+      await recordAudit({ partnerId: pid, actorId: member.userId, action: "catalog.stock", entity: "catalog_item", entityId: item.id, detail: { name: item.name, stock } });
+      revalidateCatalogViews();
+      return item;
+    } catch (err) {
+      throw asAction(err);
+    }
+  });
+}
+
 /**
  * Moves one of the partner's orders on: confirm, ship (with tracking), deliver,
  * or decline/cancel. Confirming exports the order to the buyer's expense system.
@@ -85,6 +102,8 @@ export async function fulfilOrderAction(partnerId: string | null, orderId: strin
         const updated = await updateCatalogOrderStatus(orderId, next, { partnerId: pid }, { tracking: track });
         // The buyer's finance system hears about it once the supplier commits.
         if (next === "CONFIRMED") await exportOrderExpense(orderId);
+        // Confirming captures the buyer's payment and pays out on hold; delivering releases it.
+        await syncOrderSettlement(orderId);
         await recordAudit({ partnerId: pid, actorId: member.userId, action: `order.${next.toLowerCase()}`, entity: "catalog_order", entityId: orderId, detail: { item: order.item_name, quantity: order.quantity } });
         revalidateCatalogViews();
         return updated;

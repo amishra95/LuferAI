@@ -36,7 +36,7 @@ function loadRazorpay(): Promise<void> {
  * Razorpay opens with UPI first (dynamic QR on desktop, UPI apps on mobile, or a
  * UPI ID), then cards and netbanking — see RAZORPAY_CHECKOUT_CONFIG.
  */
-export function PayDepositButton({ bookingId, label }: { bookingId: string; label: string }) {
+export function PayDepositButton({ bookingId, orderId, label }: { label: string } & ({ bookingId: string; orderId?: never } | { orderId: string; bookingId?: never })) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,8 @@ export function PayDepositButton({ bookingId, label }: { bookingId: string; labe
       const res = await fetch("/api/payments/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId }),
+        // A catalogue order is paid in full and split to the supplier (Razorpay Route).
+        body: JSON.stringify(orderId ? { orderId } : { bookingId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not start checkout");
@@ -66,7 +67,7 @@ export function PayDepositButton({ bookingId, label }: { bookingId: string; labe
         amount: checkout.amountPaise,
         currency: checkout.currency,
         name: "CorpHospitality",
-        description: "Event deposit · refunded if the venue declines",
+        description: orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
         // Server-built: UPI-first display config, prefill, and B2B GST notes that
         // Razorpay stores on the payment (and so includes in every webhook).
         config: checkout.config,

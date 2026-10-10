@@ -9,6 +9,8 @@ import { useAction, useOptimisticMutation } from "@/components/workspace/use-opt
 import type { AgentBookingOutcome } from "@/lib/bookings/booking-agent";
 import { CATEGORIES, CATEGORY_LABEL, parseRecipientLines, priceOrder, SHIPS, unitNoun, validateAttributes, type Category, type OrderInput, type TicketAttributes } from "@/lib/catalog/items";
 import { ORDER_STAGE_LABEL, isOrderStatus } from "@/lib/catalog/orders";
+import { STAGE_LABEL, type ReconciliationStage } from "@/lib/marketplace/settlement";
+import { PayDepositButton } from "./pay-deposit-button";
 import { cn, formatINR } from "@/lib/utils";
 
 /**
@@ -51,12 +53,17 @@ export interface ShopOrder {
   created_at: string;
   /** Optimistic placeholder while the server places it. */
   pending?: boolean;
+  /** Payment and PO reconciliation (lib/marketplace); absent outside Supabase. */
+  payment?: { stage: ReconciliationStage; issues: string[] };
 }
+
+/** Orders the buyer can pay: with the supplier and not yet cancelled or settled. */
+const PAYABLE = new Set(["PLACED", "CONFIRMED", "SHIPPED", "DELIVERED"]);
 
 const day = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
 const fmtDay = (iso: string | null) => (iso ? day.format(new Date(`${iso}T00:00:00+05:30`)) : "—");
 
-export function CatalogShop({ items, orders, canOrder, canSync, today }: { items: ShopItem[]; orders: ShopOrder[]; canOrder: boolean; canSync: boolean; today: string }) {
+export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, today }: { items: ShopItem[]; orders: ShopOrder[]; canOrder: boolean; canSync: boolean; canPay?: boolean; today: string }) {
   const [category, setCategory] = useState<Category | "all">("all");
   const [ordering, setOrdering] = useState<string | null>(null);
   const { value: list, mutate } = useOptimisticMutation(orders);
@@ -166,7 +173,7 @@ export function CatalogShop({ items, orders, canOrder, canSync, today }: { items
         ) : (
           <ul className="divide-line divide-y">
             {list.map((o) => (
-              <OrderRow key={o.id} order={o} canOrder={canOrder} canSync={canSync} onCancel={() => void cancel(o)} />
+              <OrderRow key={o.id} order={o} canOrder={canOrder} canSync={canSync} canPay={canPay} onCancel={() => void cancel(o)} />
             ))}
           </ul>
         )}
@@ -270,11 +277,12 @@ function OrderForm({ item, today, onPlace }: { item: ShopItem; today: string; on
   );
 }
 
-function OrderRow({ order: o, canOrder, canSync, onCancel }: { order: ShopOrder; canOrder: boolean; canSync: boolean; onCancel: () => void }) {
+function OrderRow({ order: o, canOrder, canSync, canPay, onCancel }: { order: ShopOrder; canOrder: boolean; canSync: boolean; canPay: boolean; onCancel: () => void }) {
   const sync = useAction<{ export: string; settled: boolean }>();
   const status = isOrderStatus(o.status) ? o.status : null;
   const cancellable = canOrder && !o.pending && (status === "PENDING_APPROVAL" || status === "PLACED" || status === "CONFIRMED");
   const syncable = canSync && !o.pending && (status === "CONFIRMED" || status === "SHIPPED" || status === "DELIVERED");
+  const payable = canPay && canOrder && !o.pending && PAYABLE.has(o.status) && o.payment?.stage === "unpaid" && o.invoice_total !== null;
   return (
     <li className={cn("px-5 py-3", o.pending && "opacity-70")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
@@ -289,6 +297,8 @@ function OrderRow({ order: o, canOrder, canSync, onCancel }: { order: ShopOrder;
           {o.pending ? <Loader2 className="size-2.5 animate-spin" aria-hidden /> : status === "CANCELLED" ? <X className="text-rose size-2.5" aria-hidden /> : <Check className="size-2.5" aria-hidden />}
           {o.pending ? "placing…" : status ? ORDER_STAGE_LABEL[status] : o.status}
         </span>
+        {o.payment && o.payment.stage !== "unpaid" && o.payment.stage !== "closed" ? <span className="pill">{STAGE_LABEL[o.payment.stage]}</span> : null}
+        {payable && <PayDepositButton orderId={o.id} label={`Pay ${formatINR(o.invoice_total!, true)}`} />}
         {syncable && (
           <button
             type="button"
@@ -311,6 +321,11 @@ function OrderRow({ order: o, canOrder, canSync, onCancel }: { order: ShopOrder;
           </button>
         )}
       </div>
+      {o.payment?.issues.length ? (
+        <p role="status" className="text-warn mt-1 text-[11.5px]">
+          {o.payment.issues.join(" ")}
+        </p>
+      ) : null}
       <p className="text-fg-faint mt-0.5 font-mono text-[11px]">
         {o.event_date ? `event ${fmtDay(o.event_date)}` : `needed by ${fmtDay(o.needed_by)}`}
         {o.tracking?.reference && (

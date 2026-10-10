@@ -28,6 +28,8 @@ export interface LedgerBooking {
   statusLabel: string;
   eventDate: string;
   departmentId: string | null;
+  /** Catalogue orders: where the money is (payment → supplier payout) and what doesn't tie out. */
+  reconciliation?: { label: string; issues: string[] };
 }
 
 type State = { pos: PurchaseOrder[]; allocations: PoAllocation[] };
@@ -212,6 +214,13 @@ function PoPanel({
                     <td className="text-fg-subtle px-3 font-mono text-[11.5px]">
                       {a.status}
                       {a.over_balance && <span className="text-rose"> · signed-off overrun</span>}
+                      {b?.reconciliation ? <div className="font-sans text-[11px]">{b.reconciliation.label}</div> : null}
+                      {b?.reconciliation?.issues.length ? (
+                        <div className="text-warn max-w-72 font-sans text-[11px] whitespace-normal" title={b.reconciliation.issues.join(" ")}>
+                          {b.reconciliation.issues[0]}
+                          {b.reconciliation.issues.length > 1 ? ` (+${b.reconciliation.issues.length - 1} more)` : ""}
+                        </div>
+                      ) : null}
                     </td>
                     <td className={cn("px-3 text-right font-mono tabular-nums", a.status === "released" && "line-through")}>{formatINR(a.amount_inr)}</td>
                     <td className={cn("px-3 text-right font-mono tabular-nums", a.balanceAfter < 0 && "text-rose")}>{formatINR(a.balanceAfter)}</td>

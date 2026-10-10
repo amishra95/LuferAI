@@ -24,12 +24,15 @@ import {
   RateCardForm,
 } from "./_components/partner-forms";
 import { PartnerCatalog, PartnerOrders, type FulfilOrder } from "./_components/catalog-manager";
+import { PartnerPayouts } from "./_components/payouts";
+import { listOrderSettlements, listPartnerTcs, orderPaymentsEnabled, type OrderSettlement } from "@/lib/marketplace/service";
 
 const TABS = [
   { key: "listings", label: "Listings", permission: "partner.view" },
   { key: "rates", label: "Rate cards", permission: "partner.view" },
   { key: "catalog", label: "Catalogue", permission: "partner.view" },
   { key: "orders", label: "Orders", permission: "partner.view" },
+  { key: "payouts", label: "Payouts", permission: "payouts.view" },
   { key: "team", label: "Team", permission: "team.manage" },
   { key: "activity", label: "Activity", permission: "audit.view" },
 ] as const;
@@ -81,7 +84,11 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     activeTab === "team" ? listPartnerMembers(partner.id) : Promise.resolve([]),
     activeTab === "activity" ? listAudit(partner.id) : Promise.resolve([]),
     activeTab === "catalog" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
-    activeTab === "orders" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
+    activeTab === "orders" || activeTab === "payouts" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
+  ]);
+  const [settlements, tcs] = await Promise.all([
+    activeTab === "orders" || activeTab === "payouts" ? listOrderSettlements(orders) : Promise.resolve(new Map<string, OrderSettlement>()),
+    activeTab === "payouts" ? listPartnerTcs(partner.id) : Promise.resolve([]),
   ]);
   const liveRates = rates.filter((r) => isRateActiveOn(r, today) || r.valid_from > today);
   const listingName = new Map(listings.map((l) => [l.id, l.name]));
@@ -295,6 +302,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         <PartnerOrders
           partnerId={formPartnerId}
           canFulfil={can.has("orders.fulfil")}
+          today={today}
           orders={orders.map((o) => ({
             id: o.id,
             company_name: o.company_name,
@@ -308,7 +316,27 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             selections: (o.selections ?? {}) as Record<string, unknown>,
             recipients: (Array.isArray(o.recipients) ? o.recipients : []) as FulfilOrder["recipients"],
             tracking: o.tracking as FulfilOrder["tracking"],
+            ...(settlements.has(o.id) && {
+              settlement: {
+                stage: settlements.get(o.id)!.stage,
+                net: settlements.get(o.id)!.payout ? Number(settlements.get(o.id)!.payout!.net_payout_inr) : null,
+                issues: settlements.get(o.id)!.issues,
+              },
+            }),
           }))}
+        />
+      ) : null}
+
+      {activeTab === "payouts" ? (
+        <PartnerPayouts
+          partner={partner}
+          isAdmin={isAdmin}
+          enabled={orderPaymentsEnabled()}
+          rows={orders.flatMap((o) => {
+            const st = settlements.get(o.id);
+            return st?.payout ? [{ orderId: o.id, label: `${o.quantity} × ${o.item_name}`, company: o.company_name, payout: st.payout, issues: st.issues }] : [];
+          })}
+          tcs={tcs}
         />
       ) : null}
 
