@@ -55,7 +55,7 @@ export async function recordAudit(entry: {
   partnerId: string;
   actorId: string;
   action: string;
-  entity: "listing" | "rate_card" | "member" | "partner";
+  entity: "listing" | "rate_card" | "member" | "partner" | "catalog_item" | "catalog_order";
   entityId?: string | null;
   detail?: Record<string, unknown>;
 }) {

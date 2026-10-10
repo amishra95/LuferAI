@@ -15,7 +15,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/exports/[id]">)
   return new Response(row.payload, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="receipt-${row.booking_id.slice(0, 8)}.json"`,
+      "Content-Disposition": `attachment; filename="receipt-${(row.booking_id ?? row.catalog_order_id ?? row.id).slice(0, 8)}.json"`,
       "X-Lufer-Payload-SHA256": row.payload_sha256,
       "X-Lufer-Export-Status": row.status,
       "Cache-Control": "no-store",

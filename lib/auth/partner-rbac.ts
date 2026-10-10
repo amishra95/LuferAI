@@ -5,8 +5,9 @@
  * (requirePartner), every /partner server action, and RLS.
  *
  *   OWNER   → everything, including the team (invite, change roles, remove)
- *   MANAGER → listings and rate cards, read the activity log
- *   STAFF   → read-only, plus pausing/resuming a listing (day-to-day operations)
+ *   MANAGER → listings, rate cards and catalogue items, read the activity log
+ *   STAFF   → read-only, plus pausing/resuming a listing and fulfilling orders
+ *             (day-to-day operations)
  */
 import type { PortalRole } from "@/lib/supabase/database.types";
 
@@ -19,12 +20,14 @@ export type PartnerPermission =
   | "listing.edit"
   | "rates.edit"
   | "audit.view"
-  | "team.manage";
+  | "team.manage"
+  | "catalog.edit"
+  | "orders.fulfil";
 
 const GRANTS: Record<PartnerRole, readonly PartnerPermission[]> = {
-  OWNER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "team.manage"],
-  MANAGER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view"],
-  STAFF: ["partner.view", "listing.status"],
+  OWNER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "team.manage", "catalog.edit", "orders.fulfil"],
+  MANAGER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "catalog.edit", "orders.fulfil"],
+  STAFF: ["partner.view", "listing.status", "orders.fulfil"],
 };
 
 export const PARTNER_ROLE_LABEL: Record<PartnerRole, string> = { OWNER: "Owner", MANAGER: "Manager", STAFF: "Staff" };

@@ -7,6 +7,8 @@ import type {
   ApprovalComment,
   ApprovalStatus,
   Booking,
+  CatalogItem,
+  CatalogOrder,
   BookingApproval,
   BookingStatus,
   Company,
@@ -21,6 +23,7 @@ import type {
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
 import { canTransition } from "@/lib/bookings/lifecycle";
+import { canOrderTransition, isOrderStatus, orderAllocationStatus, type OrderStatus } from "@/lib/catalog/orders";
 import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
@@ -330,6 +333,7 @@ export async function createBookingRequest(
         id: crypto.randomUUID(),
         tenant_id: input.company_id,
         booking_id: booking.id,
+        catalog_order_id: null,
         ...approval,
         status: "PENDING",
         decision_note: null,
@@ -353,7 +357,7 @@ export async function createBookingRequest(
     if (allocation) {
       // Local equivalent of the po_allocations_check trigger (the store lock makes it atomic).
       checkLocalAllocation(db, allocation, booking);
-      db.poAllocations.push({ id: crypto.randomUUID(), po_id: allocation.po_id, tenant_id: c.id, booking_id: booking.id, amount_inr: total, status: "committed", over_balance: allocation.over_balance, created_at: now, updated_at: now });
+      db.poAllocations.push({ id: crypto.randomUUID(), po_id: allocation.po_id, tenant_id: c.id, booking_id: booking.id, catalog_order_id: null, amount_inr: total, status: "committed", over_balance: allocation.over_balance, created_at: now, updated_at: now });
     }
     return enrich(booking, c, v);
   });
@@ -540,7 +544,7 @@ export async function reallocateBooking(bookingId: string, tenantId: string, poI
         Object.assign(existing, { po_id: poId, over_balance: false, amount_inr: Number(booking.total_amount_inr), updated_at: now });
         return allocationRow(existing);
       }
-      const created: PoAllocation = { id: crypto.randomUUID(), po_id: poId, tenant_id: tenantId, booking_id: bookingId, amount_inr: Number(booking.total_amount_inr), status: allocationStatusFor(booking.status), over_balance: false, created_at: now, updated_at: now };
+      const created: PoAllocation = { id: crypto.randomUUID(), po_id: poId, tenant_id: tenantId, booking_id: bookingId, catalog_order_id: null, amount_inr: Number(booking.total_amount_inr), status: allocationStatusFor(booking.status), over_balance: false, created_at: now, updated_at: now };
       db.poAllocations.push(created);
       return created;
     });
@@ -690,7 +694,10 @@ async function approverTiers(tenantId?: string): Promise<Map<string, number>> {
 
 export interface ApprovalDetail extends BookingApproval {
   company: Pick<Company, "id" | "legal_name">;
-  booking: Pick<Booking, "id" | "event_date" | "party_size" | "budget_per_head_inr" | "total_amount_inr" | "status"> & {
+  /** What is being approved. Orders fill `booking` with their equivalents (item name, units, unit price). */
+  subject: "booking" | "order";
+  booking: Pick<Booking, "id" | "event_date" | "party_size" | "budget_per_head_inr" | "total_amount_inr"> & {
+    status: string;
     venue_name: string;
   };
   requester_name: string;
@@ -704,7 +711,8 @@ export async function listApprovals(
 ): Promise<ApprovalDetail[]> {
   const users = new Map((await listPortalUsers()).map((u) => [u.id, u.name]));
   const tiers = await approverTiers(filter.tenantId);
-  const named = (a: Omit<ApprovalDetail, "requester_name" | "approver_name" | "tier">): ApprovalDetail => ({
+  const named = (a: Omit<ApprovalDetail, "requester_name" | "approver_name" | "tier" | "subject">): ApprovalDetail => ({
+    subject: a.booking_id ? "booking" : "order",
     ...a,
     requester_name: users.get(a.requested_by) ?? "Unknown user",
     approver_name: users.get(a.approver_id) ?? "Unknown user",
@@ -723,6 +731,11 @@ export async function listApprovals(
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((a) => {
         const c = db.companies.find((x) => x.id === a.tenant_id)!;
+        if (!a.booking_id) {
+          const o = db.catalogOrders.find((x) => x.id === a.catalog_order_id)!;
+          const item = db.catalogItems.find((x) => x.id === o.item_id);
+          return named({ ...a, company: { id: c.id, legal_name: c.legal_name }, booking: orderAsSubject(o, item?.name ?? "Catalogue order") });
+        }
         const b = db.bookings.find((x) => x.id === a.booking_id)!;
         const v = db.venues.find((x) => x.id === b.venue_id)!;
         const { id, event_date, party_size, budget_per_head_inr, total_amount_inr, status } = b;
@@ -737,7 +750,7 @@ export async function listApprovals(
   let query = createAdminClient()
     .from("booking_approvals")
     .select(
-      "*, company:companies(id, legal_name), booking:bookings(id, event_date, party_size, budget_per_head_inr, total_amount_inr, status, venue:venues(name))"
+      "*, company:companies(id, legal_name), booking:bookings(id, event_date, party_size, budget_per_head_inr, total_amount_inr, status, venue:venues(name)), order:catalog_orders(id, event_date, needed_by, quantity, unit_price_inr, total_amount_inr, status, item:catalog_items(name))"
     )
     .order("created_at", { ascending: false });
   if (filter.tenantId) query = query.eq("tenant_id", filter.tenantId);
@@ -748,10 +761,13 @@ export async function listApprovals(
   if (error) throw error;
   type Row = BookingApproval & {
     company: ApprovalDetail["company"];
-    booking: Omit<ApprovalDetail["booking"], "venue_name"> & { venue: { name: string } };
+    booking: (Omit<ApprovalDetail["booking"], "venue_name"> & { venue: { name: string } }) | null;
+    order: (Pick<CatalogOrder, "id" | "event_date" | "needed_by" | "quantity" | "unit_price_inr" | "total_amount_inr" | "status"> & { item: { name: string } }) | null;
   };
-  return (data as unknown as Row[]).map(({ booking: { venue, ...b }, ...a }) =>
-    named({
+  return (data as unknown as Row[]).map(({ booking, order, ...a }) => {
+    if (!booking) return named({ ...a, booking: orderAsSubject(order!, order!.item.name) });
+    const { venue, ...b } = booking;
+    return named({
       ...a,
       booking: {
         ...b,
@@ -759,8 +775,21 @@ export async function listApprovals(
         total_amount_inr: Number(b.total_amount_inr),
         venue_name: venue.name,
       },
-    })
-  );
+    });
+  });
+}
+
+/** An order in the shape approvals display (date, units, per unit, total). */
+function orderAsSubject(o: Pick<CatalogOrder, "id" | "event_date" | "needed_by" | "quantity" | "unit_price_inr" | "total_amount_inr" | "status">, itemName: string): ApprovalDetail["booking"] {
+  return {
+    id: o.id,
+    event_date: o.event_date ?? o.needed_by ?? "",
+    party_size: o.quantity,
+    budget_per_head_inr: Number(o.unit_price_inr),
+    total_amount_inr: Number(o.total_amount_inr),
+    status: o.status,
+    venue_name: itemName,
+  };
 }
 
 /**
@@ -787,13 +816,25 @@ export async function decideApproval(
       const now = new Date().toISOString();
       Object.assign(a, { status: decision, decision_note: note ?? null, decided_at: now, updated_at: now });
 
-      const booking = db.bookings.find((b) => b.id === a.booking_id);
-      const othersOpen = db.approvals.some((x) => x.booking_id === a.booking_id && x.id !== a.id && x.status !== "APPROVED");
-      if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
-        booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
-        booking.updated_at = now;
-        syncLocalHolds(db, booking.id, booking.status);
-        syncLocalAllocations(db, booking.id, booking.status);
+      // Local equivalent of booking_approvals_apply_decision: the last approval (or any
+      // rejection) moves the booking to the venue, or the order to the supplier.
+      const sameSubject = (x: BookingApproval) => (a.booking_id ? x.booking_id === a.booking_id : x.catalog_order_id === a.catalog_order_id);
+      const othersOpen = db.approvals.some((x) => sameSubject(x) && x.id !== a.id && x.status !== "APPROVED");
+      if (a.booking_id) {
+        const booking = db.bookings.find((b) => b.id === a.booking_id);
+        if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
+          booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
+          booking.updated_at = now;
+          syncLocalHolds(db, booking.id, booking.status);
+          syncLocalAllocations(db, booking.id, booking.status);
+        }
+      } else {
+        const order = db.catalogOrders.find((o) => o.id === a.catalog_order_id);
+        if (order?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
+          order.status = decision === "REJECTED" ? "CANCELLED" : "PLACED";
+          order.updated_at = now;
+          syncLocalOrderAllocations(db, order.id, order.status);
+        }
       }
     });
   }
@@ -814,13 +855,15 @@ async function approvalsForBookingOf(approvalId: string, tenantId: string): Prom
   if (local()) {
     const { approvals } = await readDb();
     const a = approvals.find((x) => x.id === approvalId && x.tenant_id === tenantId);
-    return a ? approvals.filter((x) => x.booking_id === a.booking_id) : [];
+    // The booking's or the order's approvals (exactly one of the two is set).
+    return a ? approvals.filter((x) => (a.booking_id ? x.booking_id === a.booking_id : x.catalog_order_id === a.catalog_order_id)) : [];
   }
   const db = createAdminClient();
-  const { data: a, error } = await db.from("booking_approvals").select("booking_id").eq("id", approvalId).eq("tenant_id", tenantId).maybeSingle();
+  const { data: a, error } = await db.from("booking_approvals").select("booking_id, catalog_order_id").eq("id", approvalId).eq("tenant_id", tenantId).maybeSingle();
   if (error) throw error;
   if (!a) return [];
-  const { data, error: e2 } = await db.from("booking_approvals").select("*").eq("booking_id", a.booking_id);
+  const base = db.from("booking_approvals").select("*");
+  const { data, error: e2 } = await (a.booking_id ? base.eq("booking_id", a.booking_id) : base.eq("catalog_order_id", a.catalog_order_id ?? ""));
   if (e2) throw e2;
   return data;
 }
@@ -899,13 +942,17 @@ export async function addApprovalComment(input: { approvalId: string; tenantId: 
 // Expense exports (finance sync audit log)
 // ----------------------------------------------------------------------------
 
-export type ExpenseExportEvent = "booking.confirmed";
+export type ExpenseExportEvent = "booking.confirmed" | "order.confirmed";
+
+/** Which column identifies the export's subject: bookings and orders each export once per event. */
+const exportSubject = (event: string) => (event === "order.confirmed" ? "catalog_order_id" : "booking_id");
 export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "updated_at" | "attempts" | "receipt"> & { receipt: Json };
 
-/** The existing export for a booking/event, if any (exports are idempotent per booking + event). */
-export async function findExpenseExport(bookingId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
-  if (local()) return (await readDb()).expenseExports.find((e) => e.booking_id === bookingId && e.event === event) ?? null;
-  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("booking_id", bookingId).eq("event", event).maybeSingle();
+/** The existing export for a booking (or order) and event, if any (exports are idempotent per subject + event). */
+export async function findExpenseExport(subjectId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
+  const col = exportSubject(event);
+  if (local()) return (await readDb()).expenseExports.find((e) => e[col] === subjectId && e.event === event) ?? null;
+  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq(col, subjectId).eq("event", event).maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -914,14 +961,15 @@ export async function findExpenseExport(bookingId: string, event: ExpenseExportE
 export async function recordExpenseExport(row: NewExpenseExport): Promise<boolean> {
   if (local()) {
     return mutateDb((db) => {
-      if (db.expenseExports.some((e) => e.booking_id === row.booking_id && e.event === row.event)) return false;
+      const col = exportSubject(row.event);
+      if (db.expenseExports.some((e) => e[col] === row[col] && e.event === row.event)) return false;
       const now = new Date().toISOString();
       db.expenseExports.push({ ...row, id: crypto.randomUUID(), attempts: 1, created_at: now, updated_at: now });
       return true;
     });
   }
   const { error } = await createAdminClient().from("expense_exports").insert(row);
-  if (error?.code === "23505") return false; // unique (booking_id, event)
+  if (error?.code === "23505") return false; // unique (booking_id | catalog_order_id, event)
   if (error) throw error;
   return true;
 }
@@ -1101,4 +1149,227 @@ export async function releaseHold(holdId: string, scope: { venueId: string }) {
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("This hold was not found or is no longer active.");
+}
+
+// ----------------------------------------------------------------------------
+// Multi-category catalogue (migration 0021; rules in lib/catalog/*)
+// ----------------------------------------------------------------------------
+
+export interface CatalogItemDetail extends CatalogItem {
+  partner_name: string;
+  partner_gstin: string | null;
+}
+
+const itemRow = (i: CatalogItem): CatalogItem => ({ ...i, unit_price_inr: Number(i.unit_price_inr) });
+
+/** Catalogue items with their supplier. Paused items only with `includePaused` (the supplier's own view). */
+export async function listCatalogItems(filter: { category?: string; partnerId?: string; includePaused?: boolean; ids?: string[] } = {}): Promise<CatalogItemDetail[]> {
+  const keep = (i: CatalogItem) =>
+    (!filter.category || i.category === filter.category) &&
+    (!filter.partnerId || i.partner_id === filter.partnerId) &&
+    (filter.includePaused || i.status === "active") &&
+    (!filter.ids || filter.ids.includes(i.id));
+  if (local()) {
+    const db = await readDb();
+    return db.catalogItems.filter(keep).map((i) => {
+      const p = db.partners.find((x) => x.id === i.partner_id);
+      return { ...itemRow(i), partner_name: p?.name ?? "Supplier", partner_gstin: p?.gstin ?? null };
+    });
+  }
+  let q = createAdminClient().from("catalog_items").select("*, partner:partners(name, gstin, status)").order("name");
+  if (filter.category) q = q.eq("category", filter.category);
+  if (filter.partnerId) q = q.eq("partner_id", filter.partnerId);
+  if (!filter.includePaused) q = q.eq("status", "active");
+  if (filter.ids) q = q.in("id", filter.ids);
+  const { data, error } = await q;
+  if (error) throw error;
+  type Row = CatalogItem & { partner: { name: string; gstin: string | null; status: string } };
+  return (data as unknown as Row[])
+    .filter((r) => filter.includePaused || r.partner.status === "active")
+    .map(({ partner, ...i }) => ({ ...itemRow(i), partner_name: partner.name, partner_gstin: partner.gstin }));
+}
+
+export type CatalogItemInput = Pick<CatalogItem, "category" | "ref" | "name" | "description" | "unit_price_inr" | "tax_kind" | "tax_code" | "gst_rate_percent" | "min_quantity" | "max_quantity" | "attributes">;
+
+/** Creates (no id) or updates one of the partner's items. */
+export async function saveCatalogItem(partnerId: string, input: CatalogItemInput, id?: string): Promise<CatalogItem> {
+  if (local()) {
+    return mutateDb((db) => {
+      if (db.catalogItems.some((i) => i.partner_id === partnerId && i.ref === input.ref && i.id !== id)) throw new CatalogError(`An item with ref ${input.ref} already exists.`);
+      const now = new Date().toISOString();
+      if (id) {
+        const existing = db.catalogItems.find((i) => i.id === id && i.partner_id === partnerId);
+        if (!existing) throw new CatalogError("Item not found.");
+        Object.assign(existing, input, { updated_at: now });
+        return itemRow(existing);
+      }
+      const created: CatalogItem = { id: crypto.randomUUID(), partner_id: partnerId, ...input, status: "active", created_at: now, updated_at: now };
+      db.catalogItems.push(created);
+      return created;
+    });
+  }
+  const db = createAdminClient();
+  const { data, error } = id
+    ? await db.from("catalog_items").update(input).eq("id", id).eq("partner_id", partnerId).select("*").maybeSingle()
+    : await db.from("catalog_items").insert({ ...input, partner_id: partnerId }).select("*").single();
+  if (error?.code === "23505") throw new CatalogError(`An item with ref ${input.ref} already exists.`);
+  if (error) throw error;
+  if (!data) throw new CatalogError("Item not found.");
+  return itemRow(data);
+}
+
+export async function setCatalogItemStatus(partnerId: string, id: string, status: "active" | "paused"): Promise<CatalogItem> {
+  if (local()) {
+    return mutateDb((db) => {
+      const i = db.catalogItems.find((x) => x.id === id && x.partner_id === partnerId);
+      if (!i) throw new CatalogError("Item not found.");
+      Object.assign(i, { status, updated_at: new Date().toISOString() });
+      return itemRow(i);
+    });
+  }
+  const { data, error } = await createAdminClient().from("catalog_items").update({ status }).eq("id", id).eq("partner_id", partnerId).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new CatalogError("Item not found.");
+  return itemRow(data);
+}
+
+/** A user-facing catalogue failure (not found, conflict, bad transition). */
+export class CatalogError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CatalogError";
+  }
+}
+
+export interface CatalogOrderDetail extends CatalogOrder {
+  item_name: string;
+  partner_name: string;
+  company_name: string;
+}
+
+const orderRow = (o: CatalogOrder): CatalogOrder => ({ ...o, unit_price_inr: Number(o.unit_price_inr), total_amount_inr: Number(o.total_amount_inr) });
+
+/** Orders for a company (buyer view) or a partner (supplier view); newest first. */
+export async function listCatalogOrders(filter: { tenantId?: string; partnerId?: string; ids?: string[] } = {}): Promise<CatalogOrderDetail[]> {
+  if (local()) {
+    const db = await readDb();
+    return db.catalogOrders
+      .filter((o) => (!filter.tenantId || o.tenant_id === filter.tenantId) && (!filter.partnerId || o.partner_id === filter.partnerId) && (!filter.ids || filter.ids.includes(o.id)))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((o) => ({
+        ...orderRow(o),
+        item_name: db.catalogItems.find((i) => i.id === o.item_id)?.name ?? "Item",
+        partner_name: db.partners.find((p) => p.id === o.partner_id)?.name ?? "Supplier",
+        company_name: db.companies.find((c) => c.id === o.tenant_id)?.legal_name ?? "Company",
+      }));
+  }
+  let q = createAdminClient()
+    .from("catalog_orders")
+    .select("*, item:catalog_items(name), partner:partners(name), company:companies(legal_name)")
+    .order("created_at", { ascending: false });
+  if (filter.tenantId) q = q.eq("tenant_id", filter.tenantId);
+  if (filter.partnerId) q = q.eq("partner_id", filter.partnerId);
+  if (filter.ids) q = q.in("id", filter.ids);
+  const { data, error } = await q;
+  if (error) throw error;
+  type Row = CatalogOrder & { item: { name: string }; partner: { name: string }; company: { legal_name: string } };
+  return (data as unknown as Row[]).map(({ item, partner, company, ...o }) => ({ ...orderRow(o), item_name: item.name, partner_name: partner.name, company_name: company.legal_name }));
+}
+
+export type NewCatalogOrder = Omit<CatalogOrder, "id" | "status" | "tracking" | "settled_at" | "created_at" | "updated_at">;
+
+/**
+ * Creates an order: PENDING_APPROVAL with one approval row per approver, or
+ * straight to the supplier as PLACED. With `allocation` it draws from a PO
+ * (checked like a booking's). On Supabase the dependent rows are undone if
+ * any insert fails, as for bookings.
+ */
+export async function createCatalogOrder(input: NewCatalogOrder, options: { approvals?: NewApprovalRequest[]; allocation?: NewPoAllocation } = {}): Promise<CatalogOrderDetail> {
+  const approvals = options.approvals ?? [];
+  const status = approvals.length ? "PENDING_APPROVAL" : "PLACED";
+  if (local()) {
+    const id = await mutateDb((db) => {
+      const now = new Date().toISOString();
+      const order: CatalogOrder = { ...input, id: crypto.randomUUID(), status, tracking: null, settled_at: null, created_at: now, updated_at: now };
+      if (options.allocation) {
+        checkLocalAllocation(db, options.allocation, {
+          id: order.id,
+          company_id: order.tenant_id,
+          event_date: order.event_date ?? order.needed_by ?? now.slice(0, 10),
+          department_id: order.department_id,
+          total_amount_inr: order.total_amount_inr,
+        });
+      }
+      db.catalogOrders.push(order);
+      for (const a of approvals) {
+        db.approvals.push({ id: crypto.randomUUID(), tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, ...a, status: "PENDING", decision_note: null, decided_at: null, created_at: now, updated_at: now });
+      }
+      if (options.allocation) {
+        db.poAllocations.push({ id: crypto.randomUUID(), po_id: options.allocation.po_id, tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, amount_inr: Number(input.total_amount_inr), status: "committed", over_balance: options.allocation.over_balance, created_at: now, updated_at: now });
+      }
+      return order.id;
+    });
+    return (await listCatalogOrders({ ids: [id] }))[0];
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("catalog_orders").insert({ ...input, status }).select("id").single();
+  if (error) throw error;
+  const undo = () => supabase.from("catalog_orders").delete().eq("id", data.id);
+  if (approvals.length) {
+    const { error: approvalError } = await supabase.from("booking_approvals").insert(approvals.map((a) => ({ tenant_id: input.tenant_id, catalog_order_id: data.id, ...a })));
+    if (approvalError) {
+      await undo();
+      throw approvalError;
+    }
+  }
+  if (options.allocation) {
+    const { error: allocationError } = await supabase
+      .from("po_allocations")
+      .insert({ po_id: options.allocation.po_id, tenant_id: input.tenant_id, catalog_order_id: data.id, amount_inr: Number(input.total_amount_inr), over_balance: options.allocation.over_balance });
+    if (allocationError) {
+      await undo();
+      if (allocationError.code === "23514") throw new PoAllocationError(allocationError.message);
+      throw allocationError;
+    }
+  }
+  return (await listCatalogOrders({ ids: [data.id] }))[0];
+}
+
+/** Local equivalent of the catalog_orders_sync_po_allocations trigger. */
+function syncLocalOrderAllocations(db: MockDb, orderId: string, status: string) {
+  const next = orderAllocationStatus(status);
+  for (const a of db.poAllocations) {
+    if (a.catalog_order_id === orderId && a.status !== next) Object.assign(a, { status: next, updated_at: new Date().toISOString() });
+  }
+}
+
+/**
+ * Moves an order along its lifecycle (lib/catalog/orders.ts), scoped to the
+ * supplier (fulfilment) or the buyer (cancel / settle). Shipping records tracking.
+ */
+export async function updateCatalogOrderStatus(id: string, next: OrderStatus, scope: { partnerId?: string; tenantId?: string }, extra: { tracking?: Json } = {}): Promise<CatalogOrder> {
+  if (local()) {
+    return mutateDb((db) => {
+      const o = db.catalogOrders.find((x) => x.id === id && (!scope.partnerId || x.partner_id === scope.partnerId) && (!scope.tenantId || x.tenant_id === scope.tenantId));
+      if (!o) throw new CatalogError("Order not found.");
+      if (!isOrderStatus(o.status) || !canOrderTransition(o.status, next)) throw new CatalogError(`A ${o.status.toLowerCase().replace("_", " ")} order can't become ${next.toLowerCase()}.`);
+      const now = new Date().toISOString();
+      Object.assign(o, { status: next, updated_at: now }, extra.tracking !== undefined && { tracking: extra.tracking }, next === "SETTLED" && { settled_at: now });
+      syncLocalOrderAllocations(db, o.id, next);
+      return orderRow(o);
+    });
+  }
+  let q = createAdminClient()
+    .from("catalog_orders")
+    .update({ status: next, ...(extra.tracking !== undefined && { tracking: extra.tracking }) })
+    .eq("id", id);
+  if (scope.partnerId) q = q.eq("partner_id", scope.partnerId);
+  if (scope.tenantId) q = q.eq("tenant_id", scope.tenantId);
+  const { data, error } = await q.select("*").maybeSingle();
+  // catalog_orders_guard_status rejects an illegal move.
+  if (error?.code === "P0001") throw new CatalogError(error.message);
+  if (error) throw error;
+  if (!data) throw new CatalogError("Order not found.");
+  return orderRow(data);
 }

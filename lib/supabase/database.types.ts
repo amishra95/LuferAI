@@ -82,3 +82,5 @@ export type RfpResponse = Tables<"rfp_responses">;
 export type Department = Tables<"departments">;
 export type PurchaseOrder = Tables<"purchase_orders">;
 export type PoAllocation = Tables<"po_allocations">;
+export type CatalogItem = Tables<"catalog_items">;
+export type CatalogOrder = Tables<"catalog_orders">;

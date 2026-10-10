@@ -123,7 +123,8 @@ export type Database = {
       booking_approvals: {
         Row: {
           approver_id: string
-          booking_id: string
+          booking_id: string | null
+          catalog_order_id: string | null
           created_at: string
           decided_at: string | null
           decision_note: string | null
@@ -136,7 +137,8 @@ export type Database = {
         }
         Insert: {
           approver_id: string
-          booking_id: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           decided_at?: string | null
           decision_note?: string | null
@@ -149,7 +151,8 @@ export type Database = {
         }
         Update: {
           approver_id?: string
-          booking_id?: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           decided_at?: string | null
           decision_note?: string | null
@@ -297,6 +300,178 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_items: {
+        Row: {
+          attributes: Json
+          category: string
+          created_at: string
+          description: string | null
+          gst_rate_percent: number
+          id: string
+          max_quantity: number | null
+          min_quantity: number
+          name: string
+          partner_id: string
+          ref: string
+          status: string
+          tax_code: string
+          tax_kind: string
+          unit_price_inr: number
+          updated_at: string
+        }
+        Insert: {
+          attributes?: Json
+          category: string
+          created_at?: string
+          description?: string | null
+          gst_rate_percent: number
+          id?: string
+          max_quantity?: number | null
+          min_quantity?: number
+          name: string
+          partner_id: string
+          ref: string
+          status?: string
+          tax_code: string
+          tax_kind: string
+          unit_price_inr: number
+          updated_at?: string
+        }
+        Update: {
+          attributes?: Json
+          category?: string
+          created_at?: string
+          description?: string | null
+          gst_rate_percent?: number
+          id?: string
+          max_quantity?: number | null
+          min_quantity?: number
+          name?: string
+          partner_id?: string
+          ref?: string
+          status?: string
+          tax_code?: string
+          tax_kind?: string
+          unit_price_inr?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_items_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_orders: {
+        Row: {
+          category: string
+          cost_center: string
+          created_at: string
+          department_id: string | null
+          event_date: string | null
+          id: string
+          invoice: Json
+          item_id: string
+          needed_by: string | null
+          notes: string | null
+          partner_id: string
+          project_code: string | null
+          quantity: number
+          recipients: Json
+          requested_by: string | null
+          selections: Json
+          settled_at: string | null
+          status: string
+          tenant_id: string
+          total_amount_inr: number
+          tracking: Json | null
+          unit_price_inr: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          cost_center: string
+          created_at?: string
+          department_id?: string | null
+          event_date?: string | null
+          id?: string
+          invoice: Json
+          item_id: string
+          needed_by?: string | null
+          notes?: string | null
+          partner_id: string
+          project_code?: string | null
+          quantity: number
+          recipients?: Json
+          requested_by?: string | null
+          selections?: Json
+          settled_at?: string | null
+          status?: string
+          tenant_id: string
+          total_amount_inr: number
+          tracking?: Json | null
+          unit_price_inr: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          cost_center?: string
+          created_at?: string
+          department_id?: string | null
+          event_date?: string | null
+          id?: string
+          invoice?: Json
+          item_id?: string
+          needed_by?: string | null
+          notes?: string | null
+          partner_id?: string
+          project_code?: string | null
+          quantity?: number
+          recipients?: Json
+          requested_by?: string | null
+          selections?: Json
+          settled_at?: string | null
+          status?: string
+          tenant_id?: string
+          total_amount_inr?: number
+          tracking?: Json | null
+          unit_price_inr?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_orders_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_orders_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -630,7 +805,8 @@ export type Database = {
       expense_exports: {
         Row: {
           attempts: number
-          booking_id: string
+          booking_id: string | null
+          catalog_order_id: string | null
           created_at: string
           destination: string
           error: string | null
@@ -647,7 +823,8 @@ export type Database = {
         }
         Insert: {
           attempts?: number
-          booking_id: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           destination: string
           error?: string | null
@@ -664,7 +841,8 @@ export type Database = {
         }
         Update: {
           attempts?: number
-          booking_id?: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           destination?: string
           error?: string | null
@@ -937,6 +1115,7 @@ export type Database = {
         Row: {
           contact_email: string | null
           created_at: string
+          gstin: string | null
           id: string
           name: string
           slug: string
@@ -946,6 +1125,7 @@ export type Database = {
         Insert: {
           contact_email?: string | null
           created_at?: string
+          gstin?: string | null
           id?: string
           name: string
           slug: string
@@ -955,6 +1135,7 @@ export type Database = {
         Update: {
           contact_email?: string | null
           created_at?: string
+          gstin?: string | null
           id?: string
           name?: string
           slug?: string
@@ -1112,7 +1293,8 @@ export type Database = {
       po_allocations: {
         Row: {
           amount_inr: number
-          booking_id: string
+          booking_id: string | null
+          catalog_order_id: string | null
           created_at: string
           id: string
           over_balance: boolean
@@ -1123,7 +1305,8 @@ export type Database = {
         }
         Insert: {
           amount_inr: number
-          booking_id: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           id?: string
           over_balance?: boolean
@@ -1134,7 +1317,8 @@ export type Database = {
         }
         Update: {
           amount_inr?: number
-          booking_id?: string
+          booking_id?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           id?: string
           over_balance?: boolean

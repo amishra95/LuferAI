@@ -11,6 +11,7 @@
  *   approval       a spend approval was decided
  *   expense        a booking was exported to the company's expense system
  *   po             a blanket purchase order was raised, closed, reopened or drawn on
+ *   order          a catalogue order moved along its lifecycle (buyer, supplier, approval, agent)
  *
  * Every event has a `seq` from the event log (lib/telemetry/event-log.ts),
  * increasing across server instances, which doubles as the SSE event id so a
@@ -59,6 +60,11 @@ export type VenueChange = (typeof VENUE_CHANGES)[number];
 export const BOOKING_EVENT_STATUSES = ["PENDING_APPROVAL", "PENDING", "CONFIRMED", "COMPLETED", "SETTLED", "CANCELLED"] as const;
 export type BookingEventStatus = (typeof BOOKING_EVENT_STATUSES)[number];
 
+export const ORDER_EVENT_STATUSES = ["PENDING_APPROVAL", "PLACED", "CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED", "CANCELLED"] as const;
+export type OrderEventStatus = (typeof ORDER_EVENT_STATUSES)[number];
+export const ORDER_EVENT_ACTORS = ["buyer", "supplier", "approval", "agent", "expense"] as const;
+export type OrderEventActor = (typeof ORDER_EVENT_ACTORS)[number];
+
 export const PO_CHANGES = ["created", "closed", "reopened", "reallocated"] as const;
 export type PoChange = (typeof PO_CHANGES)[number];
 
@@ -72,7 +78,8 @@ export type TelemetryEventBody =
   | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: "agent" | "approval" | "expense" }
   | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
   | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" }
-  | { type: "po"; poId: string; change: PoChange };
+  | { type: "po"; poId: string; change: PoChange }
+  | { type: "order"; orderId: string; partnerId: string; status: OrderEventStatus; by: OrderEventActor };
 
 /** An event as published, before the log numbers it. */
 export type NewTelemetryEvent = TelemetryEventBody & { at: number };
@@ -205,6 +212,10 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
     case "expense":
       return str(v.bookingId, 64) && str(v.provider, 32) && (v.status === "delivered" || v.status === "mocked" || v.status === "failed" || v.status === "skipped")
         ? { ...base, type: "expense", bookingId: v.bookingId, provider: v.provider, status: v.status }
+        : null;
+    case "order":
+      return str(v.orderId, 64) && str(v.partnerId, 64) && (ORDER_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (ORDER_EVENT_ACTORS as readonly unknown[]).includes(v.by)
+        ? { ...base, type: "order", orderId: v.orderId, partnerId: v.partnerId, status: v.status as OrderEventStatus, by: v.by as OrderEventActor }
         : null;
     case "po":
       return str(v.poId, 64) && (PO_CHANGES as readonly unknown[]).includes(v.change) ? { ...base, type: "po", poId: v.poId, change: v.change as PoChange } : null;
