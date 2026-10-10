@@ -141,7 +141,7 @@ export function refreshSeqFor(events: readonly TelemetryEvent[], kind: string, i
     if (kind === "agent" && e.type === "run" && e.run.agent === id) return e.seq;
     if (kind === "trace" && e.type === "trace" && e.traceId === id) return e.seq;
     if (kind === "agent" && e.type === "agent-config" && e.agentId === id) return e.seq;
-    if (kind === "venue" && (e.type === "venue-sync" || (e.type === "venue-updated" && e.venueId === id))) return e.seq;
+    if (kind === "venue" && (e.type === "venue-sync" || (e.type === "venue-updated" && e.venueId === id) || (e.type === "booking" && e.venueId === id))) return e.seq;
   }
   return 0;
 }

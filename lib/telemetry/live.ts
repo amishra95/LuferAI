@@ -11,7 +11,7 @@ import { Redis } from "@upstash/redis";
 
 import type { SpanRecord, TraceRecord, TracerEvent } from "../tracer.ts";
 import { memoryEventLog, redisEventLog, type EventLog } from "./event-log.ts";
-import type { AgentConfigField, LiveRun, LiveSpan, NewTelemetryEvent, PartnerSyncStatus, VenueChange } from "./events.ts";
+import type { AgentConfigField, BookingEventStatus, LiveRun, LiveSpan, NewTelemetryEvent, PartnerSyncStatus, VenueChange } from "./events.ts";
 
 const g = globalThis as typeof globalThis & { __luferEventLog?: EventLog };
 
@@ -81,4 +81,16 @@ export function publishAgentConfig(agentId: string, enabled: boolean, changed: A
 
 export function publishVenueUpdated(venueId: string, change: VenueChange): Promise<void> {
   return publish({ type: "venue-updated", at: Date.now(), venueId, change });
+}
+
+export function publishBooking(bookingId: string, venueId: string, status: BookingEventStatus, by: "agent" | "approval" | "expense"): Promise<void> {
+  return publish({ type: "booking", at: Date.now(), bookingId, venueId, status, by });
+}
+
+export function publishApproval(approvalId: string, bookingId: string, decision: "APPROVED" | "REJECTED"): Promise<void> {
+  return publish({ type: "approval", at: Date.now(), approvalId, bookingId, decision });
+}
+
+export function publishExpense(bookingId: string, provider: string, status: "delivered" | "mocked" | "failed" | "skipped"): Promise<void> {
+  return publish({ type: "expense", at: Date.now(), bookingId, provider, status });
 }

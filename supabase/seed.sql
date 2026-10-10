@@ -115,3 +115,53 @@ update public.bookings set department_id = 'dddddddd-0002-4000-8000-000000000002
 insert into public.inventory_holds (venue_id, tenant_id, booking_id, hold_start, hold_expires_at)
 values ('aaaaaaaa-0003-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
         'bbbbbbbb-0003-4000-8000-000000000003', now() - interval '6 hours', now() + interval '18 hours');
+
+-- Venue profiles (migration 0019; mirrored in lib/data/mock-store.ts) -------------------------
+update public.venues set
+  min_spend_per_head_inr = 1500,
+  private_suites = '[{"name":"The Ember Room","seats":24,"min_spend_inr":45000},{"name":"Courtyard Loft","seats":40,"min_spend_inr":70000}]',
+  seating_layouts = '[{"layout":"banquet","capacity":64},{"layout":"cocktail","capacity":80},{"layout":"boardroom","capacity":20}]',
+  entertainment = '{live_music}',
+  cancellation_terms = '[{"days_before":14,"refund_pct":100},{"days_before":7,"refund_pct":50}]'
+where id = 'aaaaaaaa-0001-4000-8000-000000000001';
+
+update public.venues set
+  min_spend_per_head_inr = 1200,
+  seating_layouts = '[{"layout":"banquet","capacity":50},{"layout":"cocktail","capacity":70}]',
+  entertainment = '{dj}',
+  cancellation_terms = '[{"days_before":10,"refund_pct":100},{"days_before":3,"refund_pct":25}]'
+where id = 'aaaaaaaa-0002-4000-8000-000000000002';
+
+update public.venues set
+  min_spend_per_head_inr = 1000,
+  private_suites = '[{"name":"Tile Room","seats":30,"min_spend_inr":35000}]',
+  seating_layouts = '[{"layout":"banquet","capacity":90},{"layout":"cocktail","capacity":120},{"layout":"theatre","capacity":100}]',
+  entertainment = '{live_music,karaoke,games}',
+  cancellation_terms = '[{"days_before":21,"refund_pct":100},{"days_before":7,"refund_pct":50}]'
+where id = 'aaaaaaaa-0003-4000-8000-000000000003';
+
+update public.venues set
+  min_spend_per_head_inr = 1800,
+  private_suites = '[{"name":"Library","seats":16,"min_spend_inr":40000}]',
+  seating_layouts = '[{"layout":"boardroom","capacity":16},{"layout":"classroom","capacity":36},{"layout":"banquet","capacity":48}]',
+  serves_alcohol = false,
+  cancellation_terms = '[{"days_before":7,"refund_pct":100}]'
+where id = 'aaaaaaaa-0004-4000-8000-000000000004';
+
+update public.venues set
+  min_spend_per_head_inr = 3000,
+  private_suites = '[{"name":"Strongroom","seats":12,"min_spend_inr":60000},{"name":"Gallery","seats":36,"min_spend_inr":150000}]',
+  seating_layouts = '[{"layout":"banquet","capacity":60},{"layout":"cocktail","capacity":100}]',
+  entertainment = '{live_music,comedy}',
+  cancellation_terms = '[{"days_before":30,"refund_pct":100},{"days_before":14,"refund_pct":50},{"days_before":7,"refund_pct":25}]'
+where id = 'aaaaaaaa-0005-4000-8000-000000000005';
+
+-- Compliance and expense systems: Nimbus needs sign-off for alcohol, DJs and karaoke and
+-- exports to Ramp; Vertex exports to Concur.
+update public.corporate_policies set alcohol_policy = 'approval', restricted_entertainment = '{dj,karaoke}'
+where tenant_id = '11111111-1111-4111-8111-111111111111';
+update public.companies set expense_provider = 'ramp'   where id = '11111111-1111-4111-8111-111111111111';
+update public.companies set expense_provider = 'concur' where id = '22222222-2222-4222-8222-222222222222';
+
+update public.bookings set alcohol_included = true where id in ('bbbbbbbb-0001-4000-8000-000000000001', 'bbbbbbbb-0002-4000-8000-000000000002');
+update public.bookings set entertainment = '{live_music}' where id in ('bbbbbbbb-0002-4000-8000-000000000002', 'bbbbbbbb-0003-4000-8000-000000000003');

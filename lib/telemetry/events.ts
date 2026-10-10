@@ -7,6 +7,9 @@
  *   venue-sync     the venue directory was re-pulled
  *   agent-config   an agent was enabled/disabled or reconfigured
  *   venue-updated  a directory listing was edited, (un)published or removed
+ *   booking        a booking moved along its lifecycle (agent, approval, settlement)
+ *   approval       a spend approval was decided
+ *   expense        a booking was exported to the company's expense system
  *
  * Every event has a `seq` from the event log (lib/telemetry/event-log.ts),
  * increasing across server instances, which doubles as the SSE event id so a
@@ -52,13 +55,19 @@ export type AgentConfigField = (typeof AGENT_CONFIG_FIELDS)[number];
 export const VENUE_CHANGES = ["saved", "published", "unpublished", "deleted"] as const;
 export type VenueChange = (typeof VENUE_CHANGES)[number];
 
+export const BOOKING_EVENT_STATUSES = ["PENDING_APPROVAL", "PENDING", "CONFIRMED", "COMPLETED", "SETTLED", "CANCELLED"] as const;
+export type BookingEventStatus = (typeof BOOKING_EVENT_STATUSES)[number];
+
 export type TelemetryEventBody =
   | { type: "span"; traceId: string; root: boolean; span: LiveSpan }
   | { type: "trace"; traceId: string; name: string; status: LiveSpanStatus; durationMs: number; spans: number }
   | { type: "run"; run: LiveRun }
   | { type: "venue-sync"; total: number; partners: PartnerSyncStatus }
   | { type: "agent-config"; agentId: string; enabled: boolean; changed: AgentConfigField[] }
-  | { type: "venue-updated"; venueId: string; change: VenueChange };
+  | { type: "venue-updated"; venueId: string; change: VenueChange }
+  | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: "agent" | "approval" | "expense" }
+  | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
+  | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" };
 
 /** An event as published, before the log numbers it. */
 export type NewTelemetryEvent = TelemetryEventBody & { at: number };
@@ -179,6 +188,18 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
     case "venue-updated":
       return str(v.venueId, 128) && (VENUE_CHANGES as readonly unknown[]).includes(v.change)
         ? { ...base, type: "venue-updated", venueId: v.venueId, change: v.change as VenueChange }
+        : null;
+    case "booking":
+      return str(v.bookingId, 64) && str(v.venueId, 128) && (BOOKING_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (v.by === "agent" || v.by === "approval" || v.by === "expense")
+        ? { ...base, type: "booking", bookingId: v.bookingId, venueId: v.venueId, status: v.status as BookingEventStatus, by: v.by }
+        : null;
+    case "approval":
+      return str(v.approvalId, 64) && str(v.bookingId, 64) && (v.decision === "APPROVED" || v.decision === "REJECTED")
+        ? { ...base, type: "approval", approvalId: v.approvalId, bookingId: v.bookingId, decision: v.decision }
+        : null;
+    case "expense":
+      return str(v.bookingId, 64) && str(v.provider, 32) && (v.status === "delivered" || v.status === "mocked" || v.status === "failed" || v.status === "skipped")
+        ? { ...base, type: "expense", bookingId: v.bookingId, provider: v.provider, status: v.status }
         : null;
     default:
       return null;

@@ -18,8 +18,9 @@ import { planHold } from "@/lib/inventory/plan-hold";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
+import { minSpendCompliance } from "@/lib/venues/profile";
 
-export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | ExpenseField;
+export type BookingField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | "alcohol_included" | "entertainment" | ExpenseField;
 
 export interface PlaceBookingInput {
   companyId: string;
@@ -36,6 +37,9 @@ export interface PlaceBookingInput {
   expense: ExpenseInput;
   /** Checkout-session lock the form took for this venue/date (reserveCheckoutSlot), if any. */
   checkoutToken?: string | null;
+  /** What the event includes: checked against the venue and the company's alcohol/entertainment rules. */
+  alcoholIncluded?: boolean;
+  entertainment?: string[];
 }
 
 /** Roles allowed to file booking requests. Finance viewers are read-only. */
@@ -81,6 +85,11 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   if (!Number.isInteger(partySize) || partySize < 1) fieldErrors.party_size = "Enter a whole number of guests";
   else if (venue && partySize > venue.capacity_max) fieldErrors.party_size = `${venue.name} seats up to ${venue.capacity_max}`;
   if (!Number.isFinite(budgetPerHead) || budgetPerHead <= 0) fieldErrors.budget_per_head_inr = "Enter a budget per head";
+  const alcoholIncluded = input.alcoholIncluded ?? false;
+  const entertainment = [...new Set(input.entertainment ?? [])];
+  if (venue && alcoholIncluded && !venue.serves_alcohol) fieldErrors.alcohol_included = `${venue.name} doesn't serve alcohol`;
+  const unavailable = venue ? entertainment.filter((e) => !venue.entertainment.includes(e)) : [];
+  if (unavailable.length) fieldErrors.entertainment = `${venue!.name} doesn't offer ${unavailable.join(", ").replace(/_/g, " ")}`;
 
   if (!company) return { status: "error", message: "Unknown company account." };
   const departmentId = input.departmentId || null;
@@ -105,6 +114,11 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         }),
         checkHoldAvailability({ venue_id: venue!.id, from: eventDate, to: eventDate }),
       ]);
+      // The venue's per-guest minimum (migration 0019) binds alongside its venue-wide one.
+      const perGuest = minSpendCompliance({ partySize, perHead: pricing.negotiatedPerHead, minimumSpend: 0, minimumPerHead: Number(venue!.min_spend_per_head_inr) });
+      if (pricing.meetsMinimumSpend && !perGuest.ok) {
+        fieldErrors.budget_per_head_inr = `${venue!.name} has a minimum of ${formatINR(Number(venue!.min_spend_per_head_inr))} per guest`;
+      }
       if (!pricing.meetsMinimumSpend) {
         const agreed = pricing.rateCardId && pricing.minimumSpend !== Number(venue!.min_spend_inr) ? " agreed with your company" : "";
         fieldErrors.budget_per_head_inr = `${formatINR(pricing.taxableTotal)} is below ${venue!.name}'s minimum spend of ${formatINR(pricing.minimumSpend)}${agreed}`;
@@ -118,7 +132,11 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         total_amount: pricing.taxableTotal,
         headcount: partySize,
         per_head_amount: pricing.negotiatedPerHead,
+        event_date: eventDate,
+        alcohol_included: alcoholIncluded,
+        entertainment,
       });
+      if (policy.blocked) return { status: "error", message: `This booking can't be made: ${policy.reason}.` };
 
       // Tier 1 (manager) signs off; above the high-value threshold tier 2 (senior) does too, after tier 1.
       // Nobody approves their own request: the requester is skipped and the next tier steps up.
@@ -150,6 +168,8 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           // Snapshot list pricing so rate-card savings stay reportable.
           list_budget_per_head_inr: pricing.source === "list" ? null : pricing.listPerHead,
           rate_card_id: pricing.rateCardId,
+          alcohol_included: alcoholIncluded,
+          entertainment,
           ...(expense.ok ? expense.value : { cost_center: "" }),
         },
         { approvals, hold }

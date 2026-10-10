@@ -3,7 +3,7 @@ import "server-only";
 import { Redis } from "@upstash/redis";
 
 import { DELETE_IF_VALUE_SCRIPT } from "@/lib/locks/redis-store";
-import { mockDb, seedDb, type MockDb } from "./mock-store";
+import { backfillDefaults, mockDb, seedDb, type MockDb } from "./mock-store";
 
 /**
  * The store behind lib/data when Supabase isn't configured.
@@ -69,7 +69,7 @@ async function loadAll(redis: Redis): Promise<{ db: MockDb; seeded: boolean }> {
   p.get(SEEDED_KEY);
   for (const c of COLLECTIONS) p.hgetall(keyOf(c));
   const [seeded, ...hashes] = await p.exec<unknown[]>();
-  const db = Object.fromEntries(COLLECTIONS.map((c, i) => [c, rowsOf(hashes[i])])) as unknown as MockDb;
+  const db = backfillDefaults(Object.fromEntries(COLLECTIONS.map((c, i) => [c, rowsOf(hashes[i])])) as unknown as MockDb);
   return { db, seeded: seeded != null };
 }
 
@@ -102,7 +102,7 @@ async function seed(redis: Redis) {
 /** A snapshot of every collection. Mutating it changes nothing; use mutateDb. */
 export async function readDb(): Promise<MockDb> {
   const redis = getDataRedis();
-  if (!redis) return mockDb;
+  if (!redis) return backfillDefaults(mockDb);
   const loaded = await loadAll(redis);
   if (loaded.seeded) return loaded.db;
   return withLock(redis, async () => {
@@ -120,7 +120,7 @@ export async function readDb(): Promise<MockDb> {
  */
 export async function mutateDb<T>(fn: (db: MockDb) => T): Promise<T> {
   const redis = getDataRedis();
-  if (!redis) return fn(mockDb);
+  if (!redis) return fn(backfillDefaults(mockDb));
   await readDb(); // seeds on first use
   return withLock(redis, async () => {
     const { db } = await loadAll(redis);

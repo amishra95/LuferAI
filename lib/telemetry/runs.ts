@@ -7,7 +7,7 @@ import { publishRun } from "@/lib/telemetry/live";
 import type { AgentId, AgentRun } from "@/types/agents";
 
 /** Configured agents (lib/agents/store.ts) plus the single-purpose /api/ai/* routes. */
-export type RunAgent = AgentId | "brief-writer" | "rfp-broadcaster" | "property-negotiator";
+export type RunAgent = AgentId | "brief-writer" | "rfp-broadcaster" | "property-negotiator" | "booking-agent";
 import type { TaskChannel } from "@/types/channels";
 
 /**

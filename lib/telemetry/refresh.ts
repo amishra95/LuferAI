@@ -17,6 +17,10 @@ export const STALE_PATHS: Record<TelemetryEvent["type"], readonly string[]> = {
   "agent-config": ["/agents", "/chat"],
   "venue-sync": ["/venues"],
   "venue-updated": ["/venues", "/partner"],
+  // Booking data shows on the portals (client, approvals, property) and admin.
+  booking: ["/client", "/property", "/admin", "/dashboard"],
+  approval: ["/client", "/admin"],
+  expense: ["/client", "/admin"],
 };
 
 const under = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);

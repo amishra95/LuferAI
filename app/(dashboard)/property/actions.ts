@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePortal } from "@/lib/auth/session";
+import { confirmBooking } from "@/lib/bookings/confirm";
 import { releaseHold, updateBookingStatus } from "@/lib/data";
 import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
 import { settleDeposit } from "@/lib/payments/service";
@@ -31,13 +32,14 @@ export async function respondToBooking(formData: FormData) {
 
   // Scoped to the venue so one property can never update another's booking. The
   // bookings_sync_inventory_holds trigger converts/releases the date hold.
-  await updateBookingStatus(bookingId, next, { venueId });
-  // Finance sync: export the receipt on confirmation. Failures are logged, never block the venue.
-  if (next === "CONFIRMED") await dispatchBookingConfirmed(bookingId);
-
-  // Confirming captures the client's deposit; declining releases it.
-  if (next === "CONFIRMED") await settleDeposit(bookingId, "capture");
-  if (next === "CANCELLED") await settleDeposit(bookingId, "void");
+  if (next === "CONFIRMED") {
+    // Status, expense export and deposit capture (lib/bookings/confirm.ts).
+    await confirmBooking(bookingId, venueId);
+  } else {
+    await updateBookingStatus(bookingId, next, { venueId });
+    // Declining releases the client's deposit.
+    if (next === "CANCELLED") await settleDeposit(bookingId, "void");
+  }
 
   revalidatePath("/property");
   revalidatePath("/client");

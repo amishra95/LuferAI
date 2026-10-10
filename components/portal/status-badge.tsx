@@ -6,6 +6,7 @@ const BOOKING_VARIANT = {
   PENDING: "warning",
   CONFIRMED: "default",
   COMPLETED: "success",
+  SETTLED: "outline",
   CANCELLED: "destructive",
 } as const satisfies Record<BookingStatus, string>;
 
