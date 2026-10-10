@@ -403,14 +403,15 @@ const poAllocations: PoAllocation[] = [
 // Catalogue suppliers and items (seed.sql "Catalogue"). GSTINs are synthetic but valid; the
 // HSN/SAC codes and rates are illustrative for the demo, not tax advice.
 const partners: Partner[] = [
-  { id: "80000000-0001-4000-8000-000000000001", name: "Giftwise Hampers", slug: "giftwise", contact_email: "orders@giftwise.example", gstin: "29AAGCG4512K1ZG", status: "active", created_at: ts, updated_at: ts },
-  { id: "80000000-0002-4000-8000-000000000002", name: "TixHub Live", slug: "tixhub", contact_email: "corporate@tixhub.example", gstin: "27AAJCT7781M1ZF", status: "active", created_at: ts, updated_at: ts },
-  { id: "80000000-0003-4000-8000-000000000003", name: "TeamQuest Experiences", slug: "teamquest", contact_email: "hello@teamquest.example", gstin: "29AAFCT3390Q1ZI", status: "active", created_at: ts, updated_at: ts },
-  { id: "80000000-0004-4000-8000-000000000004", name: "Threadline Merch", slug: "threadline", contact_email: "bulk@threadline.example", gstin: "33AAKCT6620P1ZV", status: "active", created_at: ts, updated_at: ts },
+  { id: "80000000-0001-4000-8000-000000000001", name: "Giftwise Hampers", slug: "giftwise", contact_email: "orders@giftwise.example", gstin: "29AAGCG4512K1ZG", status: "active", commission_rate: 0.1, razorpay_account_id: null, created_at: ts, updated_at: ts },
+  { id: "80000000-0002-4000-8000-000000000002", name: "TixHub Live", slug: "tixhub", contact_email: "corporate@tixhub.example", gstin: "27AAJCT7781M1ZF", status: "active", commission_rate: 0.1, razorpay_account_id: null, created_at: ts, updated_at: ts },
+  { id: "80000000-0003-4000-8000-000000000003", name: "TeamQuest Experiences", slug: "teamquest", contact_email: "hello@teamquest.example", gstin: "29AAFCT3390Q1ZI", status: "active", commission_rate: 0.1, razorpay_account_id: null, created_at: ts, updated_at: ts },
+  { id: "80000000-0004-4000-8000-000000000004", name: "Threadline Merch", slug: "threadline", contact_email: "bulk@threadline.example", gstin: "33AAKCT6620P1ZV", status: "active", commission_rate: 0.1, razorpay_account_id: null, created_at: ts, updated_at: ts },
 ];
 
-const item = (i: Omit<CatalogItem, "status" | "created_at" | "updated_at" | "description"> & { description?: string }): CatalogItem => ({
+const item = (i: Omit<CatalogItem, "status" | "created_at" | "updated_at" | "description" | "stock_quantity"> & { description?: string; stock_quantity?: number }): CatalogItem => ({
   description: null,
+  stock_quantity: null,
   ...i,
   status: "active",
   created_at: ts,
@@ -532,6 +533,12 @@ export function backfillDefaults(db: MockDb): MockDb {
   db.catalogOrders ??= [];
   db.eventWorkspaces ??= [];
   db.eventAttendees ??= [];
+  for (const p of db.partners) {
+    p.commission_rate ??= 0.1;
+    p.razorpay_account_id ??= null;
+  }
+  for (const i of db.catalogItems) i.stock_quantity ??= null;
+  for (const o of db.catalogOrders) o.commission_rate ??= null;
   for (const a of db.approvals) a.catalog_order_id ??= null;
   for (const a of db.poAllocations) a.catalog_order_id ??= null;
   for (const e of db.expenseExports) e.catalog_order_id ??= null;

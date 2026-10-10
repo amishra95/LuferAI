@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Loader2, Plus, Truck } from "lucide-react";
 
-import { fulfilOrderAction, saveCatalogItemAction, setCatalogItemStatusAction, setPartnerGstinAction } from "../catalog-actions";
+import { fulfilOrderAction, saveCatalogItemAction, setCatalogItemStatusAction, setCatalogItemStockAction, setPartnerGstinAction } from "../catalog-actions";
 import { useAction, useOptimisticMutation } from "@/components/workspace/use-optimistic-mutation";
 import { CATEGORIES, CATEGORY_LABEL, SHIPS, unitNoun, validateItemInput, type Category } from "@/lib/catalog/items";
 import { isOrderStatus, ORDER_STAGE_LABEL, supplierActions, validateTracking, type OrderStatus } from "@/lib/catalog/orders";
+import { STAGE_LABEL, type ReconciliationStage } from "@/lib/marketplace/settlement";
 import type { CatalogItem } from "@/lib/supabase/database.types";
 import { cn, formatINR } from "@/lib/utils";
 
@@ -57,8 +58,8 @@ export function PartnerCatalog({
             <table className="w-full min-w-[40rem] text-[12.5px]">
               <thead>
                 <tr className="border-line border-b">
-                  {["Item", "Category", "Price", "Tax", "Quantity", "Status", ""].map((h, i) => (
-                    <th key={i} scope="col" className={cn("label-mono h-9 px-3 text-left font-medium first:pl-5 last:pr-5", (i === 2 || i === 4) && "text-right")}>
+                  {["Item", "Category", "Price", "Tax", "Quantity", "Stock", "Status", ""].map((h, i) => (
+                    <th key={i} scope="col" className={cn("label-mono h-9 px-3 text-left font-medium first:pl-5 last:pr-5", (i === 2 || i === 4 || i === 5) && "text-right")}>
                       {h}
                     </th>
                   ))}
@@ -79,6 +80,9 @@ export function PartnerCatalog({
                     <td className="px-3 text-right font-mono tabular-nums">
                       {i.min_quantity}
                       {i.max_quantity ? `–${i.max_quantity}` : "+"}
+                    </td>
+                    <td className="px-3 text-right">
+                      <StockCell partnerId={partnerId} item={i} canEdit={canEdit} />
                     </td>
                     <td className="px-3 font-mono text-[11.5px]">{i.status}</td>
                     <td className="py-2 pr-5 pl-3 text-right">
@@ -106,6 +110,44 @@ export function PartnerCatalog({
           </button>
         ))}
     </div>
+  );
+}
+
+/** Units left, with a restock control. Tickets track seats per tier instead. */
+function StockCell({ partnerId, item, canEdit }: { partnerId: string | null; item: CatalogItem; canEdit: boolean }) {
+  const save = useAction<CatalogItem>();
+  const [editing, setEditing] = useState(false);
+  const stock = item.stock_quantity;
+  if (item.category === "tickets") return <span className="text-fg-faint font-mono text-[11.5px]">per tier</span>;
+  if (editing) {
+    return (
+      <form
+        className="inline-flex items-center gap-1"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const raw = String(new FormData(e.currentTarget).get("stock") ?? "").trim();
+          const r = await save.run(() => setCatalogItemStockAction(partnerId, item.id, raw === "" ? null : Number(raw)), {
+            failure: "Couldn't update stock",
+            success: (i) => ({ tone: "success", title: i.stock_quantity === null ? `${i.name}: stock not tracked` : `${i.name}: ${i.stock_quantity} in stock` }),
+          });
+          if (r?.ok) setEditing(false);
+        }}
+      >
+        <input name="stock" type="number" min={0} defaultValue={stock ?? ""} placeholder="—" aria-label={`Stock for ${item.name}`} className="field h-7 w-20 font-mono" autoFocus />
+        <button type="submit" disabled={save.pending} className="btn btn-primary h-7 px-2 text-[12px]">
+          {save.pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : "Save"}
+        </button>
+      </form>
+    );
+  }
+  const label = stock === null ? "—" : stock === 0 ? "Out" : String(stock);
+  const tone = stock === 0 ? "text-rose" : stock !== null && stock < Math.max(item.min_quantity, 5) ? "text-warn" : "";
+  return canEdit ? (
+    <button type="button" onClick={() => setEditing(true)} className={cn("btn btn-ghost h-7 px-2 font-mono text-[12px] tabular-nums", tone)} title="Restock">
+      {label}
+    </button>
+  ) : (
+    <span className={cn("font-mono tabular-nums", tone)}>{label}</span>
   );
 }
 
@@ -179,6 +221,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
       gst_rate_percent: num("gst_rate_percent"),
       min_quantity: num("min_quantity") ?? 1,
       max_quantity: num("max_quantity") ?? null,
+      stock_quantity: category === "tickets" ? null : (num("stock_quantity") ?? null),
       attributes: Object.fromEntries(Object.entries(attributes).filter(([, v]) => v !== undefined)),
     };
     const valid = validateItemInput(raw);
@@ -228,6 +271,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
       </label>
       {field("min_quantity", `Minimum ${unitNoun(category, 2)}`, { type: "number", min: 1, defaultValue: 1 })}
       {field("max_quantity", "Maximum", { type: "number", min: 1, placeholder: "No limit" })}
+      {category !== "tickets" && field("stock_quantity", "In stock (units)", { type: "number", min: 0, placeholder: "Not tracked" })}
       {category !== "tickets" && field("lead_time_days", "Notice needed (days)", { type: "number", min: 0, max: 120, placeholder: "0" })}
 
       {category === "tickets" && (
@@ -308,11 +352,37 @@ export interface FulfilOrder {
   selections: Record<string, unknown>;
   recipients: { name: string; address: string; email?: string; phone?: string; size?: string }[];
   tracking: { carrier?: string; reference?: string; url?: string } | null;
+  /** Buyer payment and payout (lib/marketplace); absent outside Supabase. */
+  settlement?: { stage: ReconciliationStage; net: number | null; issues: string[] };
 }
+
+type Lane = "confirm" | "ship" | "deliver" | "done" | "cancelled";
+const LANES: { key: Lane; title: string; empty: string }[] = [
+  { key: "confirm", title: "Needs your confirmation", empty: "Nothing new." },
+  { key: "ship", title: "To ship", empty: "Nothing to ship." },
+  { key: "deliver", title: "To deliver", empty: "Nothing in progress." },
+  { key: "done", title: "Delivered", empty: "Nothing delivered yet." },
+  { key: "cancelled", title: "Cancelled", empty: "" },
+];
+
+/** Which lane of the queue an order sits in. */
+function laneOf(o: FulfilOrder): Lane {
+  if (o.status === "PLACED") return "confirm";
+  if (o.status === "CONFIRMED") return SHIPS[o.category as Category] ? "ship" : "deliver";
+  if (o.status === "SHIPPED") return "deliver";
+  if (o.status === "CANCELLED") return "cancelled";
+  return "done";
+}
+const dueOf = (o: FulfilOrder) => o.event_date ?? o.needed_by ?? "9999-12-31";
 
 const ACTION_LABEL: Partial<Record<OrderStatus, string>> = { CONFIRMED: "Confirm", SHIPPED: "Mark shipped", DELIVERED: "Mark delivered", CANCELLED: "Decline" };
 
-export function PartnerOrders({ partnerId, orders, canFulfil }: { partnerId: string | null; orders: FulfilOrder[]; canFulfil: boolean }) {
+/**
+ * The fulfilment queue: orders by what the supplier has to do next, soonest
+ * due first, overdue ones flagged. Each shows whether the buyer has paid and
+ * what the supplier will receive (Razorpay Route, held until delivery).
+ */
+export function PartnerOrders({ partnerId, orders, canFulfil, today }: { partnerId: string | null; orders: FulfilOrder[]; canFulfil: boolean; today: string }) {
   const { value: list, mutate } = useOptimisticMutation(orders);
 
   const move = (o: FulfilOrder, next: OrderStatus, tracking?: FulfilOrder["tracking"]) =>
@@ -325,15 +395,34 @@ export function PartnerOrders({ partnerId, orders, canFulfil }: { partnerId: str
 
   if (list.length === 0) return <div className="panel text-fg-subtle px-5 py-6 text-[13px]">No orders yet.</div>;
   return (
-    <ul className="space-y-3">
-      {list.map((o) => (
-        <OrderCard key={o.id} order={o} canFulfil={canFulfil} onMove={(next, tracking) => void move(o, next, tracking)} />
-      ))}
-    </ul>
+    <div className="space-y-6">
+      {LANES.map((lane) => {
+        const inLane = list.filter((o) => laneOf(o) === lane.key).sort((a, b) => dueOf(a).localeCompare(dueOf(b)));
+        if (lane.key === "cancelled" && inLane.length === 0) return null;
+        const overdue = lane.key !== "done" && lane.key !== "cancelled" ? inLane.filter((o) => dueOf(o) < today).length : 0;
+        return (
+          <section key={lane.key} aria-label={lane.title}>
+            <h3 className="label-mono mb-2 flex items-center gap-2">
+              {lane.title} <span className="text-fg-faint tabular-nums">{inLane.length}</span>
+              {overdue ? <span className="text-rose normal-case">· {overdue} overdue</span> : null}
+            </h3>
+            {inLane.length === 0 ? (
+              <p className="text-fg-faint px-1 text-[12.5px]">{lane.empty}</p>
+            ) : (
+              <ul className="space-y-3">
+                {inLane.map((o) => (
+                  <OrderCard key={o.id} order={o} overdue={lane.key !== "done" && lane.key !== "cancelled" && dueOf(o) < today} canFulfil={canFulfil} onMove={(next, tracking) => void move(o, next, tracking)} />
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
-function OrderCard({ order: o, canFulfil, onMove }: { order: FulfilOrder; canFulfil: boolean; onMove: (next: OrderStatus, tracking?: FulfilOrder["tracking"]) => void }) {
+function OrderCard({ order: o, overdue, canFulfil, onMove }: { order: FulfilOrder; overdue: boolean; canFulfil: boolean; onMove: (next: OrderStatus, tracking?: FulfilOrder["tracking"]) => void }) {
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = isOrderStatus(o.status) ? o.status : null;
@@ -346,9 +435,16 @@ function OrderCard({ order: o, canFulfil, onMove }: { order: FulfilOrder; canFul
           {o.quantity} × {o.item_name}
         </span>
         <span className="text-fg-subtle font-mono text-[11.5px] tabular-nums">{formatINR(o.total_amount_inr)} pre-GST</span>
-        <span className="pill ml-auto">{status ? ORDER_STAGE_LABEL[status] : o.status}</span>
+        {o.settlement ? (
+          <span className={cn("pill ml-auto", o.settlement.stage === "unpaid" && "text-fg-faint", o.settlement.issues.length > 0 && "text-warn")} title={o.settlement.issues.join(" ") || undefined}>
+            {STAGE_LABEL[o.settlement.stage]}
+            {o.settlement.net !== null ? ` · you receive ${formatINR(o.settlement.net, true)}` : ""}
+          </span>
+        ) : null}
+        <span className={cn("pill", !o.settlement && "ml-auto")}>{status ? ORDER_STAGE_LABEL[status] : o.status}</span>
       </div>
-      <p className="text-fg-faint mt-0.5 font-mono text-[11px]">
+      <p className={cn("mt-0.5 font-mono text-[11px]", overdue ? "text-rose" : "text-fg-faint")}>
+        {overdue ? "overdue · " : ""}
         {o.event_date ? `event ${fmtDay(o.event_date)}` : `needed by ${fmtDay(o.needed_by)}`}
         {typeof o.selections.tier === "string" && ` · ${o.selections.tier}`}
         {o.selections.sizes ? ` · sizes ${Object.entries(o.selections.sizes as Record<string, number>).map(([s, n]) => `${s}×${n}`).join(" ")}` : ""}

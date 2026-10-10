@@ -113,6 +113,8 @@ export interface CatalogItemLike {
   max_quantity: number | null;
   attributes: unknown;
   status: string;
+  /** Units left; null or absent = not tracked. */
+  stock_quantity?: number | null;
 }
 
 export const leadTimeDays = (item: Pick<CatalogItemLike, "attributes">): number => {
@@ -252,6 +254,9 @@ export function priceOrder(item: CatalogItemLike, input: OrderInput, today: stri
   if (!Number.isInteger(quantity) || quantity < 1) return { ok: false, error: "Enter a quantity." };
   if (quantity < item.min_quantity) return { ok: false, error: `${item.name} needs at least ${item.min_quantity} ${unitNoun(category, item.min_quantity)}.` };
   if (item.max_quantity !== null && quantity > item.max_quantity) return { ok: false, error: `${item.name} takes at most ${item.max_quantity} ${unitNoun(category, item.max_quantity)}.` };
+  if (item.stock_quantity != null && quantity > item.stock_quantity) {
+    return { ok: false, error: item.stock_quantity === 0 ? `${item.name} is out of stock.` : `Only ${item.stock_quantity} ${unitNoun(category, item.stock_quantity)} of ${item.name} left.` };
+  }
 
   const total = round2(unitPrice * quantity);
   return {
@@ -292,6 +297,8 @@ export interface ItemInput {
   gst_rate_percent: GstRate;
   min_quantity: number;
   max_quantity: number | null;
+  /** Units in stock; null = not tracked (made to order, services). */
+  stock_quantity: number | null;
   attributes: ItemAttributes;
 }
 
@@ -319,11 +326,13 @@ export function validateItemInput(raw: Record<string, unknown>): Check<ItemInput
   const max = raw.max_quantity === null || raw.max_quantity === undefined || raw.max_quantity === "" ? null : Number(raw.max_quantity);
   if (!Number.isInteger(min) || min < 1) return { ok: false, error: "Minimum quantity is a whole number, at least 1." };
   if (max !== null && (!Number.isInteger(max) || max < min)) return { ok: false, error: "Maximum quantity must be at least the minimum." };
+  const stock = raw.stock_quantity === null || raw.stock_quantity === undefined || raw.stock_quantity === "" ? null : Number(raw.stock_quantity);
+  if (stock !== null && (!Number.isInteger(stock) || stock < 0 || stock > 1_000_000)) return { ok: false, error: "Stock is a whole number of units (leave empty if you don't track it)." };
   const attributes = validateAttributes(category, raw.attributes);
   if (!attributes.ok) return attributes;
   return {
     ok: true,
-    value: { category, ref, name, description, unit_price_inr: round2(price), tax_kind: taxKind, tax_code: taxCode, gst_rate_percent: rate as GstRate, min_quantity: min, max_quantity: max, attributes: attributes.value },
+    value: { category, ref, name, description, unit_price_inr: round2(price), tax_kind: taxKind, tax_code: taxCode, gst_rate_percent: rate as GstRate, min_quantity: min, max_quantity: max, stock_quantity: stock, attributes: attributes.value },
   };
 }
 

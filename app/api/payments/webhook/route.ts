@@ -7,7 +7,8 @@ import { applyWebhookEvent } from "@/lib/payments/service";
  * One endpoint for both providers, told apart by their signature header:
  *   Razorpay → X-Razorpay-Signature (HMAC-SHA256 of the raw body, RAZORPAY_WEBHOOK_SECRET)
  *   Stripe   → Stripe-Signature (STRIPE_WEBHOOK_SECRET)
- * Subscribe to: payment.authorized, payment.captured, payment.failed (Razorpay);
+ * Subscribe to: payment.authorized, payment.captured, payment.failed, and for Route
+ * payouts transfer.processed, transfer.failed, transfer.reversed (Razorpay);
  * checkout.session.completed, checkout.session.expired, payment_intent.*, charge.refunded (Stripe).
  */
 export async function POST(request: NextRequest) {

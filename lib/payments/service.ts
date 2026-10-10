@@ -3,6 +3,7 @@ import "server-only";
 import type { Member } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { calculateGst, roundInr, splitCommission, type TaxInvoicePayload } from "@/lib/gst-engine";
+import { applyTransferUpdate, syncOrderSettlement } from "@/lib/marketplace/service";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
@@ -89,7 +90,7 @@ export async function createDepositCheckout(
   const paymentId = crypto.randomUUID();
   const checkout = await gateway.createDepositCheckout({
     paymentId,
-    bookingId,
+    subject: { kind: "booking", id: bookingId },
     amountPaise: toPaise(deposit),
     description: `Deposit · ${booking.venue!.name} · ${booking.event_date}`,
     customerEmail: member.email ?? booking.company!.primary_contact_email,
@@ -162,6 +163,13 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
     .maybeSingle();
   if (seen) return "duplicate";
 
+  // Razorpay Route transfer.* events update partner payouts, not payments.
+  if (event.transfer) {
+    const outcome = await applyTransferUpdate(event.transfer);
+    await recordEvent(provider, event);
+    return outcome;
+  }
+
   const payment = await findPayment(provider, event);
   let outcome: "applied" | "ignored" = "ignored";
 
@@ -190,15 +198,23 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
     }
   }
 
+  // A catalogue order's payment moving (e.g. authorised after the supplier
+  // already confirmed) may mean capturing and paying out now.
+  if (payment?.catalog_order_id && outcome === "applied") await syncOrderSettlement(payment.catalog_order_id);
+
   // Recorded after applying, so a failed apply is retried by the provider.
-  const { error } = await db.from("payment_events").insert({
+  await recordEvent(provider, event);
+  return outcome;
+}
+
+async function recordEvent(provider: PaymentProvider, event: NormalizedEvent) {
+  const { error } = await createAdminClient().from("payment_events").insert({
     provider,
     event_id: event.eventId,
     event_type: event.type,
     payload: event.payload as Json,
   });
   if (error && error.code !== "23505") throw error;
-  return outcome;
 }
 
 /** Voids an authorisation we no longer want (duplicate deposit, or paid after a decline). */
@@ -286,6 +302,6 @@ export async function latestPayments(bookingIds: string[]): Promise<Map<string, 
     .in("booking_id", bookingIds)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  for (const p of data) out.set(p.booking_id, p);
+  for (const p of data) if (p.booking_id) out.set(p.booking_id, p);
   return out;
 }

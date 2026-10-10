@@ -22,11 +22,12 @@ export type PartnerPermission =
   | "audit.view"
   | "team.manage"
   | "catalog.edit"
-  | "orders.fulfil";
+  | "orders.fulfil"
+  | "payouts.view";
 
 const GRANTS: Record<PartnerRole, readonly PartnerPermission[]> = {
-  OWNER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "team.manage", "catalog.edit", "orders.fulfil"],
-  MANAGER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "catalog.edit", "orders.fulfil"],
+  OWNER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "team.manage", "catalog.edit", "orders.fulfil", "payouts.view"],
+  MANAGER: ["partner.view", "listing.status", "listing.edit", "rates.edit", "audit.view", "catalog.edit", "orders.fulfil", "payouts.view"],
   STAFF: ["partner.view", "listing.status", "orders.fulfil"],
 };
 

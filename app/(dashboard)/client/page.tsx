@@ -36,6 +36,9 @@ import {
   type ApprovalDetail,
 } from "@/lib/data";
 import { partyStateCode, roundInr, stateName, todayInIndia } from "@/lib/gst-engine";
+import { listOrderSettlements, orderPaymentsEnabled } from "@/lib/marketplace/service";
+import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
+import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { listRfps } from "@/lib/rfp/service";
@@ -47,7 +50,7 @@ import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
 import { CatalogShop } from "./_components/catalog-shop";
-import { PoLedger } from "./_components/po-ledger";
+import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
 
@@ -83,7 +86,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     listPoAllocations({ tenantId: company.id }),
     listDepartments({ companyIds: [company.id] }),
   ]);
-  const [catalogItems, catalogOrders] = tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : [[], []];
+  const [catalogItems, catalogOrders] =
+    tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
+  const orderSettlements = await listOrderSettlements(catalogOrders);
   const [payments, holds, rfps, queue, guestCounts] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
@@ -221,8 +226,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             needed_by: o.needed_by,
             tracking: o.tracking as { carrier?: string; reference?: string; url?: string } | null,
             created_at: o.created_at,
+            ...(orderSettlements.has(o.id) && { payment: { stage: orderSettlements.get(o.id)!.stage, issues: orderSettlements.get(o.id)!.issues } }),
           }))}
           canOrder={canRequest}
+          canPay={orderPaymentsEnabled()}
           canSync={member.role === "ADMIN" || role === "APPROVER"}
           today={todayInIndia()}
         />
@@ -231,7 +238,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           companyId={company.id}
           pos={pos}
           allocations={poAllocations}
-          bookings={bookings.map((b) => ({
+          bookings={bookings.map((b): LedgerBooking => ({
             id: b.id,
             kind: "booking" as const,
             label: `${b.venue.name} · ${formatDate(b.event_date)}`,
@@ -239,7 +246,21 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             statusLabel: STAGE_LABEL[b.status],
             eventDate: b.event_date,
             departmentId: b.department_id,
-          }))}
+          })).concat(
+            catalogOrders.map((o): LedgerBooking => {
+              const st = orderSettlements.get(o.id);
+              return {
+                id: o.id,
+                kind: "order" as const,
+                label: `${o.quantity} × ${o.item_name}`,
+                status: o.status,
+                statusLabel: isOrderStatus(o.status) ? ORDER_STAGE_LABEL[o.status] : o.status,
+                eventDate: o.event_date ?? o.needed_by ?? "",
+                departmentId: o.department_id,
+                ...(st && { reconciliation: { label: SETTLEMENT_LABEL[st.stage], issues: st.issues } }),
+              };
+            })
+          )}
           departments={departments.map((d) => ({ id: d.id, name: d.name }))}
           canManage={canManagePos}
         />

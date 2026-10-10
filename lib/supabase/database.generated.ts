@@ -39,6 +39,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_chains: {
+        Row: {
+          approver_user_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          tier_level: number
+        }
+        Insert: {
+          approver_user_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          tier_level: number
+        }
+        Update: {
+          approver_user_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          tier_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_chains_approver_fkey"
+            columns: ["approver_user_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["user_id", "company_id"]
+          },
+          {
+            foreignKeyName: "approval_chains_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_comments: {
         Row: {
           approval_id: string
@@ -73,46 +112,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "approval_comments_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      approval_chains: {
-        Row: {
-          approver_user_id: string
-          created_at: string
-          id: string
-          tenant_id: string
-          tier_level: number
-        }
-        Insert: {
-          approver_user_id: string
-          created_at?: string
-          id?: string
-          tenant_id: string
-          tier_level: number
-        }
-        Update: {
-          approver_user_id?: string
-          created_at?: string
-          id?: string
-          tenant_id?: string
-          tier_level?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "approval_chains_approver_fkey"
-            columns: ["approver_user_id", "tenant_id"]
+            foreignKeyName: "approval_comments_author_fkey"
+            columns: ["author_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "platform_users"
             referencedColumns: ["user_id", "company_id"]
           },
           {
-            foreignKeyName: "approval_chains_tenant_id_fkey"
+            foreignKeyName: "approval_comments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -175,8 +182,22 @@ export type Database = {
             foreignKeyName: "booking_approvals_booking_fkey"
             columns: ["booking_id", "tenant_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_order_fkey"
+            columns: ["catalog_order_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "booking_approvals_requested_by_fkey"
@@ -275,6 +296,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "bookings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bookings_department_same_company"
             columns: ["department_id", "company_id"]
             isOneToOne: false
@@ -286,13 +314,6 @@ export type Database = {
             columns: ["rate_card_id"]
             isOneToOne: false
             referencedRelation: "corporate_rate_cards"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bookings_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -318,6 +339,7 @@ export type Database = {
           partner_id: string
           ref: string
           status: string
+          stock_quantity: number | null
           tax_code: string
           tax_kind: string
           unit_price_inr: number
@@ -336,6 +358,7 @@ export type Database = {
           partner_id: string
           ref: string
           status?: string
+          stock_quantity?: number | null
           tax_code: string
           tax_kind: string
           unit_price_inr: number
@@ -354,6 +377,7 @@ export type Database = {
           partner_id?: string
           ref?: string
           status?: string
+          stock_quantity?: number | null
           tax_code?: string
           tax_kind?: string
           unit_price_inr?: number
@@ -372,6 +396,7 @@ export type Database = {
       catalog_orders: {
         Row: {
           category: string
+          commission_rate: number | null
           cost_center: string
           created_at: string
           department_id: string | null
@@ -397,6 +422,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          commission_rate?: number | null
           cost_center: string
           created_at?: string
           department_id?: string | null
@@ -422,6 +448,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          commission_rate?: number | null
           cost_center?: string
           created_at?: string
           department_id?: string | null
@@ -536,6 +563,13 @@ export type Database = {
             foreignKeyName: "channel_messages_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "channel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
@@ -543,30 +577,30 @@ export type Database = {
       }
       channel_sender_links: {
         Row: {
-          default_cost_center: string | null
           channel: string
           company_id: string
           created_at: string
+          default_cost_center: string | null
           id: string
           sender_id: string
           user_id: string
           user_name: string
         }
         Insert: {
-          default_cost_center?: string | null
           channel: string
           company_id: string
           created_at?: string
+          default_cost_center?: string | null
           id?: string
           sender_id: string
           user_id: string
           user_name: string
         }
         Update: {
-          default_cost_center?: string | null
           channel?: string
           company_id?: string
           created_at?: string
+          default_cost_center?: string | null
           id?: string
           sender_id?: string
           user_id?: string
@@ -853,6 +887,13 @@ export type Database = {
             foreignKeyName: "event_attendees_booking_fkey"
             columns: ["booking_id", "tenant_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_attendees_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id", "company_id"]
           },
@@ -906,6 +947,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "event_workspaces_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
           {
             foreignKeyName: "event_workspaces_booking_fkey"
             columns: ["booking_id", "tenant_id"]
@@ -982,7 +1030,21 @@ export type Database = {
             foreignKeyName: "expense_exports_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "expense_exports_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_exports_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1051,8 +1113,22 @@ export type Database = {
             foreignKeyName: "inventory_holds_booking_consistency_fkey"
             columns: ["booking_id", "tenant_id", "venue_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id", "venue_id"]
+          },
+          {
+            foreignKeyName: "inventory_holds_booking_consistency_fkey"
+            columns: ["booking_id", "tenant_id", "venue_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id", "company_id", "venue_id"]
+          },
+          {
+            foreignKeyName: "inventory_holds_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "inventory_holds_booking_id_fkey"
@@ -1233,38 +1309,42 @@ export type Database = {
       }
       partners: {
         Row: {
+          commission_rate: number
           contact_email: string | null
           created_at: string
           gstin: string | null
           id: string
           name: string
+          razorpay_account_id: string | null
           slug: string
           status: string
           updated_at: string
         }
         Insert: {
+          commission_rate?: number
           contact_email?: string | null
           created_at?: string
           gstin?: string | null
           id?: string
           name: string
+          razorpay_account_id?: string | null
           slug: string
           status?: string
           updated_at?: string
         }
         Update: {
+          commission_rate?: number
           contact_email?: string | null
           created_at?: string
           gstin?: string | null
           id?: string
           name?: string
+          razorpay_account_id?: string | null
           slug?: string
           status?: string
           updated_at?: string
         }
-        Relationships: [
-
-        ]
+        Relationships: []
       }
       payment_events: {
         Row: {
@@ -1294,8 +1374,9 @@ export type Database = {
         Row: {
           amount_inr: number
           authorized_at: string | null
-          booking_id: string
+          booking_id: string | null
           captured_at: string | null
+          catalog_order_id: string | null
           created_at: string
           currency: string
           deposit_rate: number
@@ -1312,8 +1393,9 @@ export type Database = {
         Insert: {
           amount_inr: number
           authorized_at?: string | null
-          booking_id: string
+          booking_id?: string | null
           captured_at?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate: number
@@ -1330,8 +1412,9 @@ export type Database = {
         Update: {
           amount_inr?: number
           authorized_at?: string | null
-          booking_id?: string
+          booking_id?: string | null
           captured_at?: string | null
+          catalog_order_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate?: number
@@ -1350,15 +1433,29 @@ export type Database = {
             foreignKeyName: "payments_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
             referencedColumns: ["id"]
           },
         ]
       }
       platform_users: {
         Row: {
-          corporate_role: Database["public"]["Enums"]["corporate_role"] | null
           company_id: string | null
+          corporate_role: Database["public"]["Enums"]["corporate_role"] | null
           created_at: string
           partner_id: string | null
           partner_role: Database["public"]["Enums"]["partner_role"] | null
@@ -1367,8 +1464,8 @@ export type Database = {
           venue_id: string | null
         }
         Insert: {
-          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
+          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           created_at?: string
           partner_id?: string | null
           partner_role?: Database["public"]["Enums"]["partner_role"] | null
@@ -1377,8 +1474,8 @@ export type Database = {
           venue_id?: string | null
         }
         Update: {
-          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           company_id?: string | null
+          corporate_role?: Database["public"]["Enums"]["corporate_role"] | null
           created_at?: string
           partner_id?: string | null
           partner_role?: Database["public"]["Enums"]["partner_role"] | null
@@ -1452,7 +1549,21 @@ export type Database = {
             foreignKeyName: "po_allocations_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: true
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "po_allocations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_allocations_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: true
+            referencedRelation: "catalog_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1585,17 +1696,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "rfp_responses_rate_card_id_fkey"
-            columns: ["rate_card_id"]
-            isOneToOne: false
-            referencedRelation: "corporate_rate_cards"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "rfp_responses_menu_package_id_fkey"
             columns: ["menu_package_id"]
             isOneToOne: false
             referencedRelation: "venue_menu_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_responses_rate_card_id_fkey"
+            columns: ["rate_card_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_rate_cards"
             referencedColumns: ["id"]
           },
           {
@@ -1666,6 +1777,163 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tcs_entries: {
+        Row: {
+          catalog_order_id: string
+          cgst_inr: number
+          created_at: string
+          id: string
+          igst_inr: number
+          kind: string
+          partner_id: string
+          place_of_supply: string
+          rate_bps: number
+          return_period: string
+          sgst_inr: number
+          supplier_gstin: string
+          taxable_inr: number
+        }
+        Insert: {
+          catalog_order_id: string
+          cgst_inr?: number
+          created_at?: string
+          id?: string
+          igst_inr?: number
+          kind: string
+          partner_id: string
+          place_of_supply: string
+          rate_bps: number
+          return_period: string
+          sgst_inr?: number
+          supplier_gstin: string
+          taxable_inr: number
+        }
+        Update: {
+          catalog_order_id?: string
+          cgst_inr?: number
+          created_at?: string
+          id?: string
+          igst_inr?: number
+          kind?: string
+          partner_id?: string
+          place_of_supply?: string
+          rate_bps?: number
+          return_period?: string
+          sgst_inr?: number
+          supplier_gstin?: string
+          taxable_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcs_entries_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tcs_entries_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_payouts: {
+        Row: {
+          catalog_order_id: string
+          commission_gst_inr: number
+          commission_inr: number
+          commission_rate: number
+          created_at: string
+          gross_inr: number
+          id: string
+          last_error: string | null
+          linked_account_id: string
+          net_payout_inr: number
+          partner_id: string
+          payment_id: string
+          provider_transfer_id: string | null
+          released_at: string | null
+          reversed_at: string | null
+          settled_at: string | null
+          status: string
+          taxable_inr: number
+          tcs_inr: number
+          tcs_rate_bps: number
+          updated_at: string
+        }
+        Insert: {
+          catalog_order_id: string
+          commission_gst_inr: number
+          commission_inr: number
+          commission_rate: number
+          created_at?: string
+          gross_inr: number
+          id?: string
+          last_error?: string | null
+          linked_account_id: string
+          net_payout_inr: number
+          partner_id: string
+          payment_id: string
+          provider_transfer_id?: string | null
+          released_at?: string | null
+          reversed_at?: string | null
+          settled_at?: string | null
+          status?: string
+          taxable_inr: number
+          tcs_inr: number
+          tcs_rate_bps: number
+          updated_at?: string
+        }
+        Update: {
+          catalog_order_id?: string
+          commission_gst_inr?: number
+          commission_inr?: number
+          commission_rate?: number
+          created_at?: string
+          gross_inr?: number
+          id?: string
+          last_error?: string | null
+          linked_account_id?: string
+          net_payout_inr?: number
+          partner_id?: string
+          payment_id?: string
+          provider_transfer_id?: string | null
+          released_at?: string | null
+          reversed_at?: string | null
+          settled_at?: string | null
+          status?: string
+          taxable_inr?: number
+          tcs_inr?: number
+          tcs_rate_bps?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_payouts_catalog_order_id_fkey"
+            columns: ["catalog_order_id"]
+            isOneToOne: true
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_payouts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_payouts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
@@ -1918,6 +2186,20 @@ export type Database = {
         }
         Relationships: []
       }
+      tcs_gstr8_summary: {
+        Row: {
+          cgst_inr: number | null
+          gross_supplies_inr: number | null
+          igst_inr: number | null
+          net_taxable_inr: number | null
+          place_of_supply: string | null
+          return_period: string | null
+          sgst_inr: number | null
+          supplier_gstin: string | null
+          supplies_returned_inr: number | null
+        }
+        Relationships: []
+      }
       venue_monthly_payouts: {
         Row: {
           bookings: number | null
@@ -1940,6 +2222,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_join_event_channel: { Args: { topic: string }; Returns: boolean }
       current_company_id: { Args: never; Returns: string }
       current_partner_id: { Args: never; Returns: string }
       current_partner_role: {
@@ -1963,7 +2246,6 @@ export type Database = {
     }
     Enums: {
       approval_status: "PENDING" | "APPROVED" | "REJECTED"
-      corporate_role: "ORGANIZER" | "APPROVER" | "FINANCE_VIEWER"
       booking_status:
         | "PENDING_APPROVAL"
         | "PENDING"
@@ -1971,11 +2253,11 @@ export type Database = {
         | "COMPLETED"
         | "SETTLED"
         | "CANCELLED"
+      corporate_role: "ORGANIZER" | "APPROVER" | "FINANCE_VIEWER"
       gst_type: "CGST_SGST" | "IGST"
       hold_status: "ACTIVE" | "RELEASED" | "CONVERTED"
       onboarding_status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED"
       partner_role: "OWNER" | "MANAGER" | "STAFF"
-      portal_role: "ADMIN" | "CLIENT" | "PROPERTY" | "PARTNER"
       payment_provider: "razorpay" | "stripe"
       payment_status:
         | "created"
@@ -1984,6 +2266,7 @@ export type Database = {
         | "voided"
         | "failed"
         | "refunded"
+      portal_role: "ADMIN" | "CLIENT" | "PROPERTY" | "PARTNER"
       rfp_response_source: "instant" | "venue"
       rfp_response_status: "quoted" | "countered" | "declined" | "no_fit"
       rfp_status: "open" | "awarded" | "closed"
@@ -2118,7 +2401,6 @@ export const Constants = {
   public: {
     Enums: {
       approval_status: ["PENDING", "APPROVED", "REJECTED"],
-      corporate_role: ["ORGANIZER", "APPROVER", "FINANCE_VIEWER"],
       booking_status: [
         "PENDING_APPROVAL",
         "PENDING",
@@ -2127,11 +2409,11 @@ export const Constants = {
         "SETTLED",
         "CANCELLED",
       ],
+      corporate_role: ["ORGANIZER", "APPROVER", "FINANCE_VIEWER"],
       gst_type: ["CGST_SGST", "IGST"],
       hold_status: ["ACTIVE", "RELEASED", "CONVERTED"],
       onboarding_status: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
       partner_role: ["OWNER", "MANAGER", "STAFF"],
-      portal_role: ["ADMIN", "CLIENT", "PROPERTY", "PARTNER"],
       payment_provider: ["razorpay", "stripe"],
       payment_status: [
         "created",
@@ -2141,6 +2423,7 @@ export const Constants = {
         "failed",
         "refunded",
       ],
+      portal_role: ["ADMIN", "CLIENT", "PROPERTY", "PARTNER"],
       rfp_response_source: ["instant", "venue"],
       rfp_response_status: ["quoted", "countered", "declined", "no_fit"],
       rfp_status: ["open", "awarded", "closed"],

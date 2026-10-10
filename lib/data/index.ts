@@ -1193,7 +1193,7 @@ export async function listCatalogItems(filter: { category?: string; partnerId?: 
     .map(({ partner, ...i }) => ({ ...itemRow(i), partner_name: partner.name, partner_gstin: partner.gstin }));
 }
 
-export type CatalogItemInput = Pick<CatalogItem, "category" | "ref" | "name" | "description" | "unit_price_inr" | "tax_kind" | "tax_code" | "gst_rate_percent" | "min_quantity" | "max_quantity" | "attributes">;
+export type CatalogItemInput = Pick<CatalogItem, "category" | "ref" | "name" | "description" | "unit_price_inr" | "tax_kind" | "tax_code" | "gst_rate_percent" | "min_quantity" | "max_quantity" | "stock_quantity" | "attributes">;
 
 /** Creates (no id) or updates one of the partner's items. */
 export async function saveCatalogItem(partnerId: string, input: CatalogItemInput, id?: string): Promise<CatalogItem> {
@@ -1232,6 +1232,22 @@ export async function setCatalogItemStatus(partnerId: string, id: string, status
     });
   }
   const { data, error } = await createAdminClient().from("catalog_items").update({ status }).eq("id", id).eq("partner_id", partnerId).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new CatalogError("Item not found.");
+  return itemRow(data);
+}
+
+/** Sets an item's units in stock (null = not tracked). Orders reserve from it; cancellations return to it. */
+export async function setCatalogItemStock(partnerId: string, id: string, stock: number | null): Promise<CatalogItem> {
+  if (local()) {
+    return mutateDb((db) => {
+      const i = db.catalogItems.find((x) => x.id === id && x.partner_id === partnerId);
+      if (!i) throw new CatalogError("Item not found.");
+      Object.assign(i, { stock_quantity: stock, updated_at: new Date().toISOString() });
+      return itemRow(i);
+    });
+  }
+  const { data, error } = await createAdminClient().from("catalog_items").update({ stock_quantity: stock }).eq("id", id).eq("partner_id", partnerId).select("*").maybeSingle();
   if (error) throw error;
   if (!data) throw new CatalogError("Item not found.");
   return itemRow(data);
@@ -1280,7 +1296,8 @@ export async function listCatalogOrders(filter: { tenantId?: string; partnerId?:
   return (data as unknown as Row[]).map(({ item, partner, company, ...o }) => ({ ...orderRow(o), item_name: item.name, partner_name: partner.name, company_name: company.legal_name }));
 }
 
-export type NewCatalogOrder = Omit<CatalogOrder, "id" | "status" | "tracking" | "settled_at" | "created_at" | "updated_at">;
+/** commission_rate is trigger-set from the partner (catalog_orders_snapshot_commission). */
+export type NewCatalogOrder = Omit<CatalogOrder, "id" | "status" | "tracking" | "settled_at" | "created_at" | "updated_at" | "commission_rate">;
 
 /**
  * Creates an order: PENDING_APPROVAL with one approval row per approver, or
@@ -1294,7 +1311,14 @@ export async function createCatalogOrder(input: NewCatalogOrder, options: { appr
   if (local()) {
     const id = await mutateDb((db) => {
       const now = new Date().toISOString();
-      const order: CatalogOrder = { ...input, id: crypto.randomUUID(), status, tracking: null, settled_at: null, created_at: now, updated_at: now };
+      const commission = db.partners.find((p) => p.id === input.partner_id)?.commission_rate ?? null;
+      const order: CatalogOrder = { ...input, id: crypto.randomUUID(), status, tracking: null, settled_at: null, commission_rate: commission, created_at: now, updated_at: now };
+      // catalog_orders_reserve_stock
+      const stocked = db.catalogItems.find((i) => i.id === input.item_id);
+      if (stocked && stocked.stock_quantity !== null) {
+        if (stocked.stock_quantity < input.quantity) throw new CatalogError(`Only ${stocked.stock_quantity} left of this item.`);
+        stocked.stock_quantity -= input.quantity;
+      }
       if (options.allocation) {
         checkLocalAllocation(db, options.allocation, {
           id: order.id,
@@ -1318,6 +1342,8 @@ export async function createCatalogOrder(input: NewCatalogOrder, options: { appr
 
   const supabase = createAdminClient();
   const { data, error } = await supabase.from("catalog_orders").insert({ ...input, status }).select("id").single();
+  // catalog_orders_reserve_stock: someone else took the last units.
+  if (error?.code === "23514" && error.hint === "stock") throw new CatalogError(error.message);
   if (error) throw error;
   const undo = () => supabase.from("catalog_orders").delete().eq("id", data.id);
   if (approvals.length) {
@@ -1360,6 +1386,10 @@ export async function updateCatalogOrderStatus(id: string, next: OrderStatus, sc
       if (!isOrderStatus(o.status) || !canOrderTransition(o.status, next)) throw new CatalogError(`A ${o.status.toLowerCase().replace("_", " ")} order can't become ${next.toLowerCase()}.`);
       const now = new Date().toISOString();
       Object.assign(o, { status: next, updated_at: now }, extra.tracking !== undefined && { tracking: extra.tracking }, next === "SETTLED" && { settled_at: now });
+      if (next === "CANCELLED") {
+        const stocked = db.catalogItems.find((i) => i.id === o.item_id);
+        if (stocked && stocked.stock_quantity !== null) stocked.stock_quantity += o.quantity;
+      }
       syncLocalOrderAllocations(db, o.id, next);
       return orderRow(o);
     });
