@@ -1,10 +1,12 @@
 /**
  * Live telemetry events: what /api/telemetry/stream sends to the browser.
  *
- *   span        a traced operation finished (trace still running, or just ended)
- *   trace       a whole trace was stored and can be opened by id
- *   run         an agent run was logged (lib/telemetry/runs.ts)
- *   venue-sync  the venue directory was re-pulled
+ *   span           a traced operation finished (trace still running, or just ended)
+ *   trace          a whole trace was stored and can be opened by id
+ *   run            an agent run was logged (lib/telemetry/runs.ts)
+ *   venue-sync     the venue directory was re-pulled
+ *   agent-config   an agent was enabled/disabled or reconfigured
+ *   venue-updated  a directory listing was edited, (un)published or removed
  *
  * Every event has a `seq` from the event log (lib/telemetry/event-log.ts),
  * increasing across server instances, which doubles as the SSE event id so a
@@ -44,11 +46,19 @@ export interface LiveRun {
 
 export type PartnerSyncStatus = { network: string; status: "ok"; count: number } | { network: string; status: "unavailable"; error: string };
 
+export const AGENT_CONFIG_FIELDS = ["enabled", "tools", "temperature", "maxSteps", "instructions"] as const;
+export type AgentConfigField = (typeof AGENT_CONFIG_FIELDS)[number];
+
+export const VENUE_CHANGES = ["saved", "published", "unpublished", "deleted"] as const;
+export type VenueChange = (typeof VENUE_CHANGES)[number];
+
 export type TelemetryEventBody =
   | { type: "span"; traceId: string; root: boolean; span: LiveSpan }
   | { type: "trace"; traceId: string; name: string; status: LiveSpanStatus; durationMs: number; spans: number }
   | { type: "run"; run: LiveRun }
-  | { type: "venue-sync"; total: number; partners: PartnerSyncStatus };
+  | { type: "venue-sync"; total: number; partners: PartnerSyncStatus }
+  | { type: "agent-config"; agentId: string; enabled: boolean; changed: AgentConfigField[] }
+  | { type: "venue-updated"; venueId: string; change: VenueChange };
 
 /** An event as published, before the log numbers it. */
 export type NewTelemetryEvent = TelemetryEventBody & { at: number };
@@ -67,7 +77,7 @@ export interface TelemetryAudience {
 }
 
 export function visibleTo(event: Pick<TelemetryEvent, "type">, audience: TelemetryAudience): boolean {
-  return event.type === "venue-sync" ? audience.venues : audience.ops;
+  return event.type === "venue-sync" || event.type === "venue-updated" ? audience.venues : audience.ops;
 }
 
 // ----------------------------------------------------------------------------
@@ -160,6 +170,16 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
       const p = partners(v.partners);
       return p && num(v.total) ? { ...base, type: "venue-sync", total: v.total, partners: p } : null;
     }
+    case "agent-config": {
+      const changed = Array.isArray(v.changed) && v.changed.every((f) => (AGENT_CONFIG_FIELDS as readonly unknown[]).includes(f)) ? (v.changed as AgentConfigField[]) : null;
+      return str(v.agentId, 64) && typeof v.enabled === "boolean" && changed
+        ? { ...base, type: "agent-config", agentId: v.agentId, enabled: v.enabled, changed: [...changed] }
+        : null;
+    }
+    case "venue-updated":
+      return str(v.venueId, 128) && (VENUE_CHANGES as readonly unknown[]).includes(v.change)
+        ? { ...base, type: "venue-updated", venueId: v.venueId, change: v.change as VenueChange }
+        : null;
     default:
       return null;
   }

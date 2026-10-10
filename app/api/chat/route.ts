@@ -7,6 +7,7 @@ import {
   validateUIMessages,
 } from "ai";
 
+import { instructionsSuffix } from "@/lib/agents/config";
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
 import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
@@ -98,7 +99,7 @@ async function handleChat(req: Request) {
   // Started inside llm.run so the provider requests and tool calls are its children.
   const result = llm.run(() => streamText({
     model,
-    system: SYSTEM,
+    system: SYSTEM + instructionsSuffix(agent.instructions),
     messages: modelMessages,
     tools: chatTools,
     activeTools: tools,

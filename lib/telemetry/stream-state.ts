@@ -131,7 +131,8 @@ export function latestVenueSync(events: readonly TelemetryEvent[]): Extract<Tele
 
 /**
  * The seq of the newest event that changes what the inspector shows for an
- * entity (a run for an agent, the stored trace, a directory sync), or 0. The
+ * entity (a run or config change for an agent, the stored trace, a directory
+ * sync or an edit to that listing), or 0. The
  * inspector reloads the entity when this moves.
  */
 export function refreshSeqFor(events: readonly TelemetryEvent[], kind: string, id: string): number {
@@ -139,7 +140,8 @@ export function refreshSeqFor(events: readonly TelemetryEvent[], kind: string, i
     const e = events[i];
     if (kind === "agent" && e.type === "run" && e.run.agent === id) return e.seq;
     if (kind === "trace" && e.type === "trace" && e.traceId === id) return e.seq;
-    if (kind === "venue" && e.type === "venue-sync") return e.seq;
+    if (kind === "agent" && e.type === "agent-config" && e.agentId === id) return e.seq;
+    if (kind === "venue" && (e.type === "venue-sync" || (e.type === "venue-updated" && e.venueId === id))) return e.seq;
   }
   return 0;
 }

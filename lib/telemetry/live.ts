@@ -11,7 +11,7 @@ import { Redis } from "@upstash/redis";
 
 import type { SpanRecord, TraceRecord, TracerEvent } from "../tracer.ts";
 import { memoryEventLog, redisEventLog, type EventLog } from "./event-log.ts";
-import type { LiveRun, LiveSpan, NewTelemetryEvent, PartnerSyncStatus } from "./events.ts";
+import type { AgentConfigField, LiveRun, LiveSpan, NewTelemetryEvent, PartnerSyncStatus, VenueChange } from "./events.ts";
 
 const g = globalThis as typeof globalThis & { __luferEventLog?: EventLog };
 
@@ -73,4 +73,12 @@ export function publishRun(run: LiveRun): Promise<void> {
 
 export function publishVenueSync(total: number, partners: PartnerSyncStatus): Promise<void> {
   return publish({ type: "venue-sync", at: Date.now(), total, partners });
+}
+
+export function publishAgentConfig(agentId: string, enabled: boolean, changed: AgentConfigField[]): Promise<void> {
+  return publish({ type: "agent-config", at: Date.now(), agentId, enabled, changed });
+}
+
+export function publishVenueUpdated(venueId: string, change: VenueChange): Promise<void> {
+  return publish({ type: "venue-updated", at: Date.now(), venueId, change });
 }

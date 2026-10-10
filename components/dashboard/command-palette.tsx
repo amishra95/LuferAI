@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, CalendarDays, CornerDownLeft, Eraser, History, LogOut, MapPin, PanelLeft, PanelRightClose, RefreshCw, ScanSearch, Search, Waypoints, type LucideIcon } from "lucide-react";
+import { Bot, CalendarDays, Play, Power, CornerDownLeft, Eraser, History, LogOut, MapPin, PanelLeft, PanelRightClose, RefreshCw, ScanSearch, Search, Waypoints, type LucideIcon } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
-import { syncVenueDirectory } from "@/app/(dashboard)/venues/actions";
+import { runAgentTest, updateAgentConfig } from "@/app/(dashboard)/agents/actions";
 import { NAV_SECTIONS } from "@/components/dashboard/nav-config";
-import { useToast } from "@/components/dashboard/toast";
+import { useVenueSync } from "@/components/venues/use-venue-sync";
+import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import type { BookingDetail } from "@/lib/data";
 import type { PortalRole } from "@/lib/supabase/database.types";
@@ -15,6 +16,7 @@ import { rankMatches } from "@/lib/search/match";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import type { DirectoryVenue } from "@/lib/venues/partner-network";
 import { activeId, ENTITY_KINDS, isEmptyWorkspace, isEntityId, type EntityKind } from "@/lib/workspace/state";
+import type { AgentRecord, AgentTestResult } from "@/types/agents";
 import type { AgentSummary } from "@/types/workspace";
 
 /**
@@ -80,7 +82,6 @@ export function CommandPalette({
   onToggleSidebar: () => void;
 }) {
   const router = useRouter();
-  const toast = useToast();
   const workspace = useWorkspace();
   const listId = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -171,20 +172,40 @@ export function CommandPalette({
     },
     [close, inspect]
   );
-  const syncVenues = useCallback(async () => {
+  const { sync: syncDirectory } = useVenueSync();
+  const syncVenues = useCallback(() => {
     close();
-    try {
-      const { total, partners } = await syncVenueDirectory();
-      router.refresh();
-      toast(
-        partners.status === "ok"
-          ? { tone: "success", title: "Venue directory synced", description: `${total} venues · ${partners.count} from ${partners.network}` }
-          : { tone: "info", title: "Venue directory synced without partners", description: `${partners.network} is unavailable (${partners.error}). ${total} venues listed.` }
-      );
-    } catch {
-      toast({ tone: "error", title: "Venue sync failed", description: "Try again shortly." });
-    }
-  }, [close, router, toast]);
+    void syncDirectory();
+  }, [close, syncDirectory]);
+
+  // Agent dispatches for the active agent (results arrive as toasts; views refresh live).
+  const { run: dispatchTest } = useAction<AgentTestResult>();
+  const { run: dispatchConfig } = useAction<AgentRecord>();
+  const activeAgent = agents?.find((a) => a.id === ws.activeAgentId) ?? null;
+  const testAgent = useCallback(
+    (a: AgentSummary) => {
+      close();
+      void dispatchTest(() => runAgentTest(a.id), {
+        failure: `Couldn't start a test of ${a.name}`,
+        success: (t) =>
+          t.ok
+            ? { tone: "success", title: `${a.name}: test passed`, description: `${t.tools.length} tools · ${t.durationMs} ms` }
+            : { tone: "error", title: `${a.name}: test failed`, description: t.tools.filter((x) => !x.ok).map((x) => `${x.name}: ${x.summary}`).join("; ") },
+      });
+    },
+    [close, dispatchTest]
+  );
+  const toggleAgent = useCallback(
+    (a: AgentSummary) => {
+      close();
+      const enabled = a.status === "disabled";
+      void dispatchConfig(() => updateAgentConfig(a.id, { enabled }), {
+        failure: `Couldn't ${enabled ? "enable" : "disable"} ${a.name}`,
+        success: () => ({ tone: "success", title: `${a.name} ${enabled ? "enabled" : "disabled"}` }),
+      });
+    },
+    [close, dispatchConfig]
+  );
 
   const trimmed = query.trim();
   const venueQuery = canVenues && trimmed.length >= 2 ? trimmed : "";
@@ -245,6 +266,12 @@ export function CommandPalette({
               close();
               closeInspector();
             } }] : []),
+      ...(activeAgent
+        ? [
+            { id: "action:agent-test", group: "Actions" as const, title: `Run test: ${activeAgent.name}`, subtitle: "Each assigned tool once, no model call", keywords: "dispatch smoke test active agent", icon: Play, run: () => testAgent(activeAgent) },
+            { id: "action:agent-toggle", group: "Actions" as const, title: `${activeAgent.status === "disabled" ? "Enable" : "Disable"} ${activeAgent.name}`, keywords: "switch on off active agent", icon: Power, run: () => toggleAgent(activeAgent) },
+          ]
+        : []),
       ...(canVenues ? [{ id: "action:venue-sync", group: "Actions" as const, title: "Trigger venue sync", subtitle: "Re-pull own, partner and extranet listings", keywords: "refresh directory partner feed", icon: RefreshCw, run: () => void syncVenues() }] : []),
       ...(!isEmptyWorkspace(ws) ? [{ id: "action:clear-context", group: "Actions" as const, title: "Clear context", subtitle: "Active agent, venue, trace, run and filters", keywords: "reset workspace", icon: Eraser, run: () => {
               close();
@@ -280,7 +307,7 @@ export function CommandPalette({
     const pick = (xs: Item[]) => (q ? rankMatches(xs, q, (i) => i, PER_GROUP) : xs.slice(0, PER_GROUP));
     // Venues are already filtered by the server; just rank them.
     return [...pick(nav), ...pick(agentItems), ...pick(venueItems), ...pick(bookingItems), ...lookups, ...(q ? pick(actions) : actions)];
-  }, [query, allowedHrefs, venues, agents, bookings, role, canOps, canVenues, ws, go, close, inspectEntity, inspectActive, closeInspector, reset, syncVenues, onToggleSidebar]);
+  }, [query, allowedHrefs, venues, agents, bookings, role, canOps, canVenues, ws, activeAgent, go, close, inspectEntity, inspectActive, closeInspector, reset, syncVenues, testAgent, toggleAgent, onToggleSidebar]);
 
   // Keep the highlight on a real row as results change.
   const current = Math.min(active, Math.max(items.length - 1, 0));

@@ -36,14 +36,19 @@ function errorText(error: Error): string {
 
 export function ChatWorkspace({
   model,
-  offline,
+  offline: noModel,
+  agentEnabled,
   defaultInspectorOpen,
 }: {
   model: string;
   /** No model configured: chat is unavailable. */
   offline: boolean;
+  /** The workspace agent is switched off on the Agents page. */
+  agentEnabled: boolean;
   defaultInspectorOpen: boolean;
 }) {
+  // Either way the chat route would refuse, so don't offer to send.
+  const offline = noModel || !agentEnabled;
   const { messages, sendMessage, status, stop, error, regenerate, setMessages, clearError } = useChat<LuferUIMessage>({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
@@ -118,7 +123,19 @@ export function ChatWorkspace({
         >
           {/* Bottom padding clears the floating composer. */}
           <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-48 sm:px-6">
-            {offline && (
+            {!noModel && !agentEnabled && (
+              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+                <span className="pill">
+                  <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
+                  agent off
+                </span>
+                The workspace agent is disabled.
+                <Link href="/agents" className="text-fg-muted hover:text-fg inline-flex items-center gap-0.5 transition-colors">
+                  Enable it <ArrowUpRight className="size-3" aria-hidden />
+                </Link>
+              </div>
+            )}
+            {noModel && (
               <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
                 <span className="pill">
                   <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
