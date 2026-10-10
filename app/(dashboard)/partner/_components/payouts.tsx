@@ -1,6 +1,7 @@
 import { Banknote, Landmark, Receipt } from "lucide-react";
 
 import { StatCard } from "@/components/portal/stat-card";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { sumInr } from "@/lib/gst-engine";
@@ -85,7 +86,7 @@ export function PartnerPayouts({ partner, isAdmin, enabled, rows, tcs }: { partn
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <p className="text-fg-subtle py-6 text-center text-[13px]">No payouts yet. They start when a paid order is confirmed.</p>
+            <EmptyState compact icon={Banknote} title="No payouts yet" description="A payout starts when you confirm an order the buyer has paid for, and is released when you mark it delivered." />
           ) : (
             <Table>
               <TableHeader>
@@ -144,7 +145,7 @@ export function PartnerPayouts({ partner, isAdmin, enabled, rows, tcs }: { partn
         </CardHeader>
         <CardContent>
           {byPeriod.length === 0 ? (
-            <p className="text-fg-subtle py-6 text-center text-[13px]">Nothing collected yet.</p>
+            <EmptyState compact icon={Receipt} title="No TCS collected yet" description="TCS is collected on each paid order and listed here by return period." />
           ) : (
             <Table>
               <TableHeader>

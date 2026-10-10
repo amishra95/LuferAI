@@ -210,3 +210,54 @@ test("cursors: normalised to the canvas, validated on receipt, expire", () => {
   ]);
   assert.deepEqual(liveCursors(map, new Set(["u2", "u3"]), 21_000).map((c) => c.userId), ["u3"]);
 });
+
+// ----------------------------------------------------------------------------
+// Activity ticker
+// ----------------------------------------------------------------------------
+
+test("activity: seeded from replies, batched guest adds and the last schedule change", async () => {
+  const { seedActivity } = await import("../lib/events/activity.ts");
+  const guest = (id, name, created_at, extra = {}) => ({ id, name, rsvp_status: "INVITED", responded_at: null, created_at, invited_by: "u1", ...extra });
+  const items = seedActivity({
+    attendees: [
+      guest("g1", "Asha Rao", "2026-10-11T10:00:00Z", { rsvp_status: "ACCEPTED", responded_at: "2026-10-11T12:00:00Z" }),
+      guest("g2", "Dev Iyer", "2026-10-11T10:00:40Z"),
+      guest("g3", "Meera Shah", "2026-10-11T10:01:30Z", { rsvp_status: "DECLINED", responded_at: "2026-10-11T11:00:00Z" }),
+      guest("g4", "Kiran Kumar", "2026-10-11T10:30:00Z", { invited_by: "u2" }),
+    ],
+    workspace: { id: "w1", updated_at: "2026-10-11T11:30:00Z", ics_sequence: 2, updated_by: "u2" },
+    people: { u1: "Asha Organiser", u2: "Ravi Approver" },
+  });
+  assert.deepEqual(
+    items.map((i) => `${i.actor} ${i.text}`),
+    ["Asha Rao replied going", "Ravi Approver updated the schedule", "Meera Shah replied not going", "Ravi Approver added Kiran Kumar", "Asha Organiser added 3 guests"]
+  );
+  const empty = seedActivity({ attendees: [], workspace: { id: "", updated_at: "1970-01-01T00:00:00Z", ics_sequence: 0, updated_by: null } });
+  assert.deepEqual(empty, []);
+});
+
+test("activity: live items merge without duplicates; payloads from other browsers are validated", async () => {
+  const { activityFromAttendeeChange, mergeActivity, parseActivity, relativeTime } = await import("../lib/events/activity.ts");
+  const seeded = [{ id: "guests:g1", at: "2026-10-11T10:00:30Z", actor: "Asha", kind: "guests", text: "added 3 guests" }];
+  const live = { id: "x1", at: "2026-10-11T10:00:00Z", actor: "Asha", kind: "guests", text: "added 3 guests" };
+  assert.equal(mergeActivity(seeded, [live]).length, 1, "the broadcast and the re-seeded row are one event");
+  assert.equal(mergeActivity(seeded, [{ ...live, at: "2026-10-11T10:05:00Z" }]).length, 2, "a later identical action is its own entry");
+  assert.equal(mergeActivity([], Array.from({ length: 40 }, (_, i) => ({ ...live, id: `i${i}`, text: `t${i}` }))).length, 30);
+
+  assert.deepEqual(parseActivity(live), live);
+  assert.equal(parseActivity({ ...live, kind: "hack" }), null);
+  assert.equal(parseActivity({ ...live, text: "x".repeat(141) }), null);
+  assert.equal(parseActivity({ ...live, at: "yesterday" }), null);
+
+  const row = { id: "g1", name: "Asha Rao", rsvp_status: "TENTATIVE", responded_at: "2026-10-11T12:00:00Z" };
+  assert.deepEqual(activityFromAttendeeChange({ eventType: "UPDATE", new: row, old: { id: "g1" } }), { id: "rsvp:g1:2026-10-11T12:00:00Z", at: row.responded_at, actor: "Asha Rao", kind: "rsvp", text: "replied maybe" });
+  assert.equal(activityFromAttendeeChange({ eventType: "INSERT", new: row }), null);
+  assert.equal(activityFromAttendeeChange({ eventType: "UPDATE", new: { ...row, rsvp_status: "INVITED" } }), null);
+  assert.equal(activityFromAttendeeChange({ eventType: "UPDATE", new: row, old: { rsvp_status: "TENTATIVE" } }), null);
+
+  const now = Date.parse("2026-10-11T12:00:00Z");
+  assert.equal(relativeTime("2026-10-11T11:59:30Z", now), "just now");
+  assert.equal(relativeTime("2026-10-11T11:56:00Z", now), "4m ago");
+  assert.equal(relativeTime("2026-10-11T09:00:00Z", now), "3h ago");
+  assert.equal(relativeTime("2026-10-09T09:00:00Z", now), "9 Oct");
+});

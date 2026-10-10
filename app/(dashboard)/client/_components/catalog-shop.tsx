@@ -11,6 +11,7 @@ import { CATEGORIES, CATEGORY_LABEL, parseRecipientLines, priceOrder, SHIPS, uni
 import { ORDER_STAGE_LABEL, isOrderStatus } from "@/lib/catalog/orders";
 import { STAGE_LABEL, type ReconciliationStage } from "@/lib/marketplace/settlement";
 import { PayDepositButton } from "./pay-deposit-button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { cn, formatINR } from "@/lib/utils";
 
 /**
@@ -169,7 +170,7 @@ export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, 
       <section className="panel overflow-hidden" aria-label="Your orders">
         <h3 className="label-mono border-line border-b px-5 py-3">Orders</h3>
         {list.length === 0 ? (
-          <p className="text-fg-subtle px-5 py-6 text-[13px]">No catalogue orders yet.</p>
+          <EmptyState compact className="m-4" icon={ShoppingBag} title="No catalogue orders yet" description={canOrder ? "Order gifts, tickets, merch or team activities above, or ask the agent to pick one." : "Orders placed by your team's Organizers appear here."} />
         ) : (
           <ul className="divide-line divide-y">
             {list.map((o) => (

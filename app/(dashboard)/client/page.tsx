@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardCheck, Download, Eye, Users } from "lucide-react";
+import { ClipboardCheck, Download, Eye, Receipt, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
 import { RateCardPill } from "@/components/portal/pills";
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
+import { getAgent } from "@/lib/agents/store";
+import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
@@ -50,6 +53,7 @@ import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
 import { CatalogShop } from "./_components/catalog-shop";
+import { DiscoveryPanel } from "./_components/discovery-panel";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
@@ -97,6 +101,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     countEventAttendees(bookings.map((b) => b.id)),
   ]);
   const itc = computeItcSummary(bookings);
+  // The concierge (/api/chat) needs a model and the workspace agent switched on.
+  const concierge = !getLanguageModel()
+    ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
+    : getAgent("workspace-agent")?.enabled === false
+      ? { ready: false, reason: "The concierge is switched off on the Agents page." }
+      : { ready: true, reason: undefined };
   const canPay = paymentsEnabled();
 
   // The signed-in employee and their corporate role. Admins have none here: they
@@ -354,6 +364,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
           {canRequest ? (
             <div className="mb-10 space-y-10">
+              <DiscoveryPanel offline={!concierge.ready} reason={concierge.reason} />
               {live ? (
                 <section aria-label="Plan an event">
                   <RfpBroadcastForm />
@@ -376,7 +387,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               </CardHeader>
               <CardContent>
                 {exports.length === 0 ? (
-                  <p className="text-fg-subtle text-[13px]">No receipts yet. They appear once a venue confirms a booking.</p>
+                  <EmptyState compact icon={Receipt} title="No receipts yet" description="A structured receipt goes to your finance system when a venue confirms a booking; it'll be listed here." />
                 ) : (
                   <Table>
                     <TableHeader>

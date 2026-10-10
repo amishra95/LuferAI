@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import { Loader2, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Trash2, UserPlus, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -35,7 +36,7 @@ const STATUS_TONE: Record<RsvpStatus, string> = {
 export function GuestList({ bookingId, guests, readOnly }: { bookingId: string; guests: GuestRow[]; readOnly: boolean }) {
   const { value: rows, mutate } = useOptimisticMutation(guests);
   const add = useAction<AddedGuests>();
-  const { announceChange } = useRoom();
+  const { record } = useRoom();
   const paste = useRef<HTMLTextAreaElement>(null);
 
   async function addGuests() {
@@ -50,13 +51,13 @@ export function GuestList({ bookingId, guests, readOnly }: { bookingId: string; 
     });
     if (outcome?.ok) {
       if (paste.current) paste.current.value = "";
-      announceChange();
+      if (outcome.result.added) record("guests", outcome.result.added === 1 ? "added a guest" : `added ${outcome.result.added} guests`);
     }
   }
 
   async function remove(g: GuestRow) {
     const outcome = await mutate({ apply: (list) => list.filter((x) => x.id !== g.id), action: () => removeGuestAction(bookingId, g.id), failure: `Couldn't remove ${g.name}` });
-    if (outcome.ok) announceChange();
+    if (outcome.ok) record("guests", `removed ${g.name}`);
   }
 
   async function setStatus(g: GuestRow, status: RsvpStatus) {
@@ -65,7 +66,7 @@ export function GuestList({ bookingId, guests, readOnly }: { bookingId: string; 
       action: () => setGuestStatusAction(bookingId, g.id, status),
       failure: `Couldn't update ${g.name}`,
     });
-    if (outcome.ok) announceChange();
+    if (outcome.ok) record("rsvp", `marked ${g.name} as ${RSVP_LABEL[status].toLowerCase()}`);
   }
 
   return (
@@ -90,7 +91,7 @@ export function GuestList({ bookingId, guests, readOnly }: { bookingId: string; 
       ) : null}
 
       {rows.length === 0 ? (
-        <p className="text-fg-subtle border-line rounded-md border border-dashed px-3 py-6 text-center text-[13px]">No guests yet.{readOnly ? "" : " Paste a list above to start sending RSVP links."}</p>
+        <EmptyState compact icon={Users} title="No guests yet" description={readOnly ? "The organisers haven't added anyone." : "Paste names and emails above. Each guest gets a personal RSVP link, and replies show up here live."} />
       ) : (
         <Table>
           <TableHeader>

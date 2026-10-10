@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, Truck } from "lucide-react";
+import { Inbox, Loader2, Package, Plus, Truck } from "lucide-react";
 
 import { fulfilOrderAction, saveCatalogItemAction, setCatalogItemStatusAction, setCatalogItemStockAction, setPartnerGstinAction } from "../catalog-actions";
 import { useAction, useOptimisticMutation } from "@/components/workspace/use-optimistic-mutation";
 import { CATEGORIES, CATEGORY_LABEL, SHIPS, unitNoun, validateItemInput, type Category } from "@/lib/catalog/items";
-import { isOrderStatus, ORDER_STAGE_LABEL, supplierActions, validateTracking, type OrderStatus } from "@/lib/catalog/orders";
+import { fulfilLane, isOrderStatus, laneMove, ORDER_STAGE_LABEL, supplierActions, validateTracking, type FulfilLane, type OrderStatus } from "@/lib/catalog/orders";
+import { EmptyState } from "@/components/portal/empty-state";
 import { STAGE_LABEL, type ReconciliationStage } from "@/lib/marketplace/settlement";
 import type { CatalogItem } from "@/lib/supabase/database.types";
 import { cn, formatINR } from "@/lib/utils";
@@ -52,7 +53,13 @@ export function PartnerCatalog({
 
       <section className="panel overflow-hidden" aria-label="Catalogue items">
         {list.length === 0 ? (
-          <p className="text-fg-subtle px-5 py-6 text-[13px]">No catalogue items yet. Companies can order gifting, tickets, merch, team building and dining packages you list here.</p>
+          <EmptyState
+            compact
+            className="m-4"
+            icon={Package}
+            title="No catalogue items yet"
+            description="List gifting, tickets, merch, team building or dining packages, each with its HSN/SAC code and GST rate, and companies can order them directly."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] text-[12.5px]">
@@ -356,34 +363,31 @@ export interface FulfilOrder {
   settlement?: { stage: ReconciliationStage; net: number | null; issues: string[] };
 }
 
-type Lane = "confirm" | "ship" | "deliver" | "done" | "cancelled";
-const LANES: { key: Lane; title: string; empty: string }[] = [
-  { key: "confirm", title: "Needs your confirmation", empty: "Nothing new." },
+const LANES: { key: FulfilLane; title: string; empty: string }[] = [
+  { key: "confirm", title: "To confirm", empty: "Nothing new." },
   { key: "ship", title: "To ship", empty: "Nothing to ship." },
   { key: "deliver", title: "To deliver", empty: "Nothing in progress." },
   { key: "done", title: "Delivered", empty: "Nothing delivered yet." },
-  { key: "cancelled", title: "Cancelled", empty: "" },
 ];
 
-/** Which lane of the queue an order sits in. */
-function laneOf(o: FulfilOrder): Lane {
-  if (o.status === "PLACED") return "confirm";
-  if (o.status === "CONFIRMED") return SHIPS[o.category as Category] ? "ship" : "deliver";
-  if (o.status === "SHIPPED") return "deliver";
-  if (o.status === "CANCELLED") return "cancelled";
-  return "done";
-}
+const laneOf = (o: FulfilOrder) => fulfilLane(o.category as Category, o.status);
 const dueOf = (o: FulfilOrder) => o.event_date ?? o.needed_by ?? "9999-12-31";
+const DRAG_TYPE = "application/x-lufer-order";
 
 const ACTION_LABEL: Partial<Record<OrderStatus, string>> = { CONFIRMED: "Confirm", SHIPPED: "Mark shipped", DELIVERED: "Mark delivered", CANCELLED: "Decline" };
 
 /**
- * The fulfilment queue: orders by what the supplier has to do next, soonest
- * due first, overdue ones flagged. Each shows whether the buyer has paid and
- * what the supplier will receive (Razorpay Route, held until delivery).
+ * The fulfilment board: a column per next step, soonest due first, overdue
+ * flagged. Drag a card to the next column (only allowed moves light up; shipping
+ * asks for tracking first) or use its buttons, which also work by keyboard and
+ * touch. Each card shows whether the buyer has paid and what the supplier will
+ * receive (Razorpay Route, held until delivery).
  */
 export function PartnerOrders({ partnerId, orders, canFulfil, today }: { partnerId: string | null; orders: FulfilOrder[]; canFulfil: boolean; today: string }) {
   const { value: list, mutate } = useOptimisticMutation(orders);
+  const [dragging, setDragging] = useState<FulfilOrder | null>(null);
+  const [over, setOver] = useState<FulfilLane | null>(null);
+  const [shippingId, setShippingId] = useState<string | null>(null);
 
   const move = (o: FulfilOrder, next: OrderStatus, tracking?: FulfilOrder["tracking"]) =>
     mutate({
@@ -393,42 +397,153 @@ export function PartnerOrders({ partnerId, orders, canFulfil, today }: { partner
       success: () => ({ tone: "success", title: `${o.item_name}: ${ORDER_STAGE_LABEL[next].toLowerCase()}` }),
     });
 
-  if (list.length === 0) return <div className="panel text-fg-subtle px-5 py-6 text-[13px]">No orders yet.</div>;
+  const target = (lane: FulfilLane) => (dragging ? laneMove(dragging.category as Category, dragging.status, lane) : null);
+  const drop = (lane: FulfilLane) => {
+    const o = dragging;
+    const next = target(lane);
+    setDragging(null);
+    setOver(null);
+    if (!o || !next) return;
+    if (next === "SHIPPED") setShippingId(o.id);
+    else void move(o, next);
+  };
+
+  if (list.length === 0) {
+    return <EmptyState icon={Inbox} title="No orders yet" description="When a company orders from your catalogue, it lands in To confirm. Confirm it to take their payment." />;
+  }
+  const cancelled = list.filter((o) => laneOf(o) === "cancelled");
   return (
-    <div className="space-y-6">
-      {LANES.map((lane) => {
-        const inLane = list.filter((o) => laneOf(o) === lane.key).sort((a, b) => dueOf(a).localeCompare(dueOf(b)));
-        if (lane.key === "cancelled" && inLane.length === 0) return null;
-        const overdue = lane.key !== "done" && lane.key !== "cancelled" ? inLane.filter((o) => dueOf(o) < today).length : 0;
-        return (
-          <section key={lane.key} aria-label={lane.title}>
-            <h3 className="label-mono mb-2 flex items-center gap-2">
-              {lane.title} <span className="text-fg-faint tabular-nums">{inLane.length}</span>
-              {overdue ? <span className="text-rose normal-case">· {overdue} overdue</span> : null}
-            </h3>
-            {inLane.length === 0 ? (
-              <p className="text-fg-faint px-1 text-[12.5px]">{lane.empty}</p>
-            ) : (
-              <ul className="space-y-3">
-                {inLane.map((o) => (
-                  <OrderCard key={o.id} order={o} overdue={lane.key !== "done" && lane.key !== "cancelled" && dueOf(o) < today} canFulfil={canFulfil} onMove={(next, tracking) => void move(o, next, tracking)} />
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
+    <div className="space-y-4">
+      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2" role="list" aria-label="Fulfilment board">
+        {LANES.map((lane) => {
+          const inLane = list.filter((o) => laneOf(o) === lane.key).sort((a, b) => dueOf(a).localeCompare(dueOf(b)));
+          const overdue = lane.key !== "done" ? inLane.filter((o) => dueOf(o) < today).length : 0;
+          const droppable = target(lane.key) !== null;
+          return (
+            <section
+              key={lane.key}
+              role="listitem"
+              aria-label={`${lane.title}: ${inLane.length}`}
+              onDragOver={(e) => {
+                if (!droppable) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (over !== lane.key) setOver(lane.key);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver((v) => (v === lane.key ? null : v));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                drop(lane.key);
+              }}
+              className={cn(
+                "bg-surface/40 border-line flex w-[18rem] shrink-0 snap-start flex-col rounded-lg border p-2 transition-colors lg:w-auto lg:min-w-0 lg:flex-1",
+                dragging && droppable && "border-line-strong border-dashed",
+                over === lane.key && droppable && "bg-surface-hover border-fg-subtle",
+                dragging && !droppable && laneOf(dragging) !== lane.key && "opacity-50"
+              )}
+            >
+              <h3 className="label-mono flex items-center gap-2 px-1.5 pt-1 pb-2">
+                {lane.title} <span className="text-fg-faint tabular-nums">{inLane.length}</span>
+                {overdue ? <span className="text-rose ml-auto normal-case">{overdue} overdue</span> : null}
+              </h3>
+              {inLane.length === 0 ? (
+                <p className="text-fg-faint border-line rounded-md border border-dashed px-3 py-6 text-center text-[12px]">{lane.empty}</p>
+              ) : (
+                <ul className="grid gap-2">
+                  {inLane.map((o) => (
+                    <OrderCard
+                      key={o.id}
+                      order={o}
+                      overdue={lane.key !== "done" && dueOf(o) < today}
+                      canFulfil={canFulfil}
+                      shipping={shippingId === o.id}
+                      onShipping={(open) => setShippingId(open ? o.id : null)}
+                      onDragStart={() => setDragging(o)}
+                      onDragEnd={() => {
+                        setDragging(null);
+                        setOver(null);
+                      }}
+                      onMove={(next, tracking) => void move(o, next, tracking)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+      {cancelled.length > 0 && (
+        <details className="panel px-4 py-3">
+          <summary className="label-mono cursor-pointer">Cancelled · {cancelled.length}</summary>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {cancelled.map((o) => (
+              <OrderCard key={o.id} order={o} overdue={false} canFulfil={false} shipping={false} onShipping={() => {}} onMove={() => {}} />
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
 
-function OrderCard({ order: o, overdue, canFulfil, onMove }: { order: FulfilOrder; overdue: boolean; canFulfil: boolean; onMove: (next: OrderStatus, tracking?: FulfilOrder["tracking"]) => void }) {
-  const [shipping, setShipping] = useState(false);
+/** Items running low (tracked stock under the minimum order or 5), with restock right here. */
+export function LowStock({ partnerId, items, canEdit }: { partnerId: string | null; items: CatalogItem[]; canEdit: boolean }) {
+  const low = items.filter((i) => i.status === "active" && i.stock_quantity !== null && i.stock_quantity < Math.max(i.min_quantity, 5)).sort((a, b) => (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0));
+  if (low.length === 0) return null;
+  return (
+    <section role="status" aria-label="Low stock" className="border-warn/30 bg-warn/[0.04] mb-4 rounded-lg border px-4 py-3">
+      <h3 className="label-mono text-warn mb-2">Low stock · {low.length}</h3>
+      <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        {low.map((i) => (
+          <li key={i.id} className="flex items-center gap-2 text-[12.5px]">
+            <span className="text-fg min-w-0 flex-1 truncate">{i.name}</span>
+            <span className="text-fg-faint font-mono text-[11px]">min {i.min_quantity}</span>
+            <StockCell partnerId={partnerId} item={i} canEdit={canEdit} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function OrderCard({
+  order: o,
+  overdue,
+  canFulfil,
+  shipping,
+  onShipping,
+  onDragStart,
+  onDragEnd,
+  onMove,
+}: {
+  order: FulfilOrder;
+  overdue: boolean;
+  canFulfil: boolean;
+  /** The tracking form is open (from the Ship button or a drop on To deliver). */
+  shipping: boolean;
+  onShipping: (open: boolean) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onMove: (next: OrderStatus, tracking?: FulfilOrder["tracking"]) => void;
+}) {
+  const setShipping = onShipping;
   const [error, setError] = useState<string | null>(null);
   const status = isOrderStatus(o.status) ? o.status : null;
   const actions = status && canFulfil ? supplierActions(o.category as Category, status) : [];
+  const draggable = actions.length > 0 && !shipping && Boolean(onDragStart);
   return (
-    <li className="panel px-5 py-3.5">
+    <li
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_TYPE, o.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.();
+      }}
+      onDragEnd={onDragEnd}
+      className={cn("panel animate-in fade-in px-3.5 py-3 duration-200", draggable && "cursor-grab active:cursor-grabbing", overdue && "border-rose/30")}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
         <span className="text-fg font-medium">{o.company_name.replace(/ Private Limited$/, "")}</span>
         <span className="text-fg-muted">
@@ -492,7 +607,7 @@ function OrderCard({ order: o, overdue, canFulfil, onMove }: { order: FulfilOrde
             setShipping(false);
             onMove("SHIPPED", t.value);
           }}
-          className="mt-2.5 grid gap-2 text-[12px] sm:grid-cols-[1fr_1fr_2fr_auto]"
+          className="mt-2.5 grid gap-2 text-[12px]"
         >
           <input name="carrier" required placeholder="Carrier" aria-label="Carrier" className="field h-8" />
           <input name="reference" required placeholder="Tracking number" aria-label="Tracking number" className="field h-8 font-mono" />
@@ -506,7 +621,7 @@ function OrderCard({ order: o, overdue, canFulfil, onMove }: { order: FulfilOrde
             </button>
           </div>
           {error && (
-            <p role="alert" className="text-rose sm:col-span-4">
+            <p role="alert" className="text-rose">
               {error}
             </p>
           )}

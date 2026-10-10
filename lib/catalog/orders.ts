@@ -143,3 +143,29 @@ export function chooseItems<I extends CatalogItemLike>(items: I[], req: ItemRequ
   });
   return { choices, excluded };
 }
+
+// ----------------------------------------------------------------------------
+// The partner's fulfilment board
+// ----------------------------------------------------------------------------
+
+export const FULFIL_LANES = ["confirm", "ship", "deliver", "done", "cancelled"] as const;
+export type FulfilLane = (typeof FULFIL_LANES)[number];
+
+/** Which column of the board an order sits in: what the supplier does next. */
+export function fulfilLane(category: Category, status: string): FulfilLane {
+  if (status === "PLACED") return "confirm";
+  if (status === "CONFIRMED") return SHIPS[category] ? "ship" : "deliver";
+  if (status === "SHIPPED") return "deliver";
+  if (status === "CANCELLED") return "cancelled";
+  return "done";
+}
+
+/**
+ * The status that moves an order into `lane`, if the supplier may make that
+ * move (drag and drop on the board). Shipping (goods into "deliver") still
+ * needs tracking details, so the board asks for them before moving.
+ */
+export function laneMove(category: Category, status: string, lane: FulfilLane): OrderStatus | null {
+  if (!isOrderStatus(status)) return null;
+  return supplierActions(category, status).find((next) => fulfilLane(category, next) === lane) ?? null;
+}

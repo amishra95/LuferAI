@@ -184,3 +184,28 @@ export function validateNewPo(input: NewPoInput, existingNumbers: readonly strin
   const description = input.description?.trim().slice(0, 200) || null;
   return { ok: true, value: { po_number, amount_inr: round(input.amount_inr), valid_from: input.valid_from, valid_to: input.valid_to, department_id: input.department_id || null, description } };
 }
+
+/** How close a PO is to its limit, for meters and warnings. */
+export type BudgetTone = "ok" | "watch" | "critical" | "over";
+
+export const WATCH_PCT = 75;
+export const CRITICAL_PCT = 90;
+
+export function budgetTone(balance: Pick<PoBalance, "usedPct" | "overrun">): BudgetTone {
+  if (balance.overrun || balance.usedPct > 100) return "over";
+  if (balance.usedPct >= CRITICAL_PCT) return "critical";
+  if (balance.usedPct >= WATCH_PCT) return "watch";
+  return "ok";
+}
+
+/**
+ * Meter segments as percentages of the PO (consumed, then committed), capped so
+ * an overrun fills the bar instead of overflowing it.
+ */
+export function meterSegments(balance: Pick<PoBalance, "amount" | "consumed" | "committed">): { consumed: number; committed: number } {
+  const total = Math.max(balance.amount, 1);
+  const consumed = Math.min(100, (balance.consumed / total) * 100);
+  const committed = Math.min(100 - consumed, (balance.committed / total) * 100);
+  const round = (n: number) => Math.round(Math.max(0, n) * 100) / 100;
+  return { consumed: round(consumed), committed: round(committed) };
+}
