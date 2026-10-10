@@ -9,6 +9,7 @@ import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ToastProvider } from "@/components/dashboard/toast";
 import { InspectorSidebar } from "@/components/workspace/inspector-sidebar";
+import { LiveRefresh } from "@/components/workspace/live-refresh";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import type { PortalRole } from "@/lib/supabase/database.types";
 import type { SystemMode } from "@/types/navigation";
@@ -79,6 +80,7 @@ export function DashboardShell({
 
           {/* Entity inspector: docked beside the page on wide screens, an overlay below lg. */}
           <InspectorSidebar />
+          <LiveRefresh />
         </div>
         <CommandPalette
           open={paletteOpen}

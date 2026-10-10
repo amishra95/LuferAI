@@ -2,6 +2,7 @@ import "server-only";
 
 import { generateText, isStepCount, tool, type ModelMessage } from "ai";
 
+import { instructionsSuffix } from "@/lib/agents/config";
 import { getAgent, recordRun } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
 import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
@@ -247,7 +248,8 @@ async function runModel(
       "Use earlier messages in this conversation to fill in details; ask only for what is still missing. " +
       "Use searchVenues to find options and createBooking to file a request. Only internal (Lufer.ai) venues can be booked; partner venues are booked through their supplier, so say so. " +
       "Never invent venues, prices or booking references. Amounts are INR. " +
-      "Reply in under 80 words, plain text, *bold* for venue names, no markdown headings or tables.",
+      "Reply in under 80 words, plain text, *bold* for venue names, no markdown headings or tables." +
+      instructionsSuffix(agent.instructions),
     messages: [...history, { role: "user", content: msg.text }],
     tools,
     stopWhen: isStepCount(agent.maxSteps),

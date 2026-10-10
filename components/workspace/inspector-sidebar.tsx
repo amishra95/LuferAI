@@ -2,18 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Check, Copy, Loader2, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, Copy, Loader2, Play, RefreshCw, RotateCw, X } from "lucide-react";
 
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
-import { AgentStatusBadge } from "@/components/agents/agent-row";
+import { runAgentTest } from "@/app/(dashboard)/agents/actions";
+import { AgentStatusBadge, displayStatus, TestResult } from "@/components/agents/agent-row";
+import { useAgentMutations } from "@/components/agents/use-agent-mutations";
+import { Switch } from "@/components/dashboard/switch";
+import { useVenueSync } from "@/components/venues/use-venue-sync";
+import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { InspectButton } from "@/components/workspace/inspect";
 import { useTelemetry, useWorkspace } from "@/components/workspace/workspace-provider";
 import type { TelemetryEvent } from "@/lib/telemetry/events";
 import { formatMs } from "@/lib/telemetry/format";
 import { latestVenueSync, liveTrace, refreshSeqFor, type LiveTrace, type StreamStatus } from "@/lib/telemetry/stream-state";
+import { isConfiguredAgent, isPromptable } from "@/lib/agents/config";
 import { cn, formatINR } from "@/lib/utils";
 import type { EntityKind, EntityRef } from "@/lib/workspace/state";
+import type { AgentRecord, AgentStatus, AgentTestResult } from "@/types/agents";
 import type { AgentDetail, InspectedEntity, RunDetail, TraceDetail, VenueDetail } from "@/types/workspace";
+
 
 /**
  * Global entity inspector: a right-hand panel the dashboard shell renders on
@@ -285,21 +293,13 @@ function AgentBody({ entity }: { entity: AgentDetail }) {
   const { config } = entity;
   return (
     <>
-      <Title aside={entity.status && <AgentStatusBadge status={entity.status} />}>
-        <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{config?.name ?? entity.id}</p>
-        <p className="text-fg-subtle mt-0.5 text-[12.5px]">{config?.description ?? "Single-purpose AI route. No settings; runs only."}</p>
-      </Title>
-      {config && (
-        <Section title="Config">
-          <Fields
-            rows={[
-              ["enabled", config.enabled ? "yes" : "no"],
-              ["tools", config.tools.join(", ")],
-              ["temperature", config.temperature ?? "auto"],
-              ["max steps", config.maxSteps],
-            ]}
-          />
-        </Section>
+      {config && entity.status ? (
+        <AgentControls config={config} serverStatus={entity.status} />
+      ) : (
+        <Title>
+          <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{entity.id}</p>
+          <p className="text-fg-subtle mt-0.5 text-[12.5px]">Single-purpose AI route. No settings; runs only.</p>
+        </Title>
       )}
       <Section title="Activity">
         <Fields
@@ -314,6 +314,88 @@ function AgentBody({ entity }: { entity: AgentDetail }) {
         <RunList runs={entity.recentRuns} />
       </Section>
     </>
+  );
+}
+
+/**
+ * A configured agent: enable/disable and test dispatch, shown optimistically
+ * (useAgentMutations); the same mutations as the /agents table.
+ */
+function AgentControls({ config, serverStatus }: { config: AgentRecord; serverStatus: AgentStatus }) {
+  const { agent, setEnabled, saving, runTest, testing } = useAgentMutations(config);
+  const [test, setTest] = useState<AgentTestResult | null>(null);
+  return (
+    <>
+      <Title aside={<AgentStatusBadge status={displayStatus(agent, serverStatus)} />}>
+        <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{agent.name}</p>
+        <p className="text-fg-subtle mt-0.5 text-[12.5px]">{agent.description}</p>
+      </Title>
+      <Section title="Actions">
+        <div className="flex items-center gap-2">
+          <Switch on={agent.enabled} label={`${agent.enabled ? "Disable" : "Enable"} ${agent.name}`} pending={saving} onToggle={() => void setEnabled(!agent.enabled)} />
+          <span className="text-fg-muted text-[12.5px]">{agent.enabled ? "Enabled" : "Disabled"}</span>
+          <button
+            type="button"
+            onClick={async () => {
+              const outcome = await runTest();
+              if (outcome?.ok) setTest(outcome.result);
+            }}
+            disabled={testing || !agent.enabled}
+            title={agent.enabled ? "Run each assigned tool once with a sample input" : "Enable the agent to run a test"}
+            className="btn ml-auto h-7 px-2.5 text-[12px]"
+          >
+            {testing ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Play className="size-3" aria-hidden />}
+            Run test
+          </button>
+        </div>
+        {test && (
+          <div className="mt-3" aria-live="polite">
+            <TestResult result={test} onDismiss={() => setTest(null)} />
+          </div>
+        )}
+      </Section>
+      <Section title="Config">
+        <Fields
+          rows={[
+            ["tools", agent.tools.join(", ")],
+            ["temperature", agent.temperature ?? "auto"],
+            ["max steps", agent.maxSteps],
+            ...(isPromptable(agent.id) ? ([["instructions", agent.instructions || null]] as [string, React.ReactNode][]) : []),
+          ]}
+        />
+      </Section>
+    </>
+  );
+}
+
+function VenueSyncButton() {
+  const { sync, syncing } = useVenueSync();
+  return (
+    <button type="button" onClick={() => void sync()} disabled={syncing} className="btn h-7 px-2.5 text-[12px]">
+      {syncing ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <RefreshCw className="size-3" aria-hidden />}
+      Sync directory
+    </button>
+  );
+}
+
+/** Test runs can be dispatched again; other runs came from a conversation and can't be replayed. */
+function RetryTest({ agentId }: { agentId: string }) {
+  const { run, pending } = useAction<AgentTestResult>();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        void run(() => runAgentTest(agentId), {
+          failure: "Couldn't retry the test",
+          success: (r) => (r.ok ? { tone: "success", title: "Retry passed" } : { tone: "error", title: "Retry failed", description: r.tools.filter((t) => !t.ok).map((t) => `${t.name}: ${t.summary}`).join("; ") }),
+        })
+      }
+      className="btn h-7 px-2.5 text-[12px]"
+    >
+      {pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <RotateCw className="size-3" aria-hidden />}
+      Retry test
+    </button>
   );
 }
 
@@ -344,17 +426,20 @@ function VenueBody({ entity: { venue }, sync }: { entity: VenueDetail; sync: Ext
           ]}
         />
       </Section>
-      {sync && (
-        <Section title="Directory sync">
-          <Fields
-            rows={[
-              ["synced", when.format(new Date(sync.at))],
-              ["venues", int(sync.total)],
-              ["partners", sync.partners.status === "ok" ? `${sync.partners.network} · ${int(sync.partners.count)}` : `${sync.partners.network} unavailable`],
-            ]}
-          />
-        </Section>
-      )}
+      <Section title="Directory sync">
+        {sync && (
+          <div className="mb-3">
+            <Fields
+              rows={[
+                ["synced", when.format(new Date(sync.at))],
+                ["venues", int(sync.total)],
+                ["partners", sync.partners.status === "ok" ? `${sync.partners.network} · ${int(sync.partners.count)}` : `${sync.partners.network} unavailable`],
+              ]}
+            />
+          </div>
+        )}
+        <VenueSyncButton />
+      </Section>
     </>
   );
 }
@@ -442,6 +527,11 @@ function RunBody({ run }: { run: RunDetail }) {
       {run.error && (
         <Section title="Error">
           <p className="text-rose font-mono text-[12px] break-words">{run.error}</p>
+        </Section>
+      )}
+      {run.source === "test" && isConfiguredAgent(run.agent) && (
+        <Section title="Actions">
+          <RetryTest agentId={run.agent} />
         </Section>
       )}
       <Section title="Run">

@@ -13,6 +13,8 @@ export type AgentConfig = {
   /** null = the model's default. */
   temperature: number | null;
   maxSteps: number;
+  /** Operator instructions appended to the system prompt ("" = none; promptable agents only). */
+  instructions: string;
 };
 
 export type AgentRun = {

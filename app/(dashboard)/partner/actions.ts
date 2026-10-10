@@ -20,6 +20,8 @@ import {
 } from "@/lib/partner/service";
 import { fieldErrorsOf, listingSchema, rateCardSchema } from "@/lib/partner/validation";
 import { siteUrl } from "@/lib/site-url";
+import { publishVenueUpdated } from "@/lib/telemetry/live";
+import type { VenueChange } from "@/lib/telemetry/events";
 
 export interface PartnerFormState {
   status: "idle" | "success" | "error";
@@ -78,6 +80,12 @@ const uuid = (value: string) => {
 // Listings
 // ----------------------------------------------------------------------------
 
+/** Listings appear in the venue directory as `extranet:<id>`: refresh it and tell live views. */
+async function listingChanged(listingId: string, change: VenueChange) {
+  revalidatePath("/venues");
+  await publishVenueUpdated(`extranet:${listingId}`, change);
+}
+
 /** Create (no id) or edit a listing. Owners and Managers. */
 export async function saveListingAction(_prev: PartnerFormState, form: FormData): Promise<PartnerFormState> {
   return run(form, "listing.edit", async ({ member, partnerId }) => {
@@ -94,6 +102,7 @@ export async function saveListingAction(_prev: PartnerFormState, form: FormData)
     const id = str(form, "id");
     const listing = id ? await updateListing(partnerId, uuid(id), input) : await createListing(partnerId, input);
     await recordAudit({ partnerId, actorId: member.userId, action: id ? "listing.updated" : "listing.created", entity: "listing", entityId: listing.id, detail: { ref: listing.ref, name: listing.name } });
+    await listingChanged(listing.id, "saved");
     return id ? `Saved ${listing.name}.` : `Added ${listing.name}.`;
   });
 }
@@ -105,6 +114,7 @@ export async function setListingStatusAction(_prev: PartnerFormState, form: Form
     if (status !== "active" && status !== "paused") throw new PartnerError("Invalid status.");
     const listing = await setListingStatus(partnerId, uuid(str(form, "id")), status);
     await recordAudit({ partnerId, actorId: member.userId, action: status === "paused" ? "listing.paused" : "listing.resumed", entity: "listing", entityId: listing.id, detail: { name: listing.name } });
+    await listingChanged(listing.id, status === "paused" ? "unpublished" : "published");
     return status === "paused" ? `${listing.name} is paused and hidden from search.` : `${listing.name} is live again.`;
   });
 }
@@ -113,6 +123,7 @@ export async function deleteListingAction(_prev: PartnerFormState, form: FormDat
   return run(form, "listing.edit", async ({ member, partnerId }) => {
     const listing = await deleteListing(partnerId, uuid(str(form, "id")));
     await recordAudit({ partnerId, actorId: member.userId, action: "listing.deleted", entity: "listing", entityId: listing.id, detail: { ref: listing.ref, name: listing.name } });
+    await listingChanged(listing.id, "deleted");
     return `Deleted ${listing.name} and its rate cards.`;
   });
 }

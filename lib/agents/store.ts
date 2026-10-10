@@ -1,7 +1,14 @@
 import "server-only";
 
+import type { AGENT_IDS, AgentToolName } from "@/lib/agents/config";
 import { agentRunStats, logAgentRun, type NewRun } from "@/lib/telemetry/runs";
 import type { AgentConfig, AgentId, AgentRecord, AgentStatus } from "@/types/agents";
+import type { ChatToolName } from "@/types/chat";
+
+// lib/agents/config.ts lists the tools without importing app types; keep the two lists identical.
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+const listsMatch: [Same<AgentToolName, ChatToolName>, Same<(typeof AGENT_IDS)[number], AgentId>] = [true, true];
+void listsMatch;
 
 /**
  * Agent configs, held in server memory on globalThis (same approach as
@@ -18,6 +25,7 @@ const DEFAULTS: AgentConfig[] = [
     tools: ["searchVenues", "getPlatformMetrics", "analyzeSpend", "forecastBudget"],
     temperature: null,
     maxSteps: 5,
+    instructions: "",
   },
   {
     id: "channel-concierge",
@@ -27,6 +35,7 @@ const DEFAULTS: AgentConfig[] = [
     tools: ["searchVenues"],
     temperature: 0.2,
     maxSteps: 4,
+    instructions: "",
   },
   {
     id: "venue-sourcer",
@@ -36,6 +45,7 @@ const DEFAULTS: AgentConfig[] = [
     tools: ["searchVenues"],
     temperature: 0.2,
     maxSteps: 3,
+    instructions: "",
   },
   {
     id: "metrics-reporter",
@@ -45,6 +55,7 @@ const DEFAULTS: AgentConfig[] = [
     tools: ["getPlatformMetrics", "analyzeSpend", "forecastBudget"],
     temperature: 0,
     maxSteps: 2,
+    instructions: "",
   },
 ];
 
@@ -54,7 +65,11 @@ const ACTIVE_WINDOW_MS = 10 * 60_000;
 const g = globalThis as typeof globalThis & { __luferAgents?: Map<AgentId, AgentRecord> };
 const agents = (g.__luferAgents ??= new Map());
 // Backfill defaults (also covers agents added since this process started).
-for (const a of DEFAULTS) if (!agents.has(a.id)) agents.set(a.id, { ...a, lastRun: null, runCount: 0 });
+for (const a of DEFAULTS) {
+  if (!agents.has(a.id)) agents.set(a.id, { ...a, lastRun: null, runCount: 0 });
+  // Records kept from before a field existed (`next dev` reloads).
+  else agents.get(a.id)!.instructions ??= "";
+}
 
 export function listAgents(): AgentRecord[] {
   return [...agents.values()].map((a) => ({ ...a, tools: [...a.tools] }));
