@@ -7,7 +7,8 @@ import { PendingApprovalPill, RateCardPill } from "@/components/portal/pills";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { GstTypeBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
-import { approvalItemisation, approvalQueue, type ApprovalItemisation } from "@/lib/approvals/service";
+import { approvalItemisation, approvalQueue, orderItemisation, type ApprovalItemisation, type OrderItemisation } from "@/lib/approvals/service";
+import { CATEGORY_LABEL, unitNoun, type Category } from "@/lib/catalog/items";
 import { requirePortal } from "@/lib/auth/session";
 import { listCompanies } from "@/lib/data";
 import { roundInr } from "@/lib/gst-engine";
@@ -45,7 +46,8 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
 
   const queue = await approvalQueue(member, company.id);
   const selected = typeof id === "string" ? queue.find((a) => a.id === id) ?? null : null;
-  const detail = selected ? await approvalItemisation(selected, company.id) : null;
+  const detail = selected?.subject === "booking" ? await approvalItemisation(selected, company.id) : null;
+  const orderDetail = selected?.subject === "order" ? await orderItemisation(selected, company.id) : null;
   const companyQs = member.role === "ADMIN" ? `company=${company.id}` : "";
   const hrefFor = (approvalId: string) => `/client/approvals?${[`id=${approvalId}`, companyQs].filter(Boolean).join("&")}`;
 
@@ -57,7 +59,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
     >
       <div className="grid overflow-hidden rounded-lg border border-line/60 bg-surface lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* Queue */}
-        <section aria-label="Pending approvals" className={cn("lg:border-r lg:border-line/60", detail && "max-lg:hidden")}>
+        <section aria-label="Pending approvals" className={cn("lg:border-r lg:border-line/60", (detail || orderDetail) && "max-lg:hidden")}>
           {queue.length === 0 ? (
             <div className="grid min-h-64 place-items-center p-8 text-center text-sm text-fg-subtle">
               <div className="grid justify-items-center gap-2">
@@ -81,7 +83,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
                       <div className="min-w-0">
                         <div className="truncate font-medium text-fg">{a.booking.venue_name}</div>
                         <div className="text-sm text-fg-subtle">
-                          {formatDate(a.booking.event_date)} · {a.booking.party_size} guests
+                          {formatDate(a.booking.event_date)} · {a.booking.party_size} {a.subject === "order" ? "units" : "guests"}
                         </div>
                       </div>
                       <div className="shrink-0 text-right font-medium text-fg tabular-nums">
@@ -100,8 +102,10 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
         </section>
 
         {/* Itemisation */}
-        <section aria-label="Approval detail" className={cn("min-h-64", !detail && "max-lg:hidden")}>
-          {!detail ? (
+        <section aria-label="Approval detail" className={cn("min-h-64", !detail && !orderDetail && "max-lg:hidden")}>
+          {orderDetail ? (
+            <OrderApprovalPane detail={orderDetail} backHref={`/client/approvals${companyQs ? `?${companyQs}` : ""}`} />
+          ) : !detail ? (
             <div className="grid h-full min-h-64 place-items-center p-8 text-sm text-fg-faint">
               Select a request to review its GST and policy breakdown.
             </div>
@@ -213,6 +217,81 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
         approvalId={approval.id}
         className="glass sticky bottom-[calc(4.5rem+var(--app-safe-bottom))] grid gap-3 rounded-lg p-3 md:bottom-4"
       />
+    </div>
+  );
+}
+
+/** A catalogue order awaiting sign-off: its invoice at the item's HSN/SAC rate, and the policy checks. */
+function OrderApprovalPane({ detail: { approval, order: o, invoice: inv, checks }, backHref }: { detail: OrderItemisation; backHref: string }) {
+  const rate = inv.tax.rate_percent;
+  const lines: { label: string; value: string; strong?: boolean; muted?: boolean }[] = [
+    { label: `${o.item_name} · ${o.quantity} × ${formatINR(o.unit_price_inr, true)}`, value: formatINR(inv.taxable_value, true) },
+    { label: `Taxable value · ${inv.tax.kind} ${inv.tax.code}`, value: formatINR(inv.taxable_value, true) },
+    ...(inv.gst_type === "IGST"
+      ? [{ label: `IGST ${rate}%`, value: formatINR(inv.tax_breakup.igst.amount, true) }]
+      : [
+          { label: `CGST ${rate / 2}%`, value: formatINR(inv.tax_breakup.cgst.amount, true) },
+          { label: `SGST ${rate / 2}%`, value: formatINR(inv.tax_breakup.sgst.amount, true) },
+        ]),
+    { label: "Invoice total", value: formatINR(inv.invoice_total, true), strong: true },
+    { label: "Input tax credit claimable", value: formatINR(inv.itc_eligible_amount, true), muted: true },
+  ];
+  const category = o.category as Category;
+  return (
+    <div className="grid gap-6 p-4 sm:p-6">
+      <div>
+        <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-fg-subtle hover:text-fg lg:hidden">
+          <ArrowLeft className="size-4" aria-hidden /> All requests
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-semibold text-fg">{o.item_name}</h2>
+          <PendingApprovalPill />
+          <GstTypeBadge type={inv.gst_type} />
+        </div>
+        <p className="mt-1 text-sm text-fg-subtle">
+          {CATEGORY_LABEL[category] ?? o.category} from {o.partner_name} · {o.quantity} {unitNoun(category, o.quantity)} ·{" "}
+          {o.event_date ? `event ${formatDate(o.event_date)}` : `needed by ${formatDate(o.needed_by ?? "")}`} · requested by {approval.requester_name}
+        </p>
+        {o.notes ? <p className="mt-2 text-sm text-fg-muted">“{o.notes}”</p> : null}
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-fg-muted">GST itemisation</h3>
+        <dl className="divide-y divide-line rounded-lg border border-line/60 bg-surface">
+          {lines.map((l) => (
+            <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-sm">
+              <dt className={l.muted ? "text-fg-faint" : l.strong ? "font-medium text-fg" : "text-fg-muted"}>{l.label}</dt>
+              <dd className={cn("tabular-nums", l.strong ? "font-semibold text-fg" : l.muted ? "text-fg-subtle" : "text-fg")}>{l.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-xs text-fg-faint">
+          Supplier {inv.supplier.gstin} ({inv.supplier.state_name}) → recipient {inv.recipient.gstin} · place of supply {inv.place_of_supply.state_name}
+        </p>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-fg-muted">Policy checks</h3>
+        <ul className="grid gap-2">
+          {approval.reason ? (
+            <li className="flex items-start gap-3 rounded-lg border border-rose/30 bg-rose/10 px-3 py-2.5 text-sm">
+              <CircleX className="mt-0.5 size-4 shrink-0 text-rose" aria-label="Breach" />
+              <div className="text-rose">{approval.reason}</div>
+            </li>
+          ) : null}
+          {checks.map((c) => (
+            <li key={c.rule} className={cn("flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm", c.ok ? "border-line/60 bg-surface" : "border-rose/30 bg-rose/10")}>
+              {c.ok ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-sage" aria-label="Pass" /> : <CircleX className="mt-0.5 size-4 shrink-0 text-rose" aria-label="Breach" />}
+              <div>
+                <div className={c.ok ? "text-fg" : "font-medium text-rose"}>{c.label}</div>
+                <div className="text-xs text-fg-subtle tabular-nums">{c.detail}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <ApprovalDecisionForm approvalId={approval.id} className="glass sticky bottom-[calc(4.5rem+var(--app-safe-bottom))] grid gap-3 rounded-lg p-3 md:bottom-4" />
     </div>
   );
 }

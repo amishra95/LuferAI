@@ -28,10 +28,12 @@ export function ApprovalDecisionForm({ approvalId, className }: { approvalId: st
         tone: "success",
         title: next === "APPROVED" ? "Approved" : "Rejected",
         description:
-          r.bookingStatus === "PENDING"
-            ? "Every sign-off is in: the request has gone to the venue."
+          r.bookingStatus === "PENDING" || r.bookingStatus === "PLACED"
+            ? `Every sign-off is in: the request has gone to the ${r.subject === "order" ? "supplier" : "venue"}.`
             : r.bookingStatus === "CANCELLED"
-              ? "The booking was cancelled and its date released."
+              ? r.subject === "order"
+                ? "The order was cancelled and its PO allocation released."
+                : "The booking was cancelled and its date released."
               : next === "APPROVED"
                 ? "Waiting on the next approver."
                 : undefined,

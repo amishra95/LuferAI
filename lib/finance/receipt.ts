@@ -25,9 +25,11 @@ export interface ReceiptBooking {
   invoice: TaxInvoicePayload;
 }
 
+export type ReceiptEvent = "booking.confirmed" | "order.confirmed";
+
 export interface ExpenseReceipt {
   schema: typeof RECEIPT_SCHEMA;
-  event: "booking.confirmed";
+  event: ReceiptEvent;
   issued_at: string;
   booking: { id: string; status: string; event_date: string; party_size: number; notes: string | null };
   buyer: { company_id: string; legal_name: string; registered_gstin: string; billed_gstin: string; place_of_supply: string };
@@ -49,11 +51,12 @@ export interface ExpenseReceipt {
   platform: { commission_rate: number; commission_inr: number };
 }
 
-export function buildExpenseReceipt(b: ReceiptBooking, issuedAt: string): ExpenseReceipt {
+/** `event` is "order.confirmed" for catalogue orders (the supplier is in `venue`, units in `party_size`). */
+export function buildExpenseReceipt(b: ReceiptBooking, issuedAt: string, event: ReceiptEvent = "booking.confirmed"): ExpenseReceipt {
   const inv = b.invoice;
   return {
     schema: RECEIPT_SCHEMA,
-    event: "booking.confirmed",
+    event,
     issued_at: issuedAt,
     booking: { id: b.id, status: b.status, event_date: b.event_date, party_size: b.party_size, notes: b.notes },
     buyer: {

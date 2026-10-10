@@ -1,18 +1,26 @@
 import "server-only";
 
-import { getCorporatePolicy, listBookings, listCompanies } from "@/lib/data";
+import { getCorporatePolicy, listBookings, listCatalogOrders, listCompanies } from "@/lib/data";
 import { evaluateBookingPolicy, monthToDateSpend, type BookingPolicyInput, type BookingPolicyResult, type SpendLimitInput } from "./evaluate-booking-policy";
 
 export type { BookingPolicyInput, BookingPolicyResult } from "./evaluate-booking-policy";
 
-/** The company's monthly limit and committed spend in the event's month (null without a date or a limit). */
-export async function spendLimitFor(tenantId: string, eventDate: string | undefined, excludeBookingId?: string): Promise<SpendLimitInput | null> {
+/**
+ * The company's monthly limit and committed spend in the month (null without a
+ * date or a limit). Venue bookings and catalogue orders both count; an order
+ * counts in the month of its event, or of its needed-by date for goods.
+ */
+export async function spendLimitFor(tenantId: string, eventDate: string | undefined, excludeId?: string): Promise<SpendLimitInput | null> {
   if (!eventDate) return null;
   const company = (await listCompanies()).find((c) => c.id === tenantId);
   const limit = Number(company?.monthly_spend_limit_inr ?? 0);
   if (limit <= 0) return null;
-  const bookings = await listBookings({ companyId: tenantId });
-  return { monthly_limit: limit, month_to_date: monthToDateSpend(bookings, tenantId, eventDate, excludeBookingId) };
+  const [bookings, orders] = await Promise.all([listBookings({ companyId: tenantId }), listCatalogOrders({ tenantId })]);
+  const spend = [
+    ...bookings,
+    ...orders.map((o) => ({ id: o.id, company_id: o.tenant_id, event_date: o.event_date ?? o.needed_by ?? o.created_at.slice(0, 10), status: o.status, total_amount_inr: o.total_amount_inr })),
+  ];
+  return { monthly_limit: limit, month_to_date: monthToDateSpend(spend, tenantId, eventDate, excludeId) };
 }
 
 /**

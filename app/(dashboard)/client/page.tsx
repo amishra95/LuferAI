@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
 import { requirePortal } from "@/lib/auth/session";
+import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
 import { getVenueCatalog } from "@/lib/catalog";
 import {
@@ -24,6 +25,8 @@ import {
   listApprovals,
   listBookings,
   listCompanies,
+  listCatalogItems,
+  listCatalogOrders,
   listDepartments,
   listExpenseExports,
   listPoAllocations,
@@ -31,7 +34,7 @@ import {
   listPurchaseOrders,
   type ApprovalDetail,
 } from "@/lib/data";
-import { partyStateCode, roundInr, stateName } from "@/lib/gst-engine";
+import { partyStateCode, roundInr, stateName, todayInIndia } from "@/lib/gst-engine";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { listRfps } from "@/lib/rfp/service";
@@ -42,6 +45,7 @@ import { ApprovalThread, type ThreadComment } from "./_components/approval-threa
 import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
+import { CatalogShop } from "./_components/catalog-shop";
 import { PoLedger } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
@@ -78,6 +82,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     listPoAllocations({ tenantId: company.id }),
     listDepartments({ companyIds: [company.id] }),
   ]);
+  const [catalogItems, catalogOrders] = tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : [[], []];
   const [payments, holds, rfps, queue] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
@@ -114,7 +119,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     );
   const waitingOnMe = signOffs.filter((s) => myTurn(s)).length;
 
-  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : "bookings";
+  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : "bookings";
   // Approvers manage their company's POs; admins any company's.
   const canManagePos = member.role === "ADMIN" || role === "APPROVER";
   const openPos = pos.filter((p) => p.status === "open").length;
@@ -175,6 +180,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           [
             { key: "bookings", label: "Bookings", count: 0 },
             { key: "signoffs", label: "Sign-offs", count: signOffs.length },
+            { key: "catalog", label: "Catalogue", count: 0 },
             { key: "pos", label: "Purchase orders", count: openPos },
           ] as const
         ).map((t) => (
@@ -197,15 +203,38 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         ))}
       </nav>
 
-      {activeTab === "pos" ? (
+      {activeTab === "catalog" ? (
+        <CatalogShop
+          items={catalogItems}
+          orders={catalogOrders.map((o) => ({
+            id: o.id,
+            item_name: o.item_name,
+            partner_name: o.partner_name,
+            category: o.category,
+            quantity: o.quantity,
+            total_amount_inr: o.total_amount_inr,
+            invoice_total: typeof (o.invoice as { invoice_total?: unknown } | null)?.invoice_total === "number" ? (o.invoice as { invoice_total: number }).invoice_total : null,
+            status: o.status,
+            event_date: o.event_date,
+            needed_by: o.needed_by,
+            tracking: o.tracking as { carrier?: string; reference?: string; url?: string } | null,
+            created_at: o.created_at,
+          }))}
+          canOrder={canRequest}
+          canSync={member.role === "ADMIN" || role === "APPROVER"}
+          today={todayInIndia()}
+        />
+      ) : activeTab === "pos" ? (
         <PoLedger
           companyId={company.id}
           pos={pos}
           allocations={poAllocations}
           bookings={bookings.map((b) => ({
             id: b.id,
+            kind: "booking" as const,
             label: `${b.venue.name} · ${formatDate(b.event_date)}`,
             status: b.status,
+            statusLabel: STAGE_LABEL[b.status],
             eventDate: b.event_date,
             departmentId: b.department_id,
           }))}

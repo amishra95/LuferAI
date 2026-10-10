@@ -29,12 +29,12 @@ import { tracer } from "@/lib/tracer";
  */
 
 export interface AgentStep {
-  step: "shortlist" | "availability" | "negotiate" | "place" | "confirm";
+  step: "shortlist" | "availability" | "negotiate" | "choose" | "place" | "confirm";
   ok: boolean;
   detail: string;
 }
 
-export type AgentBookingStatus = "confirmed" | "with_venue" | "awaiting_approval" | "failed";
+export type AgentBookingStatus = "confirmed" | "with_venue" | "with_supplier" | "awaiting_approval" | "failed";
 
 export interface AgentBookingOutcome {
   status: AgentBookingStatus;
@@ -43,6 +43,10 @@ export interface AgentBookingOutcome {
   bookingId?: string;
   venueId?: string;
   venueName?: string;
+  /** Catalogue orders (lib/catalog/catalog-agent.ts). */
+  orderId?: string;
+  partnerId?: string;
+  itemName?: string;
   perHead?: number;
   total?: number;
   /** The run's trace, for opening in the inspector. */

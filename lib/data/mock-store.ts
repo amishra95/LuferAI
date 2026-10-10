@@ -1,6 +1,9 @@
 import "server-only";
 
 import type {
+  CatalogItem,
+  CatalogOrder,
+  Partner,
   ApprovalComment,
   ApprovalChain,
   Booking,
@@ -387,12 +390,53 @@ const purchaseOrders: PurchaseOrder[] = [
 ];
 
 const poAllocations: PoAllocation[] = [
-  { id: "71000000-0001-4000-8000-000000000001", po_id: purchaseOrders[1].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0001-4000-8000-000000000001",
+  { id: "71000000-0001-4000-8000-000000000001", po_id: purchaseOrders[1].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0001-4000-8000-000000000001", catalog_order_id: null,
     amount_inr: 100000, status: "committed", over_balance: false, created_at: "2026-09-20T10:00:00.000Z", updated_at: "2026-09-21T10:00:00.000Z" },
-  { id: "71000000-0002-4000-8000-000000000002", po_id: purchaseOrders[2].id, tenant_id: VERTEX, booking_id: "bbbbbbbb-0002-4000-8000-000000000002",
+  { id: "71000000-0002-4000-8000-000000000002", po_id: purchaseOrders[2].id, tenant_id: VERTEX, booking_id: "bbbbbbbb-0002-4000-8000-000000000002", catalog_order_id: null,
     amount_inr: 120000, status: "consumed", over_balance: false, created_at: "2026-09-02T10:00:00.000Z", updated_at: "2026-09-19T10:00:00.000Z" },
-  { id: "71000000-0003-4000-8000-000000000003", po_id: purchaseOrders[0].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0003-4000-8000-000000000003",
+  { id: "71000000-0003-4000-8000-000000000003", po_id: purchaseOrders[0].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0003-4000-8000-000000000003", catalog_order_id: null,
     amount_inr: 108000, status: "committed", over_balance: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" },
+];
+
+// Catalogue suppliers and items (seed.sql "Catalogue"). GSTINs are synthetic but valid; the
+// HSN/SAC codes and rates are illustrative for the demo, not tax advice.
+const partners: Partner[] = [
+  { id: "80000000-0001-4000-8000-000000000001", name: "Giftwise Hampers", slug: "giftwise", contact_email: "orders@giftwise.example", gstin: "29AAGCG4512K1ZG", status: "active", created_at: ts, updated_at: ts },
+  { id: "80000000-0002-4000-8000-000000000002", name: "TixHub Live", slug: "tixhub", contact_email: "corporate@tixhub.example", gstin: "27AAJCT7781M1ZF", status: "active", created_at: ts, updated_at: ts },
+  { id: "80000000-0003-4000-8000-000000000003", name: "TeamQuest Experiences", slug: "teamquest", contact_email: "hello@teamquest.example", gstin: "29AAFCT3390Q1ZI", status: "active", created_at: ts, updated_at: ts },
+  { id: "80000000-0004-4000-8000-000000000004", name: "Threadline Merch", slug: "threadline", contact_email: "bulk@threadline.example", gstin: "33AAKCT6620P1ZV", status: "active", created_at: ts, updated_at: ts },
+];
+
+const item = (i: Omit<CatalogItem, "status" | "created_at" | "updated_at" | "description"> & { description?: string }): CatalogItem => ({
+  description: null,
+  ...i,
+  status: "active",
+  created_at: ts,
+  updated_at: ts,
+});
+
+const catalogItems: CatalogItem[] = [
+  item({ id: "81000000-0001-4000-8000-000000000001", partner_id: partners[0].id, category: "gifting", ref: "HAMPER-COFFEE", name: "Artisan coffee & cookie hamper",
+    description: "Single-origin Coorg coffee, hand-made cookies and a ceramic mug.", unit_price_inr: 1800, tax_kind: "HSN", tax_code: "2106", gst_rate_percent: 18,
+    min_quantity: 5, max_quantity: 500, attributes: { lead_time_days: 5, personalisation: true } }),
+  item({ id: "81000000-0002-4000-8000-000000000002", partner_id: partners[0].id, category: "gifting", ref: "HAMPER-WELLNESS", name: "Wellness desk kit",
+    unit_price_inr: 1200, tax_kind: "HSN", tax_code: "3307", gst_rate_percent: 18, min_quantity: 10, max_quantity: null, attributes: { lead_time_days: 3 } }),
+  item({ id: "81000000-0003-4000-8000-000000000003", partner_id: partners[1].id, category: "tickets", ref: "T20-BLR-CHE", name: "T20 League: Bengaluru vs Chennai",
+    unit_price_inr: 1500, tax_kind: "SAC", tax_code: "999692", gst_rate_percent: 18, min_quantity: 2, max_quantity: 50,
+    attributes: { event_name: "T20 League: Bengaluru vs Chennai", event_date: "2026-11-29", venue: "M. Chinnaswamy Stadium, Bengaluru", event_state_code: "29",
+      tiers: [{ name: "General", price_inr: 1500, available: 200 }, { name: "Pavilion", price_inr: 4500, available: 40 }, { name: "Hospitality box", price_inr: 12000, available: 12 }] } }),
+  item({ id: "81000000-0004-4000-8000-000000000004", partner_id: partners[2].id, category: "team_building", ref: "HUNT-BLR", name: "Old Bengaluru treasure hunt",
+    description: "Three hours of puzzles across Basavanagudi, with a facilitator per 15 people.", unit_price_inr: 1500, tax_kind: "SAC", tax_code: "998596", gst_rate_percent: 18,
+    min_quantity: 15, max_quantity: 120, attributes: { duration_hours: 3, format: "offsite", lead_time_days: 7 } }),
+  item({ id: "81000000-0005-4000-8000-000000000005", partner_id: partners[2].id, category: "team_building", ref: "ESCAPE-VIRTUAL", name: "Virtual escape room",
+    unit_price_inr: 900, tax_kind: "SAC", tax_code: "998596", gst_rate_percent: 18, min_quantity: 8, max_quantity: 60, attributes: { duration_hours: 1.5, format: "virtual", lead_time_days: 3 } }),
+  item({ id: "81000000-0006-4000-8000-000000000006", partner_id: partners[3].id, category: "merch", ref: "TEE-ORGANIC", name: "Organic cotton team tee",
+    unit_price_inr: 650, tax_kind: "HSN", tax_code: "6109", gst_rate_percent: 5, min_quantity: 10, max_quantity: null,
+    attributes: { sizes: ["S", "M", "L", "XL", "XXL"], lead_time_days: 10, customisable: true } }),
+  item({ id: "81000000-0007-4000-8000-000000000007", partner_id: partners[3].id, category: "merch", ref: "BACKPACK", name: "Laptop backpack with logo",
+    unit_price_inr: 2200, tax_kind: "HSN", tax_code: "4202", gst_rate_percent: 18, min_quantity: 5, max_quantity: null, attributes: { sizes: ["One size"], lead_time_days: 14, customisable: true } }),
+  item({ id: "81000000-0008-4000-8000-000000000008", partner_id: partners[2].id, category: "dining", ref: "CHEFS-TABLE", name: "Chef's table: seven-course tasting",
+    unit_price_inr: 3500, tax_kind: "SAC", tax_code: "996331", gst_rate_percent: 5, min_quantity: 8, max_quantity: 24, attributes: { cuisine: "Modern Indian", area: "Indiranagar", lead_time_days: 5 } }),
 ];
 
 export interface MockDb {
@@ -411,6 +455,9 @@ export interface MockDb {
   expenseExports: ExpenseExport[];
   purchaseOrders: PurchaseOrder[];
   poAllocations: PoAllocation[];
+  partners: Partner[];
+  catalogItems: CatalogItem[];
+  catalogOrders: CatalogOrder[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -433,6 +480,9 @@ export function seedDb(): MockDb {
     expenseExports: [],
     purchaseOrders,
     poAllocations,
+    partners,
+    catalogItems,
+    catalogOrders: [],
   });
 }
 
@@ -454,6 +504,9 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   expenseExports: [],
   purchaseOrders,
   poAllocations,
+  partners,
+  catalogItems,
+  catalogOrders: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -466,6 +519,12 @@ export function backfillDefaults(db: MockDb): MockDb {
   // Collections added after a Redis store was seeded load as empty.
   db.purchaseOrders ??= [];
   db.poAllocations ??= [];
+  db.partners ??= [];
+  db.catalogItems ??= [];
+  db.catalogOrders ??= [];
+  for (const a of db.approvals) a.catalog_order_id ??= null;
+  for (const a of db.poAllocations) a.catalog_order_id ??= null;
+  for (const e of db.expenseExports) e.catalog_order_id ??= null;
   for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
   for (const c of db.companies) c.expense_provider ??= "webhook";
   for (const p of db.policies) {

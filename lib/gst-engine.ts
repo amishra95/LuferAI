@@ -2,8 +2,9 @@
  * GST Tax Engine
  * ----------------------------------------------------------------------------
  * Determines intra-state (CGST + SGST) vs inter-state (IGST) treatment from the
- * two parties' GSTINs and produces a structured tax-invoice payload under
- * SAC 998596.
+ * supplier's state and the place of supply, and produces a structured
+ * tax-invoice payload. Venue bookings are SAC 998596 at 18% (the default);
+ * catalogue items carry their own HSN/SAC code and rate (`tax`).
  *
  * Conventions
  * - `total_amount` is the TAXABLE VALUE (pre-GST) in INR.
@@ -21,6 +22,21 @@ export const GST_RATE_PERCENT = 18;
 export const CGST_RATE_PERCENT = 9;
 export const SGST_RATE_PERCENT = 9;
 export const IGST_RATE_PERCENT = 18;
+
+/** GST slabs an item may carry. */
+export const GST_RATES = [0, 5, 12, 18, 28] as const;
+export type GstRate = (typeof GST_RATES)[number];
+export const isGstRate = (v: unknown): v is GstRate => typeof v === "number" && (GST_RATES as readonly number[]).includes(v);
+
+/** What is being supplied: services carry a SAC code, goods an HSN code. */
+export interface TaxClassification {
+  kind: "SAC" | "HSN";
+  code: string;
+  description: string;
+  rate_percent: GstRate;
+}
+
+export const DEFAULT_TAX: TaxClassification = { kind: "SAC", code: SAC_CODE, description: SAC_DESCRIPTION, rate_percent: GST_RATE_PERCENT };
 
 export const GST_STATE_CODES: Readonly<Record<string, string>> = {
   "01": "Jammu and Kashmir",
@@ -76,6 +92,14 @@ export interface GstBookingInput {
   booking_id?: string;
   invoice_number?: string;
   invoice_date?: string; // ISO date, defaults to today
+  /** HSN/SAC and rate; defaults to the venue-booking service (SAC 998596, 18%). */
+  tax?: TaxClassification;
+  /**
+   * Place of supply when it isn't the recipient's state, e.g. admission to an
+   * event is supplied where the event is held. Defaults to the recipient
+   * (B2B services, and goods billed to the buyer and shipped to others).
+   */
+  place_of_supply_state_code?: string;
 }
 
 export interface TaxHead {
@@ -94,7 +118,9 @@ export interface TaxInvoicePayload {
   invoice_number: string | null;
   invoice_date: string;
   booking_id: string | null;
-  sac: { code: typeof SAC_CODE; description: typeof SAC_DESCRIPTION };
+  /** The HSN/SAC code (kept as `sac` for receipts that read it; see `tax`). */
+  sac: { code: string; description: string };
+  tax: TaxClassification;
   supplier: GstParty;
   recipient: GstParty;
   place_of_supply: { state_code: string; state_name: string };
@@ -230,18 +256,23 @@ export function calculateGst(input: GstBookingInput): TaxInvoicePayload {
     throw new GstEngineError("INVALID_AMOUNT", `total_amount cannot exceed ₹${MAX_AMOUNT_INR}`);
   }
 
+  const tax = input.tax ?? DEFAULT_TAX;
+  if (!isGstRate(tax.rate_percent)) throw new GstEngineError("INVALID_AMOUNT", `GST rate must be one of ${GST_RATES.join(", ")}%`);
   const companyGstin = normalizeGstin(input.company_gstin);
   const venueGstin = normalizeGstin(input.venue_gstin);
   const recipientState = extractStateCode(companyGstin);
   const supplierState = extractStateCode(venueGstin);
+  const supplyState = input.place_of_supply_state_code && GST_STATE_CODES[input.place_of_supply_state_code] ? input.place_of_supply_state_code : recipientState;
 
-  const isIntraState = recipientState === supplierState;
+  // Intra-state when the supplier is in the state of supply.
+  const isIntraState = supplyState === supplierState;
   const gstType: GstType = isIntraState ? "CGST_SGST" : "IGST";
 
+  const half = tax.rate_percent / 2;
   const taxablePaise = toPaise(input.total_amount);
-  const cgstPaise = isIntraState ? pct(taxablePaise, CGST_RATE_PERCENT) : 0;
-  const sgstPaise = isIntraState ? pct(taxablePaise, SGST_RATE_PERCENT) : 0;
-  const igstPaise = isIntraState ? 0 : pct(taxablePaise, IGST_RATE_PERCENT);
+  const cgstPaise = isIntraState ? pct(taxablePaise, half) : 0;
+  const sgstPaise = isIntraState ? pct(taxablePaise, half) : 0;
+  const igstPaise = isIntraState ? 0 : pct(taxablePaise, tax.rate_percent);
   const totalTaxPaise = cgstPaise + sgstPaise + igstPaise;
 
   return {
@@ -249,19 +280,20 @@ export function calculateGst(input: GstBookingInput): TaxInvoicePayload {
     invoice_number: input.invoice_number ?? null,
     invoice_date: input.invoice_date ?? todayInIndia(),
     booking_id: input.booking_id ?? null,
-    sac: { code: SAC_CODE, description: SAC_DESCRIPTION },
+    sac: { code: tax.code, description: tax.description },
+    tax,
     supplier: { gstin: venueGstin, state_code: supplierState, state_name: stateName(supplierState) },
     recipient: { gstin: companyGstin, state_code: recipientState, state_name: stateName(recipientState) },
-    // B2B event services: place of supply = location of the registered recipient.
-    place_of_supply: { state_code: recipientState, state_name: stateName(recipientState) },
+    // B2B: the registered recipient's state, unless the supply says otherwise (event admission).
+    place_of_supply: { state_code: supplyState, state_name: stateName(supplyState) },
     supply_type: isIntraState ? "INTRA_STATE" : "INTER_STATE",
     gst_type: gstType,
     currency: "INR",
     taxable_value: toInr(taxablePaise),
     tax_breakup: {
-      cgst: { rate_percent: isIntraState ? CGST_RATE_PERCENT : 0, amount: toInr(cgstPaise) },
-      sgst: { rate_percent: isIntraState ? SGST_RATE_PERCENT : 0, amount: toInr(sgstPaise) },
-      igst: { rate_percent: isIntraState ? 0 : IGST_RATE_PERCENT, amount: toInr(igstPaise) },
+      cgst: { rate_percent: isIntraState ? half : 0, amount: toInr(cgstPaise) },
+      sgst: { rate_percent: isIntraState ? half : 0, amount: toInr(sgstPaise) },
+      igst: { rate_percent: isIntraState ? 0 : tax.rate_percent, amount: toInr(igstPaise) },
     },
     total_tax: toInr(totalTaxPaise),
     invoice_total: toInr(taxablePaise + totalTaxPaise),

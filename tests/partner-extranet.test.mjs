@@ -32,10 +32,11 @@ test("managers run listings and rates but not the team", () => {
   assert.equal(partnerCan(manager, "team.manage"), false);
 });
 
-test("staff are read-only apart from pausing a listing", () => {
-  assert.deepEqual([...partnerPermissions(staff)].sort(), ["listing.status", "partner.view"]);
+test("staff are read-only apart from pausing a listing and fulfilling orders", () => {
+  assert.deepEqual([...partnerPermissions(staff)].sort(), ["listing.status", "orders.fulfil", "partner.view"]);
   assert.equal(partnerCan(staff, "rates.edit"), false);
   assert.equal(partnerCan(staff, "listing.edit"), false);
+  assert.equal(partnerCan(staff, "catalog.edit"), false);
 });
 
 test("admins hold every partner permission; other portal roles none", () => {

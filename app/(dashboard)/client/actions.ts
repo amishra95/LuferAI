@@ -6,11 +6,14 @@ import { requirePortal, type Member } from "@/lib/auth/session";
 import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
 import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
 import { runBookingAgent, type AgentBookingOutcome } from "@/lib/bookings/booking-agent";
-import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCompanies, listPortalUsers, listVenues, updateBookingStatus } from "@/lib/data";
+import type { OrderEventStatus } from "@/lib/telemetry/events";
+import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingStatus } from "@/lib/data";
 import { exportBookingExpense } from "@/lib/finance/export-dispatcher";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import type { BookingStatus } from "@/lib/supabase/database.types";
-import { publishApproval, publishBooking, publishExpense } from "@/lib/telemetry/live";
+import { publishApproval, publishBooking, publishExpense, publishOrder } from "@/lib/telemetry/live";
+import { runCatalogAgent } from "@/lib/catalog/catalog-agent";
+import { isCategory, type Category, type Recipient } from "@/lib/catalog/items";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { CHECKOUT_LOCK_TTL_MS, getSlotLocks, ownerOf } from "@/lib/locks";
@@ -132,10 +135,14 @@ function revalidateBookingViews() {
 
 export interface SpendDecision {
   approvalId: string;
+  /** A venue booking, or a catalogue order. */
+  subject: "booking" | "order";
+  /** The booking's or order's id. */
   bookingId: string;
   decision: "APPROVED" | "REJECTED";
-  /** The booking's status after the decision (PENDING once every tier approved). */
-  bookingStatus: BookingStatus | null;
+  /** Its status after the decision: PENDING (booking) or PLACED (order) once every tier approved. */
+  bookingStatus: string | null;
+  /** The venue (booking) or supplier (order). */
   venueId: string;
 }
 
@@ -159,15 +166,22 @@ export async function approveEventSpend(approvalId: string, decision: "APPROVED"
         // decideApproval's messages are written for users ("Waiting for tier-1 sign-off from …").
         throw new ActionError(err instanceof Error ? err.message : "Could not record the decision.");
       }
-      const booking = approval ? (await listBookings({ companyId: scope.tenantId })).find((b) => b.id === approval.booking_id) : undefined;
       revalidateBookingViews();
+      revalidatePath("/partner");
       refresh();
-      return { approvalId, bookingId: approval?.booking_id ?? "", decision, bookingStatus: booking?.status ?? null, venueId: booking?.venue_id ?? "" };
+      if (approval?.catalog_order_id) {
+        const [order] = await listCatalogOrders({ tenantId: scope.tenantId, ids: [approval.catalog_order_id] });
+        return { approvalId, subject: "order" as const, bookingId: approval.catalog_order_id, decision, bookingStatus: order?.status ?? null, venueId: order?.partner_id ?? "" };
+      }
+      const booking = approval ? (await listBookings({ companyId: scope.tenantId })).find((b) => b.id === approval.booking_id) : undefined;
+      return { approvalId, subject: "booking" as const, bookingId: approval?.booking_id ?? "", decision, bookingStatus: booking?.status ?? null, venueId: booking?.venue_id ?? "" };
     },
     {
-      emit: async ({ approvalId: id, bookingId, decision: d, bookingStatus, venueId }) => {
+      emit: async ({ approvalId: id, subject, bookingId, decision: d, bookingStatus, venueId }) => {
         await publishApproval(id, bookingId, d);
-        if (bookingStatus && bookingStatus !== "PENDING_APPROVAL") await publishBooking(bookingId, venueId, bookingStatus, "approval");
+        if (!bookingStatus || bookingStatus === "PENDING_APPROVAL") return;
+        if (subject === "order") await publishOrder(bookingId, venueId, bookingStatus as OrderEventStatus, "approval");
+        else await publishBooking(bookingId, venueId, bookingStatus as BookingStatus, "approval");
       },
     }
   );
@@ -178,6 +192,10 @@ export async function approveEventSpend(approvalId: string, decision: "APPROVED"
 // ----------------------------------------------------------------------------
 
 export interface AgentBookingRequest {
+  /** "venue" (default) books a venue; a catalogue category orders an item (lib/catalog/catalog-agent.ts). */
+  category?: "venue" | Category;
+  /** Gifting and merch: who to send to (one unit each). */
+  recipients?: Recipient[];
   venueId: string | null;
   eventDate: string;
   partySize: number;
@@ -212,6 +230,31 @@ export async function dispatchBookingAgent(request: AgentBookingRequest): Promis
       if (!request.costCenter?.trim()) throw new ActionError("Enter a cost centre for finance.");
       const entertainment = (request.entertainment ?? []).filter((e) => typeof e === "string" && /^[a-z_]{1,24}$/.test(e)).slice(0, 8);
 
+      // Catalogue categories: the agent picks and orders an item instead of a venue.
+      if (request.category && request.category !== "venue") {
+        if (!isCategory(request.category)) throw new ActionError("Unknown category.");
+        if (Array.isArray(request.recipients) && request.recipients.length > 500) throw new ActionError("At most 500 recipients per order.");
+        const outcome = await runCatalogAgent({
+          companyId: member.companyId,
+          userId: member.userId,
+          category: request.category,
+          quantity: request.partySize,
+          perHead: request.perHead,
+          maxPerHead: request.maxPerHead,
+          date: request.eventDate,
+          recipients: Array.isArray(request.recipients) ? request.recipients : [],
+          costCenter: request.costCenter.trim(),
+          projectCode: request.projectCode?.trim() || null,
+          notes: request.notes?.trim().slice(0, 500) || undefined,
+        });
+        if (outcome.orderId) {
+          revalidateBookingViews();
+          revalidatePath("/partner");
+          refresh();
+        }
+        return outcome;
+      }
+
       const outcome = await runBookingAgent({
         venueId: request.venueId || null,
         eventDate: request.eventDate,
@@ -235,9 +278,11 @@ export async function dispatchBookingAgent(request: AgentBookingRequest): Promis
     },
     {
       emit: (o) =>
-        o.bookingId && o.venueId
-          ? publishBooking(o.bookingId, o.venueId, o.status === "confirmed" ? "CONFIRMED" : o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PENDING", "agent")
-          : undefined,
+        o.orderId && o.partnerId
+          ? publishOrder(o.orderId, o.partnerId, o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PLACED", "agent")
+          : o.bookingId && o.venueId
+            ? publishBooking(o.bookingId, o.venueId, o.status === "confirmed" ? "CONFIRMED" : o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PENDING", "agent")
+            : undefined,
     }
   );
 }

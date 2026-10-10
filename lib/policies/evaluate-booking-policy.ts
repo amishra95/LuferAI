@@ -36,6 +36,8 @@ export interface BookingPolicyInput {
   event_date?: string;
   alcohol_included?: boolean;
   entertainment?: readonly string[];
+  /** What headcount counts, for the wording ("guests" by default; "gifts", "tickets"… for catalogue orders). */
+  unit?: string;
 }
 
 export type BookingPolicyResult =
@@ -83,7 +85,7 @@ export function monthToDateSpend(
  */
 export function evaluateBookingPolicy(
   rules: BookingPolicyRules | null,
-  input: Pick<BookingPolicyInput, "total_amount" | "headcount" | "per_head_amount" | "alcohol_included" | "entertainment">,
+  input: Pick<BookingPolicyInput, "total_amount" | "headcount" | "per_head_amount" | "alcohol_included" | "entertainment" | "unit">,
   spend: SpendLimitInput | null = null
 ): BookingPolicyResult {
   if (input.alcohol_included && rules?.alcohol_policy === "prohibited") {
@@ -112,7 +114,7 @@ export function evaluateBookingPolicy(
   }
   if (rules.requires_approval_above !== null && input.total_amount > Number(rules.requires_approval_above)) {
     reasons.push(
-      `${inr(input.total_amount)} total for ${input.headcount} guests is above the ${inr(Number(rules.requires_approval_above))} approval threshold`
+      `${inr(input.total_amount)} total for ${input.headcount} ${input.unit ?? "guests"} is above the ${inr(Number(rules.requires_approval_above))} approval threshold`
     );
   }
 

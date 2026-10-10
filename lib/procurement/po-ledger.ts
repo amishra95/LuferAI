@@ -24,7 +24,9 @@ export interface PoRecord {
 export interface AllocationRecord {
   id: string;
   po_id: string;
-  booking_id: string;
+  /** Exactly one of booking_id / catalog_order_id is set. */
+  booking_id: string | null;
+  catalog_order_id?: string | null;
   amount_inr: number;
   status: AllocationStatus | string;
   over_balance: boolean;
@@ -50,11 +52,14 @@ export interface PoBalance {
   overrun: boolean;
 }
 
-export function poBalance(po: Pick<PoRecord, "id" | "amount_inr">, allocations: readonly AllocationRecord[], excludeBookingId?: string): PoBalance {
+/** The booking or order an allocation draws for. */
+export const subjectOf = (a: Pick<AllocationRecord, "booking_id" | "catalog_order_id">): string => (a.booking_id ?? a.catalog_order_id ?? "");
+
+export function poBalance(po: Pick<PoRecord, "id" | "amount_inr">, allocations: readonly AllocationRecord[], excludeSubjectId?: string): PoBalance {
   let committed = 0;
   let consumed = 0;
   for (const a of allocations) {
-    if (a.po_id !== po.id || a.booking_id === excludeBookingId) continue;
+    if (a.po_id !== po.id || (excludeSubjectId !== undefined && subjectOf(a) === excludeSubjectId)) continue;
     if (a.status === "committed") committed += Number(a.amount_inr);
     else if (a.status === "consumed") consumed += Number(a.amount_inr);
   }
@@ -78,8 +83,8 @@ export interface PoBookingInput {
   amount: number;
   /** A PO the requester picked; otherwise the best eligible one is chosen. */
   poId?: string | null;
-  /** When re-allocating, the booking's own current allocation doesn't count against the balance. */
-  bookingId?: string;
+  /** When re-allocating, the booking's (or order's) own current allocation doesn't count against the balance. */
+  subjectId?: string;
 }
 
 /** Why a PO can't take a booking at all (as opposed to lacking balance), or null. */
@@ -112,7 +117,7 @@ export function selectPo(pos: readonly PoRecord[], allocations: readonly Allocat
   const mine = pos.filter((p) => p.tenant_id === input.tenantId);
   if (mine.length === 0) return { kind: "none" };
 
-  const withBalance = (po: PoRecord) => ({ po, balance: poBalance(po, allocations, input.bookingId) });
+  const withBalance = (po: PoRecord) => ({ po, balance: poBalance(po, allocations, input.subjectId) });
   const decide = ({ po, balance }: { po: PoRecord; balance: PoBalance }): PoSelection => {
     if (balance.remaining >= input.amount) return { kind: "ok", po, balance };
     const shortfall = round(input.amount - Math.max(balance.remaining, 0));
