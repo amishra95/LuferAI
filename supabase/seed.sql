@@ -165,3 +165,19 @@ update public.companies set expense_provider = 'concur' where id = '22222222-222
 
 update public.bookings set alcohol_included = true where id in ('bbbbbbbb-0001-4000-8000-000000000001', 'bbbbbbbb-0002-4000-8000-000000000002');
 update public.bookings set entertainment = '{live_music}' where id in ('bbbbbbbb-0002-4000-8000-000000000002', 'bbbbbbbb-0003-4000-8000-000000000003');
+
+-- Purchase orders (migration 0020; mirrored in lib/data/mock-store.ts) ------------------------
+-- Nimbus: a company-wide events PO and an Engineering one; Vertex: Investor Relations.
+insert into public.purchase_orders (id, tenant_id, po_number, description, department_id, amount_inr, valid_from, valid_to) values
+  ('70000000-0001-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'NIM-FY27-EVENTS', 'Company events FY 2026-27',
+   null, 600000.00, '2026-04-01', '2027-03-31'),
+  ('70000000-0002-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'NIM-ENG-H2', 'Engineering offsites, H2',
+   'dddddddd-0001-4000-8000-000000000001', 150000.00, '2026-07-01', '2026-12-31'),
+  ('70000000-0003-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222', 'VCA-IR-2026', 'Investor relations hospitality',
+   'dddddddd-0004-4000-8000-000000000004', 500000.00, '2026-04-01', '2027-03-31');
+
+-- The seed bookings' allocations (status follows the booking: confirmed/pending → committed, completed → consumed).
+insert into public.po_allocations (po_id, tenant_id, booking_id, amount_inr, status) values
+  ('70000000-0002-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-0001-4000-8000-000000000001', 100000.00, 'committed'),
+  ('70000000-0003-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222', 'bbbbbbbb-0002-4000-8000-000000000002', 120000.00, 'consumed'),
+  ('70000000-0001-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'bbbbbbbb-0003-4000-8000-000000000003', 108000.00, 'committed');

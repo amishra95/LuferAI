@@ -10,6 +10,7 @@
  *   booking        a booking moved along its lifecycle (agent, approval, settlement)
  *   approval       a spend approval was decided
  *   expense        a booking was exported to the company's expense system
+ *   po             a blanket purchase order was raised, closed, reopened or drawn on
  *
  * Every event has a `seq` from the event log (lib/telemetry/event-log.ts),
  * increasing across server instances, which doubles as the SSE event id so a
@@ -58,6 +59,9 @@ export type VenueChange = (typeof VENUE_CHANGES)[number];
 export const BOOKING_EVENT_STATUSES = ["PENDING_APPROVAL", "PENDING", "CONFIRMED", "COMPLETED", "SETTLED", "CANCELLED"] as const;
 export type BookingEventStatus = (typeof BOOKING_EVENT_STATUSES)[number];
 
+export const PO_CHANGES = ["created", "closed", "reopened", "reallocated"] as const;
+export type PoChange = (typeof PO_CHANGES)[number];
+
 export type TelemetryEventBody =
   | { type: "span"; traceId: string; root: boolean; span: LiveSpan }
   | { type: "trace"; traceId: string; name: string; status: LiveSpanStatus; durationMs: number; spans: number }
@@ -67,7 +71,8 @@ export type TelemetryEventBody =
   | { type: "venue-updated"; venueId: string; change: VenueChange }
   | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: "agent" | "approval" | "expense" }
   | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
-  | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" };
+  | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" }
+  | { type: "po"; poId: string; change: PoChange };
 
 /** An event as published, before the log numbers it. */
 export type NewTelemetryEvent = TelemetryEventBody & { at: number };
@@ -201,6 +206,8 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
       return str(v.bookingId, 64) && str(v.provider, 32) && (v.status === "delivered" || v.status === "mocked" || v.status === "failed" || v.status === "skipped")
         ? { ...base, type: "expense", bookingId: v.bookingId, provider: v.provider, status: v.status }
         : null;
+    case "po":
+      return str(v.poId, 64) && (PO_CHANGES as readonly unknown[]).includes(v.change) ? { ...base, type: "po", poId: v.poId, change: v.change as PoChange } : null;
     default:
       return null;
   }

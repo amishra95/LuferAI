@@ -15,10 +15,13 @@ import type {
   CorporateRole,
   ExpenseExport,
   InventoryHold,
+  PoAllocation,
+  PurchaseOrder,
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
 import { canTransition } from "@/lib/bookings/lifecycle";
+import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
@@ -279,9 +282,9 @@ export interface NewHoldRequest {
  */
 export async function createBookingRequest(
   input: NewBookingInput,
-  options: { approvals?: NewApprovalRequest[]; hold?: NewHoldRequest } = {}
+  options: { approvals?: NewApprovalRequest[]; hold?: NewHoldRequest; allocation?: NewPoAllocation } = {}
 ): Promise<BookingDetail> {
-  const { hold } = options;
+  const { hold, allocation } = options;
   const approvals = options.approvals ?? [];
   const total = roundInr(input.party_size * input.budget_per_head_inr);
   const status: BookingStatus = approvals.length ? "PENDING_APPROVAL" : "PENDING";
@@ -347,6 +350,11 @@ export async function createBookingRequest(
         updated_at: now,
       });
     }
+    if (allocation) {
+      // Local equivalent of the po_allocations_check trigger (the store lock makes it atomic).
+      checkLocalAllocation(db, allocation, booking);
+      db.poAllocations.push({ id: crypto.randomUUID(), po_id: allocation.po_id, tenant_id: c.id, booking_id: booking.id, amount_inr: total, status: "committed", over_balance: allocation.over_balance, created_at: now, updated_at: now });
+    }
     return enrich(booking, c, v);
   });
 
@@ -385,8 +393,174 @@ export async function createBookingRequest(
       throw holdError;
     }
   }
+  if (allocation) {
+    const { error: allocationError } = await supabase
+      .from("po_allocations")
+      .insert({ po_id: allocation.po_id, tenant_id: input.company_id, booking_id: data.id, amount_inr: total, over_balance: allocation.over_balance });
+    if (allocationError) {
+      await undo();
+      // po_allocations_check: another booking spent the balance first, or the PO changed.
+      if (allocationError.code === "23514") throw new PoAllocationError(allocationError.message);
+      throw allocationError;
+    }
+  }
   const [created] = (await listBookings()).filter((b) => b.id === data.id);
   return created;
+}
+
+// ----------------------------------------------------------------------------
+// Blanket purchase orders (migration 0020; rules in lib/procurement/po-ledger.ts)
+// ----------------------------------------------------------------------------
+
+export interface NewPoAllocation {
+  po_id: string;
+  /** Allowed past the PO's balance because the booking goes through sign-off. */
+  over_balance: boolean;
+}
+
+/** A PO refused an allocation (closed, out of window, wrong department, or not enough left). */
+export class PoAllocationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PoAllocationError";
+  }
+}
+
+function checkLocalAllocation(db: MockDb, allocation: NewPoAllocation, booking: Pick<Booking, "id" | "company_id" | "event_date" | "department_id" | "total_amount_inr">) {
+  const po = db.purchaseOrders.find((p) => p.id === allocation.po_id);
+  if (!po) throw new PoAllocationError("Purchase order not found");
+  const why = ineligibility(po, { tenantId: booking.company_id, eventDate: booking.event_date, departmentId: booking.department_id });
+  if (why) throw new PoAllocationError(why);
+  if (!allocation.over_balance) {
+    const { remaining } = poBalance(po, db.poAllocations, booking.id);
+    if (Number(booking.total_amount_inr) > remaining) {
+      const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+      const left = remaining < 0 ? `is overdrawn by ${inr(-remaining)}` : `has ${inr(remaining)} left`;
+      throw new PoAllocationError(`PO ${po.po_number} ${left}, not enough for ${inr(Number(booking.total_amount_inr))}`);
+    }
+  }
+}
+
+/** Local equivalent of the bookings_sync_po_allocations trigger. */
+function syncLocalAllocations(db: MockDb, bookingId: string, status: BookingStatus) {
+  const next = allocationStatusFor(status);
+  for (const a of db.poAllocations) {
+    if (a.booking_id === bookingId && a.status !== next) Object.assign(a, { status: next, updated_at: new Date().toISOString() });
+  }
+}
+
+const poRow = (p: PurchaseOrder): PurchaseOrder => ({ ...p, amount_inr: Number(p.amount_inr) });
+const allocationRow = (a: PoAllocation): PoAllocation => ({ ...a, amount_inr: Number(a.amount_inr) });
+
+export async function listPurchaseOrders(filter: { tenantId?: string } = {}): Promise<PurchaseOrder[]> {
+  if (local()) return (await readDb()).purchaseOrders.filter((p) => !filter.tenantId || p.tenant_id === filter.tenantId).map(poRow);
+  let q = createAdminClient().from("purchase_orders").select("*").order("valid_to");
+  if (filter.tenantId) q = q.eq("tenant_id", filter.tenantId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data.map(poRow);
+}
+
+export async function listPoAllocations(filter: { tenantId?: string; poId?: string } = {}): Promise<PoAllocation[]> {
+  if (local()) {
+    return (await readDb()).poAllocations.filter((a) => (!filter.tenantId || a.tenant_id === filter.tenantId) && (!filter.poId || a.po_id === filter.poId)).map(allocationRow);
+  }
+  let q = createAdminClient().from("po_allocations").select("*").order("created_at", { ascending: false });
+  if (filter.tenantId) q = q.eq("tenant_id", filter.tenantId);
+  if (filter.poId) q = q.eq("po_id", filter.poId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data.map(allocationRow);
+}
+
+export async function createPurchaseOrder(tenantId: string, input: NewPoInput, createdBy: string | null): Promise<PurchaseOrder> {
+  if (local()) {
+    return mutateDb((db) => {
+      if (db.purchaseOrders.some((p) => p.tenant_id === tenantId && p.po_number === input.po_number)) throw new PoAllocationError(`PO ${input.po_number} already exists.`);
+      const now = new Date().toISOString();
+      const po: PurchaseOrder = {
+        id: crypto.randomUUID(),
+        tenant_id: tenantId,
+        po_number: input.po_number,
+        description: input.description ?? null,
+        department_id: input.department_id ?? null,
+        amount_inr: input.amount_inr,
+        currency: "INR",
+        valid_from: input.valid_from,
+        valid_to: input.valid_to,
+        status: "open",
+        created_by: createdBy,
+        created_at: now,
+        updated_at: now,
+      };
+      db.purchaseOrders.push(po);
+      return po;
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("purchase_orders")
+    .insert({ tenant_id: tenantId, ...input, created_by: createdBy })
+    .select("*")
+    .single();
+  if (error?.code === "23505") throw new PoAllocationError(`PO ${input.po_number} already exists.`);
+  if (error) throw error;
+  return poRow(data);
+}
+
+/** Opens or closes a PO. Closing keeps its allocations; it just takes no new ones. */
+export async function setPurchaseOrderStatus(id: string, tenantId: string, status: "open" | "closed"): Promise<PurchaseOrder> {
+  if (local()) {
+    return mutateDb((db) => {
+      const po = db.purchaseOrders.find((p) => p.id === id && p.tenant_id === tenantId);
+      if (!po) throw new PoAllocationError("Purchase order not found");
+      Object.assign(po, { status, updated_at: new Date().toISOString() });
+      return poRow(po);
+    });
+  }
+  const { data, error } = await createAdminClient().from("purchase_orders").update({ status }).eq("id", id).eq("tenant_id", tenantId).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new PoAllocationError("Purchase order not found");
+  return poRow(data);
+}
+
+/**
+ * Moves a live booking's allocation to another PO (or allocates an unallocated
+ * one). Re-checked like a new allocation, so it can't overdraw the target.
+ */
+export async function reallocateBooking(bookingId: string, tenantId: string, poId: string): Promise<PoAllocation> {
+  if (local()) {
+    return mutateDb((db) => {
+      const booking = db.bookings.find((b) => b.id === bookingId && b.company_id === tenantId);
+      if (!booking) throw new PoAllocationError("Booking not found");
+      if (booking.status === "CANCELLED") throw new PoAllocationError("Cancelled bookings don't draw from a PO");
+      checkLocalAllocation(db, { po_id: poId, over_balance: false }, booking);
+      const now = new Date().toISOString();
+      const existing = db.poAllocations.find((a) => a.booking_id === bookingId);
+      if (existing) {
+        Object.assign(existing, { po_id: poId, over_balance: false, amount_inr: Number(booking.total_amount_inr), updated_at: now });
+        return allocationRow(existing);
+      }
+      const created: PoAllocation = { id: crypto.randomUUID(), po_id: poId, tenant_id: tenantId, booking_id: bookingId, amount_inr: Number(booking.total_amount_inr), status: allocationStatusFor(booking.status), over_balance: false, created_at: now, updated_at: now };
+      db.poAllocations.push(created);
+      return created;
+    });
+  }
+  const db = createAdminClient();
+  const { data: booking, error: bookingError } = await db.from("bookings").select("id, status, total_amount_inr").eq("id", bookingId).eq("company_id", tenantId).maybeSingle();
+  if (bookingError) throw bookingError;
+  if (!booking) throw new PoAllocationError("Booking not found");
+  if (booking.status === "CANCELLED") throw new PoAllocationError("Cancelled bookings don't draw from a PO");
+  const { data, error } = await db
+    .from("po_allocations")
+    .upsert(
+      { booking_id: bookingId, tenant_id: tenantId, po_id: poId, amount_inr: Number(booking.total_amount_inr), over_balance: false, status: allocationStatusFor(booking.status) },
+      { onConflict: "booking_id" }
+    )
+    .select("*")
+    .single();
+  if (error?.code === "23514") throw new PoAllocationError(error.message);
+  if (error) throw error;
+  return allocationRow(data);
 }
 
 /** Local equivalent of the bookings_sync_inventory_holds trigger. */
@@ -416,6 +590,7 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
       }
       Object.assign(b, { status: next, updated_at: new Date().toISOString() }, settled);
       syncLocalHolds(db, b.id, next);
+      syncLocalAllocations(db, b.id, next);
     });
   }
 
@@ -618,6 +793,7 @@ export async function decideApproval(
         booking.status = decision === "REJECTED" ? "CANCELLED" : "PENDING";
         booking.updated_at = now;
         syncLocalHolds(db, booking.id, booking.status);
+        syncLocalAllocations(db, booking.id, booking.status);
       }
     });
   }
