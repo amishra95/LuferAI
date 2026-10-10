@@ -24,8 +24,11 @@ import {
   listApprovals,
   listBookings,
   listCompanies,
+  listDepartments,
   listExpenseExports,
+  listPoAllocations,
   listPortalUsers,
+  listPurchaseOrders,
   type ApprovalDetail,
 } from "@/lib/data";
 import { partyStateCode, roundInr, stateName } from "@/lib/gst-engine";
@@ -39,6 +42,7 @@ import { ApprovalThread, type ThreadComment } from "./_components/approval-threa
 import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
+import { PoLedger } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
 
@@ -64,12 +68,15 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   if (!company) notFound();
 
   const live = dataSource() === "supabase";
-  const [bookings, catalog, users, allApprovals, exports] = await Promise.all([
+  const [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments] = await Promise.all([
     listBookings({ companyId: company.id }),
     getVenueCatalog(company.id),
     listPortalUsers({ companyId: company.id }),
     listApprovals({ tenantId: company.id }),
     listExpenseExports({ tenantId: company.id }),
+    listPurchaseOrders({ tenantId: company.id }),
+    listPoAllocations({ tenantId: company.id }),
+    listDepartments({ companyIds: [company.id] }),
   ]);
   const [payments, holds, rfps, queue] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
@@ -107,7 +114,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     );
   const waitingOnMe = signOffs.filter((s) => myTurn(s)).length;
 
-  const activeTab = tab === "signoffs" ? "signoffs" : "bookings";
+  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : "bookings";
+  // Approvers manage their company's POs; admins any company's.
+  const canManagePos = member.role === "ADMIN" || role === "APPROVER";
+  const openPos = pos.filter((p) => p.status === "open").length;
   const exportByBooking = new Map(exports.map((e) => [e.booking_id, e]));
   const href = (params: { tab?: string }) => {
     const q = new URLSearchParams();
@@ -165,11 +175,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           [
             { key: "bookings", label: "Bookings", count: 0 },
             { key: "signoffs", label: "Sign-offs", count: signOffs.length },
+            { key: "pos", label: "Purchase orders", count: openPos },
           ] as const
         ).map((t) => (
           <Link
             key={t.key}
-            href={href({ tab: t.key === "signoffs" ? "signoffs" : undefined })}
+            href={href({ tab: t.key === "bookings" ? undefined : t.key })}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
               "relative -mb-px inline-flex h-10 items-center gap-2 px-3 text-[13px] transition-colors",
@@ -177,6 +188,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             )}
           >
             {t.label}
+            {t.key === "pos" && t.count > 0 ? <Badge variant="secondary">{t.count}</Badge> : null}
             {t.key === "signoffs" && t.count > 0 ? (
               <Badge variant={waitingOnMe > 0 ? "warning" : "secondary"}>{waitingOnMe > 0 ? `${waitingOnMe} for you` : t.count}</Badge>
             ) : null}
@@ -185,7 +197,22 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         ))}
       </nav>
 
-      {activeTab === "signoffs" ? (
+      {activeTab === "pos" ? (
+        <PoLedger
+          companyId={company.id}
+          pos={pos}
+          allocations={poAllocations}
+          bookings={bookings.map((b) => ({
+            id: b.id,
+            label: `${b.venue.name} · ${formatDate(b.event_date)}`,
+            status: b.status,
+            eventDate: b.event_date,
+            departmentId: b.department_id,
+          }))}
+          departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+          canManage={canManagePos}
+        />
+      ) : activeTab === "signoffs" ? (
         <div className="space-y-4">
           {signOffs.length === 0 ? (
             <Card>

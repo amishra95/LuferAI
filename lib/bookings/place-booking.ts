@@ -7,7 +7,10 @@ import {
   listCompanies,
   listDepartments,
   listPortalUsers,
+  listPoAllocations,
+  listPurchaseOrders,
   listVenues,
+  PoAllocationError,
   type NewApprovalRequest,
 } from "@/lib/data";
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
@@ -15,6 +18,7 @@ import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
+import { selectPo } from "@/lib/procurement/po-ledger";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
@@ -37,6 +41,8 @@ export interface PlaceBookingInput {
   expense: ExpenseInput;
   /** Checkout-session lock the form took for this venue/date (reserveCheckoutSlot), if any. */
   checkoutToken?: string | null;
+  /** A blanket PO to draw from; otherwise the best eligible one is chosen (lib/procurement/po-ledger.ts). */
+  poId?: string | null;
   /** What the event includes: checked against the venue and the company's alcohol/entertainment rules. */
   alcoholIncluded?: boolean;
   entertainment?: string[];
@@ -138,22 +144,32 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       });
       if (policy.blocked) return { status: "error", message: `This booking can't be made: ${policy.reason}.` };
 
-      // Tier 1 (manager) signs off; above the high-value threshold tier 2 (senior) does too, after tier 1.
-      // Nobody approves their own request: the requester is skipped and the next tier steps up.
+      // Blanket PO (lib/procurement/po-ledger.ts): companies with POs must draw from one;
+      // overdrawing the best one is allowed only through sign-off.
+      const [pos, allocations] = await Promise.all([listPurchaseOrders({ tenantId: company.id }), listPoAllocations({ tenantId: company.id })]);
+      const po = selectPo(pos, allocations, { tenantId: company.id, eventDate, departmentId, amount: pricing.taxableTotal, poId: input.poId });
+      if (po.kind === "ineligible") return { status: "error", message: `${po.reason}. Ask your approver or finance team to raise or extend a purchase order.` };
+
+      // Tier 1 (manager) signs off; above the high-value threshold or the monthly limit tier 2 (senior)
+      // does too, after tier 1. Nobody approves their own request: the requester is skipped and the next tier steps up.
+      const reasons = [policy.requiresApproval ? policy.reason : null, po.kind === "over_balance" ? po.reason : null].filter((r): r is string => Boolean(r));
+      const tiers = policy.requiresApproval ? policy.tiers : 1;
       const approvals: NewApprovalRequest[] = [];
       let approverNames: string[] = [];
-      if (policy.requiresApproval) {
+      if (reasons.length) {
+        const reason = reasons.join("; ");
         const chain = (await listApprovalChain(company.id)).filter((c) => c.approver_user_id !== userId);
-        const assigned = chain.slice(0, policy.tiers);
-        if (assigned.length < policy.tiers) {
+        const assigned = chain.slice(0, tiers);
+        if (assigned.length < tiers) {
           return {
             status: "error",
-            message: `This booking needs ${policy.tiers === 2 ? "two levels of" : ""} sign-off (${policy.reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
+            message: `This booking needs ${tiers === 2 ? "two levels of" : ""} sign-off (${reason}), but ${company.legal_name} doesn't have enough approvers set up besides you.`,
           };
         }
-        for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason: policy.reason });
+        for (const c of assigned) approvals.push({ requested_by: userId, approver_id: c.approver_user_id, reason });
         approverNames = assigned.map((c) => users.find((u) => u.id === c.approver_user_id)?.name ?? "an approver");
       }
+      const allocation = po.kind === "ok" || po.kind === "over_balance" ? { po_id: po.po.id, over_balance: po.kind === "over_balance" } : undefined;
 
       const { hours, ...hold } = planHold(approvals.length > 0);
       const booking = await createBookingRequest(
@@ -172,7 +188,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           entertainment,
           ...(expense.ok ? expense.value : { cost_center: "" }),
         },
-        { approvals, hold }
+        { approvals, hold, allocation }
       );
       if (approvals.length) {
         return {
@@ -194,6 +210,10 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         venueName: venue!.name,
       };
     } catch (err) {
+      if (err instanceof PoAllocationError) {
+        // Another booking drew down the PO between the check and the insert, or it was closed.
+        return { status: "error", message: `${err.message}. Try again, or choose another purchase order.` };
+      }
       if (err instanceof HoldConflictError) {
         return { status: "error", fieldErrors: { event_date: err.message }, message: "Please fix the highlighted fields." };
       }

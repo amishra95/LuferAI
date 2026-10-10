@@ -80,3 +80,5 @@ export type Payment = Tables<"payments">;
 export type Rfp = Tables<"rfps">;
 export type RfpResponse = Tables<"rfp_responses">;
 export type Department = Tables<"departments">;
+export type PurchaseOrder = Tables<"purchase_orders">;
+export type PoAllocation = Tables<"po_allocations">;

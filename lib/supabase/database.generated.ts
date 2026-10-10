@@ -1109,6 +1109,127 @@ export type Database = {
           },
         ]
       }
+      po_allocations: {
+        Row: {
+          amount_inr: number
+          booking_id: string
+          created_at: string
+          id: string
+          over_balance: boolean
+          po_id: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          over_balance?: boolean
+          po_id: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          over_balance?: boolean
+          po_id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_allocations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_allocations_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_allocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          amount_inr: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          department_id: string | null
+          description: string | null
+          id: string
+          po_number: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string
+        }
+        Insert: {
+          amount_inr: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          po_number: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          valid_from: string
+          valid_to: string
+        }
+        Update: {
+          amount_inr?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          po_number?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfp_responses: {
         Row: {
           created_at: string

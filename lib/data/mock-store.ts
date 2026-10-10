@@ -13,6 +13,8 @@ import type {
   ExpenseExport,
   InventoryHold,
   PlatformUser,
+  PoAllocation,
+  PurchaseOrder,
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
@@ -373,6 +375,26 @@ const departments: Department[] = [
   department("dddddddd-0005-4000-8000-000000000005", VERTEX, "Leadership", 800000),
 ];
 
+// Blanket POs (seed.sql "Purchase orders"): Nimbus has a company-wide events PO and an
+// Engineering one; Vertex an Investor Relations one. Seed bookings draw from them.
+const purchaseOrders: PurchaseOrder[] = [
+  { id: "70000000-0001-4000-8000-000000000001", tenant_id: NIMBUS, po_number: "NIM-FY27-EVENTS", description: "Company events FY 2026-27",
+    department_id: null, amount_inr: 600000, currency: "INR", valid_from: "2026-04-01", valid_to: "2027-03-31", status: "open", created_by: null, created_at: ts, updated_at: ts },
+  { id: "70000000-0002-4000-8000-000000000002", tenant_id: NIMBUS, po_number: "NIM-ENG-H2", description: "Engineering offsites, H2",
+    department_id: "dddddddd-0001-4000-8000-000000000001", amount_inr: 150000, currency: "INR", valid_from: "2026-07-01", valid_to: "2026-12-31", status: "open", created_by: null, created_at: ts, updated_at: ts },
+  { id: "70000000-0003-4000-8000-000000000003", tenant_id: VERTEX, po_number: "VCA-IR-2026", description: "Investor relations hospitality",
+    department_id: "dddddddd-0004-4000-8000-000000000004", amount_inr: 500000, currency: "INR", valid_from: "2026-04-01", valid_to: "2027-03-31", status: "open", created_by: null, created_at: ts, updated_at: ts },
+];
+
+const poAllocations: PoAllocation[] = [
+  { id: "71000000-0001-4000-8000-000000000001", po_id: purchaseOrders[1].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0001-4000-8000-000000000001",
+    amount_inr: 100000, status: "committed", over_balance: false, created_at: "2026-09-20T10:00:00.000Z", updated_at: "2026-09-21T10:00:00.000Z" },
+  { id: "71000000-0002-4000-8000-000000000002", po_id: purchaseOrders[2].id, tenant_id: VERTEX, booking_id: "bbbbbbbb-0002-4000-8000-000000000002",
+    amount_inr: 120000, status: "consumed", over_balance: false, created_at: "2026-09-02T10:00:00.000Z", updated_at: "2026-09-19T10:00:00.000Z" },
+  { id: "71000000-0003-4000-8000-000000000003", po_id: purchaseOrders[0].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0003-4000-8000-000000000003",
+    amount_inr: 108000, status: "committed", over_balance: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" },
+];
+
 export interface MockDb {
   companies: Company[];
   departments: Department[];
@@ -387,6 +409,8 @@ export interface MockDb {
   holds: InventoryHold[];
   rateCards: CorporateRateCard[];
   expenseExports: ExpenseExport[];
+  purchaseOrders: PurchaseOrder[];
+  poAllocations: PoAllocation[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -407,6 +431,8 @@ export function seedDb(): MockDb {
     holds: [],
     rateCards,
     expenseExports: [],
+    purchaseOrders,
+    poAllocations,
   });
 }
 
@@ -426,6 +452,8 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   holds: [],
   rateCards,
   expenseExports: [],
+  purchaseOrders,
+  poAllocations,
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -435,6 +463,9 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
  * Mutates in place; idempotent.
  */
 export function backfillDefaults(db: MockDb): MockDb {
+  // Collections added after a Redis store was seeded load as empty.
+  db.purchaseOrders ??= [];
+  db.poAllocations ??= [];
   for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
   for (const c of db.companies) c.expense_provider ??= "webhook";
   for (const p of db.policies) {

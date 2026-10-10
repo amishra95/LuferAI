@@ -33,6 +33,8 @@ const COLLECTIONS = [
   "holds",
   "rateCards",
   "expenseExports",
+  "purchaseOrders",
+  "poAllocations",
 ] as const satisfies readonly (keyof MockDb)[];
 
 const PREFIX = "lufer:db:";
