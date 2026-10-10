@@ -8,6 +8,8 @@ import { Header } from "@/components/dashboard/header";
 import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ToastProvider } from "@/components/dashboard/toast";
+import { InspectorSidebar } from "@/components/workspace/inspector-sidebar";
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import type { PortalRole } from "@/lib/supabase/database.types";
 import type { SystemMode } from "@/types/navigation";
 
@@ -51,33 +53,38 @@ export function DashboardShell({
   }, [toggle]);
 
   return (
-    <ToastProvider>
-      <div className="flex h-dvh overflow-hidden">
-        <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
+    <WorkspaceProvider>
+      <ToastProvider>
+        <div className="flex h-dvh overflow-hidden">
+          <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
 
-        <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
-          <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
-        </Drawer>
+          <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
+            <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+          </Drawer>
 
-        <div className="relative flex min-w-0 flex-1 flex-col">
-          <Header
-            workspaceName={workspaceName}
-            system={system}
-            account={account}
-            onOpenMobileNav={() => setMobileOpen(true)}
-            onOpenPalette={() => setPaletteOpen(true)}
-          />
-          {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
-          <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <Header
+              workspaceName={workspaceName}
+              system={system}
+              account={account}
+              onOpenMobileNav={() => setMobileOpen(true)}
+              onOpenPalette={() => setPaletteOpen(true)}
+            />
+            {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
+            <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+          </div>
+
+          {/* Entity inspector: docked beside the page on wide screens, an overlay below lg. */}
+          <InspectorSidebar />
         </div>
-      </div>
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        allowedHrefs={allowedHrefs}
-        role={account?.role ?? null}
-        onToggleSidebar={toggle}
-      />
-    </ToastProvider>
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          allowedHrefs={allowedHrefs}
+          role={account?.role ?? null}
+          onToggleSidebar={toggle}
+        />
+      </ToastProvider>
+    </WorkspaceProvider>
   );
 }

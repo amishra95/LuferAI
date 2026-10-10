@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 
 import { TOOL_META, toolName, toolPhase, type LuferToolPart } from "@/components/chat/tool-meta";
+import { InspectButton } from "@/components/workspace/inspect";
 import { cn } from "@/lib/utils";
 import type { ChatToolName } from "@/types/chat";
 
@@ -13,6 +14,8 @@ export type SessionInfo = {
   status: string;
   messageCount: number;
   totalTokens: number;
+  /** The latest reply's trace, when the server shared it (admins). */
+  traceId: string | null;
 };
 
 const PHASE_DOT = {
@@ -67,6 +70,16 @@ export function Inspector({
     ["status", session.status],
     ["messages", session.messageCount],
     ["tokens", session.totalTokens ? session.totalTokens.toLocaleString("en-US") : "—"],
+    ...(session.traceId
+      ? ([
+          [
+            "trace",
+            <InspectButton key="t" kind="trace" id={session.traceId}>
+              {session.traceId.slice(0, 12)}
+            </InspectButton>,
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
   ];
 
   return (

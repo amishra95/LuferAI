@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, CheckCircle2, Coins, Timer } from "lucide-reac
 
 import { LatencyChart, RunsChart } from "@/components/admin/run-charts";
 import { TracePanels } from "@/components/admin/trace-panels";
+import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LiveBadge } from "@/components/portal/live-badge";
 import { PortalShell } from "@/components/portal/portal-shell";
@@ -177,8 +178,12 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                 </TableHeader>
                 <TableBody>
                   {s.agents.map((a) => (
-                    <TableRow key={a.agent}>
-                      <TableCell className="font-mono text-[12.5px]">{a.agent}</TableCell>
+                    <InspectableRow as="tr" key={a.agent} kind="agent" id={a.agent} className="hover:bg-surface-hover border-line border-b transition-colors">
+                      <TableCell className="font-mono text-[12.5px]">
+                        <InspectButton kind="agent" id={a.agent} className="block truncate">
+                          {a.agent}
+                        </InspectButton>
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{int(a.runs)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {a.failed > 0 ? (
@@ -195,7 +200,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                       <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatMs(a.p95Ms)}</TableCell>
                       <TableCell className="hidden text-right tabular-nums md:table-cell">{int(a.tokens)}</TableCell>
                       <TableCell className="text-fg-subtle hidden text-right tabular-nums lg:table-cell">{when.format(new Date(a.lastAt))}</TableCell>
-                    </TableRow>
+                    </InspectableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -243,10 +248,16 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                 ) : (
                   <ul className="divide-line divide-y">
                     {s.failures.map((f) => (
-                      <li key={`${f.at}-${f.agent}`} className="py-2.5 first:pt-0 last:pb-0">
+                      <li key={f.id ?? `${f.at}-${f.agent}`} className="py-2.5 first:pt-0 last:pb-0">
                         <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
                           <AlertTriangle className="size-3.5 shrink-0 translate-y-0.5 text-rose" aria-label="Failed" />
-                          <span className="text-fg min-w-0 break-words">{f.task}</span>
+                          {f.id ? (
+                            <InspectButton kind="run" id={f.id} label={f.task} className="text-fg min-w-0 break-words">
+                              {f.task}
+                            </InspectButton>
+                          ) : (
+                            <span className="text-fg min-w-0 break-words">{f.task}</span>
+                          )}
                         </p>
                         <p className="mt-0.5 pl-5.5 text-[12.5px] break-words text-rose">{f.error}</p>
                         <p className="text-fg-subtle mt-0.5 pl-5.5 font-mono text-[11px]">

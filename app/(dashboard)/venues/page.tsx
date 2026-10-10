@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, Search, Searc
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
+import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { dataSource } from "@/lib/data";
 import { listDirectory } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
@@ -141,9 +142,13 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             {/* Phones: stacked rows. The full table starts at md. */}
             <ul className="md:hidden">
               {rows.map((v) => (
-                <li key={v.id} className="border-line border-b px-4 py-3.5 last:border-b-0">
+                <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-fg truncate text-[13.5px] font-medium">{v.name}</p>
+                    <p className="text-fg min-w-0 truncate text-[13.5px] font-medium">
+                      <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                        {v.name}
+                      </InspectButton>
+                    </p>
                     <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(v.min_spend_inr)}</p>
                   </div>
                   <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
@@ -152,7 +157,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
                     {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
                   </p>
-                </li>
+                </InspectableRow>
               ))}
             </ul>
 
@@ -174,9 +179,13 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                 </thead>
                 <tbody>
                   {rows.map((v) => (
-                    <tr key={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
+                    <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
                       <td className="max-w-80 py-3 pr-4 pl-5">
-                        <p className="text-fg truncate font-medium">{v.name}</p>
+                        <p className="text-fg truncate font-medium">
+                          <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                            {v.name}
+                          </InspectButton>
+                        </p>
                         <p className="text-fg-subtle mt-0.5 truncate text-[12px]" title={v.address}>
                           {v.address}
                         </p>
@@ -199,7 +208,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                         {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
                       </td>
                       <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
-                    </tr>
+                    </InspectableRow>
                   ))}
                 </tbody>
               </table>

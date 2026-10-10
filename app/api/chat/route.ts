@@ -48,6 +48,8 @@ async function handleChat(req: Request) {
   const member = await getCurrentMember();
   if (!member) return Response.json({ error: "unauthenticated" }, { status: 401 });
   tracer.annotate({ role: member.role, corporateRole: member.corporateRole });
+  // Lets admins open this request's trace from the chat inspector.
+  const traceId = member.role === "ADMIN" ? tracer.currentSpan()?.traceId : undefined;
   if (!canAccessWorkspace(member.role, member.corporateRole, "/chat")) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const scope = await analyticsScopeFor(member);
@@ -121,7 +123,7 @@ async function handleChat(req: Request) {
       tools: chatTools,
       originalMessages: messages,
       messageMetadata: ({ part }) => {
-        if (part.type === "start") return { model: model.modelId };
+        if (part.type === "start") return { model: model.modelId, ...(traceId && { traceId }) };
         if (part.type === "finish") return { usage: part.totalUsage };
       },
       onError: (err) => {

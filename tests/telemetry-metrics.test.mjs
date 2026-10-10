@@ -109,3 +109,8 @@ test("metricChange: nothing to compare gives null", () => {
   assert.equal(metricChange(10, 0, { unit: "%", better: "up" }), null); // relative change from zero
   assert.deepEqual(metricChange(0, 0, { unit: "pts", better: "up" })?.label, "0.0 pts");
 });
+
+test("summarizeRuns: failures carry the run id for the inspector (null for legacy entries)", () => {
+  const s = summarizeRuns([run(5, { id: "r-1", ok: false, error: "x" }), run(6, { ok: false, error: "y" })], NOW, "24h");
+  assert.deepEqual(s.failures.map((f) => f.id), ["r-1", null]);
+});

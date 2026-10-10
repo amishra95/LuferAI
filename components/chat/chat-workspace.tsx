@@ -66,6 +66,7 @@ export function ChatWorkspace({
     status,
     messageCount: messages.length,
     totalTokens: messages.reduce((n, m) => n + (m.metadata?.usage?.totalTokens ?? 0), 0),
+    traceId: messages.findLast((m) => m.metadata?.traceId)?.metadata?.traceId ?? null,
   };
 
   // Follow the stream, unless the reader has scrolled up to look at something.
