@@ -30,6 +30,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import { Redis } from "@upstash/redis";
 
+import { publishTracerEvent } from "./telemetry/live.ts";
+
 // ----------------------------------------------------------------------------
 // Types
 // ----------------------------------------------------------------------------
@@ -93,8 +95,13 @@ export interface TraceStore {
   get(traceId: string): Promise<TraceRecord | null>;
 }
 
+/** Live notifications: each span as it ends, then the trace once it's stored. */
+export type TracerEvent = { type: "span"; traceId: string; root: boolean; span: SpanRecord } | { type: "trace"; trace: TraceRecord };
+
 export interface TracerOptions {
   store: TraceStore;
+  /** Called synchronously; must not throw (errors are logged and ignored). */
+  onEvent?: (event: TracerEvent) => void;
   /** Fraction of successful traces kept (errors are always kept). Default 1. */
   sampleRate?: number;
   /** Spans kept per trace. Default 200. */
@@ -191,7 +198,7 @@ interface SpanContext {
 
 export class Tracer {
   private readonly als = new AsyncLocalStorage<SpanContext>();
-  private readonly o: Required<Omit<TracerOptions, "defer">> & Pick<TracerOptions, "defer">;
+  private readonly o: Required<Omit<TracerOptions, "defer" | "onEvent">> & Pick<TracerOptions, "defer" | "onEvent">;
 
   constructor(options: TracerOptions) {
     this.o = {
@@ -374,13 +381,25 @@ export class Tracer {
     if (buffer.done) return;
     if (isRoot || buffer.spans.length < this.o.maxSpansPerTrace - 1) buffer.spans.push(record);
     else buffer.dropped++;
+    this.emit({ type: "span", traceId: buffer.traceId, root: isRoot, span: record });
     if (!isRoot) return;
 
     buffer.done = true;
     if (record.status === "ok" && this.o.random() >= this.o.sampleRate) return;
     const trace = this.assemble(buffer, record);
-    const work = this.o.store.save(trace).catch((err) => console.error("tracer: could not store trace", err));
+    const work = this.o.store
+      .save(trace)
+      .then(() => this.emit({ type: "trace", trace }))
+      .catch((err) => console.error("tracer: could not store trace", err));
     this.o.defer?.(work);
+  }
+
+  private emit(event: TracerEvent) {
+    try {
+      this.o.onEvent?.(event);
+    } catch (err) {
+      console.error("tracer: event listener failed", err);
+    }
   }
 
   private assemble(buffer: TraceBuffer, root: SpanRecord): TraceRecord {
@@ -543,6 +562,7 @@ function createAppTracer(): Tracer {
     store: url && token ? redisTraceStore(new Redis({ url, token })) : memoryTraceStore(),
     sampleRate: Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : 1,
     defer: deferToNext,
+    onEvent: publishTracerEvent,
   });
 }
 

@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { useTelemetryStream } from "@/components/workspace/use-telemetry-stream";
+import type { TelemetryStreamState } from "@/lib/telemetry/stream-state";
 import {
   activeId,
   readWorkspaceParams,
@@ -20,6 +22,10 @@ import {
  *
  * URL writes use history.replaceState: no server round trip and no extra
  * history entries for every click.
+ *
+ * It also owns the live telemetry stream (useTelemetryStream), exposed through
+ * its own context so that the many inspect buttons reading workspace state
+ * don't re-render on every streamed event.
  */
 
 export interface WorkspaceApi {
@@ -40,8 +46,17 @@ export interface WorkspaceApi {
 }
 
 const WorkspaceContext = createContext<WorkspaceApi | null>(null);
+const TelemetryContext = createContext<TelemetryStreamState | null>(null);
 
-export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+export function WorkspaceProvider({
+  live,
+  children,
+}: {
+  /** Connect the live telemetry stream (the viewer may receive some of it). */
+  live: boolean;
+  children: React.ReactNode;
+}) {
+  const telemetry = useTelemetryStream(live);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const query = searchParams.toString();
@@ -72,12 +87,23 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [state]
   );
 
-  return <WorkspaceContext.Provider value={api}>{children}</WorkspaceContext.Provider>;
+  return (
+    <WorkspaceContext.Provider value={api}>
+      <TelemetryContext.Provider value={telemetry}>{children}</TelemetryContext.Provider>
+    </WorkspaceContext.Provider>
+  );
 }
 
 export function useWorkspace(): WorkspaceApi {
   const ctx = useContext(WorkspaceContext);
   if (!ctx) throw new Error("useWorkspace must be used inside <WorkspaceProvider> (the dashboard shell).");
+  return ctx;
+}
+
+/** Live telemetry: connection status and recent events (lib/telemetry/stream-state.ts). */
+export function useTelemetry(): TelemetryStreamState {
+  const ctx = useContext(TelemetryContext);
+  if (!ctx) throw new Error("useTelemetry must be used inside <WorkspaceProvider> (the dashboard shell).");
   return ctx;
 }
 

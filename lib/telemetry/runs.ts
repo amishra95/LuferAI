@@ -3,6 +3,7 @@ import "server-only";
 import { after } from "next/server";
 
 import { getDataRedis } from "@/lib/data/local-store";
+import { publishRun } from "@/lib/telemetry/live";
 import type { AgentId, AgentRun } from "@/types/agents";
 
 /** Configured agents (lib/agents/store.ts) plus the single-purpose /api/ai/* routes. */
@@ -80,7 +81,9 @@ export function logAgentRun(agent: RunAgent, run: NewRun): Promise<void> {
     tokens: Math.max(0, Math.round(run.tokens ?? 0)),
     steps: Math.max(0, run.steps ?? 0),
   };
-  const p = write(logged).catch((err) => console.error("telemetry: could not record agent run", err));
+  const p = write(logged)
+    .then(() => publishRun(logged))
+    .catch((err) => console.error("telemetry: could not record agent run", err));
   try {
     after(p);
   } catch {

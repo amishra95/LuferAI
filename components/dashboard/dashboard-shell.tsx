@@ -52,8 +52,11 @@ export function DashboardShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [toggle]);
 
+  // Live telemetry carries operator data (admins) and venue syncs (/venues users).
+  const live = account?.role === "ADMIN" || allowedHrefs.includes("/venues");
+
   return (
-    <WorkspaceProvider>
+    <WorkspaceProvider live={live}>
       <ToastProvider>
         <div className="flex h-dvh overflow-hidden">
           <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
