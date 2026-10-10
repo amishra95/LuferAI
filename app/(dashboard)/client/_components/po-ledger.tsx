@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { FileText, Loader2, Plus } from "lucide-react";
 
 import { createPurchaseOrderAction, reallocateBookingAction, setPurchaseOrderStatusAction } from "../po-actions";
 import { useOptimisticMutation } from "@/components/workspace/use-optimistic-mutation";
-import { ineligibility, ledger, poBalance, subjectOf, validateNewPo, type NewPoInput } from "@/lib/procurement/po-ledger";
+import { BUDGET_TONE_TEXT, BudgetMeter } from "@/components/portal/budget-meter";
+import { EmptyState } from "@/components/portal/empty-state";
+import { budgetTone, ineligibility, ledger, poBalance, subjectOf, validateNewPo, type NewPoInput } from "@/lib/procurement/po-ledger";
 import type { PoAllocation, PurchaseOrder } from "@/lib/supabase/database.types";
 import { cn, formatINR } from "@/lib/utils";
 
@@ -85,10 +87,13 @@ export function PoLedger({
 
   return (
     <div className="space-y-4">
+      {state.pos.some((p) => p.status === "open") && <BudgetOverview pos={state.pos.filter((p) => p.status === "open")} state={state} />}
       {state.pos.length === 0 ? (
-        <div className="panel text-fg-subtle px-5 py-6 text-[13px]">
-          No purchase orders yet. Without one, bookings aren&apos;t checked against a PO.{canManage && " Raise one below to start tracking spend against it."}
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No purchase orders yet"
+          description={<>Without a PO, bookings and orders aren&apos;t checked against a budget.{canManage ? " Raise one below to start tracking spend." : " An Approver can raise one."}</>}
+        />
       ) : (
         state.pos
           .slice()
@@ -127,6 +132,40 @@ export function PoLedger({
   );
 }
 
+/** Every open PO at a glance: who's closest to the limit first. */
+function BudgetOverview({ pos, state }: { pos: PurchaseOrder[]; state: State }) {
+  const rows = pos.map((po) => ({ po, balance: poBalance(po, state.allocations) })).sort((a, b) => b.balance.usedPct - a.balance.usedPct);
+  const total = rows.reduce((t, r) => ({ amount: t.amount + r.balance.amount, remaining: t.remaining + r.balance.remaining }), { amount: 0, remaining: 0 });
+  const atRisk = rows.filter((r) => budgetTone(r.balance) !== "ok").length;
+  return (
+    <section className="panel px-5 py-4" aria-label="Budget overview">
+      <header className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <h3 className="label-mono">Budget overview</h3>
+        <span className="text-fg-subtle font-mono text-[12px] tabular-nums">
+          {formatINR(total.remaining)} left of {formatINR(total.amount)} across {rows.length} open PO{rows.length === 1 ? "" : "s"}
+        </span>
+        {atRisk ? <span className="text-warn ml-auto text-[12px]">{atRisk} need attention</span> : null}
+      </header>
+      <ul className="grid gap-3">
+        {rows.map(({ po, balance }) => {
+          const tone = budgetTone(balance);
+          return (
+            <li key={po.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-[12px] sm:grid-cols-[9rem_1fr_9rem]">
+              <a href={`#po-${po.id}`} className="text-fg truncate font-mono hover:underline">
+                {po.po_number}
+              </a>
+              <BudgetMeter balance={balance} size="sm" />
+              <span className={cn("text-right font-mono tabular-nums", BUDGET_TONE_TEXT[tone] || "text-fg-subtle")}>
+                {Math.round(balance.usedPct)}% · {formatINR(balance.remaining)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function PoPanel({
   po,
   state,
@@ -146,11 +185,10 @@ function PoPanel({
 }) {
   const balance = poBalance(po, state.allocations);
   const rows = ledger(po, state.allocations.map((a) => ({ ...a, amount_inr: Number(a.amount_inr) })));
-  const pct = (n: number) => `${Math.min(100, Math.max(0, (n / Math.max(balance.amount, 1)) * 100))}%`;
   const closed = po.status === "closed";
 
   return (
-    <section className={cn("panel overflow-hidden", closed && "opacity-70")} aria-label={`Purchase order ${po.po_number}`}>
+    <section id={`po-${po.id}`} className={cn("panel scroll-mt-20 overflow-hidden", closed && "opacity-70")} aria-label={`Purchase order ${po.po_number}`}>
       <header className="border-line flex flex-wrap items-start gap-x-4 gap-y-1 border-b px-5 py-3.5">
         <div className="min-w-0 flex-1">
           <p className="text-fg flex items-center gap-2 font-mono text-[13.5px] font-medium">
@@ -171,11 +209,7 @@ function PoPanel({
       </header>
 
       <div className="px-5 py-3.5">
-        {/* Flat meter: consumed, then committed; the remainder is the balance. */}
-        <div className="bg-surface-raised border-line relative h-2 overflow-hidden rounded-sm border" role="img" aria-label={`${balance.usedPct}% drawn`}>
-          <span className="bg-fg absolute inset-y-0 left-0" style={{ width: pct(balance.consumed) }} />
-          <span className="bg-fg-subtle absolute inset-y-0" style={{ left: pct(balance.consumed), width: pct(balance.committed) }} />
-        </div>
+        <BudgetMeter balance={balance} showLegend />
         <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[12px] tabular-nums sm:grid-cols-4">
           {(
             [

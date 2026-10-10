@@ -238,3 +238,26 @@ test("placing an order: the 'placing…' row disappears with the reason when ref
   assert.deepEqual(orders.view(), [{ id: "old", status: "PLACED" }]);
   assert.match(errorMessage(out.error), /GSTIN/);
 });
+
+test("fulfilment board: lanes follow the next step; drops only make allowed moves", async () => {
+  const { fulfilLane, laneMove } = await import("../lib/catalog/orders.ts");
+  assert.equal(fulfilLane("gifting", "PLACED"), "confirm");
+  assert.equal(fulfilLane("gifting", "CONFIRMED"), "ship");
+  assert.equal(fulfilLane("tickets", "CONFIRMED"), "deliver");
+  assert.equal(fulfilLane("merch", "SHIPPED"), "deliver");
+  assert.equal(fulfilLane("merch", "SETTLED"), "done");
+  assert.equal(fulfilLane("merch", "CANCELLED"), "cancelled");
+
+  assert.equal(laneMove("gifting", "PLACED", "ship"), "CONFIRMED");
+  assert.equal(laneMove("team_building", "PLACED", "deliver"), "CONFIRMED");
+  assert.equal(laneMove("gifting", "CONFIRMED", "deliver"), "SHIPPED");
+  assert.equal(laneMove("gifting", "SHIPPED", "done"), "DELIVERED");
+  assert.equal(laneMove("dining", "CONFIRMED", "done"), "DELIVERED");
+  assert.equal(laneMove("gifting", "PLACED", "cancelled"), "CANCELLED");
+  // No skipping steps, no going back, nothing out of a final state.
+  assert.equal(laneMove("gifting", "PLACED", "done"), null);
+  assert.equal(laneMove("gifting", "SHIPPED", "confirm"), null);
+  assert.equal(laneMove("gifting", "SHIPPED", "cancelled"), null);
+  assert.equal(laneMove("gifting", "DELIVERED", "cancelled"), null);
+  assert.equal(laneMove("gifting", "BOGUS", "done"), null);
+});

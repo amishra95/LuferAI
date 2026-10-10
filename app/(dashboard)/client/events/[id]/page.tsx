@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarArrowDown } from "lucide-react";
+import { Activity, ArrowLeft, CalendarArrowDown } from "lucide-react";
 
 import { PortalShell } from "@/components/portal/portal-shell";
 import { BookingStatusBadge } from "@/components/portal/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePortal } from "@/lib/auth/session";
-import { dataSource, getEventRoom } from "@/lib/data";
+import { dataSource, getEventRoom, listPortalUsers } from "@/lib/data";
+import { seedActivity } from "@/lib/events/activity";
 import { eventTitle, venueLine } from "@/lib/events/invite";
 import { displayName } from "@/lib/events/presence";
 import { isPlannable, isRsvpStatus, summarizeRsvps } from "@/lib/events/rsvp";
 import { siteUrl } from "@/lib/site-url";
 import { cn, formatDate } from "@/lib/utils";
-import { EventRoom, RoomPresence, SectionPresence } from "./_components/event-room";
+import { ActivityTicker, EventRoom, RoomPresence, SectionPresence } from "./_components/event-room";
 import { GuestList, type GuestRow } from "./_components/guest-list";
 import { ScheduleForm } from "./_components/schedule-form";
 
@@ -49,13 +50,15 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
     rsvpUrl: `${origin}/rsvp/${a.rsvp_token}`,
   }));
   const back = member.role === "ADMIN" ? `/client?company=${booking.company_id}` : "/client";
+  const people = Object.fromEntries((await listPortalUsers({ companyId: booking.company_id })).map((u) => [u.id, u.name]));
+  const activity = seedActivity({ attendees, workspace, people });
 
   return (
     <PortalShell
       title={eventTitle(room)}
       subtitle={`${formatDate(booking.event_date)} · ${time(workspace.starts_at)}–${time(workspace.ends_at)} IST · ${venueLine(booking.venue)}`}
     >
-      <EventRoom bookingId={booking.id} self={{ userId: member.userId, name: displayName(member.email) }} realtime={dataSource() === "supabase"}>
+      <EventRoom bookingId={booking.id} self={{ userId: member.userId, name: displayName(member.email) }} realtime={dataSource() === "supabase"} activity={activity}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href={back} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-[13px]">
             <ArrowLeft className="size-3.5" aria-hidden /> Bookings
@@ -101,6 +104,18 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
           </Card>
 
           <div className="grid content-start gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="size-4" aria-hidden /> Activity
+                </CardTitle>
+                <CardDescription>Your team&apos;s edits and guests&apos; replies, live.</CardDescription>
+              </CardHeader>
+              <CardContent className="max-h-72 overflow-y-auto">
+                <ActivityTicker />
+              </CardContent>
+            </Card>
+
             <Card data-room-section="schedule">
               <CardHeader>
                 <CardTitle className="flex flex-wrap items-center gap-3">

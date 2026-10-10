@@ -112,3 +112,17 @@ test("po events: parsed, operator-only, refresh the client portal", () => {
   assert.equal(isStale("/client", [e]), true);
   assert.equal(isStale("/venues", [e]), false);
 });
+
+test("budget meter: tone by share drawn, segments capped at the bar", async () => {
+  const { budgetTone, meterSegments } = await import("../lib/procurement/po-ledger.ts");
+  assert.equal(budgetTone({ usedPct: 74.9, overrun: false }), "ok");
+  assert.equal(budgetTone({ usedPct: 75, overrun: false }), "watch");
+  assert.equal(budgetTone({ usedPct: 90, overrun: false }), "critical");
+  assert.equal(budgetTone({ usedPct: 100, overrun: false }), "critical");
+  assert.equal(budgetTone({ usedPct: 100.5, overrun: false }), "over");
+  assert.equal(budgetTone({ usedPct: 60, overrun: true }), "over");
+  assert.deepEqual(meterSegments({ amount: 1000, consumed: 250, committed: 333.333 }), { consumed: 25, committed: 33.33 });
+  assert.deepEqual(meterSegments({ amount: 1000, consumed: 700, committed: 600 }), { consumed: 70, committed: 30 });
+  assert.deepEqual(meterSegments({ amount: 1000, consumed: 1500, committed: 100 }), { consumed: 100, committed: 0 });
+  assert.deepEqual(meterSegments({ amount: 0, consumed: 0, committed: 0 }), { consumed: 0, committed: 0 });
+});

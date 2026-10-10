@@ -23,7 +23,7 @@ import {
   MemberRoleForm,
   RateCardForm,
 } from "./_components/partner-forms";
-import { PartnerCatalog, PartnerOrders, type FulfilOrder } from "./_components/catalog-manager";
+import { LowStock, PartnerCatalog, PartnerOrders, type FulfilOrder } from "./_components/catalog-manager";
 import { PartnerPayouts } from "./_components/payouts";
 import { listOrderSettlements, listPartnerTcs, orderPaymentsEnabled, type OrderSettlement } from "@/lib/marketplace/service";
 
@@ -83,7 +83,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     listPartnerRateCards(partner.id),
     activeTab === "team" ? listPartnerMembers(partner.id) : Promise.resolve([]),
     activeTab === "activity" ? listAudit(partner.id) : Promise.resolve([]),
-    activeTab === "catalog" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
+    activeTab === "catalog" || activeTab === "orders" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
     activeTab === "orders" || activeTab === "payouts" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
   ]);
   const [settlements, tcs] = await Promise.all([
@@ -297,6 +297,8 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           canSetGstin={can.has("team.manage")}
         />
       ) : null}
+
+      {activeTab === "orders" ? <LowStock partnerId={formPartnerId} items={catalogItems} canEdit={can.has("catalog.edit")} /> : null}
 
       {activeTab === "orders" ? (
         <PartnerOrders

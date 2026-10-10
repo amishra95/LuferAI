@@ -17,7 +17,7 @@ import { useRoom } from "./event-room";
  */
 export function ScheduleForm({ bookingId, eventDate, initial, readOnly }: { bookingId: string; eventDate: string; initial: { title: string; startsAt: string; endsAt: string; rsvpDeadline: string }; readOnly: boolean }) {
   const { run, pending } = useAction<{ sequence: number }>();
-  const { announceChange } = useRoom();
+  const { record } = useRoom();
 
   async function submit(form: FormData) {
     const outcome = await run(
@@ -30,7 +30,7 @@ export function ScheduleForm({ bookingId, eventDate, initial, readOnly }: { book
         }),
       { failure: "Couldn't save the schedule", success: () => ({ tone: "success", title: "Schedule saved" }) }
     );
-    if (outcome?.ok) announceChange();
+    if (outcome?.ok) record("schedule", "updated the schedule");
   }
 
   return (
