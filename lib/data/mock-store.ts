@@ -3,6 +3,8 @@ import "server-only";
 import type {
   CatalogItem,
   CatalogOrder,
+  EventAttendee,
+  EventWorkspace,
   Partner,
   ApprovalComment,
   ApprovalChain,
@@ -458,6 +460,8 @@ export interface MockDb {
   partners: Partner[];
   catalogItems: CatalogItem[];
   catalogOrders: CatalogOrder[];
+  eventWorkspaces: EventWorkspace[];
+  eventAttendees: EventAttendee[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -483,6 +487,8 @@ export function seedDb(): MockDb {
     partners,
     catalogItems,
     catalogOrders: [],
+    eventWorkspaces: [],
+    eventAttendees: [],
   });
 }
 
@@ -507,6 +513,8 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   partners,
   catalogItems,
   catalogOrders: [],
+  eventWorkspaces: [],
+  eventAttendees: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -522,6 +530,8 @@ export function backfillDefaults(db: MockDb): MockDb {
   db.partners ??= [];
   db.catalogItems ??= [];
   db.catalogOrders ??= [];
+  db.eventWorkspaces ??= [];
+  db.eventAttendees ??= [];
   for (const a of db.approvals) a.catalog_order_id ??= null;
   for (const a of db.poAllocations) a.catalog_order_id ??= null;
   for (const e of db.expenseExports) e.catalog_order_id ??= null;

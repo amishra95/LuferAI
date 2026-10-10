@@ -79,6 +79,16 @@ tests/gst-engine.test.mjs
 4. **`…150300_portal_access_rls`** — `platform_users` maps each auth user to ADMIN / CLIENT (one company) / PROPERTY (one venue); RLS on every table enforces that isolation.
 5. **`…150400_fix_gst_and_rls_issues`** — portal users can change only a booking's `status`; `gst_type` is always re-derived; clients book active venues under SAC 998596 only; `booking_tax_breakdown` keeps bookings at deactivated venues and hides commission/payout from clients.
 
+## Event workspace & RSVPs (migration `…20261011120000_event_workspace_rsvps`)
+
+Every booking has a multiplayer planning workspace at `/client/events/<booking id>` (linked from the bookings table):
+
+- **Live collaboration** — one private Supabase Realtime channel per booking (`event:<id>`, authorised to the booking's company and admins via `realtime.messages` RLS): presence avatars, which section each person is in, live cursors, and `postgres_changes` on the guest list and schedule so everyone's view (including guests' RSVPs) updates in place. Without Supabase the workspace works single-player.
+- **Guest list** — paste names and emails in any common shape; each guest gets a personal, unguessable RSVP link (`/rsvp/<token>`, no account). Organizers and Approvers edit; Finance viewers read; venues never see guest data.
+- **Calendar invites** — `GET /api/events/<id>/calendar` exports an RFC 5545 `.ics` (`METHOD:REQUEST` with every guest's reply, `CANCEL` once cancelled); guests download a `PUBLISH` copy from their RSVP page. Both use the booking id as UID and bump `SEQUENCE` when the name or times change, so calendars update rather than duplicate.
+
+Rules live in `lib/events/` (`rsvp.ts`, `ics.ts`, `presence.ts`, `invite.ts`); tests in `tests/event-workspace.test.mjs` and `tests/rls.test.mjs`.
+
 ## GST engine (`lib/gst-engine.ts`)
 
 ```ts

@@ -802,6 +802,126 @@ export type Database = {
           },
         ]
       }
+      event_attendees: {
+        Row: {
+          booking_id: string
+          created_at: string
+          dietary: string | null
+          email: string
+          id: string
+          invited_by: string | null
+          name: string
+          plus_ones: number
+          responded_at: string | null
+          rsvp_status: string
+          rsvp_token: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          dietary?: string | null
+          email: string
+          id?: string
+          invited_by?: string | null
+          name: string
+          plus_ones?: number
+          responded_at?: string | null
+          rsvp_status?: string
+          rsvp_token?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          dietary?: string | null
+          email?: string
+          id?: string
+          invited_by?: string | null
+          name?: string
+          plus_ones?: number
+          responded_at?: string | null
+          rsvp_status?: string
+          rsvp_token?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_attendees_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_workspaces: {
+        Row: {
+          booking_id: string
+          created_at: string
+          ends_at: string
+          ics_sequence: number
+          id: string
+          rsvp_deadline: string | null
+          starts_at: string
+          tenant_id: string
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          ends_at?: string
+          ics_sequence?: number
+          id?: string
+          rsvp_deadline?: string | null
+          starts_at?: string
+          tenant_id: string
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          ends_at?: string
+          ics_sequence?: number
+          id?: string
+          rsvp_deadline?: string | null
+          starts_at?: string
+          tenant_id?: string
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_workspaces_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_workspaces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_exports: {
         Row: {
           attempts: number

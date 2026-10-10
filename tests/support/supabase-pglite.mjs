@@ -34,9 +34,11 @@ alter default privileges in schema public grant all on sequences to anon, authen
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 `;
 
-export async function createDatabase({ seed = true } = {}) {
+/** `prelude` runs after the bootstrap, before the migrations (e.g. a stub Realtime schema). */
+export async function createDatabase({ seed = true, prelude = "" } = {}) {
   const db = new PGlite({ extensions: { btree_gist } });
   await db.exec(BOOTSTRAP);
+  if (prelude) await db.exec(prelude);
   const dir = join(ROOT, "supabase/migrations");
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
     try {

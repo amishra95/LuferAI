@@ -15,6 +15,8 @@ import type {
   CorporatePolicy,
   CorporateRateCard,
   CorporateRole,
+  EventAttendee,
+  EventWorkspace,
   ExpenseExport,
   InventoryHold,
   PoAllocation,
@@ -24,6 +26,7 @@ import type {
 } from "@/lib/supabase/database.types";
 import { canTransition } from "@/lib/bookings/lifecycle";
 import { canOrderTransition, isOrderStatus, orderAllocationStatus, type OrderStatus } from "@/lib/catalog/orders";
+import { MAX_GUESTS, type AttendeeInput, type RsvpResponse, type RsvpStatus } from "@/lib/events/rsvp";
 import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
@@ -107,11 +110,11 @@ export async function listVenues(): Promise<Venue[]> {
   return data;
 }
 
-export async function listBookings(filter: { companyId?: string; venueId?: string } = {}): Promise<BookingDetail[]> {
+export async function listBookings(filter: { companyId?: string; venueId?: string; ids?: string[] } = {}): Promise<BookingDetail[]> {
   if (local()) {
     const db = await readDb();
     return db.bookings
-      .filter((b) => (!filter.companyId || b.company_id === filter.companyId) && (!filter.venueId || b.venue_id === filter.venueId))
+      .filter((b) => (!filter.companyId || b.company_id === filter.companyId) && (!filter.venueId || b.venue_id === filter.venueId) && (!filter.ids || filter.ids.includes(b.id)))
       // Venues never see bookings still awaiting the company's internal sign-off.
       .filter((b) => !filter.venueId || b.status !== "PENDING_APPROVAL")
       .sort((a, b) => b.event_date.localeCompare(a.event_date))
@@ -130,6 +133,7 @@ export async function listBookings(filter: { companyId?: string; venueId?: strin
     .order("event_date", { ascending: false });
   if (filter.companyId) query = query.eq("company_id", filter.companyId);
   if (filter.venueId) query = query.eq("venue_id", filter.venueId).neq("status", "PENDING_APPROVAL");
+  if (filter.ids) query = query.in("id", filter.ids);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -1372,4 +1376,218 @@ export async function updateCatalogOrderStatus(id: string, next: OrderStatus, sc
   if (error) throw error;
   if (!data) throw new CatalogError("Order not found.");
   return orderRow(data);
+}
+
+// ----------------------------------------------------------------------------
+// Event workspaces & RSVPs (migration 0022; rules in lib/events/rsvp.ts)
+// ----------------------------------------------------------------------------
+
+/** A user-facing workspace failure (not found, guest limit, closed RSVPs). */
+export class EventWorkspaceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EventWorkspaceError";
+  }
+}
+
+/** The schedule a booking has before anyone saves one (the column defaults). */
+function defaultWorkspace(booking: Pick<Booking, "id" | "company_id">): EventWorkspace {
+  const epoch = new Date(0).toISOString();
+  return { id: "", booking_id: booking.id, tenant_id: booking.company_id, title: null, starts_at: "19:00:00", ends_at: "22:00:00", rsvp_deadline: null, ics_sequence: 0, updated_by: null, created_at: epoch, updated_at: epoch };
+}
+
+const timeOf = (t: string) => (t.length === 5 ? `${t}:00` : t);
+const newRsvpToken = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+
+export interface EventRoom {
+  booking: BookingDetail;
+  workspace: EventWorkspace;
+  attendees: EventAttendee[];
+}
+
+/** A booking's workspace and guest list, scoped to its company (omit `tenantId` for admins). */
+export async function getEventRoom(bookingId: string, tenantId?: string): Promise<EventRoom | null> {
+  if (tenantId === "") return null;
+  const [booking] = await listBookings({ ids: [bookingId], ...(tenantId !== undefined && { companyId: tenantId }) });
+  if (!booking) return null;
+  if (local()) {
+    const db = await readDb();
+    return {
+      booking,
+      workspace: db.eventWorkspaces.find((w) => w.booking_id === bookingId) ?? defaultWorkspace(booking),
+      attendees: db.eventAttendees.filter((a) => a.booking_id === bookingId).sort((a, b) => a.created_at.localeCompare(b.created_at) || a.name.localeCompare(b.name)),
+    };
+  }
+  const supabase = createAdminClient();
+  const [ws, guests] = await Promise.all([
+    supabase.from("event_workspaces").select("*").eq("booking_id", bookingId).maybeSingle(),
+    supabase.from("event_attendees").select("*").eq("booking_id", bookingId).order("created_at").order("name"),
+  ]);
+  if (ws.error) throw ws.error;
+  if (guests.error) throw guests.error;
+  return { booking, workspace: ws.data ?? defaultWorkspace(booking), attendees: guests.data };
+}
+
+/** Guest counts for several bookings at once (the bookings table). */
+export async function countEventAttendees(bookingIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!bookingIds.length) return counts;
+  const rows = local()
+    ? (await readDb()).eventAttendees.filter((a) => bookingIds.includes(a.booking_id))
+    : await (async () => {
+        const { data, error } = await createAdminClient().from("event_attendees").select("booking_id").in("booking_id", bookingIds);
+        if (error) throw error;
+        return data;
+      })();
+  for (const r of rows) counts.set(r.booking_id, (counts.get(r.booking_id) ?? 0) + 1);
+  return counts;
+}
+
+export interface ScheduleUpdate {
+  title: string | null;
+  startsAt: string;
+  endsAt: string;
+  rsvpDeadline: string | null;
+}
+
+/** Creates or updates the workspace. SEQUENCE goes up when the title or times change. */
+export async function saveEventSchedule(bookingId: string, tenantId: string, input: ScheduleUpdate, userId: string | null): Promise<EventWorkspace> {
+  const fields = { title: input.title, starts_at: timeOf(input.startsAt), ends_at: timeOf(input.endsAt), rsvp_deadline: input.rsvpDeadline, updated_by: userId };
+  if (local()) {
+    return mutateDb((db) => {
+      if (!db.bookings.some((b) => b.id === bookingId && b.company_id === tenantId)) throw new EventWorkspaceError("Booking not found.");
+      const now = new Date().toISOString();
+      const existing = db.eventWorkspaces.find((w) => w.booking_id === bookingId);
+      if (!existing) {
+        const created: EventWorkspace = { ...defaultWorkspace({ id: bookingId, company_id: tenantId }), ...fields, id: crypto.randomUUID(), created_at: now, updated_at: now };
+        db.eventWorkspaces.push(created);
+        return created;
+      }
+      // event_workspaces_bump_sequence
+      const visible = existing.title !== fields.title || existing.starts_at !== fields.starts_at || existing.ends_at !== fields.ends_at;
+      Object.assign(existing, fields, { updated_at: now, ics_sequence: existing.ics_sequence + (visible ? 1 : 0) });
+      return existing;
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("event_workspaces")
+    .upsert({ booking_id: bookingId, tenant_id: tenantId, ...fields }, { onConflict: "booking_id" })
+    .select("*")
+    .single();
+  // event_workspaces_booking_fkey: the booking isn't this company's.
+  if (error?.code === "23503") throw new EventWorkspaceError("Booking not found.");
+  if (error) throw error;
+  return data;
+}
+
+/** Adds guests, skipping emails already on the list. */
+export async function addEventAttendees(bookingId: string, tenantId: string, guests: AttendeeInput[], invitedBy: string | null): Promise<{ added: number; skipped: number }> {
+  if (local()) {
+    return mutateDb((db) => {
+      if (!db.bookings.some((b) => b.id === bookingId && b.company_id === tenantId)) throw new EventWorkspaceError("Booking not found.");
+      const current = db.eventAttendees.filter((a) => a.booking_id === bookingId);
+      const have = new Set(current.map((a) => a.email));
+      const fresh = guests.filter((g) => !have.has(g.email));
+      if (current.length + fresh.length > MAX_GUESTS) throw new EventWorkspaceError(`A guest list can have up to ${MAX_GUESTS} people.`);
+      const now = new Date().toISOString();
+      for (const g of fresh) {
+        db.eventAttendees.push({ id: crypto.randomUUID(), booking_id: bookingId, tenant_id: tenantId, ...g, rsvp_status: "INVITED", plus_ones: 0, dietary: null, rsvp_token: newRsvpToken(), responded_at: null, invited_by: invitedBy, created_at: now, updated_at: now });
+      }
+      return { added: fresh.length, skipped: guests.length - fresh.length };
+    });
+  }
+  const supabase = createAdminClient();
+  const { count, error: countError } = await supabase.from("event_attendees").select("id", { count: "exact", head: true }).eq("booking_id", bookingId);
+  if (countError) throw countError;
+  if ((count ?? 0) + guests.length > MAX_GUESTS) throw new EventWorkspaceError(`A guest list can have up to ${MAX_GUESTS} people.`);
+  const { data, error } = await supabase
+    .from("event_attendees")
+    .upsert(guests.map((g) => ({ booking_id: bookingId, tenant_id: tenantId, ...g, invited_by: invitedBy })), { onConflict: "booking_id,email", ignoreDuplicates: true })
+    .select("id");
+  if (error?.code === "23503") throw new EventWorkspaceError("Booking not found.");
+  if (error) throw error;
+  return { added: data.length, skipped: guests.length - data.length };
+}
+
+export async function removeEventAttendee(id: string, bookingId: string, tenantId: string): Promise<void> {
+  if (local()) {
+    return mutateDb((db) => {
+      const i = db.eventAttendees.findIndex((a) => a.id === id && a.booking_id === bookingId && a.tenant_id === tenantId);
+      if (i === -1) throw new EventWorkspaceError("Guest not found.");
+      db.eventAttendees.splice(i, 1);
+    });
+  }
+  const { data, error } = await createAdminClient().from("event_attendees").delete().eq("id", id).eq("booking_id", bookingId).eq("tenant_id", tenantId).select("id");
+  if (error) throw error;
+  if (!data.length) throw new EventWorkspaceError("Guest not found.");
+}
+
+/** Local equivalent of event_attendees_track_response. */
+function applyResponse(a: EventAttendee, status: RsvpStatus, extra: { plus_ones?: number; dietary?: string | null }) {
+  const now = new Date().toISOString();
+  if (status !== a.rsvp_status) a.responded_at = status === "INVITED" ? null : now;
+  Object.assign(a, { rsvp_status: status, updated_at: now }, extra);
+  if (status === "DECLINED") a.plus_ones = 0;
+}
+
+/** The organiser records a reply on a guest's behalf (or resets it to awaiting). */
+export async function setEventAttendeeStatus(id: string, bookingId: string, tenantId: string, status: RsvpStatus): Promise<EventAttendee> {
+  if (local()) {
+    return mutateDb((db) => {
+      const a = db.eventAttendees.find((x) => x.id === id && x.booking_id === bookingId && x.tenant_id === tenantId);
+      if (!a) throw new EventWorkspaceError("Guest not found.");
+      applyResponse(a, status, {});
+      return a;
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("event_attendees")
+    .update({ rsvp_status: status })
+    .eq("id", id)
+    .eq("booking_id", bookingId)
+    .eq("tenant_id", tenantId)
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new EventWorkspaceError("Guest not found.");
+  return data;
+}
+
+export interface RsvpInvite {
+  attendee: EventAttendee;
+  booking: BookingDetail;
+  workspace: EventWorkspace;
+}
+
+/** The invite behind an RSVP link, or null. Public: callers show only this guest's own details. */
+export async function getRsvpInvite(token: string): Promise<RsvpInvite | null> {
+  if (!/^[0-9a-f]{64}$/.test(token)) return null;
+  let attendee: EventAttendee | null;
+  if (local()) {
+    attendee = (await readDb()).eventAttendees.find((a) => a.rsvp_token === token) ?? null;
+  } else {
+    const { data, error } = await createAdminClient().from("event_attendees").select("*").eq("rsvp_token", token).maybeSingle();
+    if (error) throw error;
+    attendee = data;
+  }
+  if (!attendee) return null;
+  const room = await getEventRoom(attendee.booking_id, attendee.tenant_id);
+  return room && { attendee, booking: room.booking, workspace: room.workspace };
+}
+
+/** A guest's own reply through their RSVP link. The caller checks the RSVP window. */
+export async function respondToRsvp(token: string, response: RsvpResponse): Promise<EventAttendee> {
+  const fields = { plus_ones: response.plusOnes, dietary: response.dietary };
+  if (local()) {
+    return mutateDb((db) => {
+      const a = db.eventAttendees.find((x) => x.rsvp_token === token);
+      if (!a) throw new EventWorkspaceError("This invitation link isn't valid.");
+      applyResponse(a, response.status, fields);
+      return a;
+    });
+  }
+  const { data, error } = await createAdminClient().from("event_attendees").update({ rsvp_status: response.status, ...fields }).eq("rsvp_token", token).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new EventWorkspaceError("This invitation link isn't valid.");
+  return data;
 }

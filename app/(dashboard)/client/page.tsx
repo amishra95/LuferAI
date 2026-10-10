@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardCheck, Download, Eye } from "lucide-react";
+import { ClipboardCheck, Download, Eye, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
@@ -20,6 +20,7 @@ import { statusCounts } from "@/lib/bookings/live";
 import { getVenueCatalog } from "@/lib/catalog";
 import {
   computeItcSummary,
+  countEventAttendees,
   dataSource,
   listApprovalComments,
   listApprovals,
@@ -83,11 +84,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     listDepartments({ companyIds: [company.id] }),
   ]);
   const [catalogItems, catalogOrders] = tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : [[], []];
-  const [payments, holds, rfps, queue] = await Promise.all([
+  const [payments, holds, rfps, queue, guestCounts] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
     live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
     approvalQueue(member, company.id),
+    countEventAttendees(bookings.map((b) => b.id)),
   ]);
   const itc = computeItcSummary(bookings);
   const canPay = paymentsEnabled();
@@ -439,6 +441,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         <TableCell>
                           <div className="font-medium">{b.venue.name}</div>
                           <div className="text-fg-subtle text-xs">{b.venue.neighborhood}</div>
+                          {b.status !== "CANCELLED" || guestCounts.has(b.id) ? (
+                            <Link href={`/client/events/${b.id}`} className="text-fg mt-1 inline-flex items-center gap-1 text-[12px] hover:underline">
+                              <Users className="size-3" aria-hidden />
+                              {guestCounts.get(b.id) ? `${guestCounts.get(b.id)} guests` : "Plan guests"}
+                            </Link>
+                          ) : null}
                         </TableCell>
                         <TableCell className="font-mono text-[12px]">
                           {b.cost_center ?? <span className="text-fg-faint">—</span>}
