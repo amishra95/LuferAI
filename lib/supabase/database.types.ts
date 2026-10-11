@@ -88,3 +88,5 @@ export type EventWorkspace = Tables<"event_workspaces">;
 export type EventAttendee = Tables<"event_attendees">;
 export type VendorPayout = Tables<"vendor_payouts">;
 export type TcsEntry = Tables<"tcs_entries">;
+export type VenueBlockedDate = Tables<"venue_blocked_dates">;
+export type VenueNegotiationRules = Tables<"venue_negotiation_rules">;

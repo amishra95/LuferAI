@@ -1800,6 +1800,7 @@ export type Database = {
       rfps: {
         Row: {
           brief: string
+          booking_id: string | null
           budget_per_head_inr: number | null
           city: string | null
           company_id: string
@@ -1808,6 +1809,7 @@ export type Database = {
           dietary_tags: string[]
           event_date: string | null
           id: string
+          origin: string
           party_size: number
           requirements: Json
           status: Database["public"]["Enums"]["rfp_status"]
@@ -1815,6 +1817,7 @@ export type Database = {
         }
         Insert: {
           brief: string
+          booking_id?: string | null
           budget_per_head_inr?: number | null
           city?: string | null
           company_id: string
@@ -1823,6 +1826,7 @@ export type Database = {
           dietary_tags?: string[]
           event_date?: string | null
           id?: string
+          origin?: string
           party_size: number
           requirements: Json
           status?: Database["public"]["Enums"]["rfp_status"]
@@ -1830,6 +1834,7 @@ export type Database = {
         }
         Update: {
           brief?: string
+          booking_id?: string | null
           budget_per_head_inr?: number | null
           city?: string | null
           company_id?: string
@@ -1838,6 +1843,7 @@ export type Database = {
           dietary_tags?: string[]
           event_date?: string | null
           id?: string
+          origin?: string
           party_size?: number
           requirements?: Json
           status?: Database["public"]["Enums"]["rfp_status"]
@@ -2010,6 +2016,33 @@ export type Database = {
           },
         ]
       }
+      venue_blocked_dates: {
+        Row: {
+          blocked_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+          venue_id: string
+        }
+        Insert: {
+          blocked_date: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          venue_id: string
+        }
+        Update: {
+          blocked_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venue_menu_packages: {
         Row: {
           created_at: string
@@ -2112,6 +2145,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      venue_negotiation_rules: {
+        Row: {
+          auto_counter: boolean
+          auto_decline_below_floor: boolean
+          max_discount_pct: number | null
+          min_spend_floor_inr: number | null
+          updated_at: string
+          updated_by: string | null
+          venue_id: string
+        }
+        Insert: {
+          auto_counter?: boolean
+          auto_decline_below_floor?: boolean
+          max_discount_pct?: number | null
+          min_spend_floor_inr?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          venue_id: string
+        }
+        Update: {
+          auto_counter?: boolean
+          auto_decline_below_floor?: boolean
+          max_discount_pct?: number | null
+          min_spend_floor_inr?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          venue_id?: string
+        }
+        Relationships: []
       }
       venues: {
         Row: {

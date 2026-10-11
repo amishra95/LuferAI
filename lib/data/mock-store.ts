@@ -21,6 +21,7 @@ import type {
   PoAllocation,
   PurchaseOrder,
   Venue,
+  VenueBlockedDate,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
 import { determineGstType } from "@/lib/gst-engine";
@@ -463,6 +464,7 @@ export interface MockDb {
   catalogOrders: CatalogOrder[];
   eventWorkspaces: EventWorkspace[];
   eventAttendees: EventAttendee[];
+  blockedDates: VenueBlockedDate[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -490,6 +492,7 @@ export function seedDb(): MockDb {
     catalogOrders: [],
     eventWorkspaces: [],
     eventAttendees: [],
+    blockedDates: [],
   });
 }
 
@@ -516,6 +519,7 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   catalogOrders: [],
   eventWorkspaces: [],
   eventAttendees: [],
+  blockedDates: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -533,6 +537,7 @@ export function backfillDefaults(db: MockDb): MockDb {
   db.catalogOrders ??= [];
   db.eventWorkspaces ??= [];
   db.eventAttendees ??= [];
+  db.blockedDates ??= [];
   for (const p of db.partners) {
     p.commission_rate ??= 0.1;
     p.razorpay_account_id ??= null;

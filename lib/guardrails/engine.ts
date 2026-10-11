@@ -29,6 +29,7 @@ export type GuardrailCode =
   | "duplicate_request"
   | "date_out_of_range"
   | "change_too_large"
+  | "below_host_floor"
   | "price_out_of_range"
   | "last_active_package"
   | "unknown_package";
@@ -83,8 +84,15 @@ export function bookingRules(args: CreateBookingInput, ctx: BookingContext, limi
   return allow(facts);
 }
 
-export function minimumSpendRules(args: SetMinimumSpendInput, ctx: { current: number }, limits = GUARDRAIL_LIMITS.minimumSpend): GuardrailDecision {
-  const facts = { current: ctx.current, proposed: args.min_spend_inr };
+export function minimumSpendRules(args: SetMinimumSpendInput, ctx: { current: number; /** The host's minimum spend floor (venue_negotiation_rules), if set. */ floor?: number | null }, limits = GUARDRAIL_LIMITS.minimumSpend): GuardrailDecision {
+  const facts = { current: ctx.current, proposed: args.min_spend_inr, floor: ctx.floor ?? null };
+  if (ctx.floor != null && args.min_spend_inr < ctx.floor) {
+    return deny(
+      "below_host_floor",
+      `₹${args.min_spend_inr.toLocaleString("en-IN")} is below the ₹${ctx.floor.toLocaleString("en-IN")} minimum spend floor the host set in the negotiator's guardrails. Propose ₹${ctx.floor.toLocaleString("en-IN")} or more.`,
+      facts
+    );
+  }
   // From zero there's no baseline to compare with; the schema's absolute cap still applies.
   if (ctx.current > 0) {
     const change = Math.abs(args.min_spend_inr - ctx.current) / ctx.current;

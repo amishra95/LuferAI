@@ -14,6 +14,7 @@ import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/
 import type { BookingStatus } from "@/lib/supabase/database.types";
 import { publishApproval, publishBooking, publishExpense, publishOrder } from "@/lib/telemetry/live";
 import { runCatalogAgent } from "@/lib/catalog/catalog-agent";
+import { getDirectQuote, markQuoteAwarded } from "@/lib/rfp/service";
 import { isCategory, type Category, type Recipient } from "@/lib/catalog/items";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
@@ -371,6 +372,46 @@ export async function setBookingCostCenter(bookingId: string, costCenter: string
     revalidateBookingViews();
     return { bookingId, costCenter: valid.value };
   });
+}
+
+export interface QuoteBookingState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/**
+ * Books a venue's direct quote at its quoted price (placeBookingRequest with
+ * quoted: no rate card on top). Policy, PO, availability and the hold apply as
+ * for any request; the quote closes as awarded once the booking exists.
+ */
+export async function bookDirectQuote(_prev: QuoteBookingState, formData: FormData): Promise<QuoteBookingState> {
+  const member = await requirePortal("/client");
+  if (member.role !== "CLIENT" || !member.companyId) return { status: "error", message: "Platform admins view this portal read-only." };
+  const responseId = String(formData.get("response_id") ?? "");
+  const quote = responseId ? await getDirectQuote(responseId, member.companyId) : null;
+  if (!quote) return { status: "error", message: "That quote isn't available." };
+  if (quote.rfp.status !== "open") return { status: "error", message: "This quote has already been booked or closed." };
+  if (!quote.rfp.event_date || quote.per_head_inr == null) return { status: "error", message: "This quote has no date or price to book." };
+
+  const result = await placeBookingRequest({
+    companyId: member.companyId,
+    userId: member.userId,
+    venueId: quote.venue_id,
+    eventDate: quote.rfp.event_date,
+    partySize: quote.rfp.party_size,
+    budgetPerHead: Number(quote.per_head_inr),
+    notes: "Booked from the venue's direct quote.",
+    expense: { costCenter: String(formData.get("cost_center") ?? ""), projectCode: String(formData.get("project_code") ?? "") || null },
+    quoted: true,
+  });
+  if (result.status !== "success" || !result.bookingId) {
+    const field = result.fieldErrors ? Object.values(result.fieldErrors).find(Boolean) : undefined;
+    return { status: "error", message: field ?? result.message };
+  }
+  await markQuoteAwarded(quote.rfp.id, result.bookingId);
+  revalidateBookingViews();
+  revalidatePath("/property");
+  return { status: "success", message: result.approval ? `Requested. It needs sign-off: ${result.approval.reason}.` : result.message };
 }
 
 export interface ApprovalCommentState {

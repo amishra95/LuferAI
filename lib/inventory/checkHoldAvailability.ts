@@ -1,6 +1,6 @@
 import "server-only";
 
-import { listConfirmedVenueBookings, listLiveHolds } from "@/lib/data";
+import { listBlockedDates, listConfirmedVenueBookings, listLiveHolds } from "@/lib/data";
 import { findVenueLocks, type AvailabilityResult } from "./venue-locks";
 
 export type { AvailabilityResult, VenueLock } from "./venue-locks";
@@ -9,8 +9,8 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Is the venue free on every date in [from, to] (inclusive, YYYY-MM-DD)?
- * Locked dates come from live holds (ACTIVE, not yet expired) and CONFIRMED
- * bookings. Pass excludeBookingId to ignore a booking's own hold, e.g. when
+ * Locked dates come from live holds (ACTIVE, not yet expired), CONFIRMED
+ * bookings and dates the host blocked. Pass excludeBookingId to ignore a booking's own hold, e.g. when
  * re-checking a booking that already holds the date.
  *
  * Advisory only: the inventory_holds insert trigger is what actually prevents
@@ -26,9 +26,10 @@ export async function checkHoldAvailability(input: {
     throw new Error("checkHoldAvailability: from/to must be YYYY-MM-DD with from <= to");
   }
   const range = { from: input.from, to: input.to };
-  const [holds, bookings] = await Promise.all([
+  const [holds, bookings, blocks] = await Promise.all([
     listLiveHolds(input.venue_id),
     listConfirmedVenueBookings(input.venue_id, range),
+    listBlockedDates(input.venue_id, range),
   ]);
-  return findVenueLocks(holds, bookings, { ...range, excludeBookingId: input.exclude_booking_id });
+  return findVenueLocks(holds, bookings, { ...range, excludeBookingId: input.exclude_booking_id }, new Date(), blocks);
 }

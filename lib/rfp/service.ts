@@ -11,7 +11,10 @@ import {
   sortMatrixColumns,
   type MatrixColumn,
 } from "@/lib/quotes";
+import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
+import { autoDecision, checkOffer } from "@/lib/rfp/guardrails";
+import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
 
@@ -75,6 +78,8 @@ export async function broadcastRfp(input: {
   if (!company) throw new Error("Unknown company");
 
   const matched = matchVenues(venues ?? [], req);
+  // Hosts' guardrails: over-budget instant quotes may be countered or declined at once.
+  const rules = await rulesForVenues(matched.map((v) => v.id));
 
   const { data: rfp, error } = await db
     .from("rfps")
@@ -116,6 +121,28 @@ export async function broadcastRfp(input: {
         companyGstin: company.gstin,
       }
     );
+    const auto = quote.status === "quoted" && quote.over_budget && rules.has(venue.id)
+      ? autoDecision(rules.get(venue.id)!, { standardPerHead: quote.per_head_inr, partySize: req.party_size, budgetPerHead: req.budget_per_head_inr })
+      : ({ action: "none" } as const);
+    if (auto.action === "decline") {
+      return { rfp_id: rfp.id, venue_id: venue.id, source: "venue" as const, status: "declined" as const, notes: auto.note, responded_at: now };
+    }
+    if (quote.status === "quoted" && auto.action === "counter") {
+      const list = roundInr(auto.perHead * req.party_size);
+      return {
+        rfp_id: rfp.id,
+        venue_id: venue.id,
+        source: "venue" as const,
+        status: "countered" as const,
+        menu_package_id: quote.menu_package_id,
+        per_head_inr: auto.perHead,
+        list_amount_inr: list,
+        rate_card_id: null,
+        taxable_amount_inr: list,
+        notes: auto.note,
+        responded_at: now,
+      };
+    }
     return quote.status === "quoted"
       ? {
           rfp_id: rfp.id,
@@ -155,6 +182,7 @@ type ResponseRow = RfpResponse & {
 function toColumn(r: ResponseRow, companyGstin: string): MatrixColumn {
   const priced = (r.status === "quoted" || r.status === "countered") && r.list_amount_inr != null;
   return {
+    response_id: r.id,
     venue: r.venue,
     status: r.status,
     package_name: r.menu_package?.name ?? null,
@@ -203,28 +231,35 @@ export async function listRfps(filter: { companyId?: string; rfpIds?: string[] }
 
 export interface VenueRfpItem {
   response: RfpResponse;
-  rfp: Pick<Rfp, "id" | "brief" | "party_size" | "event_date" | "budget_per_head_inr" | "dietary_tags" | "status" | "created_at">;
+  rfp: Pick<Rfp, "id" | "brief" | "party_size" | "event_date" | "budget_per_head_inr" | "dietary_tags" | "status" | "created_at" | "origin">;
   requirements: RfpRequirements | null;
   companyName: string;
 }
 
+/** Postgres "column does not exist": rfps.origin before migration 0025. */
+export const isMissingColumn = (error: { code?: string } | null | undefined) => error?.code === "42703" || error?.code === "PGRST204";
+
 /** Open RFPs sent to a venue, for the property portal inbox. */
 export async function listVenueRfps(venueId: string): Promise<VenueRfpItem[]> {
-  const { data, error } = await createAdminClient()
-    .from("rfp_responses")
-    .select(
-      "*, rfp:rfps!inner(id, brief, party_size, event_date, budget_per_head_inr, dietary_tags, status, created_at, requirements, company:companies(legal_name))"
-    )
-    .eq("venue_id", venueId)
-    .eq("rfp.status", "open")
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const query = (withOrigin: boolean) =>
+    createAdminClient()
+      .from("rfp_responses")
+      .select(
+        `*, rfp:rfps!inner(id, brief, party_size, event_date, budget_per_head_inr, dietary_tags, status, created_at,${withOrigin ? " origin," : ""} requirements, company:companies(legal_name))`
+      )
+      .eq("venue_id", venueId)
+      .eq("rfp.status", "open")
+      .order("created_at", { ascending: false })
+      .limit(20);
+  let { data, error } = await query(true);
+  // Before migration 0025 there's no origin column: every RFP came from a client.
+  if (isMissingColumn(error)) ({ data, error } = await query(false));
   if (error) throw error;
 
-  type Row = RfpResponse & { rfp: VenueRfpItem["rfp"] & { requirements: Json; company: { legal_name: string } } };
-  return (data as unknown as Row[]).map(({ rfp: { requirements, company, ...rfp }, ...response }) => {
+  type Row = RfpResponse & { rfp: Omit<VenueRfpItem["rfp"], "origin"> & { origin?: string; requirements: Json; company: { legal_name: string } } };
+  return (data as unknown as Row[]).map(({ rfp: { requirements, company, origin, ...rfp }, ...response }) => {
     const parsed = RfpRequirements.safeParse(requirements);
-    return { response, rfp, requirements: parsed.success ? parsed.data : null, companyName: company.legal_name };
+    return { response, rfp: { ...rfp, origin: origin ?? "client" }, requirements: parsed.success ? parsed.data : null, companyName: company.legal_name };
   });
 }
 
@@ -248,7 +283,7 @@ export async function respondToRfp(input: {
   const db = createAdminClient();
   const { data: existing } = await db
     .from("rfp_responses")
-    .select("id, venue_id, rfp:rfps!inner(party_size, status)")
+    .select("id, venue_id, menu_package_id, rfp:rfps!inner(party_size, status)")
     .eq("id", input.responseId)
     .eq("venue_id", input.venueId) // scoped: a venue can only answer its own RFPs
     .maybeSingle();
@@ -265,15 +300,22 @@ export async function respondToRfp(input: {
   }
 
   if (!input.perHeadInr || !(input.perHeadInr > 0)) throw new Error("Enter a per-head price");
-  if (input.menuPackageId) {
+  let standardPerHead: number | null = null;
+  // The discount is measured from the package being offered (or the one quoted).
+  const packageId = input.menuPackageId ?? existing.menu_package_id;
+  if (packageId) {
     const { data: pkg } = await db
       .from("venue_menu_packages")
-      .select("id")
-      .eq("id", input.menuPackageId)
+      .select("id, per_head_inr")
+      .eq("id", packageId)
       .eq("venue_id", input.venueId)
       .maybeSingle();
-    if (!pkg) throw new Error("Unknown menu package");
+    if (!pkg && input.menuPackageId) throw new Error("Unknown menu package");
+    standardPerHead = pkg ? Number(pkg.per_head_inr) : null;
   }
+  const { rules } = await getNegotiationRules(input.venueId);
+  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: existing.rfp.party_size, standardPerHead });
+  if (breach) throw new GuardrailError(breach);
 
   const list = roundInr(input.perHeadInr * existing.rfp.party_size);
   const { error } = await db
@@ -303,4 +345,142 @@ export async function listVenuePackages(venueId: string) {
     .order("per_head_inr");
   if (error) throw error;
   return data.map((p) => ({ ...p, per_head_inr: Number(p.per_head_inr) }));
+}
+
+/** An offer outside the venue's guardrails (lib/rfp/guardrails.ts); its message is for the host. */
+export class GuardrailError extends Error {}
+
+// ----------------------------------------------------------------------------
+// Direct quotes: the venue opens the RFP for a client it already works with
+// ----------------------------------------------------------------------------
+
+/** Companies a venue may quote directly: ones that booked it or sent it an RFP. */
+export async function quoteableCompanies(venueId: string): Promise<{ id: string; name: string }[]> {
+  const db = createAdminClient();
+  const [{ data: booked }, { data: asked }] = await Promise.all([
+    db.from("bookings").select("company:companies(id, legal_name)").eq("venue_id", venueId),
+    db.from("rfp_responses").select("rfp:rfps!inner(company:companies(id, legal_name))").eq("venue_id", venueId),
+  ]);
+  type C = { id: string; legal_name: string } | null;
+  const all = [...(booked ?? []).map((b) => (b as unknown as { company: C }).company), ...(asked ?? []).map((r) => (r as unknown as { rfp: { company: C } }).rfp.company)];
+  const byId = new Map(all.filter((c): c is NonNullable<C> => Boolean(c)).map((c) => [c.id, c.legal_name]));
+  return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export interface DirectQuoteInput {
+  venueId: string;
+  companyId: string;
+  createdBy: string | null;
+  eventDate: string;
+  partySize: number;
+  perHeadInr: number;
+  menuPackageId: string | null;
+  notes: string | null;
+  today: string;
+}
+
+/**
+ * Sends a quote the client didn't ask for: an RFP for the company (origin
+ * 'venue') with this venue's priced response. It shows in the client's RFP
+ * comparisons, where they can book it at this price. Checked against the
+ * venue's capacity, availability and guardrails first.
+ */
+export async function createDirectQuote(input: DirectQuoteInput): Promise<{ rfpId: string; responseId: string }> {
+  const db = createAdminClient();
+  if (!(await quoteableCompanies(input.venueId)).some((c) => c.id === input.companyId)) {
+    throw new GuardrailError("You can quote companies that have booked you or sent you an RFP.");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.eventDate) || input.eventDate <= input.today) throw new GuardrailError("Pick a future date.");
+  if (!Number.isInteger(input.partySize) || input.partySize < 1) throw new GuardrailError("Enter a whole number of guests.");
+  if (!(input.perHeadInr > 0)) throw new GuardrailError("Enter a per-head price.");
+
+  const { data: venue } = await db.from("venues").select("id, name, city, neighborhood, capacity_max").eq("id", input.venueId).single();
+  if (!venue) throw new Error("Unknown venue");
+  if (input.partySize > venue.capacity_max) throw new GuardrailError(`${venue.name} seats up to ${venue.capacity_max}.`);
+  const { available } = await checkHoldAvailability({ venue_id: input.venueId, from: input.eventDate, to: input.eventDate });
+  if (!available) throw new GuardrailError(`${venue.name} isn't free on that date: it's held, booked or blocked.`);
+
+  let standardPerHead: number | null = null;
+  let packageName: string | null = null;
+  if (input.menuPackageId) {
+    const { data: pkg } = await db.from("venue_menu_packages").select("id, name, per_head_inr").eq("id", input.menuPackageId).eq("venue_id", input.venueId).maybeSingle();
+    if (!pkg) throw new GuardrailError("Unknown menu package.");
+    standardPerHead = Number(pkg.per_head_inr);
+    packageName = pkg.name;
+  }
+  const { rules } = await getNegotiationRules(input.venueId);
+  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: input.partySize, standardPerHead });
+  if (breach) throw new GuardrailError(breach);
+
+  const requirements: RfpRequirements = {
+    summary: `Direct quote from ${venue.name}${packageName ? `: ${packageName}` : ""}`,
+    event_type: "Direct quote",
+    event_date: input.eventDate,
+    party_size: input.partySize,
+    budget_per_head_inr: null,
+    city: venue.city,
+    neighborhoods: [venue.neighborhood],
+    dietary: [],
+    requires_private_dining: false,
+    other_requirements: input.notes ? [input.notes] : [],
+  };
+  const { data: rfp, error } = await db
+    .from("rfps")
+    .insert({
+      company_id: input.companyId,
+      created_by: input.createdBy,
+      brief: requirements.summary + (input.notes ? `. ${input.notes}` : ""),
+      requirements: requirements as unknown as Json,
+      event_date: input.eventDate,
+      party_size: input.partySize,
+      budget_per_head_inr: null,
+      city: venue.city,
+      dietary_tags: [],
+      origin: "venue",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const list = roundInr(input.perHeadInr * input.partySize);
+  const { data: response, error: responseError } = await db
+    .from("rfp_responses")
+    .insert({
+      rfp_id: rfp.id,
+      venue_id: input.venueId,
+      source: "venue",
+      status: "countered",
+      menu_package_id: input.menuPackageId,
+      per_head_inr: input.perHeadInr,
+      list_amount_inr: list,
+      taxable_amount_inr: list,
+      rate_card_id: null,
+      notes: input.notes,
+      responded_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (responseError) {
+    await db.from("rfps").delete().eq("id", rfp.id);
+    throw responseError;
+  }
+  return { rfpId: rfp.id, responseId: response.id };
+}
+
+/** A direct quote a company may book: open, from a venue, addressed to that company. */
+export async function getDirectQuote(responseId: string, companyId: string) {
+  const { data, error } = await createAdminClient()
+    .from("rfp_responses")
+    .select("id, venue_id, per_head_inr, status, rfp:rfps!inner(id, company_id, origin, status, event_date, party_size, brief)")
+    .eq("id", responseId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.rfp.company_id !== companyId || data.rfp.origin !== "venue") return null;
+  return data;
+}
+
+/** Closes a direct quote once it became a booking. */
+export async function markQuoteAwarded(rfpId: string, bookingId: string) {
+  const { error } = await createAdminClient().from("rfps").update({ status: "awarded", booking_id: bookingId }).eq("id", rfpId).eq("status", "open");
+  if (error) throw error;
 }

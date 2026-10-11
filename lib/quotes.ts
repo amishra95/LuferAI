@@ -168,6 +168,8 @@ export function quoteVenue(venue: QuoteVenue, packages: QuotePackage[], req: Quo
 // ----------------------------------------------------------------------------
 
 export interface MatrixColumn {
+  /** The rfp_responses row, when it came from the database. */
+  response_id?: string;
   venue: { name: string; neighborhood: string; capacity_max: number; pdr_available: boolean };
   status: "quoted" | "countered" | "declined" | "no_fit";
   package_name: string | null;
