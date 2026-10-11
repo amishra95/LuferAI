@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Check, Loader2, Receipt, ShoppingBag, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Bot, Check, Loader2, Receipt, ShoppingBag, Store, X } from "lucide-react";
 
 import { dispatchBookingAgent } from "../actions";
 import { cancelCatalogOrderAction, placeCatalogOrderAction, syncOrderExpenseAction, type CatalogOrderRequest } from "../catalog-actions";
@@ -11,6 +12,7 @@ import { CATEGORIES, CATEGORY_LABEL, parseRecipientLines, priceOrder, SHIPS, uni
 import { ORDER_STAGE_LABEL, isOrderStatus } from "@/lib/catalog/orders";
 import { STAGE_LABEL, type ReconciliationStage } from "@/lib/marketplace/settlement";
 import { PayDepositButton } from "./pay-deposit-button";
+import { DisabledAction } from "@/components/portal/disabled-action";
 import { EmptyState } from "@/components/portal/empty-state";
 import { cn, formatINR } from "@/lib/utils";
 
@@ -64,12 +66,36 @@ const PAYABLE = new Set(["PLACED", "CONFIRMED", "SHIPPED", "DELIVERED"]);
 const day = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
 const fmtDay = (iso: string | null) => (iso ? day.format(new Date(`${iso}T00:00:00+05:30`)) : "—");
 
-export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, today }: { items: ShopItem[]; orders: ShopOrder[]; canOrder: boolean; canSync: boolean; canPay?: boolean; today: string }) {
+export function CatalogShop({
+  items,
+  orders,
+  canOrder,
+  canSync,
+  canPay = false,
+  today,
+  marketplaceHref = null,
+  readOnlyReason = "You can't order from this account.",
+}: {
+  items: ShopItem[];
+  orders: ShopOrder[];
+  canOrder: boolean;
+  canSync: boolean;
+  canPay?: boolean;
+  today: string;
+  /** Where "Browse marketplace" goes from an empty catalogue (the venue marketplace this viewer can use), or null to omit it. */
+  marketplaceHref?: string | null;
+  /** Shown on the disabled Order buttons when canOrder is false. */
+  readOnlyReason?: string;
+}) {
   const [category, setCategory] = useState<Category | "all">("all");
   const [ordering, setOrdering] = useState<string | null>(null);
   const { value: list, mutate } = useOptimisticMutation(orders);
-  const shown = items.filter((i) => category === "all" || i.category === category);
   const counts = useMemo(() => Object.fromEntries(CATEGORIES.map((c) => [c, items.filter((i) => i.category === c).length])), [items]);
+  // Only categories with something listed get a filter; an empty one would lead nowhere.
+  const listed = CATEGORIES.filter((c) => counts[c] > 0);
+  // A category that emptied since it was picked falls back to all.
+  const active = category !== "all" && listed.includes(category) ? category : "all";
+  const shown = items.filter((i) => active === "all" || i.category === active);
 
   const place = (item: ShopItem, request: CatalogOrderRequest, quantity: number, total: number) => {
     const tempId = `pending-${crypto.randomUUID()}`;
@@ -108,27 +134,52 @@ export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, 
       success: () => ({ tone: "success", title: "Order cancelled", description: "Its PO allocation was released." }),
     });
 
+  const browse = marketplaceHref ? (
+    <Link href={marketplaceHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+      <Store className="size-3.5" aria-hidden /> Browse marketplace <ArrowRight className="size-3.5" aria-hidden />
+    </Link>
+  ) : null;
+  const emptyCatalogue = (
+    <EmptyState
+      icon={ShoppingBag}
+      title={list.length ? "Nothing listed right now" : "No catalogue items or orders yet"}
+      description={
+        <>
+          Partners haven&apos;t listed gifting, tickets, merch, team activities or dining here yet.
+          {list.length ? "" : canOrder ? " Your orders will appear here once you place one." : " Orders placed by your team's Organizers will appear here."}
+          {marketplaceHref ? " Meanwhile, you can book a venue from the marketplace." : ""}
+        </>
+      }
+      action={browse}
+    />
+  );
+
+  // Nothing listed and nothing ordered: one card, not an empty list above an empty list.
+  if (items.length === 0 && list.length === 0) return emptyCatalogue;
+
   return (
     <div className="space-y-6">
-      <nav className="flex flex-wrap gap-1.5" aria-label="Categories">
-        {(["all", ...CATEGORIES] as const).map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setCategory(c)}
-            aria-pressed={category === c}
-            className={cn("border-line h-7 rounded-md border px-2.5 text-[12.5px]", category === c ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
-          >
-            {c === "all" ? "All" : CATEGORY_LABEL[c]}
-            {c !== "all" && <span className="text-fg-faint ml-1.5 font-mono text-[11px]">{counts[c]}</span>}
-          </button>
-        ))}
-      </nav>
+      {listed.length > 0 && (
+        <nav className="flex flex-wrap gap-1.5" aria-label="Categories">
+          {(["all", ...listed] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              aria-pressed={active === c}
+              className={cn("border-line h-7 rounded-md border px-2.5 text-[12.5px]", active === c ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
+            >
+              {c === "all" ? "All" : CATEGORY_LABEL[c]}
+              {c !== "all" && <span className="text-fg-faint ml-1.5 font-mono text-[11px]">{counts[c]}</span>}
+            </button>
+          ))}
+        </nav>
+      )}
 
-      <section className="panel overflow-hidden" aria-label="Catalogue">
-        {shown.length === 0 ? (
-          <p className="text-fg-subtle px-5 py-6 text-[13px]">Nothing listed in this category yet.</p>
-        ) : (
+      {items.length === 0 ? (
+        emptyCatalogue
+      ) : (
+        <section className="panel overflow-hidden" aria-label="Catalogue">
           <ul className="divide-line divide-y">
             {shown.map((item) => (
               <li key={item.id} className="px-5 py-3.5">
@@ -143,10 +194,14 @@ export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, 
                     {formatINR(item.unit_price_inr)}
                     <span className="text-fg-subtle"> /{unitNoun(item.category as Category, 1)} · GST {item.gst_rate_percent}%</span>
                   </p>
-                  {canOrder && (
+                  {canOrder ? (
                     <button type="button" onClick={() => setOrdering(ordering === item.id ? null : item.id)} className="btn h-7 px-2.5 text-[12px]">
                       <ShoppingBag className="size-3" aria-hidden /> {ordering === item.id ? "Close" : "Order"}
                     </button>
+                  ) : (
+                    <DisabledAction reason={readOnlyReason} className="h-7 px-2.5 text-[12px]">
+                      <ShoppingBag className="size-3" aria-hidden /> Order
+                    </DisabledAction>
                   )}
                 </div>
                 {ordering === item.id && (
@@ -162,10 +217,10 @@ export function CatalogShop({ items, orders, canOrder, canSync, canPay = false, 
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
-      {canOrder && <AgentPick today={today} />}
+      {canOrder && items.length > 0 && <AgentPick today={today} />}
 
       <section className="panel overflow-hidden" aria-label="Your orders">
         <h3 className="label-mono border-line border-b px-5 py-3">Orders</h3>

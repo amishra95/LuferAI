@@ -7,7 +7,8 @@ import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
 import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
 import { runBookingAgent, type AgentBookingOutcome } from "@/lib/bookings/booking-agent";
 import type { OrderEventStatus } from "@/lib/telemetry/events";
-import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingStatus } from "@/lib/data";
+import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingStatus } from "@/lib/data";
+import { costCentreLock, validateCostCentre } from "@/lib/bookings/expense-meta";
 import { exportBookingExpense } from "@/lib/finance/export-dispatcher";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import type { BookingStatus } from "@/lib/supabase/database.types";
@@ -345,6 +346,31 @@ export async function syncExpenseManagement(bookingId: string): Promise<ActionRe
       },
     }
   );
+}
+
+/**
+ * Sets a booking's cost centre from the bookings table. Organizers and
+ * Approvers, for their own company; admins view this portal read-only. Locked
+ * once the receipt has been exported to finance (lib/bookings/expense-meta.ts).
+ */
+export async function setBookingCostCenter(bookingId: string, costCenter: string): Promise<ActionResult<{ bookingId: string; costCenter: string }>> {
+  return serverDispatch("client/setBookingCostCenter", async () => {
+    const member = await requirePortal("/client");
+    if (member.role !== "CLIENT" || !member.companyId) throw new ActionError("Platform admins view this portal read-only.");
+    const actor = (await listPortalUsers({ companyId: member.companyId })).find((u) => u.id === member.userId);
+    if (actor?.role !== "ORGANIZER" && actor?.role !== "APPROVER") throw new ActionError("Only Organizers and Approvers can change cost centres.");
+    const valid = validateCostCentre(costCenter);
+    if (!valid.ok) throw new ActionError(valid.error);
+
+    const booking = (await listBookings({ companyId: member.companyId })).find((b) => b.id === bookingId);
+    if (!booking) throw new ActionError("Booking not found.");
+    const lock = costCentreLock(booking.status, Boolean(await findExpenseExport(bookingId, "booking.confirmed")));
+    if (lock) throw new ActionError(lock);
+
+    await updateBookingCostCenter(bookingId, member.companyId, valid.value);
+    revalidateBookingViews();
+    return { bookingId, costCenter: valid.value };
+  });
 }
 
 export interface ApprovalCommentState {

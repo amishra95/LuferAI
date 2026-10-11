@@ -614,6 +614,20 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
   if (data.length === 0) throw new Error("Booking not found");
 }
 
+/** Sets a booking's cost centre (expense metadata), scoped to its company. */
+export async function updateBookingCostCenter(id: string, companyId: string, costCenter: string) {
+  if (local()) {
+    return mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id && x.company_id === companyId);
+      if (!b) throw new Error("Booking not found");
+      Object.assign(b, { cost_center: costCenter, updated_at: new Date().toISOString() });
+    });
+  }
+  const { data, error } = await createAdminClient().from("bookings").update({ cost_center: costCenter }).eq("id", id).eq("company_id", companyId).select("id");
+  if (error) throw error;
+  if (data.length === 0) throw new Error("Booking not found");
+}
+
 // ----------------------------------------------------------------------------
 // Corporate approval workflows
 // ----------------------------------------------------------------------------
