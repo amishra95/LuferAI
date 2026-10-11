@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Loader2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PARTNER_ROLE_LABEL, PARTNER_ROLES } from "@/lib/auth/partner-rbac";
+import { useToast } from "@/components/dashboard/toast";
 import { submitWithoutReset } from "@/lib/form-submit";
 import { cn } from "@/lib/utils";
 import {
@@ -75,8 +77,23 @@ export interface ListingValues {
   private_dining: boolean;
 }
 
-export function ListingForm({ partnerId, listing }: { partnerId: string | null; listing?: ListingValues }) {
+/**
+ * Add or edit a listing. After adding, it confirms with a toast and opens the
+ * Rate cards tab for the new listing (`ratesHref`), so the partner prices it
+ * before search can show a price.
+ */
+export function ListingForm({ partnerId, listing, ratesHref }: { partnerId: string | null; listing?: ListingValues; ratesHref?: string }) {
   const [state, action, pending] = useActionState<PartnerFormState, FormData>(saveListingAction, IDLE);
+  const router = useRouter();
+  const toast = useToast();
+  useEffect(() => {
+    if (state.status !== "success" || !state.createdListing || !ratesHref) return;
+    toast({ tone: "success", title: `Added ${state.createdListing.name}`, description: "Next: publish its first rate so search can price it." });
+    const url = new URL(ratesHref, window.location.origin);
+    url.searchParams.set("listing", state.createdListing.id);
+    url.searchParams.set("created", "1");
+    router.push(`${url.pathname}${url.search}#rate-form`);
+  }, [state, ratesHref, router, toast]);
   const err = state.fieldErrors ?? {};
   const key = listing?.id ?? "new";
   return (
@@ -161,7 +178,20 @@ export function DeleteListingButton({ partnerId, id, name }: { partnerId: string
 // Rate cards
 // ----------------------------------------------------------------------------
 
-export function RateCardForm({ partnerId, listings, minDate }: { partnerId: string | null; listings: { id: string; name: string }[]; minDate: string }) {
+export function RateCardForm({
+  partnerId,
+  listings,
+  minDate,
+  defaultListingId,
+  autoFocus = false,
+}: {
+  partnerId: string | null;
+  listings: { id: string; name: string }[];
+  minDate: string;
+  /** Preselect a listing (opened from a listing, or just created). */
+  defaultListingId?: string;
+  autoFocus?: boolean;
+}) {
   const [state, action, pending] = useActionState<PartnerFormState, FormData>(saveRateCardAction, IDLE);
   const err = state.fieldErrors ?? {};
   return (
@@ -170,7 +200,7 @@ export function RateCardForm({ partnerId, listings, minDate }: { partnerId: stri
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="grid gap-1.5">
           <Label htmlFor="rate-listing">Listing</Label>
-          <NativeSelect id="rate-listing" name="partner_venue_id" required defaultValue="" aria-invalid={Boolean(err.partner_venue_id)}>
+          <NativeSelect id="rate-listing" name="partner_venue_id" required defaultValue={defaultListingId ?? ""} aria-invalid={Boolean(err.partner_venue_id)}>
             <option value="" disabled>
               Choose a listing
             </option>
@@ -182,7 +212,7 @@ export function RateCardForm({ partnerId, listings, minDate }: { partnerId: stri
           </NativeSelect>
           {err.partner_venue_id ? <p className="text-rose text-xs">{err.partner_venue_id}</p> : null}
         </div>
-        <Field id="rate" label="Label" name="label" required maxLength={80} placeholder="Weekday dinner" error={err.label} />
+        <Field id="rate" label="Label" name="label" required maxLength={80} placeholder="Weekday dinner" autoFocus={autoFocus} error={err.label} />
         <Field id="rate" label="Per head (₹, pre-GST)" name="per_head_inr" type="number" min={1} step="1" required error={err.per_head_inr} />
         <Field id="rate" label="Applies from (guests)" name="min_guests" type="number" min={1} max={5000} defaultValue={1} error={err.min_guests} hint="Add a separate rate for larger groups." />
         <Field id="rate" label="Valid from" name="valid_from" type="date" defaultValue={minDate} required error={err.valid_from} />

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Building, CalendarRange, Store, Users } from "lucide-react";
+import { ArrowLeft, Building, CalendarRange, CheckCircle2, History, Plus, Store, Tag, Users } from "lucide-react";
+
+import { EmptyState } from "@/components/portal/empty-state";
 
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
@@ -41,7 +43,7 @@ const CLOCK = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short",
 
 export default async function PartnerPage({ searchParams }: PageProps<"/partner">) {
   const member = await requirePortal("/partner");
-  const { partner: partnerParam, tab } = await searchParams;
+  const { partner: partnerParam, tab, listing: listingParam, created } = await searchParams;
   const can = partnerPermissions(member);
   const isAdmin = member.role === "ADMIN";
 
@@ -70,12 +72,16 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
   const formPartnerId = isAdmin ? partner.id : null;
   const visibleTabs = TABS.filter((t) => can.has(t.permission));
   const activeTab = visibleTabs.find((t) => t.key === tab)?.key ?? "listings";
-  const href = (t: string) => {
+  const href = (t: string, extra: Record<string, string> = {}) => {
     const q = new URLSearchParams();
     if (isAdmin) q.set("partner", partner.id);
     if (t !== "listings") q.set("tab", t);
+    for (const [k, v] of Object.entries(extra)) q.set(k, v);
     return q.size ? `/partner?${q}` : "/partner";
   };
+  /** One listing, opened inside the Rate cards tab. */
+  const listingHref = (id: string) => href("rates", { listing: id });
+  const canAddListing = can.has("listing.edit");
 
   const today = todayInIndia();
   const [listings, rates, members, audit, catalogItems, orders] = await Promise.all([
@@ -91,6 +97,10 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     activeTab === "payouts" ? listPartnerTcs(partner.id) : Promise.resolve([]),
   ]);
   const liveRates = rates.filter((r) => isRateActiveOn(r, today) || r.valid_from > today);
+  // A listing opened from the Listings tab (or just created): only this partner's.
+  const selected = activeTab === "rates" && typeof listingParam === "string" ? (listings.find((l) => l.id === listingParam) ?? null) : null;
+  const justCreated = Boolean(selected) && created === "1";
+  const shownRates = selected ? rates.filter((r) => r.partner_venue_id === selected.id) : rates;
   const listingName = new Map(listings.map((l) => [l.id, l.name]));
   const roleLabel = isAdmin ? "Lufer.ai admin" : member.partnerRole ? PARTNER_ROLE_LABEL[member.partnerRole] : "";
 
@@ -99,6 +109,13 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
       portal="/partner"
       title={partner.name}
       subtitle={`Partner extranet · ${roleLabel}${partner.status === "suspended" ? " · suspended: listings are hidden from search" : ""}`}
+      actions={
+        canAddListing ? (
+          <Link href={`${href("listings")}#add-listing`} className="btn btn-primary h-8 px-3 text-[13px]">
+            <Plus className="size-3.5" aria-hidden /> Add listing
+          </Link>
+        ) : null
+      }
     >
       {isAdmin && partners.length > 1 ? (
         <div className="-mt-2 mb-6 flex flex-wrap items-center gap-2" aria-label="Switch partner (admin)">
@@ -142,6 +159,21 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
               <CardDescription>Active listings appear in Lufer.ai venue search as partner venues. Paused ones are hidden.</CardDescription>
             </CardHeader>
             <CardContent>
+              {listings.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={Store}
+                  title="No listings yet"
+                  description={canAddListing ? "Add your first venue, then publish a rate card so Lufer.ai search can price it for corporate buyers." : "An Owner or Manager adds this partner's venues."}
+                  action={
+                    canAddListing ? (
+                      <Link href="#add-listing" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                        <Plus className="size-3.5" aria-hidden /> Add listing
+                      </Link>
+                    ) : null
+                  }
+                />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -157,15 +189,22 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   {listings.map((l) => {
                     const from = fromPerHead(rates, l.id, today);
                     return (
-                      <TableRow key={l.id}>
+                      // The name's link stretches over the row (after:inset-0); controls sit above it (relative z-10).
+                      <TableRow key={l.id} className="relative cursor-pointer">
                         <TableCell>
-                          <div className="font-medium">{l.name}</div>
+                          <Link
+                            href={listingHref(l.id)}
+                            className="font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+                          >
+                            {l.name}
+                            <span className="sr-only">: open its rate cards</span>
+                          </Link>
                           <div className="text-fg-subtle text-xs">
                             <span className="font-mono">{l.ref}</span> · {l.area}, {l.city}
                             {l.private_dining ? " · private dining" : ""}
                           </div>
                           {can.has("listing.edit") ? (
-                            <details className="mt-2">
+                            <details className="relative z-10 mt-2">
                               <summary className="text-fg cursor-pointer text-[12px] hover:underline">Edit details</summary>
                               <div className="mt-3">
                                 <ListingForm
@@ -182,7 +221,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                         <TableCell>
                           <Badge variant={l.status === "active" ? "success" : "secondary"}>{l.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="relative z-10 text-right">
                           <div className="flex justify-end gap-1.5">
                             {can.has("listing.status") ? <ListingStatusButton partnerId={formPartnerId} id={l.id} status={l.status} /> : null}
                             {can.has("listing.edit") ? <DeleteListingButton partnerId={formPartnerId} id={l.id} name={l.name} /> : null}
@@ -191,26 +230,20 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                       </TableRow>
                     );
                   })}
-                  {listings.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-fg-subtle py-6 text-center">
-                        No listings yet{can.has("listing.edit") ? " — add your first venue below" : ""}.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
 
-          {can.has("listing.edit") ? (
-            <Card>
+          {canAddListing ? (
+            <Card id="add-listing" className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Add a listing</CardTitle>
-                <CardDescription>Publish a venue to Lufer.ai corporate buyers. Add a rate card so search can price it.</CardDescription>
+                <CardDescription>Publish a venue to Lufer.ai corporate buyers. After adding it you&apos;ll set its first rate, so search can price it.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ListingForm partnerId={formPartnerId} />
+                <ListingForm partnerId={formPartnerId} ratesHref={href("rates")} />
               </CardContent>
             </Card>
           ) : null}
@@ -219,68 +252,149 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
 
       {activeTab === "rates" ? (
         <div className="space-y-6">
+          {selected ? (
+            <>
+              <Link href={href("rates")} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-[13px]">
+                <ArrowLeft className="size-3.5" aria-hidden /> All rate cards
+              </Link>
+              {justCreated ? (
+                <section role="status" aria-label="Listing added" className="border-sage/30 bg-sage/[0.06] flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border px-5 py-4">
+                  <CheckCircle2 className="text-sage size-5 shrink-0" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-fg text-[14px] font-medium">{selected.name} is live</p>
+                    <p className="text-fg-subtle text-[12.5px]">Publish its first rate card so Lufer.ai search can price it for corporate buyers.</p>
+                  </div>
+                  {can.has("rates.edit") ? (
+                    <Link href="#rate-form" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                      <Tag className="size-3.5" aria-hidden /> Create rate card
+                    </Link>
+                  ) : null}
+                </section>
+              ) : null}
+              <Card>
+                <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <CardTitle className="flex flex-wrap items-center gap-2">
+                      {selected.name} <Badge variant={selected.status === "active" ? "success" : "secondary"}>{selected.status}</Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      <span className="font-mono">{selected.ref}</span> · {selected.area}, {selected.city} · up to {selected.capacity} guests · min spend{" "}
+                      {formatINR(Number(selected.min_spend_inr))}
+                      {selected.private_dining ? " · private dining" : ""}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {can.has("listing.status") ? <ListingStatusButton partnerId={formPartnerId} id={selected.id} status={selected.status} /> : null}
+                  </div>
+                </CardHeader>
+                {can.has("listing.edit") ? (
+                  <CardContent>
+                    <details>
+                      <summary className="text-fg cursor-pointer text-[12.5px] hover:underline">Edit details</summary>
+                      <div className="mt-3">
+                        <ListingForm partnerId={formPartnerId} listing={{ ...selected, min_spend_inr: Number(selected.min_spend_inr) }} />
+                      </div>
+                    </details>
+                  </CardContent>
+                ) : null}
+              </Card>
+            </>
+          ) : null}
+
           <Card>
             <CardHeader>
-              <CardTitle>Rate cards</CardTitle>
+              <CardTitle>{selected ? `Rate cards · ${selected.name}` : "Rate cards"}</CardTitle>
               <CardDescription>
                 Per-head prices (pre-GST) by listing, date range and group size. Within one group bracket, rates can&apos;t overlap.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Listing</TableHead>
-                    <TableHead>Rate</TableHead>
-                    <TableHead className="text-right">Per head</TableHead>
-                    <TableHead className="text-right">Guests</TableHead>
-                    <TableHead>Valid</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rates.map((r) => {
-                    const state = isRateActiveOn(r, today) ? "in effect" : r.valid_from > today ? "upcoming" : "ended";
-                    return (
-                      <TableRow key={r.id} className={state === "ended" ? "opacity-60" : undefined}>
-                        <TableCell className="font-medium">{listingName.get(r.partner_venue_id) ?? "—"}</TableCell>
-                        <TableCell>{r.label}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatINR(r.per_head_inr)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{r.min_guests}+</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[12.5px] tabular-nums">
-                              {formatDate(r.valid_from)} – {r.valid_to ? formatDate(r.valid_to) : "open-ended"}
-                            </span>
-                            <Badge variant={state === "in effect" ? "success" : state === "upcoming" ? "warning" : "outline"}>{state}</Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {can.has("rates.edit") ? <DeleteRateButton partnerId={formPartnerId} id={r.id} label={r.label} /> : null}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {rates.length === 0 ? (
+              {shownRates.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={Tag}
+                  title={listings.length === 0 ? "Add a listing first" : selected ? `No rates for ${selected.name} yet` : "No rate cards yet"}
+                  description={
+                    listings.length === 0
+                      ? "Rate cards price a listing. Add a venue, then publish its per-head rates here."
+                      : "Without a rate, search can't show a price for this venue. Publish a per-head rate for a date range and group size."
+                  }
+                  action={
+                    listings.length === 0 ? (
+                      canAddListing ? (
+                        <Link href={`${href("listings")}#add-listing`} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                          <Plus className="size-3.5" aria-hidden /> Add listing
+                        </Link>
+                      ) : null
+                    ) : can.has("rates.edit") ? (
+                      <Link href="#rate-form" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                        <Tag className="size-3.5" aria-hidden /> Publish a rate
+                      </Link>
+                    ) : null
+                  }
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-fg-subtle py-6 text-center">
-                        No rate cards yet.
-                      </TableCell>
+                      {selected ? null : <TableHead>Listing</TableHead>}
+                      <TableHead>Rate</TableHead>
+                      <TableHead className="text-right">Per head</TableHead>
+                      <TableHead className="text-right">Guests</TableHead>
+                      <TableHead>Valid</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {shownRates.map((r) => {
+                      const state = isRateActiveOn(r, today) ? "in effect" : r.valid_from > today ? "upcoming" : "ended";
+                      return (
+                        <TableRow key={r.id} className={state === "ended" ? "opacity-60" : undefined}>
+                          {selected ? null : (
+                            <TableCell className="font-medium">
+                              <Link href={listingHref(r.partner_venue_id)} className="hover:underline">
+                                {listingName.get(r.partner_venue_id) ?? "—"}
+                              </Link>
+                            </TableCell>
+                          )}
+                          <TableCell>{r.label}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatINR(r.per_head_inr)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{r.min_guests}+</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[12.5px] tabular-nums">
+                                {formatDate(r.valid_from)} – {r.valid_to ? formatDate(r.valid_to) : "open-ended"}
+                              </span>
+                              <Badge variant={state === "in effect" ? "success" : state === "upcoming" ? "warning" : "outline"}>{state}</Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {can.has("rates.edit") ? <DeleteRateButton partnerId={formPartnerId} id={r.id} label={r.label} /> : null}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 
-          {can.has("rates.edit") ? (
-            <Card>
+          {can.has("rates.edit") && listings.length > 0 ? (
+            <Card id="rate-form" className="scroll-mt-20">
               <CardHeader>
-                <CardTitle>Publish a rate</CardTitle>
+                <CardTitle>{selected ? `Publish a rate for ${selected.name}` : "Publish a rate"}</CardTitle>
                 <CardDescription>To change a price, end the current rate (or delete it) and publish the new one from the next day.</CardDescription>
               </CardHeader>
               <CardContent>
-                <RateCardForm partnerId={formPartnerId} listings={listings.map((l) => ({ id: l.id, name: l.name }))} minDate={today} />
+                <RateCardForm
+                  key={selected?.id ?? "all"}
+                  partnerId={formPartnerId}
+                  listings={listings.map((l) => ({ id: l.id, name: l.name }))}
+                  minDate={today}
+                  defaultListingId={selected?.id}
+                  autoFocus={justCreated}
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -305,6 +419,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           partnerId={formPartnerId}
           canFulfil={can.has("orders.fulfil")}
           today={today}
+          catalogHref={visibleTabs.some((t) => t.key === "catalog") ? href("catalog") : undefined}
           orders={orders.map((o) => ({
             id: o.id,
             company_name: o.company_name,
@@ -339,6 +454,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             return st?.payout ? [{ orderId: o.id, label: `${o.quantity} × ${o.item_name}`, company: o.company_name, payout: st.payout, issues: st.issues }] : [];
           })}
           tcs={tcs}
+          ordersHref={href("orders")}
         />
       ) : null}
 
@@ -350,6 +466,19 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
               <CardDescription>Owners manage the team; Managers edit listings and rates; Staff can view and pause listings.</CardDescription>
             </CardHeader>
             <CardContent>
+              {members.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={Users}
+                  title="No team members yet"
+                  description="Invite this partner's first Owner. Owners then invite Managers to edit listings and rates, and Staff to pause listings."
+                  action={
+                    <Link href="#invite" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                      <Plus className="size-3.5" aria-hidden /> Invite the first Owner
+                    </Link>
+                  }
+                />
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -371,18 +500,12 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                       </TableCell>
                     </TableRow>
                   ))}
-                  {members.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-fg-subtle py-6 text-center">
-                        No members yet — invite this partner&apos;s first Owner below.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
-          <Card>
+          <Card id="invite" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Invite someone</CardTitle>
               <CardDescription>New addresses get a sign-in invitation; existing Lufer.ai users without another organisation are added directly.</CardDescription>
@@ -402,7 +525,17 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           </CardHeader>
           <CardContent>
             {audit.length === 0 ? (
-              <p className="text-fg-subtle py-6 text-center text-[13px]">No changes yet.</p>
+              <EmptyState
+                compact
+                icon={History}
+                title="No changes yet"
+                description="Every change to listings, rates and the team is recorded here with who made it."
+                action={
+                  <Link href={href("listings")} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                    <Store className="size-3.5" aria-hidden /> Go to Listings
+                  </Link>
+                }
+              />
             ) : (
               <ol className="divide-line divide-y">
                 {audit.map((a) => (

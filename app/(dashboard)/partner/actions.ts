@@ -27,7 +27,11 @@ export interface PartnerFormState {
   status: "idle" | "success" | "error";
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** Set when a listing was just created, so the form can open its rate cards. */
+  createdListing?: { id: string; name: string };
 }
+
+type Outcome = string | { message: string; createdListing?: PartnerFormState["createdListing"] };
 
 const str = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
@@ -39,13 +43,13 @@ const str = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 async function run(
   form: FormData,
   permission: PartnerPermission,
-  fn: (ctx: PartnerContext) => Promise<string>
+  fn: (ctx: PartnerContext) => Promise<Outcome>
 ): Promise<PartnerFormState> {
   try {
     const ctx = await requirePartner(permission, str(form, "partner_id") || null);
-    const message = await fn(ctx);
+    const outcome = await fn(ctx);
     revalidatePath("/partner");
-    return { status: "success", message };
+    return typeof outcome === "string" ? { status: "success", message: outcome } : { status: "success", ...outcome };
   } catch (err) {
     if (err instanceof PartnerAccessError) return { status: "error", message: err.message };
     if (err instanceof PartnerError) return { status: "error", message: err.message, fieldErrors: err.field ? { [err.field]: err.message } : undefined };
@@ -103,7 +107,7 @@ export async function saveListingAction(_prev: PartnerFormState, form: FormData)
     const listing = id ? await updateListing(partnerId, uuid(id), input) : await createListing(partnerId, input);
     await recordAudit({ partnerId, actorId: member.userId, action: id ? "listing.updated" : "listing.created", entity: "listing", entityId: listing.id, detail: { ref: listing.ref, name: listing.name } });
     await listingChanged(listing.id, "saved");
-    return id ? `Saved ${listing.name}.` : `Added ${listing.name}.`;
+    return id ? `Saved ${listing.name}.` : { message: `Added ${listing.name}.`, createdListing: { id: listing.id, name: listing.name } };
   });
 }
 
