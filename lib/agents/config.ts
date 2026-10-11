@@ -19,6 +19,19 @@ export const isConfiguredAgent = (id: string) => (AGENT_IDS as readonly string[]
 export const PROMPTABLE_AGENTS = ["workspace-agent", "channel-concierge"] as const;
 export const MAX_INSTRUCTIONS = 1000;
 
+/**
+ * Model backends an agent can run on (lib/ai/model.ts). Claude Sonnet 5.5 runs
+ * at its default temperature: the API rejects other values, so the setting
+ * only applies to gpt-4o.
+ */
+export const MODEL_BACKENDS = ["gpt-4o", "claude-sonnet-5-5"] as const;
+export type ModelBackend = (typeof MODEL_BACKENDS)[number];
+export const DEFAULT_BACKEND: ModelBackend = "gpt-4o";
+export const MODEL_BACKEND_LABEL: Record<ModelBackend, string> = { "gpt-4o": "GPT-4o", "claude-sonnet-5-5": "Claude Sonnet 5.5" };
+export const isModelBackend = (v: unknown): v is ModelBackend => typeof v === "string" && (MODEL_BACKENDS as readonly string[]).includes(v);
+/** Whether the backend accepts a custom temperature. */
+export const takesTemperature = (backend: ModelBackend) => backend === "gpt-4o";
+
 export interface AgentPatch {
   enabled?: boolean;
   tools?: AgentToolName[];
@@ -27,6 +40,7 @@ export interface AgentPatch {
   maxSteps?: number;
   /** Extra system-prompt instructions; "" clears them. */
   instructions?: string;
+  model?: ModelBackend;
 }
 
 export type PatchResult = { ok: true; patch: AgentPatch } | { ok: false; error: string };
@@ -70,12 +84,16 @@ export function validateAgentPatch(agentId: string, input: unknown): PatchResult
     if (text && !isPromptable(agentId)) return { ok: false, error: "This agent doesn't take custom instructions." };
     patch.instructions = text;
   }
+  if ("model" in raw) {
+    if (!isModelBackend(raw.model)) return { ok: false, error: "Unknown model backend." };
+    patch.model = raw.model;
+  }
   if (Object.keys(patch).length === 0) return { ok: false, error: "Nothing to change." };
   return { ok: true, patch };
 }
 
-/** The config dialog's fields → a patch (validated). Blank temperature means the model default. */
-export function agentPatchFromForm(agentId: string, form: { tools: string[]; temperature: string; maxSteps: string; instructions?: string }): PatchResult {
+/** The settings drawer's fields → a patch (validated). Blank temperature means the model default. */
+export function agentPatchFromForm(agentId: string, form: { tools: string[]; temperature: string; maxSteps: string; instructions?: string; model?: string }): PatchResult {
   const t = form.temperature.trim();
   const steps = form.maxSteps.trim();
   return validateAgentPatch(agentId, {
@@ -83,6 +101,7 @@ export function agentPatchFromForm(agentId: string, form: { tools: string[]; tem
     temperature: t === "" ? null : Number(t),
     maxSteps: steps === "" ? NaN : Number(steps),
     ...(form.instructions !== undefined && { instructions: form.instructions }),
+    ...(form.model !== undefined && { model: form.model }),
   });
 }
 

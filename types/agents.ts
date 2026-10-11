@@ -1,3 +1,4 @@
+import type { ModelBackend } from "@/lib/agents/config";
 import type { ChatToolName } from "@/types/chat";
 
 export type AgentId = "workspace-agent" | "channel-concierge" | "venue-sourcer" | "metrics-reporter";
@@ -15,6 +16,8 @@ export type AgentConfig = {
   maxSteps: number;
   /** Operator instructions appended to the system prompt ("" = none; promptable agents only). */
   instructions: string;
+  /** Which model the agent runs on (lib/ai/model.ts). */
+  model: ModelBackend;
 };
 
 export type AgentRun = {

@@ -23,7 +23,7 @@ export function useAgentMutations(serverAgent: AgentRecord) {
         action: () => updateAgentConfig(serverAgent.id, patch),
         // The server's config wins (it normalises values); run stats stay as rendered,
         // since the saved record only has this instance's counts.
-        commit: (base, saved) => ({ ...base, enabled: saved.enabled, tools: saved.tools, temperature: saved.temperature, maxSteps: saved.maxSteps, instructions: saved.instructions }),
+        commit: (base, saved) => ({ ...base, enabled: saved.enabled, tools: saved.tools, temperature: saved.temperature, maxSteps: saved.maxSteps, instructions: saved.instructions, model: saved.model }),
         failure: labels.failure,
         success: labels.success ? () => ({ tone: "success", title: labels.success! }) : undefined,
       }),

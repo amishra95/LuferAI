@@ -35,7 +35,7 @@ async function handleSourceVenues(req: Request) {
   const companyId = member.role === "ADMIN" ? parsed.data.companyId : member.companyId;
   if (!companyId) return Response.json({ error: "Unknown company account." }, { status: 404 });
 
-  const model = getLanguageModel();
+  const model = getLanguageModel({ usage: { agent: "venue-sourcer", source: "api" } });
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
   if (aiCircuitOpen()) return aiUnavailableResponse();
 

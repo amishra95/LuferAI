@@ -3,7 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { validateAgentPatch, type AgentPatch } from "@/lib/agents/config";
-import { getAgent, isAgentId, recordRun, updateAgent } from "@/lib/agents/store";
+import { getAgent, isAgentId, recordRun, syncAgentConfigs, updateAgent } from "@/lib/agents/store";
 import { searchVenueCatalogue } from "@/lib/ai/chat-tools";
 import { runBudgetForecast, runSpendAnalysis } from "@/lib/analytics/service";
 import { requireWorkspace } from "@/lib/auth/session";
@@ -28,18 +28,22 @@ function revalidateAgentViews() {
   refresh();
 }
 
-/** Enable/disable, tools, temperature, max steps and instructions. Only the fields given change. */
+/** Enable/disable, tools, temperature, max steps, instructions and model backend. Only the fields given change; saved to agent_configurations. */
 export async function updateAgentConfig(id: string, input: AgentPatch): Promise<ActionResult<AgentRecord>> {
   let changed: AgentConfigField[] = [];
   return serverDispatch(
     "agents/updateAgentConfig",
     async () => {
-      await requireWorkspace("/agents");
+      const member = await requireWorkspace("/agents");
       if (!isAgentId(id)) throw new ActionError("Unknown agent.");
       const result = validateAgentPatch(id, input);
       if (!result.ok) throw new ActionError(result.error);
       changed = Object.keys(result.patch) as AgentConfigField[];
-      const agent = updateAgent(id, result.patch);
+      // Fresh copy first: the upsert writes the whole row.
+      await syncAgentConfigs(true);
+      const agent = await updateAgent(id, result.patch, member.userId).catch((err: unknown) => {
+        throw new ActionError(err instanceof Error ? err.message : "Couldn't save the agent.");
+      });
       revalidateAgentViews();
       return agent;
     },
@@ -79,6 +83,7 @@ export async function runAgentTest(id: string): Promise<ActionResult<AgentTestRe
   return serverDispatch("agents/runAgentTest", async () => {
     await requireWorkspace("/agents");
     if (!isAgentId(id)) throw new ActionError("Unknown agent.");
+    await syncAgentConfigs();
     const agent = getAgent(id)!;
     if (!agent.enabled) throw new ActionError(`${agent.name} is disabled. Enable it to run a test.`);
     const started = performance.now();

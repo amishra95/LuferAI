@@ -37,7 +37,7 @@ async function handleNegotiator(request: NextRequest) {
   tracer.annotate({ role: member.role });
   if (member.role !== "PROPERTY" && member.role !== "ADMIN") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const model = getLanguageModel();
+  const model = getLanguageModel({ usage: { agent: "property-negotiator", source: "api" } });
   if (!model) return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
   if (aiCircuitOpen()) return aiUnavailableResponse();
   const approvalSecret = process.env.TOOL_APPROVAL_SECRET;

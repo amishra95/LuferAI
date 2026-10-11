@@ -33,7 +33,7 @@ async function handleRfpBroadcast(request: NextRequest) {
   if (!member) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   tracer.annotate({ role: member.role });
   if (member.role !== "CLIENT" && member.role !== "ADMIN") return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const model = getLanguageModel();
+  const model = getLanguageModel({ usage: { agent: "rfp-broadcaster", source: "api" } });
   if (!model) return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
   if (aiCircuitOpen()) return aiUnavailableResponse();
   if (dataSource() !== "supabase") {

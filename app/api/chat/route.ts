@@ -8,10 +8,12 @@ import {
 } from "ai";
 
 import { instructionsSuffix } from "@/lib/agents/config";
-import { getAgent, recordRun } from "@/lib/agents/store";
+import { takesTemperature } from "@/lib/agents/config";
+import { getAgent, recordRun, syncAgentConfigs } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
-import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
+import { AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, backendNotConfigured, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { allowedTools, financeFirstStep } from "@/lib/ai/chat-policy";
+import { WORKSPACE_AGENT_SYSTEM } from "@/lib/ai/prompts";
 import { createChatTools } from "@/lib/ai/chat-tools";
 import { traceTools } from "@/lib/ai/trace-tools";
 import { analyticsScopeFor } from "@/lib/analytics/service";
@@ -23,14 +25,6 @@ import type { LuferUIMessage } from "@/types/chat";
 export const maxDuration = 60;
 
 const MAX_MESSAGES = 100;
-
-const SYSTEM =
-  "You are the Lufer.ai workspace agent for a corporate hospitality platform in Bengaluru, India. " +
-  "Use the tools to answer questions about venues, bookings, spend and budgets; never invent venues, prices or totals. " +
-  "For money questions call analyzeSpend or forecastBudget and quote their figures, saying they are pre-GST and naming the period. " +
-  "Never state a spend, budget or forecast figure that didn't come from a tool result in this conversation; if the tools can't answer, say so. " +
-  "Indian financial years run April to March. " +
-  "Amounts are INR. Answer concisely in Markdown and use fenced code blocks for code or config.";
 
 /** Admins analyse the platform; client users only ever their own company. */
 /**
@@ -69,6 +63,7 @@ async function handleChat(req: Request) {
   }
 
   // Settings from the Agents page.
+  await syncAgentConfigs();
   const agent = getAgent("workspace-agent")!;
   if (!agent.enabled) {
     return Response.json({ error: "The workspace agent is disabled. Enable it on the Agents page." }, { status: 503 });
@@ -78,8 +73,8 @@ async function handleChat(req: Request) {
   const record = (ok: boolean, extra: { error?: string; tokens?: number; steps?: number } = {}) =>
     recordRun("workspace-agent", { at: new Date().toISOString(), ok, durationMs: Date.now() - started, source: "chat", task: `Chat: “${clip(lastUserText)}”`, ...extra });
 
-  const model = getLanguageModel();
-  if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
+  const model = getLanguageModel({ backend: agent.model, usage: { agent: "workspace-agent", source: "chat" } });
+  if (!model) return Response.json({ error: backendNotConfigured(agent.model) }, { status: 503 });
   // Provider known to be down: answer at once instead of waiting on retries.
   if (aiCircuitOpen()) return aiUnavailableResponse();
 
@@ -99,14 +94,14 @@ async function handleChat(req: Request) {
   // Started inside llm.run so the provider requests and tool calls are its children.
   const result = llm.run(() => streamText({
     model,
-    system: SYSTEM + instructionsSuffix(agent.instructions),
+    system: WORKSPACE_AGENT_SYSTEM + instructionsSuffix(agent.instructions),
     messages: modelMessages,
     tools: chatTools,
     activeTools: tools,
     prepareStep: ({ stepNumber }) => (stepNumber === 0 && financeStep ? financeStep : {}),
     // A forced tool call needs a follow-up step to write the answer.
     stopWhen: isStepCount(financeStep ? Math.max(agent.maxSteps, 2) : agent.maxSteps),
-    ...(agent.temperature !== null && { temperature: agent.temperature }),
+    ...(agent.temperature !== null && takesTemperature(agent.model) && { temperature: agent.temperature }),
     onEnd: ({ totalUsage, steps, finishReason }) => {
       llm.setAttributes({ tokens: totalUsage.totalTokens, steps: steps.length, finishReason });
       llm.end();

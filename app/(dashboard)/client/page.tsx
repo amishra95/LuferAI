@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
-import { getAgent } from "@/lib/agents/store";
+import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
@@ -102,9 +102,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   ]);
   const itc = computeItcSummary(bookings);
   // The concierge (/api/chat) needs a model and the workspace agent switched on.
-  const concierge = !getLanguageModel()
+  await syncAgentConfigs();
+  const workspaceAgent = getAgent("workspace-agent");
+  const concierge = !getLanguageModel({ backend: workspaceAgent?.model })
     ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
-    : getAgent("workspace-agent")?.enabled === false
+    : workspaceAgent?.enabled === false
       ? { ready: false, reason: "The concierge is switched off on the Agents page." }
       : { ready: true, reason: undefined };
   const canPay = paymentsEnabled();

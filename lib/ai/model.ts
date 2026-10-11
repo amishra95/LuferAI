@@ -1,8 +1,12 @@
 import "server-only";
 
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
 
+import { DEFAULT_BACKEND, type ModelBackend } from "@/lib/agents/config";
 import { CircuitOpenError, isTransientError, llmCircuitBreaker } from "@/lib/circuit-breaker";
+import { logUsage } from "@/lib/telemetry/usage";
 import { tracer } from "@/lib/tracer";
 
 // Default OpenAI text model; override per environment with OPENAI_MODEL
@@ -92,16 +96,82 @@ async function breakerFetch(input: Parameters<typeof fetch>[0], init: RequestIni
   }
 }
 
-const g = globalThis as typeof globalThis & { __luferOpenAI?: ReturnType<typeof createOpenAI> };
-const provider = () => (g.__luferOpenAI ??= createOpenAI({ fetch: resilientFetch }));
+const g = globalThis as typeof globalThis & { __luferOpenAI?: ReturnType<typeof createOpenAI>; __luferAnthropic?: ReturnType<typeof createAnthropic> };
+const openai = () => (g.__luferOpenAI ??= createOpenAI({ fetch: resilientFetch }));
+const anthropic = () => (g.__luferAnthropic ??= createAnthropic({ fetch: resilientFetch }));
 
-/** The configured language model, or null when OPENAI_API_KEY isn't set. */
-export function getLanguageModel() {
-  if (!process.env.OPENAI_API_KEY?.trim()) return null;
-  return provider()(process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL);
+/** The API key each backend needs. */
+const BACKEND_KEY: Record<ModelBackend, string> = { "gpt-4o": "OPENAI_API_KEY", "claude-sonnet-5-5": "ANTHROPIC_API_KEY" };
+
+/** Whether the backend's API key is set in this environment. */
+export const isBackendConfigured = (backend: ModelBackend) => Boolean(process.env[BACKEND_KEY[backend]]?.trim());
+
+/** Who a model call is for, so the usage middleware can attribute its tokens. */
+export interface UsageContext {
+  /** Agent id (lib/agents/config.ts) or run agent (lib/telemetry/runs.ts). */
+  agent: string;
+  /** Where the call came from: chat, stream, whatsapp, api… */
+  source: string;
+}
+
+/**
+ * Logs each model call's tokens to agent_execution_logs (lib/telemetry/usage.ts).
+ * One row per call, so a multi-step agent run writes one row per step.
+ */
+function usageMiddleware(ctx: UsageContext): LanguageModelMiddleware {
+  const log = (modelId: string, usage: { inputTokens: { total: number | undefined }; outputTokens: { total: number | undefined } }) =>
+    void logUsage({ agentKey: ctx.agent, model: modelId, source: ctx.source, promptTokens: usage.inputTokens.total ?? 0, completionTokens: usage.outputTokens.total ?? 0 });
+  return {
+    wrapGenerate: async ({ doGenerate, model }) => {
+      const result = await doGenerate();
+      log(model.modelId, result.usage);
+      return result;
+    },
+    wrapStream: async ({ doStream, model }) => {
+      const { stream, ...rest } = await doStream();
+      const counted = stream.pipeThrough(
+        new TransformStream({
+          transform(part, controller) {
+            if (part.type === "finish") log(model.modelId, part.usage);
+            controller.enqueue(part);
+          },
+        })
+      );
+      return { stream: counted, ...rest };
+    },
+  };
+}
+
+/**
+ * Claude Sonnet 5.5 rejects non-default sampling values, so any temperature is
+ * dropped; refusals fall back server-side to another Claude model (fallbacks:
+ * "default", the provider adds the beta header).
+ */
+const claudeDefaults: LanguageModelMiddleware = {
+  transformParams: async ({ params }) => ({
+    ...params,
+    temperature: undefined,
+    providerOptions: { ...params.providerOptions, anthropic: { fallbacks: "default", ...params.providerOptions?.anthropic } },
+  }),
+};
+
+/**
+ * The language model for a backend (default gpt-4o, or OPENAI_MODEL when set),
+ * or null when that backend's API key isn't set. Pass `usage` to log each
+ * call's tokens and cost.
+ */
+export function getLanguageModel(options: { backend?: ModelBackend; usage?: UsageContext } = {}) {
+  const backend = options.backend ?? DEFAULT_BACKEND;
+  if (!isBackendConfigured(backend)) return null;
+  const base = backend === "claude-sonnet-5-5" ? anthropic()("claude-sonnet-5-5") : openai()(process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL);
+  const middleware = [...(backend === "claude-sonnet-5-5" ? [claudeDefaults] : []), ...(options.usage ? [usageMiddleware(options.usage)] : [])];
+  return middleware.length ? wrapLanguageModel({ model: base, middleware }) : base;
 }
 
 export const AI_NOT_CONFIGURED = "AI features are not configured: set OPENAI_API_KEY for this environment.";
+
+/** 503 message when an agent's backend has no API key. */
+export const backendNotConfigured = (backend: ModelBackend) => `The ${backend} backend isn't configured: set ${BACKEND_KEY[backend]} for this environment.`;
 
 export const AI_UNAVAILABLE = "The AI service is temporarily unavailable. Please try again in a minute.";
 

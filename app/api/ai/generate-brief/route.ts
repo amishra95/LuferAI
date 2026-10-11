@@ -30,7 +30,7 @@ async function handleGenerateBrief(req: Request) {
   const venueId = member.role === "ADMIN" ? parsed.data.venueId : member.venueId;
   if (!venueId) return Response.json({ error: "Booking not found." }, { status: 404 });
 
-  const model = getLanguageModel();
+  const model = getLanguageModel({ usage: { agent: "brief-writer", source: "api" } });
   if (!model) return Response.json({ error: AI_NOT_CONFIGURED }, { status: 503 });
   if (aiCircuitOpen()) return aiUnavailableResponse();
 
