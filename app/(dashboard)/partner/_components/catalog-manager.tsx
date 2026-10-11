@@ -535,6 +535,7 @@ function OrderCard({
   const draggable = actions.length > 0 && !shipping && Boolean(onDragStart);
   return (
     <li
+      data-order-id={o.id}
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG_TYPE, o.id);

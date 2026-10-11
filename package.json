@@ -13,7 +13,8 @@
     "db:types": "supabase gen types typescript --local > lib/supabase/database.generated.ts",
     "cap:sync": "node scripts/check-cap-env.mjs && cap sync",
     "cap:open:ios": "cap open ios",
-    "cap:open:android": "cap open android"
+    "cap:open:android": "cap open android",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
     "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
