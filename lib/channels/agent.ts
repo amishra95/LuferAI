@@ -3,7 +3,7 @@ import "server-only";
 import { generateText, isStepCount, tool, type ModelMessage } from "ai";
 
 import { instructionsSuffix } from "@/lib/agents/config";
-import { getAgent, recordRun } from "@/lib/agents/store";
+import { getAgent, recordRun, syncAgentConfigs } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
 import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
 import { aiCircuitOpen, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
@@ -316,6 +316,7 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
     };
   }
 
+  await syncAgentConfigs();
   const agent = getAgent("channel-concierge")!;
   const finish = async (r: Omit<ChannelAgentResult, "eventId">, extra: { steps?: number; tokens?: number } = {}) => {
     const durationMs = Date.now() - started;
@@ -354,7 +355,7 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
 
   try {
     const [venues, directory] = await Promise.all([listVenues(), listDirectory()]);
-    const model = getLanguageModel();
+    const model = getLanguageModel({ backend: agent.model, usage: { agent: "channel-concierge", source: msg.channel } });
     // No model, or the provider is down (circuit open / retries exhausted): the deterministic parser still answers.
     if (!model || aiCircuitOpen()) return finish(await runDeterministic(msg.text, turns, link, venues, directory.venues));
     try {

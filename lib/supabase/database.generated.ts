@@ -39,6 +39,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_configurations: {
+        Row: {
+          agent_key: string
+          enabled: boolean
+          id: string
+          max_steps: number
+          model_backend: string
+          system_prompt: string
+          temperature: number | null
+          tools: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agent_key: string
+          enabled?: boolean
+          id?: string
+          max_steps?: number
+          model_backend?: string
+          system_prompt?: string
+          temperature?: number | null
+          tools?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agent_key?: string
+          enabled?: boolean
+          id?: string
+          max_steps?: number
+          model_backend?: string
+          system_prompt?: string
+          temperature?: number | null
+          tools?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      agent_execution_logs: {
+        Row: {
+          agent_key: string
+          completion_tokens: number
+          cost: number | null
+          executed_at: string
+          id: string
+          model: string
+          prompt_tokens: number
+          source: string
+        }
+        Insert: {
+          agent_key: string
+          completion_tokens?: number
+          cost?: number | null
+          executed_at?: string
+          id?: string
+          model: string
+          prompt_tokens?: number
+          source?: string
+        }
+        Update: {
+          agent_key?: string
+          completion_tokens?: number
+          cost?: number | null
+          executed_at?: string
+          id?: string
+          model?: string
+          prompt_tokens?: number
+          source?: string
+        }
+        Relationships: []
+      }
       approval_chains: {
         Row: {
           approver_user_id: string

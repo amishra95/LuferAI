@@ -51,7 +51,7 @@ export interface LiveRun {
 
 export type PartnerSyncStatus = { network: string; status: "ok"; count: number } | { network: string; status: "unavailable"; error: string };
 
-export const AGENT_CONFIG_FIELDS = ["enabled", "tools", "temperature", "maxSteps", "instructions"] as const;
+export const AGENT_CONFIG_FIELDS = ["enabled", "tools", "temperature", "maxSteps", "instructions", "model"] as const;
 export type AgentConfigField = (typeof AGENT_CONFIG_FIELDS)[number];
 
 export const VENUE_CHANGES = ["saved", "published", "unpublished", "deleted"] as const;
