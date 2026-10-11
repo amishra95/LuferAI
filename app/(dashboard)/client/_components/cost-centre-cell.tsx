@@ -98,7 +98,7 @@ export function CostCentreCell({
             aria-label="Cost centre"
             aria-invalid={Boolean(error)}
             placeholder="e.g. ENG-BLR"
-            className="field h-7 w-28 px-2 font-mono text-[12px]"
+            className="field h-7 w-28 px-2 font-mono text-[12px] uppercase"
           />
           <button type="submit" aria-label="Save cost centre" className="btn btn-icon size-7">
             <Check className="size-3.5" aria-hidden />

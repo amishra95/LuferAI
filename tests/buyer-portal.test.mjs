@@ -4,6 +4,8 @@ import { COST_CENTRE_PATTERN, costCentreLock, receiptState, validateCostCentre }
 
 test("validateCostCentre trims and accepts the codes the database accepts", () => {
   assert.deepEqual(validateCostCentre("  ENG-BLR "), { ok: true, value: "ENG-BLR" });
+  // Uppercased like booking requests store them, so "eng-blr" and "ENG-BLR" are one code.
+  assert.deepEqual(validateCostCentre("eng-blr"), { ok: true, value: "ENG-BLR" });
   for (const code of ["IR-ROADSHOW", "fin.ops/2026", "A1", "x_y-z.1/2"]) assert.equal(validateCostCentre(code).ok, true, code);
 });
 

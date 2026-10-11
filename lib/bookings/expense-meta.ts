@@ -14,7 +14,8 @@ export type CostCentreResult = { ok: true; value: string } | { ok: false; error:
 
 export function validateCostCentre(raw: unknown): CostCentreResult {
   if (typeof raw !== "string") return { ok: false, error: "Enter a cost centre." };
-  const value = raw.trim();
+  // Stored uppercase, like the booking request form (lib/bookings/expense.ts), so one code never appears twice.
+  const value = raw.trim().toUpperCase();
   if (!value) return { ok: false, error: "Enter a cost centre." };
   if (!COST_CENTRE_PATTERN.test(value)) {
     return { ok: false, error: "Use 2–32 letters, digits, dots, dashes, slashes or underscores, starting with a letter or digit." };
