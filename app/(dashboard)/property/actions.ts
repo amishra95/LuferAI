@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requirePortal } from "@/lib/auth/session";
 import { confirmBooking } from "@/lib/bookings/confirm";
-import { addBlockedDates, BlockedDatesUnavailableError, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
+import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, EventWorkspaceError, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
 import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { settleDeposit } from "@/lib/payments/service";
@@ -244,4 +244,21 @@ export async function createDirectQuoteAction(_prev: HostFormState, formData: Fo
   } catch (err) {
     return failure("direct quote", err);
   }
+}
+
+/** The venue confirms it has the client's signed-off event plan. */
+export async function acknowledgePlanAction(formData: FormData) {
+  const member = await requirePortal("/property");
+  const venueId = await actingVenueId(formData);
+  const bookingId = String(formData.get("booking_id") ?? "");
+  const revision = Number(formData.get("revision"));
+  if (!venueId || !bookingId || !Number.isInteger(revision)) throw new Error("Invalid acknowledgement");
+  try {
+    await acknowledgeEventPlan(bookingId, venueId, revision, member.userId);
+  } catch (err) {
+    // Already-acknowledged or superseded plans just refresh to the current state.
+    if (!(err instanceof EventWorkspaceError)) throw err;
+  }
+  revalidatePath("/property");
+  revalidatePath(`/client/events/${bookingId}`);
 }

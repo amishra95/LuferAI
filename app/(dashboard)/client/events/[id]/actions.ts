@@ -3,7 +3,22 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { requirePortal } from "@/lib/auth/session";
-import { addEventAttendees, EventWorkspaceError, getEventRoom, removeEventAttendee, saveEventSchedule, setEventAttendeeStatus } from "@/lib/data";
+import {
+  addEventAttendees,
+  approveEventPlan,
+  dataSource,
+  EventWorkspaceError,
+  getEventPlan,
+  getEventRoom,
+  removeEventAttendee,
+  saveEventPlan,
+  saveEventSchedule,
+  setEventAttendeeStatus,
+  setEventCheckins,
+} from "@/lib/data";
+import { todayInIndia } from "@/lib/gst-engine";
+import { checkInBlocker, signOffBlocker, validatePlan, type EventPlan, type RunOfShowItem } from "@/lib/events/plan";
+import { listVenuePackages } from "@/lib/rfp/service";
 import { isPlannable, isRsvpStatus, MAX_GUESTS, parseGuestList, validateSchedule, type RsvpStatus } from "@/lib/events/rsvp";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 
@@ -101,5 +116,61 @@ export async function setGuestStatusAction(bookingId: string, attendeeId: string
     await guarded(() => setEventAttendeeStatus(String(attendeeId), bookingId, companyId, status));
     revalidateRoom(bookingId);
     return { status };
+  });
+}
+
+export interface PlanForm {
+  runOfShow: RunOfShowItem[];
+  cateringPackageId: string | null;
+  specialRequirements: string;
+}
+
+/** Saves the run of show, catering and requirements. A change after sign-off needs a fresh one. */
+export async function savePlanAction(bookingId: string, form: PlanForm): Promise<ActionResult<EventPlan>> {
+  return serverDispatch("client/events/savePlan", async () => {
+    const { member, companyId, room } = await planner(bookingId);
+    const input = validatePlan(form ?? {});
+    if (!input.ok) throw new ActionError(input.error);
+    if (input.value.cateringPackageId) {
+      const packages = dataSource() === "supabase" ? await listVenuePackages(room.booking.venue_id) : [];
+      if (!packages.some((p) => p.id === input.value.cateringPackageId)) throw new ActionError("Choose one of the venue's menu packages.");
+    }
+    const plan = await guarded(() => saveEventPlan(bookingId, companyId, input.value, member.userId));
+    revalidateRoom(bookingId);
+    revalidatePath("/property");
+    return plan;
+  });
+}
+
+/** An Approver signs off the plan revision they reviewed. */
+export async function approvePlanAction(bookingId: string, revision: number): Promise<ActionResult<EventPlan>> {
+  return serverDispatch("client/events/approvePlan", async () => {
+    const { member, companyId } = await planner(bookingId);
+    const { plan } = await getEventPlan(bookingId);
+    const blocked = signOffBlocker(member.corporateRole, plan);
+    if (blocked) throw new ActionError(blocked);
+    if (!Number.isInteger(revision)) throw new ActionError("Reload the page and try again.");
+    const approved = await guarded(() => approveEventPlan(bookingId, companyId, revision, member.userId));
+    revalidateRoom(bookingId);
+    revalidatePath("/property");
+    return approved;
+  });
+}
+
+/** Marks guests as attended (or undoes it), from the event day on. */
+export async function setAttendanceAction(bookingId: string, attendeeIds: string[], attended: boolean): Promise<ActionResult<{ updated: number }>> {
+  return serverDispatch("client/events/setAttendance", async () => {
+    const member = await requirePortal("/client");
+    if (member.role !== "CLIENT" || !member.companyId) throw new ActionError("Check-in is done by the company's Organizers and Approvers.");
+    if (member.corporateRole !== "ORGANIZER" && member.corporateRole !== "APPROVER") throw new ActionError("Finance viewers can see check-ins but not change them.");
+    if (!/^[0-9a-f-]{36}$/i.test(bookingId)) throw new ActionError("Booking not found.");
+    const room = await getEventRoom(bookingId, member.companyId);
+    if (!room) throw new ActionError("Booking not found.");
+    const blocked = checkInBlocker(room.booking.status, room.booking.event_date, todayInIndia());
+    if (blocked) throw new ActionError(blocked);
+    const ids = (Array.isArray(attendeeIds) ? attendeeIds : []).map(String).slice(0, 500);
+    const updated = await guarded(() => setEventCheckins(bookingId, member.companyId!, ids, Boolean(attended), member.userId));
+    revalidateRoom(bookingId);
+    return { updated };
   });
 }

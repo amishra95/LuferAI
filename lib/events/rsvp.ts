@@ -189,3 +189,23 @@ export function validateSchedule(raw: { title?: unknown; startsAt?: unknown; end
   if (rsvpDeadline && rsvpDeadline > eventDate) return { ok: false, error: "The RSVP deadline must be on or before the event date." };
   return { ok: true, value: { title: title || null, startsAt, endsAt, rsvpDeadline: rsvpDeadline || null } };
 }
+
+/**
+ * Dietary needs across guests who are coming (Going or Maybe), for the
+ * kitchen: free-text notes split on commas and semicolons, matched case-
+ * insensitively, most common first.
+ */
+export function summarizeDietary(attendees: { rsvp_status: string; dietary: string | null }[]): { need: string; count: number }[] {
+  const counts = new Map<string, { need: string; count: number }>();
+  for (const a of attendees) {
+    if ((a.rsvp_status !== "ACCEPTED" && a.rsvp_status !== "TENTATIVE") || !a.dietary) continue;
+    for (const part of a.dietary.split(/[,;]+/)) {
+      const need = part.trim().replace(/\s+/g, " ").replace(/\.$/, "");
+      if (!need) continue;
+      const key = need.toLowerCase();
+      const entry = counts.get(key) ?? counts.set(key, { need: need[0].toUpperCase() + need.slice(1), count: 0 }).get(key)!;
+      entry.count += 1;
+    }
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count || a.need.localeCompare(b.need));
+}

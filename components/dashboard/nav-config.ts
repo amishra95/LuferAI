@@ -36,12 +36,20 @@ export function isActive(pathname: string, href: string): boolean {
 }
 
 /** Label for a URL segment: the nav label when one matches, otherwise the segment title-cased. */
+const ID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function segmentLabel(href: string, segment: string): string {
   for (const section of NAV_SECTIONS) {
     const item = section.items.find((i) => i.href === href);
     if (item) return item.label;
   }
+  // A record id reads as what it is, not as a title-cased UUID.
+  if (ID_SEGMENT.test(segment)) return href.split("/").at(-2) === "events" ? "Event" : "Details";
   return decodeURIComponent(segment)
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Path prefixes without a page of their own, and where their breadcrumb should go instead. */
+const CRUMB_HREF: Record<string, string> = { "/client/events": "/client" };
+export const crumbHref = (path: string) => CRUMB_HREF[path] ?? path;
