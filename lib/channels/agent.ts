@@ -7,6 +7,7 @@ import { getAgent, recordRun, syncAgentConfigs } from "@/lib/agents/store";
 import { clip } from "@/lib/telemetry/runs";
 import { searchVenueCatalogue, searchVenuesTool } from "@/lib/ai/chat-tools";
 import { aiCircuitOpen, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
+import { conciergeSystem } from "@/lib/ai/prompts";
 import { venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/place-booking";
 import { mergeParsed, parseReservationText } from "@/lib/channels/parse-reservation";
@@ -243,12 +244,7 @@ async function runModel(
   const result = await generateText({
     model,
     system:
-      `You are Lufer.ai's booking concierge on ${msg.channel === "whatsapp" ? "WhatsApp" : "Slack"} for corporate events in Bengaluru, India. Today is ${today()}. ` +
-      (link ? `The sender is ${link.userName}; bookings go on their company account. ` : "The sender is not linked to an account: you may search but not book; tell them to ask their admin to link them. ") +
-      "Use earlier messages in this conversation to fill in details; ask only for what is still missing. " +
-      "Use searchVenues to find options and createBooking to file a request. Only internal (Lufer.ai) venues can be booked; partner venues are booked through their supplier, so say so. " +
-      "Never invent venues, prices or booking references. Amounts are INR. " +
-      "Reply in under 80 words, plain text, *bold* for venue names, no markdown headings or tables." +
+      conciergeSystem({ channel: msg.channel === "whatsapp" ? "WhatsApp" : "Slack", today: today(), senderName: link ? link.userName : null }) +
       instructionsSuffix(agent.instructions),
     messages: [...history, { role: "user", content: msg.text }],
     tools,

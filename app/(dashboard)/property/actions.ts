@@ -13,6 +13,7 @@ import { saveNegotiationRules } from "@/lib/rfp/rules-store";
 import { createDirectQuote, GuardrailError, isMissingColumn, respondToRfp } from "@/lib/rfp/service";
 import { todayInIndia } from "@/lib/gst-engine";
 import type { BookingStatus } from "@/lib/supabase/database.types";
+import { tracer } from "@/lib/tracer";
 
 const INTENT_TO_STATUS: Record<string, BookingStatus> = {
   approve: "CONFIRMED",
@@ -131,14 +132,28 @@ export async function counterRfpAction(_prev: HostFormState, formData: FormData)
     const responseId = String(formData.get("response_id") ?? "");
     const decline = formData.get("intent") === "decline";
     if (!venueId || !responseId) return { status: "error", message: "Invalid RFP response." };
-    await respondToRfp({
-      responseId,
-      venueId,
-      decline,
-      perHeadInr: Number(formData.get("per_head_inr")) || undefined,
-      menuPackageId: String(formData.get("menu_package_id") ?? "") || null,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-    });
+    const perHeadInr = Number(formData.get("per_head_inr")) || undefined;
+    // The host's own counter/decline: the human side of the negotiation trace on /agents.
+    await tracer.trace(
+      "negotiation.respond",
+      async (span) => {
+        try {
+          await respondToRfp({
+            responseId,
+            venueId,
+            decline,
+            perHeadInr,
+            menuPackageId: String(formData.get("menu_package_id") ?? "") || null,
+            notes: String(formData.get("notes") ?? "").trim() || null,
+          });
+        } catch (err) {
+          // The venue's own guardrails (floor, discount ceiling) refused the counter.
+          if (err instanceof GuardrailError) span.setAttribute("decision", "deny");
+          throw err;
+        }
+      },
+      { attributes: { venueId, response: responseId.slice(0, 8), intent: decline ? "decline" : "counter", perHeadInr: decline ? null : (perHeadInr ?? null) } }
+    );
     revalidateHostViews();
     return { status: "success", message: decline ? "Declined." : "Counter-offer sent." };
   } catch (err) {
