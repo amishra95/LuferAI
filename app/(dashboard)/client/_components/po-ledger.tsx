@@ -6,6 +6,7 @@ import { FileText, Loader2, Plus } from "lucide-react";
 import { createPurchaseOrderAction, reallocateBookingAction, setPurchaseOrderStatusAction } from "../po-actions";
 import { useOptimisticMutation } from "@/components/workspace/use-optimistic-mutation";
 import { BUDGET_TONE_TEXT, BudgetMeter } from "@/components/portal/budget-meter";
+import { DisabledAction } from "@/components/portal/disabled-action";
 import { EmptyState } from "@/components/portal/empty-state";
 import { budgetTone, ineligibility, ledger, poBalance, subjectOf, validateNewPo, type NewPoInput } from "@/lib/procurement/po-ledger";
 import type { PoAllocation, PurchaseOrder } from "@/lib/supabase/database.types";
@@ -46,6 +47,7 @@ export function PoLedger({
   bookings,
   departments,
   canManage,
+  readOnlyReason = "You can't raise purchase orders.",
 }: {
   companyId: string;
   pos: PurchaseOrder[];
@@ -53,7 +55,10 @@ export function PoLedger({
   bookings: LedgerBooking[];
   departments: { id: string; name: string }[];
   canManage: boolean;
+  /** Shown on the disabled "Raise a purchase order" button when canManage is false. */
+  readOnlyReason?: string;
 }) {
+  const [raising, setRaising] = useState(false);
   // Stable while the props are: a new object every render would reset the base every render.
   const server = useMemo(() => ({ pos, allocations }), [pos, allocations]);
   const { value: state, mutate } = useOptimisticMutation<State>(server);
@@ -85,14 +90,37 @@ export function PoLedger({
     });
   };
 
+  const raise = (primary: boolean) =>
+    canManage ? (
+      <button type="button" onClick={() => setRaising(true)} className={cn("btn h-8 px-3 text-[12.5px]", primary && "btn-primary")}>
+        <Plus className="size-3.5" aria-hidden /> Raise a purchase order
+      </button>
+    ) : (
+      <DisabledAction reason={readOnlyReason} className="h-8 px-3 text-[12.5px]">
+        <Plus className="size-3.5" aria-hidden /> Raise a purchase order
+      </DisabledAction>
+    );
+
   return (
     <div className="space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-fg text-[15px] font-semibold tracking-tight">Purchase orders</h2>
+          <p className="text-fg-subtle text-[12.5px]">Blanket POs that bookings and catalogue orders draw down.</p>
+        </div>
+        {!raising && raise(false)}
+      </header>
+
+      {raising && <NewPoForm companyId={companyId} departments={departments} existing={state.pos.map((p) => p.po_number)} mutate={mutate} onClose={() => setRaising(false)} />}
+
       {state.pos.some((p) => p.status === "open") && <BudgetOverview pos={state.pos.filter((p) => p.status === "open")} state={state} />}
       {state.pos.length === 0 ? (
         <EmptyState
+          headingLevel={3}
           icon={FileText}
           title="No purchase orders yet"
-          description={<>Without a PO, bookings and orders aren&apos;t checked against a budget.{canManage ? " Raise one below to start tracking spend." : " An Approver can raise one."}</>}
+          description={<>Without a PO, bookings and orders aren&apos;t checked against a budget.{canManage ? " Raise one to start tracking spend." : " An Approver can raise one."}</>}
+          action={raising ? null : raise(true)}
         />
       ) : (
         state.pos
@@ -127,7 +155,6 @@ export function PoLedger({
         </section>
       )}
 
-      {canManage && <NewPoForm companyId={companyId} departments={departments} existing={state.pos.map((p) => p.po_number)} mutate={mutate} />}
     </div>
   );
 }
@@ -310,14 +337,15 @@ function NewPoForm({
   departments,
   existing,
   mutate,
+  onClose,
 }: {
   companyId: string;
   departments: { id: string; name: string }[];
   existing: string[];
   mutate: ReturnType<typeof useOptimisticMutation<State>>["mutate"];
+  onClose: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -358,16 +386,8 @@ function NewPoForm({
     setSaving(false);
     if (outcome.ok) {
       form.reset();
-      setOpen(false);
+      onClose();
     }
-  }
-
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="btn h-8 px-3 text-[12.5px]">
-        <Plus className="size-3.5" aria-hidden /> Raise a purchase order
-      </button>
-    );
   }
 
   return (
@@ -375,7 +395,7 @@ function NewPoForm({
       <h3 className="label-mono sm:col-span-2">Raise a purchase order</h3>
       <label className="grid gap-1">
         <span className="text-fg-subtle">PO number</span>
-        <input name="po_number" required maxLength={40} placeholder="NIM-FY27-Q4" className="field h-8 font-mono uppercase" />
+        <input name="po_number" required maxLength={40} placeholder="NIM-FY27-Q4" autoFocus className="field h-8 font-mono uppercase" />
       </label>
       <label className="grid gap-1">
         <span className="text-fg-subtle">Value (₹, pre-GST)</span>
@@ -410,7 +430,7 @@ function NewPoForm({
         </p>
       )}
       <div className="flex justify-end gap-2 sm:col-span-2">
-        <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost h-8 px-3">
+        <button type="button" onClick={onClose} className="btn btn-ghost h-8 px-3">
           Cancel
         </button>
         <button type="submit" disabled={saving} className="btn btn-primary h-8 px-3">

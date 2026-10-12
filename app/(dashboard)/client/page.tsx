@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardCheck, Download, Eye, Receipt, Users } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Download, Eye, Receipt, ShieldCheck, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
 import { RateCardPill } from "@/components/portal/pills";
+import { SpendLimitMeter } from "@/components/portal/spend-limit-meter";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
@@ -18,6 +19,7 @@ import { activeHolds, approvalQueue } from "@/lib/approvals/service";
 import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
+import { costCentreLock, receiptState } from "@/lib/bookings/expense-meta";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
 import { getVenueCatalog } from "@/lib/catalog";
@@ -44,11 +46,13 @@ import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
 import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { listRfps } from "@/lib/rfp/service";
 import type { CorporateRole } from "@/lib/supabase/database.types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "./_components/approval-decision-form";
 import { ApprovalThread, type ThreadComment } from "./_components/approval-thread";
+import { CostCentreCell } from "./_components/cost-centre-cell";
 import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
@@ -64,6 +68,8 @@ const ROLE_HELP: Record<CorporateRole, string> = {
   APPROVER: "Request events and sign off bookings assigned to you.",
   FINANCE_VIEWER: "Read-only: bookings, tax credit and expense receipts.",
 };
+
+const MONTH = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
 const CLOCK = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 
@@ -149,6 +155,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     if (params.tab) q.set("tab", params.tab);
     return q.size ? `/client?${q}` : "/client";
   };
+  const approvalsHref = member.role === "ADMIN" ? `/client/approvals?company=${company.id}` : "/client/approvals";
+  // This month's committed spend against the limit: the figure the approval policy checks.
+  const today = todayInIndia();
+  const spendLimit = activeTab === "bookings" ? await spendLimitFor(company.id, today) : null;
+  // Suggestions for the cost centre editor: the company's codes in use.
+  const costCentres = [...new Set(bookings.map((b) => b.cost_center).filter((c): c is string => Boolean(c)))].sort();
+  // "Browse marketplace" from an empty catalogue: the venue marketplace this viewer can use.
+  const marketplaceHref = canRequest ? `${href({})}#venues-heading` : member.role === "ADMIN" ? "/venues" : null;
 
   return (
     <PortalShell
@@ -158,7 +172,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       actions={
         queue.length > 0 ? (
           <Button asChild variant="outline">
-            <Link href={member.role === "ADMIN" ? `/client/approvals?company=${company.id}` : "/client/approvals"}>
+            <Link href={approvalsHref}>
               <ClipboardCheck aria-hidden /> {queue.length} awaiting approval
             </Link>
           </Button>
@@ -176,15 +190,28 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : null}
 
-      <p className="text-fg-subtle mb-8 text-[12.5px]">
-        {user && role ? (
-          <>
-            Signed in as <span className="text-fg">{user.name}</span> · {ROLE_LABEL[role]}. {ROLE_HELP[role]}
-          </>
-        ) : (
-          "Platform admin view: read-only here. Decide pending sign-offs from Approvals."
-        )}
-      </p>
+      {user && role ? (
+        <p className="text-fg-subtle mb-8 text-[12.5px]">
+          Signed in as <span className="text-fg">{user.name}</span> · {ROLE_LABEL[role]}. {ROLE_HELP[role]}
+        </p>
+      ) : (
+        <div role="note" className="bg-surface-raised border-line mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5">
+          <p className="text-fg-muted flex min-w-0 flex-1 items-center gap-2 text-[12.5px]">
+            <ShieldCheck className="text-fg-subtle size-4 shrink-0" aria-hidden />
+            <span>
+              <span className="text-fg font-medium">Platform admin view: read-only here.</span>{" "}
+              {queue.length > 0 ? `${queue.length} sign-off${queue.length === 1 ? " is" : "s are"} waiting; decide them from Approvals.` : "Nothing is waiting for sign-off."}
+            </span>
+          </p>
+          {queue.length > 0 ? (
+            <Button asChild size="sm">
+              <Link href={approvalsHref}>
+                Go to Pending Approvals <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      )}
 
       {deposit === "success" || deposit === "cancelled" ? (
         <p role="status" className="bg-surface-raised mb-6 rounded-lg px-4 py-3 text-[13px]">
@@ -243,7 +270,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           canOrder={canRequest}
           canPay={orderPaymentsEnabled()}
           canSync={member.role === "ADMIN" || role === "APPROVER"}
-          today={todayInIndia()}
+          today={today}
+          marketplaceHref={marketplaceHref}
+          readOnlyReason={member.role === "ADMIN" ? "Platform admins view this portal read-only." : "Only Organizers and Approvers can order."}
         />
       ) : activeTab === "pos" ? (
         <PoLedger
@@ -275,6 +304,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           )}
           departments={departments.map((d) => ({ id: d.id, name: d.name }))}
           canManage={canManagePos}
+          readOnlyReason={role === "ORGANIZER" ? "Only Approvers can raise purchase orders." : "Finance viewers have read-only access to purchase orders."}
         />
       ) : activeTab === "signoffs" ? (
         <div className="space-y-4">
@@ -364,6 +394,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             />
           </section>
 
+          {spendLimit ? <SpendLimitMeter committed={spendLimit.month_to_date} limit={spendLimit.monthly_limit} month={MONTH.format(new Date(`${today}T12:00:00+05:30`))} className="-mt-6 mb-10" /> : null}
+
           {canRequest ? (
             <div className="mb-10 space-y-10">
               <DiscoveryPanel offline={!concierge.ready} reason={concierge.reason} />
@@ -443,7 +475,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Your bookings</CardTitle>
-              <CardDescription>{bookings.length} total</CardDescription>
+              <CardDescription>{bookings.length} total{bookings.length ? " · open a row for its event workspace" : ""}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -469,22 +501,36 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     const liveDeposit = payment && (payment.status === "authorized" || payment.status === "captured");
                     const listPerHead = b.list_budget_per_head_inr != null ? Number(b.list_budget_per_head_inr) : null;
                     const savings = listPerHead != null ? roundInr(Math.max(0, b.party_size * listPerHead - b.total_amount_inr)) : 0;
+                    // Cancelled bookings without guests have no workspace to open.
+                    const workspace = b.status !== "CANCELLED" || guestCounts.has(b.id);
+                    const receipt = receiptState(b.status, exp?.status ?? null);
+                    const ccLock = !canRequest ? (member.role === "ADMIN" ? "Platform admins view this portal read-only." : "Finance viewers can't change cost centres.") : costCentreLock(b.status, Boolean(exp));
                     return (
-                      <TableRow key={b.id}>
+                      // The venue link stretches over the row (after:inset-0); controls sit above it (relative z-10).
+                      <TableRow key={b.id} className={cn("relative", workspace && "hover:bg-surface-hover cursor-pointer")}>
                         <TableCell className="tabular-nums">{formatDate(b.event_date)}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{b.venue.name}</div>
+                          {workspace ? (
+                            <Link
+                              href={`/client/events/${b.id}`}
+                              className="font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+                            >
+                              {b.venue.name}
+                              <span className="sr-only">, {formatDate(b.event_date)}: open event workspace</span>
+                            </Link>
+                          ) : (
+                            <div className="font-medium">{b.venue.name}</div>
+                          )}
                           <div className="text-fg-subtle text-xs">{b.venue.neighborhood}</div>
-                          {b.status !== "CANCELLED" || guestCounts.has(b.id) ? (
-                            <Link href={`/client/events/${b.id}`} className="text-fg mt-1 inline-flex items-center gap-1 text-[12px] hover:underline">
+                          {workspace ? (
+                            <span className="text-fg-muted mt-1 inline-flex items-center gap-1 text-[12px]">
                               <Users className="size-3" aria-hidden />
                               {guestCounts.get(b.id) ? `${guestCounts.get(b.id)} guests` : "Plan guests"}
-                            </Link>
+                            </span>
                           ) : null}
                         </TableCell>
-                        <TableCell className="font-mono text-[12px]">
-                          {b.cost_center ?? <span className="text-fg-faint">—</span>}
-                          {b.project_code && <div className="text-fg-subtle">{b.project_code}</div>}
+                        <TableCell className="relative z-10">
+                          <CostCentreCell bookingId={b.id} value={b.cost_center} projectCode={b.project_code} listId="client-cost-centres" locked={ccLock} />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{b.party_size}</TableCell>
                         <TableCell>
@@ -508,17 +554,24 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />
                           ) : null}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="relative z-10">
                           {exp ? (
-                            <a href={`/api/exports/${exp.id}`} download className="text-fg inline-flex items-center gap-1 text-[12px] hover:underline">
-                              <Download className="size-3" aria-hidden /> JSON
+                            <a href={`/api/exports/${exp.id}`} download title={receipt.hint} className="inline-flex items-center gap-1.5 hover:underline">
+                              <Badge variant={receipt.kind === "failed" ? "destructive" : "success"}>{receipt.label}</Badge>
+                              <Download className="text-fg-subtle size-3" aria-label="Download receipt JSON" />
                             </a>
+                          ) : receipt.kind === "none" ? (
+                            <span title={receipt.hint} className="text-fg-faint text-[12px]">
+                              {receipt.label}
+                            </span>
                           ) : (
-                            <span className="text-fg-faint text-[12px]">—</span>
+                            <span title={receipt.hint}>
+                              <Badge variant={receipt.kind === "pending" ? "warning" : "outline"}>{receipt.label}</Badge>
+                            </span>
                           )}
                         </TableCell>
                         {canPay ? (
-                          <TableCell className="text-right">
+                          <TableCell className="relative z-10 text-right">
                             {/* PENDING = signed off (or in policy) and with the venue; deposits are taken then. */}
                             {canRequest && b.status === "PENDING" && !liveDeposit ? (
                               <PayDepositButton
@@ -540,6 +593,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   )}
                 </TableBody>
               </Table>
+              <datalist id="client-cost-centres">
+                {costCentres.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </CardContent>
           </Card>
 
