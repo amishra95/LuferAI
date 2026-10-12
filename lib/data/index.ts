@@ -19,6 +19,7 @@ import type {
   EventWorkspace,
   ExpenseExport,
   InventoryHold,
+  VenueBlockedDate,
   PoAllocation,
   PurchaseOrder,
   Venue,
@@ -1167,6 +1168,84 @@ export async function releaseHold(holdId: string, scope: { venueId: string }) {
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("This hold was not found or is no longer active.");
+}
+
+// ----------------------------------------------------------------------------
+// Host-blocked dates (migration 0025)
+// ----------------------------------------------------------------------------
+
+/** "Table doesn't exist" from Postgres or PostgREST: the migration isn't applied here yet. */
+const isMissingTable = (error: { code?: string } | null) => error?.code === "42P01" || error?.code === "PGRST205";
+
+export class BlockedDatesUnavailableError extends Error {
+  constructor() {
+    super("Blocking dates needs database migration 0025 (venue_blocked_dates). Ask an admin to apply it.");
+  }
+}
+
+/**
+ * Dates the host blocked at a venue, soonest first, optionally within [from, to].
+ * Before migration 0025 there are none (availability is unaffected), so callers
+ * never fail on it.
+ */
+export async function listBlockedDates(venueId: string, range?: { from: string; to: string }): Promise<VenueBlockedDate[]> {
+  const inRange = (d: string) => !range || (range.from <= d && d <= range.to);
+  if (local()) {
+    return (await readDb()).blockedDates.filter((b) => b.venue_id === venueId && inRange(b.blocked_date)).sort((a, b) => a.blocked_date.localeCompare(b.blocked_date));
+  }
+  let query = createAdminClient().from("venue_blocked_dates").select("*").eq("venue_id", venueId).order("blocked_date");
+  if (range) query = query.gte("blocked_date", range.from).lte("blocked_date", range.to);
+  const { data, error } = await query;
+  if (isMissingTable(error)) return [];
+  if (error) throw error;
+  return data;
+}
+
+/** Whether blocked dates can be stored here (migration 0025 applied, or local data). */
+export async function blockedDatesReady(): Promise<boolean> {
+  if (local()) return true;
+  const { error } = await createAdminClient().from("venue_blocked_dates").select("id").limit(1);
+  return !isMissingTable(error);
+}
+
+/** Blocks dates at a venue; dates already blocked are skipped. Returns the new rows. */
+export async function addBlockedDates(venueId: string, dates: string[], reason: string | null, createdBy: string | null): Promise<VenueBlockedDate[]> {
+  if (local()) {
+    let added: VenueBlockedDate[] = [];
+    await mutateDb((db) => {
+      const taken = new Set(db.blockedDates.filter((b) => b.venue_id === venueId).map((b) => b.blocked_date));
+      added = dates
+        .filter((d) => !taken.has(d))
+        .map((d) => ({ id: crypto.randomUUID(), venue_id: venueId, blocked_date: d, reason, created_by: createdBy, created_at: new Date().toISOString() }));
+      db.blockedDates.push(...added);
+    });
+    return added;
+  }
+  const { data, error } = await createAdminClient()
+    .from("venue_blocked_dates")
+    .upsert(
+      dates.map((d) => ({ venue_id: venueId, blocked_date: d, reason, created_by: createdBy })),
+      { onConflict: "venue_id,blocked_date", ignoreDuplicates: true }
+    )
+    .select("*");
+  if (isMissingTable(error)) throw new BlockedDatesUnavailableError();
+  if (error) throw error;
+  return data;
+}
+
+/** Unblocks one of the venue's blocked dates. */
+export async function removeBlockedDate(blockId: string, scope: { venueId: string }) {
+  if (local()) {
+    return mutateDb((db) => {
+      const i = db.blockedDates.findIndex((b) => b.id === blockId && b.venue_id === scope.venueId);
+      if (i < 0) throw new Error("That blocked date was not found.");
+      db.blockedDates.splice(i, 1);
+    });
+  }
+  const { data, error } = await createAdminClient().from("venue_blocked_dates").delete().eq("id", blockId).eq("venue_id", scope.venueId).select("id");
+  if (isMissingTable(error)) throw new BlockedDatesUnavailableError();
+  if (error) throw error;
+  if (data.length === 0) throw new Error("That blocked date was not found.");
 }
 
 // ----------------------------------------------------------------------------

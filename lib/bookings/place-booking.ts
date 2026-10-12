@@ -19,6 +19,7 @@ import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { selectPo } from "@/lib/procurement/po-ledger";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
+import { applyRateCard } from "@/lib/rates/apply-rate-card";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
 import { minSpendCompliance } from "@/lib/venues/profile";
@@ -45,6 +46,13 @@ export interface PlaceBookingInput {
   /** What the event includes: checked against the venue and the company's alcohol/entertainment rules. */
   alcoholIncluded?: boolean;
   entertainment?: string[];
+  /**
+   * The venue's own quote (a direct quote accepted from the client portal):
+   * budgetPerHead is the final price, so no rate card is applied on top and the
+   * venue's minimum spend doesn't apply (it set the price). Availability,
+   * policy, PO and the hold still do.
+   */
+  quoted?: boolean;
 }
 
 /** Roles allowed to file booking requests. Finance viewers are read-only. */
@@ -110,17 +118,21 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
     try {
       // The server re-prices with the tenant's rate card; the form's preview is advisory.
       const [pricing, availability] = await Promise.all([
-        getNegotiatedRate({
-          tenant_id: company.id,
-          venue_id: venue!.id,
-          event_date: eventDate,
-          party_size: partySize,
-          per_head_amount: budgetPerHead,
-        }),
+        input.quoted
+          ? Promise.resolve(applyRateCard(null, { partySize, perHead: budgetPerHead, venueMinSpend: 0 }))
+          : getNegotiatedRate({
+              tenant_id: company.id,
+              venue_id: venue!.id,
+              event_date: eventDate,
+              party_size: partySize,
+              per_head_amount: budgetPerHead,
+            }),
         checkHoldAvailability({ venue_id: venue!.id, from: eventDate, to: eventDate }),
       ]);
       // The venue's per-guest minimum (migration 0019) binds alongside its venue-wide one.
-      const perGuest = minSpendCompliance({ partySize, perHead: pricing.negotiatedPerHead, minimumSpend: 0, minimumPerHead: Number(venue!.min_spend_per_head_inr) });
+      const perGuest = input.quoted
+        ? { ok: true }
+        : minSpendCompliance({ partySize, perHead: pricing.negotiatedPerHead, minimumSpend: 0, minimumPerHead: Number(venue!.min_spend_per_head_inr) });
       if (pricing.meetsMinimumSpend && !perGuest.ok) {
         fieldErrors.budget_per_head_inr = `${venue!.name} has a minimum of ${formatINR(Number(venue!.min_spend_per_head_inr))} per guest`;
       }

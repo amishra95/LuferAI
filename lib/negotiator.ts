@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { checkToolCall, menuPackageRules, minimumSpendRules } from "@/lib/guardrails/engine";
 import { setMinimumSpendInput, upsertMenuPackageInput } from "@/lib/guardrails/schemas";
+import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import type { createClient } from "@/lib/supabase/server";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -20,7 +21,7 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
   return {
     getVenueTerms: tool({
       description:
-        "Current commercial terms for this venue: minimum spend, capacity, menu packages and open RFPs it has quoted on. Call before proposing changes.",
+        "Current commercial terms for this venue: minimum spend, capacity, menu packages, open RFPs it has quoted on, and the host's guardrails (minimum spend floor, maximum discount) that proposals must respect. Call before proposing changes.",
       inputSchema: z.object({}),
       execute: async () => {
         const [{ data: venue }, { data: packages }, { data: rfps }] = await Promise.all([
@@ -33,7 +34,8 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
             .eq("rfp.status", "open")
             .limit(10),
         ]);
-        return { venue, packages: packages ?? [], openRfps: rfps ?? [] };
+        const { rules } = await getNegotiationRules(venueId);
+        return { venue, packages: packages ?? [], openRfps: rfps ?? [], hostGuardrails: rules };
       },
     }),
 
@@ -46,9 +48,9 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
           "setMinimumSpend",
           input,
           async (a) => {
-            const { data, error } = await db.from("venues").select("min_spend_inr").eq("id", venueId).single();
+            const [{ data, error }, { rules }] = await Promise.all([db.from("venues").select("min_spend_inr").eq("id", venueId).single(), getNegotiationRules(venueId)]);
             if (error) throw new Error(error.message);
-            return minimumSpendRules(a, { current: Number(data.min_spend_inr) });
+            return minimumSpendRules(a, { current: Number(data.min_spend_inr), floor: rules.minSpendFloor });
           },
           { venueId }
         );

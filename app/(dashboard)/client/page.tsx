@@ -57,6 +57,7 @@ import { ItcCalculator } from "./_components/itc-calculator";
 import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
 import { CatalogShop } from "./_components/catalog-shop";
+import { DirectQuoteCard } from "./_components/direct-quote-card";
 import { DiscoveryPanel } from "./_components/discovery-panel";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
@@ -609,7 +610,31 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 </h2>
                 <p className="text-fg-subtle text-[13px]">Instant quotes from your packages and rate card; venues can counter-offer.</p>
               </div>
-              {rfps.map(({ rfp, markdown }) => (
+              {rfps.map(({ rfp, markdown, columns }) =>
+                rfp.origin === "venue" && columns[0] ? (
+                  <Card key={rfp.id} className="gap-3">
+                    <CardHeader className="flex flex-row flex-wrap items-center gap-2">
+                      <CardTitle className="text-base">Direct quote from {columns[0].venue.name}</CardTitle>
+                      <Badge variant={rfp.status === "open" ? "warning" : "secondary"}>{rfp.status === "open" ? "Open" : rfp.status === "awarded" ? "Booked" : "Closed"}</Badge>
+                      <CardDescription className="flex-1 text-right">{formatDate(rfp.created_at.slice(0, 10))}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <DirectQuoteCard
+                        responseId={columns[0].response_id ?? ""}
+                        venueName={columns[0].venue.name}
+                        neighborhood={columns[0].venue.neighborhood}
+                        eventDate={rfp.event_date}
+                        partySize={rfp.party_size}
+                        perHead={columns[0].per_head_inr}
+                        packageName={columns[0].package_name}
+                        invoiceTotal={columns[0].price?.invoice.invoice_total ?? null}
+                        notes={columns[0].notes}
+                        status={rfp.status}
+                        canBook={canRequest}
+                      />
+                    </CardContent>
+                  </Card>
+                ) : (
                 <Card key={rfp.id} className="gap-3">
                   <CardHeader className="flex flex-row flex-wrap items-center gap-2">
                     <CardTitle className="text-base">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
@@ -620,7 +645,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     <MarkdownMatrix markdown={markdown} />
                   </CardContent>
                 </Card>
-              ))}
+                )
+              )}
             </section>
           ) : null}
         </>
