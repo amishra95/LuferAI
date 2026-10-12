@@ -4,6 +4,8 @@ import type {
   CatalogItem,
   CatalogOrder,
   EventAttendee,
+  EventCheckin,
+  EventPlanRow,
   EventWorkspace,
   Partner,
   ApprovalComment,
@@ -465,6 +467,8 @@ export interface MockDb {
   eventWorkspaces: EventWorkspace[];
   eventAttendees: EventAttendee[];
   blockedDates: VenueBlockedDate[];
+  eventPlans: EventPlanRow[];
+  eventCheckins: EventCheckin[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -493,6 +497,8 @@ export function seedDb(): MockDb {
     eventWorkspaces: [],
     eventAttendees: [],
     blockedDates: [],
+    eventPlans: [],
+    eventCheckins: [],
   });
 }
 
@@ -520,6 +526,8 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   eventWorkspaces: [],
   eventAttendees: [],
   blockedDates: [],
+  eventPlans: [],
+  eventCheckins: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -538,6 +546,8 @@ export function backfillDefaults(db: MockDb): MockDb {
   db.eventWorkspaces ??= [];
   db.eventAttendees ??= [];
   db.blockedDates ??= [];
+  db.eventPlans ??= [];
+  db.eventCheckins ??= [];
   for (const p of db.partners) {
     p.commission_rate ??= 0.1;
     p.razorpay_account_id ??= null;

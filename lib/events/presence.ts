@@ -12,7 +12,7 @@
 export const eventTopic = (bookingId: string) => `event:${bookingId}`;
 
 /** Sections of the workspace a collaborator can be focused on. */
-export const ROOM_SECTIONS = ["schedule", "guests", "invite"] as const;
+export const ROOM_SECTIONS = ["plan", "schedule", "guests", "invite"] as const;
 export type RoomSection = (typeof ROOM_SECTIONS)[number];
 
 export interface CollaboratorMeta {

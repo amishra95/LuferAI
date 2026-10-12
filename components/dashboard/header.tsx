@@ -7,7 +7,7 @@ import { LogOut, Menu, Search } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
 
-import { segmentLabel } from "@/components/dashboard/nav-config";
+import { crumbHref, segmentLabel } from "@/components/dashboard/nav-config";
 import { Monogram } from "@/components/dashboard/sidebar";
 import type { SystemMode } from "@/types/navigation";
 
@@ -28,8 +28,8 @@ export function Header({
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const crumbs = segments.map((segment, i) => {
-    const href = `/${segments.slice(0, i + 1).join("/")}`;
-    return { href, label: segmentLabel(href, segment) };
+    const path = `/${segments.slice(0, i + 1).join("/")}`;
+    return { path, href: crumbHref(path), label: segmentLabel(path, segment) };
   });
 
   return (
@@ -46,10 +46,10 @@ export function Header({
               {workspaceName}
             </Link>
           </li>
-          {crumbs.map(({ href, label }, i) => {
+          {crumbs.map(({ path, href, label }, i) => {
             const last = i === crumbs.length - 1;
             return (
-              <Fragment key={href}>
+              <Fragment key={path}>
                 <li aria-hidden className={i === 0 ? "text-fg-faint hidden font-mono sm:block" : "text-fg-faint font-mono"}>
                   /
                 </li>

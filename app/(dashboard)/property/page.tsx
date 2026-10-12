@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
-import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listLiveHolds, listVenues } from "@/lib/data";
+import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listEventPlans, listLiveHolds, listVenues } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
 import { dietaryLabel } from "@/lib/quotes";
 import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
@@ -25,6 +25,7 @@ import { activeHolds } from "@/lib/approvals/service";
 import { EventBrief } from "./_components/event-brief";
 import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-forms";
 import { NegotiatorDrawer } from "./_components/negotiator-drawer";
+import { PlanAck } from "./_components/plan-ack";
 import { convertVenueHold, releaseVenueHold, respondToBooking, unblockDateAction } from "./actions";
 
 const monthLabel = (ym: string) =>
@@ -57,6 +58,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   const [holds, liveHolds] = await Promise.all([activeHolds(incoming.map((b) => b.id)), listLiveHolds(venue.id)]);
   const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
+  // Clients' signed-off event plans, shown under each brief.
+  const plans = await listEventPlans([...incoming, ...upcoming].map((b) => b.id));
   const payouts = computeMonthlyPayouts(bookings);
 
   const href = (t: Tab) => {
@@ -385,6 +388,14 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                       </span>
                       <BookingStatusBadge status={b.status} />
                     </div>
+                    {plans.has(b.id) ? (
+                      <PlanAck
+                        plan={plans.get(b.id)!}
+                        bookingId={b.id}
+                        venueId={venue.id}
+                        cateringPackage={packages.find((p) => p.id === plans.get(b.id)!.cateringPackageId) ?? null}
+                      />
+                    ) : null}
                     <EventBrief bookingId={b.id} venueId={venue.id} />
                   </li>
                 ))}

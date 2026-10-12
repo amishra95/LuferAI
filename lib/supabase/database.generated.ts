@@ -978,6 +978,84 @@ export type Database = {
           },
         ]
       }
+      event_checkins: {
+        Row: {
+          attendee_id: string
+          booking_id: string
+          checked_in_at: string
+          checked_in_by: string | null
+          tenant_id: string
+        }
+        Insert: {
+          attendee_id: string
+          booking_id: string
+          checked_in_at?: string
+          checked_in_by?: string | null
+          tenant_id: string
+        }
+        Update: {
+          attendee_id?: string
+          booking_id?: string
+          checked_in_at?: string
+          checked_in_by?: string | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      event_plans: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_revision: number | null
+          booking_id: string
+          catering_package_id: string | null
+          created_at: string
+          revision: number
+          run_of_show: Json
+          special_requirements: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          venue_ack_at: string | null
+          venue_ack_by: string | null
+          venue_ack_revision: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_revision?: number | null
+          booking_id: string
+          catering_package_id?: string | null
+          created_at?: string
+          revision?: number
+          run_of_show?: Json
+          special_requirements?: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+          venue_ack_at?: string | null
+          venue_ack_by?: string | null
+          venue_ack_revision?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_revision?: number | null
+          booking_id?: string
+          catering_package_id?: string | null
+          created_at?: string
+          revision?: number
+          run_of_show?: Json
+          special_requirements?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          venue_ack_at?: string | null
+          venue_ack_by?: string | null
+          venue_ack_revision?: number | null
+        }
+        Relationships: []
+      }
       event_workspaces: {
         Row: {
           booking_id: string

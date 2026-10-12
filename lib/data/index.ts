@@ -16,6 +16,7 @@ import type {
   CorporateRateCard,
   CorporateRole,
   EventAttendee,
+  EventPlanRow,
   EventWorkspace,
   ExpenseExport,
   InventoryHold,
@@ -28,6 +29,7 @@ import type {
 import { canTransition } from "@/lib/bookings/lifecycle";
 import { canOrderTransition, isOrderStatus, orderAllocationStatus, type OrderStatus } from "@/lib/catalog/orders";
 import { MAX_GUESTS, type AttendeeInput, type RsvpResponse, type RsvpStatus } from "@/lib/events/rsvp";
+import { EMPTY_PLAN, planDiffers, type EventPlan, type PlanContent, type RunOfShowItem } from "@/lib/events/plan";
 import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
@@ -1549,6 +1551,164 @@ export async function getEventRoom(bookingId: string, tenantId?: string): Promis
   if (ws.error) throw ws.error;
   if (guests.error) throw guests.error;
   return { booking, workspace: ws.data ?? defaultWorkspace(booking), attendees: guests.data };
+}
+
+// ----------------------------------------------------------------------------
+// Event plans and guest check-in (migration 0026; rules in lib/events/plan.ts)
+// ----------------------------------------------------------------------------
+
+/** "Table doesn't exist": migration 0026 isn't applied here yet. */
+const planTableMissing = (error: { code?: string } | null) => error?.code === "42P01" || error?.code === "PGRST205";
+
+export const EVENT_PLAN_UNAVAILABLE = "Event plans need database migration 0026. Ask an admin to apply it.";
+
+function planFromRow(r: EventPlanRow): EventPlan {
+  const items = Array.isArray(r.run_of_show) ? (r.run_of_show as unknown as RunOfShowItem[]) : [];
+  return {
+    runOfShow: items.filter((i) => i && typeof i.time === "string" && typeof i.item === "string"),
+    cateringPackageId: r.catering_package_id,
+    specialRequirements: r.special_requirements,
+    revision: r.revision,
+    approvedRevision: r.approved_revision,
+    approvedBy: r.approved_by,
+    approvedAt: r.approved_at,
+    venueAckRevision: r.venue_ack_revision,
+    venueAckAt: r.venue_ack_at,
+  };
+}
+
+/** A booking's plan (empty when none yet), and whether plans can be stored here. */
+export async function getEventPlan(bookingId: string): Promise<{ plan: EventPlan; ready: boolean }> {
+  if (local()) {
+    const row = (await readDb()).eventPlans.find((p) => p.booking_id === bookingId);
+    return { plan: row ? planFromRow(row) : EMPTY_PLAN, ready: true };
+  }
+  const { data, error } = await createAdminClient().from("event_plans").select("*").eq("booking_id", bookingId).maybeSingle();
+  if (planTableMissing(error)) return { plan: EMPTY_PLAN, ready: false };
+  if (error) throw error;
+  return { plan: data ? planFromRow(data) : EMPTY_PLAN, ready: true };
+}
+
+/** Plans for several bookings (the venue's event briefs). Empty before the migration. */
+export async function listEventPlans(bookingIds: string[]): Promise<Map<string, EventPlan>> {
+  if (!bookingIds.length) return new Map();
+  if (local()) return new Map((await readDb()).eventPlans.filter((p) => bookingIds.includes(p.booking_id)).map((p) => [p.booking_id, planFromRow(p)]));
+  const { data, error } = await createAdminClient().from("event_plans").select("*").in("booking_id", bookingIds);
+  if (planTableMissing(error)) return new Map();
+  if (error) throw error;
+  return new Map(data.map((p) => [p.booking_id, planFromRow(p)]));
+}
+
+/** Saves the plan's content; a real change bumps the revision (so an earlier sign-off no longer covers it). */
+export async function saveEventPlan(bookingId: string, tenantId: string, content: PlanContent, userId: string | null): Promise<EventPlan> {
+  const { plan: current, ready } = await getEventPlan(bookingId);
+  if (!ready) throw new EventWorkspaceError(EVENT_PLAN_UNAVAILABLE);
+  const revision = planDiffers(current, content) ? current.revision + 1 : current.revision;
+  const fields = { run_of_show: content.runOfShow as unknown as Json, catering_package_id: content.cateringPackageId, special_requirements: content.specialRequirements, revision, updated_by: userId };
+  if (local()) {
+    return mutateDb((db) => {
+      if (!db.bookings.some((b) => b.id === bookingId && b.company_id === tenantId)) throw new EventWorkspaceError("Booking not found.");
+      const now = new Date().toISOString();
+      let row = db.eventPlans.find((p) => p.booking_id === bookingId);
+      if (!row) {
+        row = { booking_id: bookingId, tenant_id: tenantId, approved_at: null, approved_by: null, approved_revision: null, venue_ack_at: null, venue_ack_by: null, venue_ack_revision: null, created_at: now, ...fields, updated_at: now };
+        db.eventPlans.push(row);
+      } else Object.assign(row, fields, { updated_at: now });
+      return planFromRow(row);
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("event_plans")
+    .upsert({ booking_id: bookingId, tenant_id: tenantId, ...fields }, { onConflict: "booking_id" })
+    .select("*")
+    .single();
+  if (error?.code === "23503") throw new EventWorkspaceError("Booking not found, or that catering package isn't this venue's.");
+  if (error) throw error;
+  return planFromRow(data);
+}
+
+/** Signs off a revision; refuses if the plan changed since the Approver loaded it. */
+export async function approveEventPlan(bookingId: string, tenantId: string, revision: number, userId: string): Promise<EventPlan> {
+  const now = new Date().toISOString();
+  if (local()) {
+    return mutateDb((db) => {
+      const row = db.eventPlans.find((p) => p.booking_id === bookingId && p.tenant_id === tenantId);
+      if (!row) throw new EventWorkspaceError("There's no plan to sign off yet.");
+      if (row.revision !== revision) throw new EventWorkspaceError("The plan changed while you were reviewing it. Review the latest version, then sign off.");
+      Object.assign(row, { approved_revision: revision, approved_by: userId, approved_at: now, updated_at: now });
+      return planFromRow(row);
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("event_plans")
+    .update({ approved_revision: revision, approved_by: userId, approved_at: now })
+    .eq("booking_id", bookingId)
+    .eq("tenant_id", tenantId)
+    .eq("revision", revision)
+    .select("*");
+  if (planTableMissing(error)) throw new EventWorkspaceError(EVENT_PLAN_UNAVAILABLE);
+  if (error) throw error;
+  if (data.length === 0) throw new EventWorkspaceError("The plan changed while you were reviewing it. Review the latest version, then sign off.");
+  return planFromRow(data[0]);
+}
+
+/** The venue confirms it has the approved plan (scoped to the venue's own booking). */
+export async function acknowledgeEventPlan(bookingId: string, venueId: string, revision: number, userId: string): Promise<EventPlan> {
+  const [booking] = await listBookings({ ids: [bookingId], venueId });
+  if (!booking) throw new EventWorkspaceError("Booking not found.");
+  const now = new Date().toISOString();
+  if (local()) {
+    return mutateDb((db) => {
+      const row = db.eventPlans.find((p) => p.booking_id === bookingId);
+      if (!row || row.approved_revision !== revision) throw new EventWorkspaceError("The client hasn't signed off this version of the plan.");
+      Object.assign(row, { venue_ack_revision: revision, venue_ack_by: userId, venue_ack_at: now, updated_at: now });
+      return planFromRow(row);
+    });
+  }
+  const { data, error } = await createAdminClient()
+    .from("event_plans")
+    .update({ venue_ack_revision: revision, venue_ack_by: userId, venue_ack_at: now })
+    .eq("booking_id", bookingId)
+    .eq("approved_revision", revision)
+    .select("*");
+  if (planTableMissing(error)) throw new EventWorkspaceError(EVENT_PLAN_UNAVAILABLE);
+  if (error) throw error;
+  if (data.length === 0) throw new EventWorkspaceError("The client hasn't signed off this version of the plan.");
+  return planFromRow(data[0]);
+}
+
+/** Guests marked attended, and whether check-in can be stored here. */
+export async function listEventCheckins(bookingId: string): Promise<{ attended: Map<string, string>; ready: boolean }> {
+  if (local()) return { attended: new Map((await readDb()).eventCheckins.filter((c) => c.booking_id === bookingId).map((c) => [c.attendee_id, c.checked_in_at])), ready: true };
+  const { data, error } = await createAdminClient().from("event_checkins").select("attendee_id, checked_in_at").eq("booking_id", bookingId);
+  if (planTableMissing(error)) return { attended: new Map(), ready: false };
+  if (error) throw error;
+  return { attended: new Map(data.map((c) => [c.attendee_id, c.checked_in_at])), ready: true };
+}
+
+/** Marks guests attended (or not). Only this booking's guests are touched. */
+export async function setEventCheckins(bookingId: string, tenantId: string, attendeeIds: string[], attended: boolean, userId: string | null): Promise<number> {
+  if (!attendeeIds.length) return 0;
+  if (local()) {
+    return mutateDb((db) => {
+      const ours = new Set(db.eventAttendees.filter((a) => a.booking_id === bookingId && a.tenant_id === tenantId).map((a) => a.id));
+      const ids = attendeeIds.filter((id) => ours.has(id));
+      db.eventCheckins = db.eventCheckins.filter((c) => !ids.includes(c.attendee_id));
+      if (attended) db.eventCheckins.push(...ids.map((id) => ({ attendee_id: id, booking_id: bookingId, tenant_id: tenantId, checked_in_by: userId, checked_in_at: new Date().toISOString() })));
+      return ids.length;
+    });
+  }
+  const db = createAdminClient();
+  const { data: guests, error: guestsError } = await db.from("event_attendees").select("id").eq("booking_id", bookingId).eq("tenant_id", tenantId).in("id", attendeeIds);
+  if (guestsError) throw guestsError;
+  const ids = guests.map((g) => g.id);
+  if (!ids.length) return 0;
+  const { error } = attended
+    ? await db.from("event_checkins").upsert(ids.map((id) => ({ attendee_id: id, booking_id: bookingId, tenant_id: tenantId, checked_in_by: userId })), { onConflict: "attendee_id", ignoreDuplicates: true })
+    : await db.from("event_checkins").delete().eq("booking_id", bookingId).in("attendee_id", ids);
+  if (planTableMissing(error)) throw new EventWorkspaceError("Check-in needs database migration 0026. Ask an admin to apply it.");
+  if (error) throw error;
+  return ids.length;
 }
 
 /** Guest counts for several bookings at once (the bookings table). */
