@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Inbox, Loader2, Package, Plus, Truck } from "lucide-react";
 
@@ -59,6 +60,13 @@ export function PartnerCatalog({
             icon={Package}
             title="No catalogue items yet"
             description="List gifting, tickets, merch, team building or dining packages, each with its HSN/SAC code and GST rate, and companies can order them directly."
+            action={
+              canEdit && !adding ? (
+                <button type="button" onClick={() => setAdding(true)} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                  <Plus className="size-3.5" aria-hidden /> Add a catalogue item
+                </button>
+              ) : null
+            }
           />
         ) : (
           <div className="overflow-x-auto">
@@ -111,7 +119,7 @@ export function PartnerCatalog({
         (adding ? (
           // The save refreshes the page, so the new item arrives with the server data.
           <ItemForm partnerId={partnerId} onDone={() => setAdding(false)} />
-        ) : (
+        ) : list.length === 0 ? null : (
           <button type="button" onClick={() => setAdding(true)} className="btn h-8 px-3 text-[12.5px]">
             <Plus className="size-3.5" aria-hidden /> Add a catalogue item
           </button>
@@ -383,7 +391,20 @@ const ACTION_LABEL: Partial<Record<OrderStatus, string>> = { CONFIRMED: "Confirm
  * touch. Each card shows whether the buyer has paid and what the supplier will
  * receive (Razorpay Route, held until delivery).
  */
-export function PartnerOrders({ partnerId, orders, canFulfil, today }: { partnerId: string | null; orders: FulfilOrder[]; canFulfil: boolean; today: string }) {
+export function PartnerOrders({
+  partnerId,
+  orders,
+  canFulfil,
+  today,
+  catalogHref,
+}: {
+  partnerId: string | null;
+  orders: FulfilOrder[];
+  canFulfil: boolean;
+  today: string;
+  /** The Catalogue tab, for the empty state's next step. */
+  catalogHref?: string;
+}) {
   const { value: list, mutate } = useOptimisticMutation(orders);
   const [dragging, setDragging] = useState<FulfilOrder | null>(null);
   const [over, setOver] = useState<FulfilLane | null>(null);
@@ -409,7 +430,20 @@ export function PartnerOrders({ partnerId, orders, canFulfil, today }: { partner
   };
 
   if (list.length === 0) {
-    return <EmptyState icon={Inbox} title="No orders yet" description="When a company orders from your catalogue, it lands in To confirm. Confirm it to take their payment." />;
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="No orders yet"
+        description="When a company orders from your catalogue, it lands in To confirm. Confirm it to take their payment."
+        action={
+          catalogHref ? (
+            <Link href={catalogHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+              <Package className="size-3.5" aria-hidden /> Go to Catalogue
+            </Link>
+          ) : null
+        }
+      />
+    );
   }
   const cancelled = list.filter((o) => laneOf(o) === "cancelled");
   return (

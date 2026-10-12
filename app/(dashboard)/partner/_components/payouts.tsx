@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Banknote, Landmark, Receipt } from "lucide-react";
 
 import { StatCard } from "@/components/portal/stat-card";
@@ -32,7 +33,22 @@ export interface PayoutRow {
  * the Section 52 TCS collected on their supplies by GSTR-8 period, which they
  * claim as credit once it shows in their GSTR-2X.
  */
-export function PartnerPayouts({ partner, isAdmin, enabled, rows, tcs }: { partner: Partner; isAdmin: boolean; enabled: boolean; rows: PayoutRow[]; tcs: TcsEntry[] }) {
+export function PartnerPayouts({
+  partner,
+  isAdmin,
+  enabled,
+  rows,
+  tcs,
+  ordersHref,
+}: {
+  partner: Partner;
+  isAdmin: boolean;
+  enabled: boolean;
+  rows: PayoutRow[];
+  tcs: TcsEntry[];
+  /** The Orders tab, for the empty state's next step. */
+  ordersHref?: string;
+}) {
   const held = sumInr(rows.filter((r) => r.payout.status === "on_hold" || r.payout.status === "pending").map((r) => Number(r.payout.net_payout_inr)));
   const paid = sumInr(rows.filter((r) => r.payout.status === "released" || r.payout.status === "settled").map((r) => Number(r.payout.net_payout_inr)));
   const tcsTotal = sumInr(tcs.map((t) => Number(t.cgst_inr) + Number(t.sgst_inr) + Number(t.igst_inr)));
@@ -86,7 +102,19 @@ export function PartnerPayouts({ partner, isAdmin, enabled, rows, tcs }: { partn
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <EmptyState compact icon={Banknote} title="No payouts yet" description="A payout starts when you confirm an order the buyer has paid for, and is released when you mark it delivered." />
+            <EmptyState
+              compact
+              icon={Banknote}
+              title="No payouts yet"
+              description="A payout starts when you confirm an order the buyer has paid for, and is released when you mark it delivered."
+              action={
+                ordersHref ? (
+                  <Link href={ordersHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                    Go to Orders
+                  </Link>
+                ) : null
+              }
+            />
           ) : (
             <Table>
               <TableHeader>
