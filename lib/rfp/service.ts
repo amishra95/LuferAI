@@ -16,6 +16,7 @@ import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import { autoDecision, checkOffer } from "@/lib/rfp/guardrails";
 import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { tracer } from "@/lib/tracer";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
 
 /** Most venues a single brief is broadcast to. */
@@ -99,6 +100,7 @@ export async function broadcastRfp(input: {
   if (error) throw error;
 
   const now = new Date().toISOString();
+  const outcomes: { venue: string; status: "quoted" | "no_fit" | "auto_counter" | "auto_decline"; perHeadInr?: number; standardPerHead?: number; floored?: boolean; overBudget?: boolean; reason?: string }[] = [];
   const rows = matched.map((venue) => {
     // The card in force on the event date (or today, when the brief has no date).
     const card = (cards ?? []).find((c) => c.venue_id === venue.id && isRateCardActive(c, req.event_date ?? input.today));
@@ -125,10 +127,12 @@ export async function broadcastRfp(input: {
       ? autoDecision(rules.get(venue.id)!, { standardPerHead: quote.per_head_inr, partySize: req.party_size, budgetPerHead: req.budget_per_head_inr })
       : ({ action: "none" } as const);
     if (auto.action === "decline") {
+      outcomes.push({ venue: venue.name, status: "auto_decline", reason: auto.note });
       return { rfp_id: rfp.id, venue_id: venue.id, source: "venue" as const, status: "declined" as const, notes: auto.note, responded_at: now };
     }
     if (quote.status === "quoted" && auto.action === "counter") {
       const list = roundInr(auto.perHead * req.party_size);
+      outcomes.push({ venue: venue.name, status: "auto_counter", perHeadInr: auto.perHead, standardPerHead: quote.per_head_inr, reason: auto.note });
       return {
         rfp_id: rfp.id,
         venue_id: venue.id,
@@ -143,6 +147,11 @@ export async function broadcastRfp(input: {
         responded_at: now,
       };
     }
+    outcomes.push(
+      quote.status === "quoted"
+        ? { venue: venue.name, status: "quoted", perHeadInr: quote.per_head_inr, floored: quote.min_spend_applied, overBudget: quote.over_budget }
+        : { venue: venue.name, status: "no_fit", reason: quote.reason }
+    );
     return quote.status === "quoted"
       ? {
           rfp_id: rfp.id,
@@ -160,6 +169,11 @@ export async function broadcastRfp(input: {
         }
       : { rfp_id: rfp.id, venue_id: venue.id, status: "no_fit" as const, notes: quote.reason, responded_at: now };
   });
+
+  // What each venue answered, for the /agents trace feed (read off the active
+  // rfp.broadcast span): instant quotes, no-fits, and the venue's own
+  // auto-counter / auto-decline rules (lib/rfp/guardrails autoDecision).
+  tracer.annotate({ rfp: rfp.id.slice(0, 8), partySize: req.party_size, budgetPerHead: req.budget_per_head_inr, outcomes });
 
   if (rows.length > 0) {
     const { error: insertError } = await db.from("rfp_responses").insert(rows);

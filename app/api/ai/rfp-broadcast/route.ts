@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
+import { rfpExtractionInstructions } from "@/lib/ai/prompts";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
@@ -56,13 +57,7 @@ async function handleRfpBroadcast(request: NextRequest) {
       const r = await generateText({
         model,
         output: Output.object({ schema: RfpRequirements }),
-        instructions: [
-          "You turn a corporate event brief into a structured RFP for hospitality venues in India.",
-          `Today is ${today} (Asia/Kolkata). Resolve relative dates ("next Friday") to YYYY-MM-DD.`,
-          "Only extract what the brief states or clearly implies; use null / empty lists otherwise.",
-          "Budgets are pre-GST INR per guest; convert totals to per-head when the guest count is known.",
-          "dietary lists needs the whole menu must satisfy (e.g. an all-vegetarian team → vegetarian).",
-        ].join("\n"),
+        instructions: rfpExtractionInstructions(today),
         prompt: parsed.data.brief,
       });
       span.setAttributes({ model: model.modelId, tokens: r.totalUsage.totalTokens });

@@ -2,6 +2,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
+import { VENUE_SEARCH_SYSTEM } from "@/lib/ai/prompts";
 import { matchVenues, venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
@@ -52,10 +53,7 @@ async function handleSourceVenues(req: Request) {
       const r = await generateText({
         model,
         output: Output.object({ schema: venueSearchSchema }),
-        system:
-          "You turn corporate event requests for venues in Bengaluru, India into search filters. " +
-          "Amounts are INR. Convert totals to a per-head budget when the guest count is known. " +
-          "Never invent values the request does not imply.",
+        system: VENUE_SEARCH_SYSTEM,
         prompt,
       });
       span.setAttributes({ model: model.modelId, tokens: r.totalUsage.totalTokens });

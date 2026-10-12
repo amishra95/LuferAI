@@ -39,3 +39,44 @@ export type AgentTestResult = {
   durationMs: number;
   tools: { name: ChatToolName; ok: boolean; durationMs: number; summary: string }[];
 };
+
+/** What a row in the /agents activity feed records. */
+export type TraceKind = "negotiation" | "guardrail" | "prompt";
+
+/** Feed badge: Success, Auto-Counter, Auto-Decline, Error/Fallback. */
+export type TraceOutcome = "success" | "auto-counter" | "auto-decline" | "fallback";
+
+export type ObservabilityEvent = {
+  id: string;
+  at: string; // ISO
+  kind: TraceKind;
+  outcome: TraceOutcome;
+  /** Run-log agent id, or "host" for a venue host's own counter/decline. */
+  agent: string;
+  title: string;
+  detail: string;
+  durationMs: number | null;
+  tokens: number | null;
+  /** For drilling into the full trace (span names, timings) on /admin/analytics. */
+  traceId: string | null;
+  /** Key facts, e.g. ["proposed", "₹40,000"]. */
+  facts: [string, string][];
+  /** A person acted, not a model or rule. */
+  manual?: boolean;
+  /** For failures: what people do instead while the AI path is down. */
+  fallback?: string;
+};
+
+export type ProviderHealth = {
+  /** The default backend (what the AI routes use) has an API key. */
+  configured: boolean;
+  /** Every model backend agents can be switched to, and whether it has a key. */
+  backends: { id: string; label: string; configured: boolean }[];
+  circuit: "CLOSED" | "OPEN" | "HALF_OPEN";
+  consecutiveFailures: number;
+  /** Epoch ms, when an open circuit next lets a trial call through. */
+  retryAt: number | null;
+  stats: { calls: number; failures: number; rejected: number; retries: number };
+  /** Error/Fallback events in the last 24 hours. */
+  fallbacks24h: number;
+};

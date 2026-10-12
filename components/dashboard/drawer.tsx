@@ -4,13 +4,14 @@ import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Mobile slide-over. Closes on Escape and backdrop click; focuses itself on open. */
+/** Slide-over (mobile nav, inspectors). Closes on Escape and backdrop click; focuses itself on open. */
 export function Drawer({
   open,
   onClose,
   side,
   label,
   className,
+  panelClassName,
   children,
 }: {
   open: boolean;
@@ -18,6 +19,8 @@ export function Drawer({
   side: "left" | "right";
   label: string;
   className?: string;
+  /** Overrides the panel, e.g. its width. */
+  panelClassName?: string;
   children: React.ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -48,7 +51,8 @@ export function Drawer({
         tabIndex={-1}
         className={cn(
           "bg-elevated/95 absolute inset-y-0 flex w-[min(18rem,86vw)] flex-col outline-none duration-200",
-          side === "left" ? "animate-in slide-in-from-left left-0 border-r border-line" : "animate-in slide-in-from-right right-0 border-l border-line"
+          side === "left" ? "animate-in slide-in-from-left left-0 border-r border-line" : "animate-in slide-in-from-right right-0 border-l border-line",
+          panelClassName
         )}
       >
         {children}

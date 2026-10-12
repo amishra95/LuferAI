@@ -10,6 +10,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
+import { NEGOTIATOR_APPROVALS, NEGOTIATOR_INSTRUCTIONS } from "@/lib/ai/prompts";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { traceTools } from "@/lib/ai/trace-tools";
@@ -64,19 +65,12 @@ async function handleNegotiator(request: NextRequest) {
   const llm = tracer.startSpan("llm.stream", { attributes: { model: model.modelId, messages: messages.length } });
   const result = llm.run(() => streamText({
     model,
-    instructions: [
-      "You are a revenue assistant for a hospitality venue on a corporate events marketplace in India.",
-      "Help the host set minimum spend and design menu packages that win corporate RFPs without underpricing.",
-      "Always call getVenueTerms before proposing a change, and ground advice in its data (open RFP budgets, dietary asks, party sizes).",
-      "Amounts are pre-GST INR. GST (18%) and the client's rate-card discount are applied automatically — never add them yourself.",
-      "Propose one change per tool call with a concise reason. If the host declines a change, do not retry it; ask what they'd prefer.",
-      "Be brief: a short recommendation, then the tool call.",
-    ].join("\n"),
+    instructions: NEGOTIATOR_INSTRUCTIONS,
     messages: modelMessages,
     tools,
     toolApproval: {
-      setMinimumSpend: { type: "user-approval", reason: "Changes the minimum spend on every new quote" },
-      upsertMenuPackage: { type: "user-approval", reason: "Changes the menu packages clients are quoted" },
+      setMinimumSpend: { type: "user-approval", reason: NEGOTIATOR_APPROVALS.setMinimumSpend },
+      upsertMenuPackage: { type: "user-approval", reason: NEGOTIATOR_APPROVALS.upsertMenuPackage },
     },
     experimental_toolApprovalSecret: approvalSecret,
     stopWhen: isStepCount(5),
