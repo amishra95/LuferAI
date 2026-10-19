@@ -8,12 +8,14 @@ import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, Ev
 import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { settleDeposit } from "@/lib/payments/service";
+import { parseCancellationRows, parseDepositPct, parseMultiplierForm, parseTierRows, PRICING_LIMITS } from "@/lib/rates/venue-pricing";
 import { parseRules } from "@/lib/rfp/guardrails";
-import { saveNegotiationRules } from "@/lib/rfp/rules-store";
+import { getNegotiationRules, saveNegotiationRules } from "@/lib/rfp/rules-store";
 import { createDirectQuote, GuardrailError, isMissingColumn, respondToRfp } from "@/lib/rfp/service";
 import { todayInIndia } from "@/lib/gst-engine";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 import { tracer } from "@/lib/tracer";
+import { getVenuePricing, PricingError, saveCancellationTerms, saveMenuPackage, saveMinimumSpend, saveVenuePricing } from "@/lib/venues/pricing-store";
 
 const INTENT_TO_STATUS: Record<string, BookingStatus> = {
   approve: "CONFIRMED",
@@ -40,7 +42,7 @@ export interface HostFormState {
 
 /** Guardrail and validation messages go to the host; anything else is logged and kept generic. */
 function failure(scope: string, err: unknown): HostFormState {
-  if (err instanceof GuardrailError || err instanceof BlockedDatesUnavailableError) return { status: "error", message: err.message };
+  if (err instanceof GuardrailError || err instanceof BlockedDatesUnavailableError || err instanceof PricingError) return { status: "error", message: err.message };
   if (isMissingColumn(err as { code?: string })) return { status: "error", message: "Direct quotes need database migration 0025. Ask an admin to apply it." };
   if (err instanceof Error && /^(RFP not found|This RFP is closed|Enter a per-head price|Unknown menu package|Guardrails need)/.test(err.message)) return { status: "error", message: err.message };
   console.error(`property: ${scope} failed`, err);
@@ -276,4 +278,143 @@ export async function acknowledgePlanAction(formData: FormData) {
   }
   revalidatePath("/property");
   revalidatePath(`/client/events/${bookingId}`);
+}
+
+// ----------------------------------------------------------------------------
+// Pricing tab: the host's manual pricing controls (lib/venues/pricing-store)
+// ----------------------------------------------------------------------------
+
+const MAX_MIN_SPEND_INR = 10_000_000;
+
+const amount = (formData: FormData, name: string) => {
+  const text = String(formData.get(name) ?? "").trim().replace(/[₹,\s]/g, "");
+  return text === "" ? 0 : Number(text);
+};
+
+/** Parallel form arrays (name="tier_min" repeated) as rows. */
+const rows = <K extends string>(formData: FormData, fields: Record<K, string>): Record<K, string>[] => {
+  const columns = Object.entries(fields).map(([key, name]) => [key, formData.getAll(name as string).map(String)] as const);
+  const length = Math.max(0, ...columns.map(([, values]) => values.length));
+  return Array.from({ length }, (_, i) => Object.fromEntries(columns.map(([key, values]) => [key, values[i] ?? ""])) as Record<K, string>);
+};
+
+function revalidatePricing() {
+  revalidatePath("/property");
+  revalidatePath("/client");
+}
+
+/** Minimum spend, per-guest minimum, guest-count tiers, and whether the AI may change the minimum spend. */
+export async function saveMinimumSpendAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
+  try {
+    const { venueId, userId } = await actingVenue(formData);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    const minSpend = amount(formData, "min_spend_inr");
+    const minPerHead = amount(formData, "min_spend_per_head_inr");
+    if (!Number.isFinite(minSpend) || minSpend < 0 || minSpend > MAX_MIN_SPEND_INR) return { status: "error", message: "Enter a minimum spend between ₹0 and ₹1,00,00,000." };
+    if (!Number.isFinite(minPerHead) || minPerHead < 0 || minPerHead > 100_000) return { status: "error", message: "Enter a per-guest minimum between ₹0 and ₹1,00,000." };
+    const tiers = parseTierRows(rows(formData, { min: "tier_min", max: "tier_max", pct: "tier_pct" }));
+    if (!tiers.ok) return { status: "error", message: tiers.error };
+    const { rules } = await getNegotiationRules(venueId);
+    if (rules.minSpendFloor != null && minSpend < rules.minSpendFloor) {
+      return { status: "error", message: `That's below your own ₹${rules.minSpendFloor.toLocaleString("en-IN")} minimum spend floor (Guardrails). Lower the floor first, or set ₹${rules.minSpendFloor.toLocaleString("en-IN")} or more.` };
+    }
+    const lock = formData.get("lock_min_spend") === "on";
+    const { ready } = await getVenuePricing(venueId);
+    // Before migration 0027 only the venue's own columns can be saved; say so rather than drop tiers or the lock.
+    if (!ready && (tiers.value.length > 0 || lock)) {
+      return { status: "error", message: "Guest-count tiers and the AI lock need database migration 0027. Clear them to save the minimums alone, or ask an admin to apply it." };
+    }
+    if (ready) await saveVenuePricing(venueId, { tiers: tiers.value, lockMinSpend: lock }, userId);
+    await saveMinimumSpend(venueId, { minSpendInr: Math.round(minSpend), minPerHeadInr: Math.round(minPerHead) });
+    revalidatePricing();
+    return { status: "success", message: "Saved. New quotes use these minimums and tiers." };
+  } catch (err) {
+    return failure("save minimum spend", err);
+  }
+}
+
+/** Creates or edits one menu package, and whether the AI may change it. */
+export async function savePackageAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
+  try {
+    const { venueId, userId } = await actingVenue(formData);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    const packageId = String(formData.get("package_id") ?? "") || null;
+    const { pricing, ready } = await getVenuePricing(venueId);
+    const lock = formData.get("locked") === "on";
+    if (lock && !ready) return { status: "error", message: "Locking packages against AI changes needs database migration 0027. Save without the lock, or ask an admin to apply it." };
+    const id = await saveMenuPackage(venueId, {
+      packageId,
+      name: String(formData.get("name") ?? ""),
+      perHeadInr: amount(formData, "per_head_inr"),
+      dietaryTags: formData.getAll("dietary_tags").map(String),
+      description: String(formData.get("description") ?? "").trim() || null,
+      isActive: formData.get("is_active") === "on",
+    });
+    const locked = new Set(pricing.lockedPackageIds);
+    if (lock) locked.add(id);
+    else locked.delete(id);
+    if (ready && locked.size !== pricing.lockedPackageIds.length) await saveVenuePricing(venueId, { lockedPackageIds: [...locked] }, userId);
+    revalidatePricing();
+    return { status: "success", message: packageId ? "Package saved." : "Package added. New quotes can offer it." };
+  } catch (err) {
+    return failure("save package", err);
+  }
+}
+
+/** Deposit and cancellation tiers. */
+export async function saveTermsAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
+  try {
+    const { venueId, userId } = await actingVenue(formData);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    const deposit = parseDepositPct(String(formData.get("deposit_pct") ?? ""));
+    if (!deposit.ok) return { status: "error", message: deposit.error };
+    const cancellation = parseCancellationRows(rows(formData, { days: "cancel_days", pct: "cancel_pct" }));
+    if (!cancellation.ok) return { status: "error", message: cancellation.error };
+    const { ready } = await getVenuePricing(venueId);
+    if (!ready && deposit.value !== null) {
+      return { status: "error", message: "A venue deposit needs database migration 0027. Leave it blank to save the cancellation terms, or ask an admin to apply it." };
+    }
+    if (ready) await saveVenuePricing(venueId, { depositPct: deposit.value }, userId);
+    await saveCancellationTerms(venueId, cancellation.value);
+    revalidatePricing();
+    return { status: "success", message: "Saved. Deposits authorised from now on use this rate; clients see the cancellation terms on your listing." };
+  } catch (err) {
+    return failure("save terms", err);
+  }
+}
+
+/** Adds a weekend surcharge, peak season or high-demand date range to the rate calendar. */
+export async function addRateMultiplierAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
+  try {
+    const { venueId, userId } = await actingVenue(formData);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    const parsed = parseMultiplierForm(
+      {
+        kind: String(formData.get("kind") ?? ""),
+        label: String(formData.get("label") ?? ""),
+        weekdays: formData.getAll("weekdays").map(String),
+        startsOn: String(formData.get("starts_on") ?? ""),
+        endsOn: String(formData.get("ends_on") ?? ""),
+        multiplier: String(formData.get("multiplier") ?? ""),
+      },
+      crypto.randomUUID()
+    );
+    if (!parsed.ok) return { status: "error", message: parsed.error };
+    const { pricing } = await getVenuePricing(venueId);
+    if (pricing.multipliers.length >= PRICING_LIMITS.maxMultipliers) return { status: "error", message: `The calendar holds at most ${PRICING_LIMITS.maxMultipliers} rates. Remove one first.` };
+    await saveVenuePricing(venueId, { multipliers: [...pricing.multipliers, parsed.value] }, userId);
+    revalidatePricing();
+    return { status: "success", message: `Added ${parsed.value.label}. New quotes for those dates use ×${parsed.value.multiplier}.` };
+  } catch (err) {
+    return failure("add rate", err);
+  }
+}
+
+export async function removeRateMultiplierAction(formData: FormData) {
+  const { venueId, userId } = await actingVenue(formData);
+  const id = String(formData.get("multiplier_id") ?? "");
+  if (!venueId || !id) throw new Error("Invalid rate action");
+  const { pricing } = await getVenuePricing(venueId);
+  await saveVenuePricing(venueId, { multipliers: pricing.multipliers.filter((m) => m.id !== id) }, userId);
+  revalidatePricing();
 }

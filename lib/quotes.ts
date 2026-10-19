@@ -177,6 +177,8 @@ export interface MatrixColumn {
   /** Present for quoted/countered responses. */
   price: PriceBreakdown | null;
   notes: string | null;
+  /** The venue's deposit rate when it set its own (venue_pricing_rules); else DEPOSIT_RATE. */
+  deposit_rate?: number;
 }
 
 const STATUS_LABEL: Record<MatrixColumn["status"], string> = {
@@ -222,7 +224,15 @@ export function buildComparisonMatrix(
     ["Taxable value", (c) => p(c, (x) => inr(x.taxable_value))],
     ["GST", (c) => p(c, (x) => `${x.invoice.gst_type === "IGST" ? "IGST 18%" : "CGST 9% + SGST 9%"} · ${inr(x.invoice.total_tax)}`)],
     ["**Invoice total**", (c) => p(c, (x) => `**${inr(x.invoice.invoice_total)}**`)],
-    [`Deposit (${Math.round(DEPOSIT_RATE * 100)}%)`, (c) => p(c, (x) => inr(depositFor(x.invoice.invoice_total)))],
+    [
+      cols.every((c) => (c.deposit_rate ?? DEPOSIT_RATE) === DEPOSIT_RATE) ? `Deposit (${Math.round(DEPOSIT_RATE * 100)}%)` : "Deposit",
+      (c) =>
+        p(c, (x) => {
+          const rate = c.deposit_rate ?? DEPOSIT_RATE;
+          const amount = inr(depositFor(x.invoice.invoice_total, rate));
+          return rate === DEPOSIT_RATE ? amount : `${amount} (${Math.round(rate * 1000) / 10}%)`;
+        }),
+    ],
     ["Notes", (c) => c.notes ?? dash],
   ];
 

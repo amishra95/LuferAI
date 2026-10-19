@@ -30,6 +30,7 @@ export type GuardrailCode =
   | "date_out_of_range"
   | "change_too_large"
   | "below_host_floor"
+  | "host_locked"
   | "price_out_of_range"
   | "last_active_package"
   | "unknown_package";
@@ -84,8 +85,21 @@ export function bookingRules(args: CreateBookingInput, ctx: BookingContext, limi
   return allow(facts);
 }
 
-export function minimumSpendRules(args: SetMinimumSpendInput, ctx: { current: number; /** The host's minimum spend floor (venue_negotiation_rules), if set. */ floor?: number | null }, limits = GUARDRAIL_LIMITS.minimumSpend): GuardrailDecision {
+export function minimumSpendRules(
+  args: SetMinimumSpendInput,
+  ctx: {
+    current: number;
+    /** The host's minimum spend floor (venue_negotiation_rules), if set. */
+    floor?: number | null;
+    /** The host locked the minimum spend against AI changes (venue_pricing_rules). */
+    locked?: boolean;
+  },
+  limits = GUARDRAIL_LIMITS.minimumSpend
+): GuardrailDecision {
   const facts = { current: ctx.current, proposed: args.min_spend_inr, floor: ctx.floor ?? null };
+  if (ctx.locked) {
+    return deny("host_locked", "The host set the minimum spend by hand and locked it against AI changes. Suggest the change in words instead; only the host can make it, on /property → Pricing.", facts);
+  }
   if (ctx.floor != null && args.min_spend_inr < ctx.floor) {
     return deny(
       "below_host_floor",
@@ -114,11 +128,16 @@ export interface MenuPackageContext {
   activePackageIds: string[];
   /** For updates: whether package_id belongs to this venue. */
   packageExists: boolean;
+  /** Packages the host locked against AI changes (venue_pricing_rules). Only the AI path passes these. */
+  lockedPackageIds?: string[];
 }
 
 export function menuPackageRules(args: UpsertMenuPackageInput, ctx: MenuPackageContext, limits = GUARDRAIL_LIMITS.menuPackage): GuardrailDecision {
   const facts = { packageId: args.package_id, perHeadInr: args.per_head_inr, isActive: args.is_active, activePackages: ctx.activePackageIds.length };
   if (args.package_id && !ctx.packageExists) return deny("unknown_package", "That package doesn't exist at this venue. Call getVenueTerms for current package ids.", facts);
+  if (args.package_id && ctx.lockedPackageIds?.includes(args.package_id)) {
+    return deny("host_locked", "The host locked this package against AI changes. Suggest the change in words, or propose a new package instead.", facts);
+  }
   if (args.per_head_inr < limits.minPerHeadInr || args.per_head_inr > limits.maxPerHeadInr) {
     return deny(
       "price_out_of_range",

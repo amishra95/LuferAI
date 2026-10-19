@@ -77,7 +77,8 @@ export function NegotiatorDrawer({ venueId, venueName, rules, rulesReady }: { ve
 
 const IDLE: HostFormState = { status: "idle" };
 
-function GuardrailsForm({ venueId, rules, ready }: { venueId: string; rules: NegotiationRules; ready: boolean }) {
+/** Floor, maximum discount and auto-counter rules; also on /property → Pricing. */
+export function GuardrailsForm({ venueId, rules, ready }: { venueId: string; rules: NegotiationRules; ready: boolean }) {
   const [state, action, pending] = useActionState(saveGuardrailsAction, IDLE);
   const [autoCounter, setAutoCounter] = useState(rules.autoCounter);
   const [autoDecline, setAutoDecline] = useState(rules.autoDeclineBelowFloor);

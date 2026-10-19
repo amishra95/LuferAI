@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn, formatINR } from "@/lib/utils";
 
-const IDLE: HostFormState = { status: "idle" };
+export const IDLE: HostFormState = { status: "idle" };
 
 export interface HostPackage {
   id: string;
@@ -18,7 +18,7 @@ export interface HostPackage {
   is_active: boolean;
 }
 
-function Feedback({ state }: { state: HostFormState }) {
+export function Feedback({ state }: { state: HostFormState }) {
   if (state.status === "idle" || !state.message) return null;
   return (
     <p role={state.status === "error" ? "alert" : "status"} className={cn("text-[12.5px] leading-5", state.status === "error" ? "text-rose" : "text-sage")}>

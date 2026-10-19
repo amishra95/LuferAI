@@ -4,8 +4,10 @@ import type { Member } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { calculateGst, roundInr, splitCommission, type TaxInvoicePayload } from "@/lib/gst-engine";
 import { applyTransferUpdate, syncOrderSettlement } from "@/lib/marketplace/service";
-import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { depositFor } from "@/lib/quotes";
+import { depositRateFor } from "@/lib/rates/venue-pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
 import { getCheckoutGateway, getGateway, type DepositCheckout, type NormalizedEvent } from "./gateways";
 
@@ -76,15 +78,17 @@ export async function createDepositCheckout(
     booking_id: booking.id,
     invoice_date: booking.event_date,
   });
-  const deposit = depositFor(gst.invoice_total);
+  // The venue's deposit (venue_pricing_rules), else the platform default; fixed on the payment row once authorised.
+  const depositRate = depositRateFor((await getVenuePricing(booking.venue_id)).pricing);
+  const deposit = depositFor(gst.invoice_total, depositRate);
   const invoice: DepositInvoice = {
     ...gst,
     list_amount: list,
     rate_card_id: booking.rate_card_id,
     rate_card_savings: roundInr(Math.max(0, list - taxable)),
-    deposit_rate: DEPOSIT_RATE,
+    deposit_rate: depositRate,
     deposit_amount: deposit,
-    balance_due: splitCommission(gst.invoice_total, DEPOSIT_RATE).venue_payout,
+    balance_due: splitCommission(gst.invoice_total, depositRate).venue_payout,
   };
 
   const paymentId = crypto.randomUUID();
@@ -104,7 +108,7 @@ export async function createDepositCheckout(
     booking_id: bookingId,
     provider: gateway.name,
     amount_inr: deposit,
-    deposit_rate: DEPOSIT_RATE,
+    deposit_rate: depositRate,
     provider_order_id: checkout.orderId,
     invoice: invoice as unknown as Json,
   });

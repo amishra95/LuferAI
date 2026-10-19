@@ -2254,6 +2254,39 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_pricing_rules: {
+        Row: {
+          deposit_pct: number | null
+          guest_tiers: Json
+          lock_min_spend: boolean
+          locked_package_ids: string[]
+          rate_multipliers: Json
+          updated_at: string
+          updated_by: string | null
+          venue_id: string
+        }
+        Insert: {
+          deposit_pct?: number | null
+          guest_tiers?: Json
+          lock_min_spend?: boolean
+          locked_package_ids?: string[]
+          rate_multipliers?: Json
+          updated_at?: string
+          updated_by?: string | null
+          venue_id: string
+        }
+        Update: {
+          deposit_pct?: number | null
+          guest_tiers?: Json
+          lock_min_spend?: boolean
+          locked_package_ids?: string[]
+          rate_multipliers?: Json
+          updated_at?: string
+          updated_by?: string | null
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string
