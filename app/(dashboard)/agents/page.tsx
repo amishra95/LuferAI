@@ -43,7 +43,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
   ]);
   // The inspector shows what the negotiator actually runs: the active registry version.
   const prompts = PROMPT_TEMPLATES.map((p) => (p.agent === "property-negotiator" ? { ...p, text: negotiatorPrompt.text } : p));
-  const health = providerHealth(feed.events, now);
+  const health = await providerHealth(feed.events, now);
   const backends = MODEL_BACKENDS.map((id) => ({ id, configured: isBackendConfigured(id) }));
   const agentNames = Object.fromEntries(agents.map(({ agent }) => [agent.id, agent.name]));
   const store = settingsStore();
