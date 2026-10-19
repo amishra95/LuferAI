@@ -26,7 +26,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
   const outcome = pick<OutcomeFilter>(OUTCOMES, params.outcome, "all");
 
   const [{ now, agents }, spend, feed] = await Promise.all([agentSnapshot(), spendSnapshot(), getObservabilityFeed()]);
-  const health = providerHealth(feed.events, now);
+  const health = await providerHealth(feed.events, now);
   const backends = MODEL_BACKENDS.map((id) => ({ id, configured: isBackendConfigured(id) }));
   const agentNames = Object.fromEntries(agents.map(({ agent }) => [agent.id, agent.name]));
   const store = settingsStore();

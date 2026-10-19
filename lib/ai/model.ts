@@ -6,6 +6,7 @@ import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
 
 import { DEFAULT_BACKEND, type ModelBackend } from "@/lib/agents/config";
 import { CircuitOpenError, isTransientError, llmCircuitBreaker } from "@/lib/circuit-breaker";
+import { trackBreaker } from "@/lib/telemetry/provider-health";
 import { logUsage } from "@/lib/telemetry/usage";
 import { tracer } from "@/lib/tracer";
 
@@ -37,6 +38,9 @@ export class AiUnavailableError extends Error {
     this.upstreamStatus = details.upstreamStatus ?? null;
   }
 }
+
+// Counters and transitions go to the shared provider-health store behind /agents.
+trackBreaker(llmCircuitBreaker);
 
 const isTransientStatus = (status: number) => status === 408 || status === 429 || status >= 500;
 

@@ -17,7 +17,8 @@
  *
  * State is per process. On Fluid Compute an instance serves many requests, so
  * this still sheds load from a failing provider, but separate instances trip
- * independently.
+ * independently. `subscribe` reports every counter change and transition, so
+ * a store can aggregate them across instances (lib/telemetry/provider-health).
  *
  * No server-only imports or path aliases, so tests can import it directly
  * (tests/circuit-breaker.test.mjs).
@@ -76,6 +77,13 @@ export interface CircuitSnapshot {
   retryAt: number | null;
   stats: { calls: number; successes: number; failures: number; rejected: number; retries: number; fallbacks: number };
 }
+
+export type CircuitStat = keyof CircuitSnapshot["stats"];
+
+/** One counter change or state transition, with the snapshot right after it. */
+export type CircuitEvent =
+  | { type: "stat"; stat: CircuitStat; at: number; snapshot: CircuitSnapshot }
+  | { type: "state"; from: CircuitState; to: CircuitState; at: number; snapshot: CircuitSnapshot };
 
 /** Thrown (or passed to the fallback) when the circuit refuses a call. */
 export class CircuitOpenError extends Error {
@@ -199,6 +207,7 @@ export class CircuitBreaker {
   private halfOpenInFlight = 0;
   private halfOpenSuccesses = 0;
   private readonly stats = { calls: 0, successes: 0, failures: 0, rejected: 0, retries: 0, fallbacks: 0 };
+  private readonly listeners = new Set<(event: CircuitEvent) => void>();
 
   constructor(options: CircuitBreakerOptions) {
     if (options.failureThreshold < 1 || options.successThreshold < 1 || options.halfOpenMaxCalls < 1) {
@@ -225,10 +234,10 @@ export class CircuitBreaker {
    * fetch / the AI SDK so abandoned attempts stop.
    */
   async execute<T>(fn: (signal: AbortSignal) => Promise<T>, options: ExecuteOptions<T> = {}): Promise<T> {
-    this.stats.calls++;
+    this.count("calls");
     const admitted = this.admit();
     if (admitted !== "ok") {
-      this.stats.rejected++;
+      this.count("rejected");
       return this.fail(admitted, options);
     }
 
@@ -255,13 +264,13 @@ export class CircuitBreaker {
 
   snapshot(): CircuitSnapshot {
     this.refresh();
-    return {
-      name: this.name,
-      state: this.state,
-      consecutiveFailures: this.consecutiveFailures,
-      retryAt: this.state === "OPEN" ? this.openedAt + this.opts.resetTimeoutMs : null,
-      stats: { ...this.stats },
-    };
+    return this.snapshotNow();
+  }
+
+  /** Hears every counter change and transition. Returns an unsubscribe. Listener errors are swallowed. */
+  subscribe(listener: (event: CircuitEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   /** Back to CLOSED with counters cleared (e.g. after fixing a bad key). Stats are kept. */
@@ -303,7 +312,7 @@ export class CircuitBreaker {
         const ceiling = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
         const requested = retryAfterMs(error, this.opts.now());
         const delay = Math.min(maxDelayMs, Math.max(requested ?? 0, Math.round(this.opts.random() * ceiling)));
-        this.stats.retries++;
+        this.count("retries");
         await this.opts.sleep(delay, signal);
       }
     }
@@ -335,25 +344,25 @@ export class CircuitBreaker {
   }
 
   private onSuccess(trial: boolean) {
-    this.stats.successes++;
     this.consecutiveFailures = 0;
     if (trial && this.state === "HALF_OPEN" && ++this.halfOpenSuccesses >= this.opts.successThreshold) {
       this.transition("CLOSED");
     }
+    this.count("successes");
   }
 
   private onFailure(trial: boolean) {
-    this.stats.failures++;
     this.consecutiveFailures++;
     if ((trial && this.state === "HALF_OPEN") || (this.state === "CLOSED" && this.consecutiveFailures >= this.opts.failureThreshold)) {
       this.openedAt = this.opts.now();
       this.transition("OPEN");
     }
+    this.count("failures");
   }
 
   private async fail<T>(error: unknown, options: ExecuteOptions<T>): Promise<T> {
     if (!options.fallback) throw error;
-    this.stats.fallbacks++;
+    this.count("fallbacks");
     return options.fallback(error);
   }
 
@@ -362,11 +371,39 @@ export class CircuitBreaker {
     if (from === to) return;
     this.state = to;
     if (to !== "HALF_OPEN") this.halfOpenSuccesses = 0;
+    const at = this.opts.now();
     try {
-      this.opts.onStateChange?.({ name: this.name, from, to, at: this.opts.now() });
+      this.opts.onStateChange?.({ name: this.name, from, to, at });
     } catch {
       // A broken listener must not break the call path.
     }
+    if (this.listeners.size) this.emit({ type: "state", from, to, at, snapshot: this.snapshotNow() });
+  }
+
+  private count(stat: CircuitStat) {
+    this.stats[stat]++;
+    if (this.listeners.size) this.emit({ type: "stat", stat, at: this.opts.now(), snapshot: this.snapshotNow() });
+  }
+
+  private emit(event: CircuitEvent) {
+    for (const listener of this.listeners) {
+      try {
+        listener(event);
+      } catch {
+        // As above.
+      }
+    }
+  }
+
+  /** snapshot() without refresh(): listeners run mid-transition and must not cause another. */
+  private snapshotNow(): CircuitSnapshot {
+    return {
+      name: this.name,
+      state: this.state,
+      consecutiveFailures: this.consecutiveFailures,
+      retryAt: this.state === "OPEN" ? this.openedAt + this.opts.resetTimeoutMs : null,
+      stats: { ...this.stats },
+    };
   }
 }
 
