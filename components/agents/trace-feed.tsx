@@ -21,6 +21,7 @@ export const OUTCOMES: { value: OutcomeFilter; label: string }[] = [
   { value: "success", label: "Success" },
   { value: "auto-counter", label: "Auto-Counter" },
   { value: "auto-decline", label: "Auto-Decline" },
+  { value: "escalated", label: "Escalated" },
   { value: "fallback", label: "Error/Fallback" },
 ];
 
@@ -28,6 +29,7 @@ const OUTCOME: Record<TraceOutcome, { tone: PillTone; label: string; hint: strin
   success: { tone: "ok", label: "Success", hint: "Completed as asked" },
   "auto-counter": { tone: "warn", label: "Auto-Counter", hint: "Countered automatically within the venue's negotiation rules" },
   "auto-decline": { tone: "neutral", label: "Auto-Decline", hint: "Declined or refused by a deterministic rule" },
+  escalated: { tone: "warn", label: "Escalated", hint: "An automatic counter past the platform's escalation thresholds, left for the host" },
   fallback: { tone: "error", label: "Error/Fallback", hint: "Failed; a manual path takes over" },
 };
 

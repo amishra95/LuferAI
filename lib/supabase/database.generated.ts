@@ -111,6 +111,48 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_prompt_versions: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          prompt_key: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          prompt_key: string
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          prompt_key?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       approval_chains: {
         Row: {
           approver_user_id: string
@@ -1602,6 +1644,27 @@ export type Database = {
           },
         ]
       }
+      platform_guardrail_settings: {
+        Row: {
+          id: boolean
+          settings: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       platform_users: {
         Row: {
           company_id: string | null
@@ -2468,6 +2531,28 @@ export type Database = {
       }
     }
     Functions: {
+      activate_prompt_version: {
+        Args: { p_id: string; p_user: string }
+        Returns: {
+          activated_at: string | null
+          activated_by: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          prompt_key: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "agent_prompt_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       can_join_event_channel: { Args: { topic: string }; Returns: boolean }
       current_company_id: { Args: never; Returns: string }
       current_partner_id: { Args: never; Returns: string }

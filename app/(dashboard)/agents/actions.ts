@@ -5,12 +5,17 @@ import { refresh, revalidatePath } from "next/cache";
 import { validateAgentPatch, type AgentPatch } from "@/lib/agents/config";
 import { getAgent, isAgentId, recordRun, syncAgentConfigs, updateAgent } from "@/lib/agents/store";
 import { searchVenueCatalogue } from "@/lib/ai/chat-tools";
+import { isPromptKey, validatePromptDraft, type PromptVersion } from "@/lib/ai/prompt-registry";
+import { activatePromptVersion, createPromptDraft, deletePromptDraft, PromptRegistryError, revertToBuiltIn, updatePromptDraft } from "@/lib/ai/prompt-store";
+import { validatePlatformGuardrails, type PlatformGuardrails } from "@/lib/guardrails/platform";
+import { PlatformGuardrailsError, savePlatformGuardrails } from "@/lib/guardrails/platform-store";
 import { runBudgetForecast, runSpendAnalysis } from "@/lib/analytics/service";
 import { requireWorkspace } from "@/lib/auth/session";
 import { computePlatformMetrics, listBookings } from "@/lib/data";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import { publishAgentConfig } from "@/lib/telemetry/live";
 import type { AgentConfigField } from "@/lib/telemetry/events";
+import { tracer } from "@/lib/tracer";
 import type { AgentRecord, AgentTestResult } from "@/types/agents";
 import type { ChatToolName } from "@/types/chat";
 
@@ -111,5 +116,80 @@ export async function runAgentTest(id: string): Promise<ActionResult<AgentTestRe
     });
     revalidateAgentViews();
     return result;
+  });
+}
+
+// ----------------------------------------------------------------------------
+// Prompt registry (lib/ai/prompt-store) and platform guardrails (lib/guardrails/platform-store)
+// ----------------------------------------------------------------------------
+
+/** Store refusals carry a message for the admin; anything else is logged by serverDispatch and kept generic. */
+const asActionError = (err: unknown): never => {
+  if (err instanceof PromptRegistryError || err instanceof PlatformGuardrailsError) throw new ActionError(err.message);
+  throw err;
+};
+
+/** Creates a draft, or edits one when `id` is given. */
+export async function savePromptDraft(key: string, input: { id?: string; body: string; note: string }): Promise<ActionResult<PromptVersion>> {
+  return serverDispatch("agents/savePromptDraft", async () => {
+    const member = await requireWorkspace("/agents");
+    if (!isPromptKey(key)) throw new ActionError("Unknown prompt.");
+    const draft = validatePromptDraft(input);
+    if (!draft.ok) throw new ActionError(draft.error);
+    const version = await (input.id ? updatePromptDraft(input.id, draft.value) : createPromptDraft(key, draft.value, member.userId)).catch(asActionError);
+    revalidatePath("/agents");
+    return version;
+  });
+}
+
+export async function deletePromptDraftAction(id: string): Promise<ActionResult<{ id: string }>> {
+  return serverDispatch("agents/deletePromptDraft", async () => {
+    await requireWorkspace("/agents");
+    await deletePromptDraft(id).catch(asActionError);
+    revalidatePath("/agents");
+    return { id };
+  });
+}
+
+/** Puts a version live (a draft, or an archived one to roll back). The negotiator uses it from its next session. */
+export async function activatePromptAction(id: string): Promise<ActionResult<PromptVersion>> {
+  return serverDispatch("agents/activatePrompt", async () => {
+    const member = await requireWorkspace("/agents");
+    const version = await tracer.trace("prompt.activate", async (span) => {
+      const v = await activatePromptVersion(id, member.userId).catch(asActionError);
+      span.setAttributes({ prompt: v.promptKey, version: v.version });
+      return v;
+    });
+    revalidatePath("/agents");
+    return version;
+  });
+}
+
+export async function revertPromptAction(key: string): Promise<ActionResult<{ key: string }>> {
+  return serverDispatch("agents/revertPrompt", async () => {
+    await requireWorkspace("/agents");
+    if (!isPromptKey(key)) throw new ActionError("Unknown prompt.");
+    await tracer.trace("prompt.activate", async (span) => {
+      span.setAttributes({ prompt: key, version: "built-in" });
+      await revertToBuiltIn(key).catch(asActionError);
+    });
+    revalidatePath("/agents");
+    return { key };
+  });
+}
+
+/** Saves the platform ceilings. Applies to new offers, auto rules and negotiator tool calls. */
+export async function savePlatformGuardrailsAction(input: Record<string, unknown>): Promise<ActionResult<PlatformGuardrails>> {
+  return serverDispatch("agents/savePlatformGuardrails", async () => {
+    const member = await requireWorkspace("/agents");
+    const parsed = validatePlatformGuardrails(input);
+    if (!parsed.ok) throw new ActionError(parsed.error);
+    const saved = await tracer.trace("guardrails.platform.save", async (span) => {
+      span.setAttributes({ ...parsed.value });
+      return savePlatformGuardrails(parsed.value, member.userId).catch(asActionError);
+    });
+    revalidatePath("/agents");
+    revalidatePath("/property");
+    return saved.settings;
   });
 }

@@ -14,7 +14,9 @@ import {
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import { depositRateFor, NO_PRICING, priceFor, type VenuePricing } from "@/lib/rates/venue-pricing";
-import { autoDecision, checkOffer } from "@/lib/rfp/guardrails";
+import { effectiveRules, platformAutoDecision } from "@/lib/guardrails/platform";
+import { getPlatformGuardrails } from "@/lib/guardrails/platform-store";
+import { checkOffer } from "@/lib/rfp/guardrails";
 import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tracer } from "@/lib/tracer";
@@ -83,7 +85,12 @@ export async function broadcastRfp(input: {
   const matched = matchVenues(venues ?? [], req);
   // Hosts' guardrails: over-budget instant quotes may be countered or declined at once.
   // Hosts' pricing: guest-count tiers and the rate calendar set each venue's price for this event.
-  const [rules, pricing] = await Promise.all([rulesForVenues(matched.map((v) => v.id)), pricingForVenues(matched.map((v) => v.id))]);
+  // The platform's ceilings and escalation thresholds (tuned on /agents) bound both.
+  const [rules, pricing, { settings: platform }] = await Promise.all([
+    rulesForVenues(matched.map((v) => v.id)),
+    pricingForVenues(matched.map((v) => v.id)),
+    getPlatformGuardrails(),
+  ]);
 
   const { data: rfp, error } = await db
     .from("rfps")
@@ -105,7 +112,7 @@ export async function broadcastRfp(input: {
   const now = new Date().toISOString();
   const outcomes: {
     venue: string;
-    status: "quoted" | "no_fit" | "auto_counter" | "auto_decline";
+    status: "quoted" | "no_fit" | "auto_counter" | "auto_decline" | "escalated";
     perHeadInr?: number;
     standardPerHead?: number;
     floored?: boolean;
@@ -142,7 +149,7 @@ export async function broadcastRfp(input: {
       }
     );
     const auto = quote.status === "quoted" && quote.over_budget && rules.has(venue.id)
-      ? autoDecision(rules.get(venue.id)!, { standardPerHead: quote.per_head_inr, partySize: req.party_size, budgetPerHead: req.budget_per_head_inr })
+      ? platformAutoDecision(rules.get(venue.id)!, platform, { standardPerHead: quote.per_head_inr, partySize: req.party_size, budgetPerHead: req.budget_per_head_inr })
       : ({ action: "none" } as const);
     if (auto.action === "decline") {
       outcomes.push({ venue: venue.name, status: "auto_decline", reason: auto.note });
@@ -165,7 +172,9 @@ export async function broadcastRfp(input: {
         responded_at: now,
       };
     }
-    outcomes.push(
+    // Escalated: the instant quote stands and the host decides on the counter.
+    if (auto.action === "escalate") outcomes.push({ venue: venue.name, status: "escalated", perHeadInr: auto.perHead, standardPerHead: quote.status === "quoted" ? quote.per_head_inr : undefined, reason: auto.note });
+    else outcomes.push(
       quote.status === "quoted"
         ? { venue: venue.name, status: "quoted", perHeadInr: quote.per_head_inr, floored: quote.min_spend_applied, overBudget: quote.over_budget, ...(pricingNote ? { pricing: pricingNote } : {}) }
         : { venue: venue.name, status: "no_fit", reason: quote.reason }
@@ -180,7 +189,7 @@ export async function broadcastRfp(input: {
           list_amount_inr: quote.price.list_amount,
           rate_card_id: quote.rate_card_id,
           taxable_amount_inr: quote.price.taxable_value,
-          notes: [pricingNote, quote.min_spend_applied && "Minimum spend applied", quote.over_budget && "Above per-head budget"]
+          notes: [pricingNote, quote.min_spend_applied && "Minimum spend applied", quote.over_budget && "Above per-head budget", auto.action === "escalate" && auto.note]
             .filter(Boolean)
             .join(" · ") || null,
           responded_at: now,
@@ -351,10 +360,10 @@ export async function respondToRfp(input: {
     if (!pkg && input.menuPackageId) throw new Error("Unknown menu package");
     standardPerHead = pkg ? Number(pkg.per_head_inr) : null;
   }
-  const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId)]);
+  const [{ rules }, { pricing }, { settings: platform }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId), getPlatformGuardrails()]);
   // The discount ceiling is measured from the venue's own price for this party and date.
   const own = standardPerHead === null ? null : venueStandardPerHead(standardPerHead, existing.rfp.party_size, existing.rfp.event_date, pricing);
-  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: existing.rfp.party_size, standardPerHead: own });
+  const breach = checkOffer(effectiveRules(rules, platform), { perHead: input.perHeadInr, partySize: existing.rfp.party_size, standardPerHead: own });
   if (breach) throw new GuardrailError(breach);
 
   const list = roundInr(input.perHeadInr * existing.rfp.party_size);
@@ -452,9 +461,9 @@ export async function createDirectQuote(input: DirectQuoteInput): Promise<{ rfpI
     standardPerHead = Number(pkg.per_head_inr);
     packageName = pkg.name;
   }
-  const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId)]);
+  const [{ rules }, { pricing }, { settings: platform }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId), getPlatformGuardrails()]);
   const own = standardPerHead === null ? null : venueStandardPerHead(standardPerHead, input.partySize, input.eventDate, pricing);
-  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: input.partySize, standardPerHead: own });
+  const breach = checkOffer(effectiveRules(rules, platform), { perHead: input.perHeadInr, partySize: input.partySize, standardPerHead: own });
   if (breach) throw new GuardrailError(breach);
 
   const requirements: RfpRequirements = {

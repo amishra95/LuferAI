@@ -10,7 +10,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { AI_NOT_CONFIGURED, AI_UNAVAILABLE, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
-import { NEGOTIATOR_APPROVALS, NEGOTIATOR_INSTRUCTIONS } from "@/lib/ai/prompts";
+import { NEGOTIATOR_APPROVALS } from "@/lib/ai/prompts";
+import { activePrompt } from "@/lib/ai/prompt-store";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { traceTools } from "@/lib/ai/trace-tools";
@@ -60,12 +61,14 @@ async function handleNegotiator(request: NextRequest) {
   const messages = validated.data;
 
   const started = Date.now();
-  const task = `Pricing session for venue ${venueId.slice(0, 8)}`;
+  // The version admins activated in the prompt registry on /agents, else the built-in prompt.
+  const prompt = await activePrompt("property-negotiator");
+  const task = `Pricing session for venue ${venueId.slice(0, 8)} · prompt ${prompt.version === null ? "built-in" : `v${prompt.version}`}`;
   const modelMessages = await convertToModelMessages(messages, { tools });
-  const llm = tracer.startSpan("llm.stream", { attributes: { model: model.modelId, messages: messages.length } });
+  const llm = tracer.startSpan("llm.stream", { attributes: { model: model.modelId, messages: messages.length, promptVersion: prompt.version ?? "built-in" } });
   const result = llm.run(() => streamText({
     model,
-    instructions: NEGOTIATOR_INSTRUCTIONS,
+    instructions: prompt.text,
     messages: modelMessages,
     tools,
     toolApproval: {

@@ -22,7 +22,20 @@ type Tab = "guardrails" | "chat";
  * The chat lives here (not in the sheet, which unmounts when closed), so the
  * conversation survives closing and reopening the drawer.
  */
-export function NegotiatorDrawer({ venueId, venueName, rules, rulesReady }: { venueId: string; venueName: string; rules: NegotiationRules; rulesReady: boolean }) {
+export function NegotiatorDrawer({
+  venueId,
+  venueName,
+  rules,
+  rulesReady,
+  platformCap,
+}: {
+  venueId: string;
+  venueName: string;
+  rules: NegotiationRules;
+  rulesReady: boolean;
+  /** The platform's discount cap (admins tune it on /agents). */
+  platformCap: number;
+}) {
   const router = useRouter();
   // Approved changes alter the terms shown on the page.
   const [chat] = useState(() => createNegotiatorChat(venueId, () => router.refresh()));
@@ -63,7 +76,7 @@ export function NegotiatorDrawer({ venueId, venueName, rules, rulesReady }: { ve
         </SheetHeader>
         {tab === "guardrails" ? (
           <div id="negotiator-guardrails" role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            <GuardrailsForm venueId={venueId} rules={rules} ready={rulesReady} />
+            <GuardrailsForm venueId={venueId} rules={rules} ready={rulesReady} platformCap={platformCap} />
           </div>
         ) : (
           <div id="negotiator-chat" role="tabpanel" className="flex min-h-0 flex-1 flex-col">
@@ -78,7 +91,7 @@ export function NegotiatorDrawer({ venueId, venueName, rules, rulesReady }: { ve
 const IDLE: HostFormState = { status: "idle" };
 
 /** Floor, maximum discount and auto-counter rules; also on /property → Pricing. */
-export function GuardrailsForm({ venueId, rules, ready }: { venueId: string; rules: NegotiationRules; ready: boolean }) {
+export function GuardrailsForm({ venueId, rules, ready, platformCap = MAX_DISCOUNT_CAP }: { venueId: string; rules: NegotiationRules; ready: boolean; platformCap?: number }) {
   const [state, action, pending] = useActionState(saveGuardrailsAction, IDLE);
   const [autoCounter, setAutoCounter] = useState(rules.autoCounter);
   const [autoDecline, setAutoDecline] = useState(rules.autoDeclineBelowFloor);
@@ -117,7 +130,10 @@ export function GuardrailsForm({ venueId, rules, ready }: { venueId: string; rul
             %
           </span>
         </span>
-        <span className="text-fg-subtle text-[12px]">Off your own price: the package offered, or the one in the instant quote. Up to {MAX_DISCOUNT_CAP}%.</span>
+        <span className="text-fg-subtle text-[12px]">
+          Off your own price: the package offered, or the one in the instant quote. Up to {MAX_DISCOUNT_CAP}%
+          {platformCap < MAX_DISCOUNT_CAP ? `; the platform caps every offer at ${platformCap}% off, so anything above that acts as ${platformCap}%` : ""}.
+        </span>
       </label>
 
       <fieldset className="grid gap-3">

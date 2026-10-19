@@ -94,7 +94,7 @@ export function minimumSpendRules(
     /** The host locked the minimum spend against AI changes (venue_pricing_rules). */
     locked?: boolean;
   },
-  limits = GUARDRAIL_LIMITS.minimumSpend
+  limits: { maxChangeFraction: number } = GUARDRAIL_LIMITS.minimumSpend
 ): GuardrailDecision {
   const facts = { current: ctx.current, proposed: args.min_spend_inr, floor: ctx.floor ?? null };
   if (ctx.locked) {
@@ -132,7 +132,7 @@ export interface MenuPackageContext {
   lockedPackageIds?: string[];
 }
 
-export function menuPackageRules(args: UpsertMenuPackageInput, ctx: MenuPackageContext, limits = GUARDRAIL_LIMITS.menuPackage): GuardrailDecision {
+export function menuPackageRules(args: UpsertMenuPackageInput, ctx: MenuPackageContext, limits: { minPerHeadInr: number; maxPerHeadInr: number } = GUARDRAIL_LIMITS.menuPackage): GuardrailDecision {
   const facts = { packageId: args.package_id, perHeadInr: args.per_head_inr, isActive: args.is_active, activePackages: ctx.activePackageIds.length };
   if (args.package_id && !ctx.packageExists) return deny("unknown_package", "That package doesn't exist at this venue. Call getVenueTerms for current package ids.", facts);
   if (args.package_id && ctx.lockedPackageIds?.includes(args.package_id)) {
