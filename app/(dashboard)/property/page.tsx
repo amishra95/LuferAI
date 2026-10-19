@@ -16,6 +16,8 @@ import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates,
 import { todayInIndia } from "@/lib/gst-engine";
 import { DEPOSIT_RATE, dietaryLabel } from "@/lib/quotes";
 import { describeMultiplier, MULTIPLIER_KIND_LABEL, NO_PRICING } from "@/lib/rates/venue-pricing";
+import { DEFAULT_PLATFORM_GUARDRAILS, effectiveRules } from "@/lib/guardrails/platform";
+import { getPlatformGuardrails } from "@/lib/guardrails/platform-store";
 import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
@@ -51,7 +53,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -60,7 +62,9 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
     live ? getNegotiationRules(venue.id) : Promise.resolve({ rules: NO_RULES, ready: false }),
     live ? quoteableCompanies(venue.id) : Promise.resolve([]),
     live ? getVenuePricing(venue.id) : Promise.resolve({ pricing: NO_PRICING, ready: false }),
+    live ? getPlatformGuardrails() : Promise.resolve({ settings: DEFAULT_PLATFORM_GUARDRAILS, ready: false, updatedAt: null }),
   ]);
+  const platform = platformState.settings;
   const pricing = venuePricing.pricing;
   const incoming = bookings.filter((b) => b.status === "PENDING");
   const [holds, liveHolds] = await Promise.all([activeHolds(incoming.map((b) => b.id)), listLiveHolds(venue.id)]);
@@ -94,7 +98,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   return (
     <PortalShell
       portal="/property"
-      actions={live ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} rules={guardrails.rules} rulesReady={guardrails.ready} /> : null}
+      actions={live ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} rules={guardrails.rules} rulesReady={guardrails.ready} platformCap={platform.maxDiscountPct} /> : null}
       title={venue.name}
       subtitle={`${venue.neighborhood}, ${venue.city} · GSTIN ${venue.gstin} · platform commission ${(Number(venue.commission_rate) * 100).toFixed(0)}% · min spend ${formatINR(Number(venue.min_spend_inr))}`}
     >
@@ -264,7 +268,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                                   currentPerHead={r.per_head_inr != null ? Number(r.per_head_inr) : null}
                                   currentPackageId={r.menu_package_id}
                                   packages={packages}
-                                  lowestAllowed={lowestAllowedPerHead(guardrails.rules, standard, rfp.party_size)}
+                                  lowestAllowed={lowestAllowedPerHead(effectiveRules(guardrails.rules, platform), standard, rfp.party_size)}
                                 />
                               )}
                             </li>
@@ -505,7 +509,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   <CardDescription>Hard limits on every offer: your counters, direct quotes, auto-counters and the AI negotiator. The same settings as the negotiator&apos;s Guardrails tab.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <GuardrailsForm key={`rules-${venue.id}`} venueId={venue.id} rules={guardrails.rules} ready={guardrails.ready} />
+                  <GuardrailsForm key={`rules-${venue.id}`} venueId={venue.id} rules={guardrails.rules} ready={guardrails.ready} platformCap={platform.maxDiscountPct} />
                 </CardContent>
               </Card>
 

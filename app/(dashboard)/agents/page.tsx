@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { AGENT_GRID, AgentRow } from "@/components/agents/agent-row";
+import { GuardrailTuning } from "@/components/agents/guardrail-tuning";
+import { PromptRegistry } from "@/components/agents/prompt-registry";
 import { Inspector } from "@/components/agents/inspector";
 import { ProviderHealthPanel } from "@/components/agents/provider-health";
 import { SpendWidget } from "@/components/agents/spend-widget";
@@ -10,7 +12,10 @@ import { DEFAULT_BACKEND, MODEL_BACKEND_LABEL, MODEL_BACKENDS } from "@/lib/agen
 import { FALLBACK_PATH, getObservabilityFeed, guardrailInventory, PRICING_RULES, providerHealth } from "@/lib/agents/observability";
 import { agentSnapshot, settingsStore } from "@/lib/agents/store";
 import { isBackendConfigured } from "@/lib/ai/model";
+import { PROMPT_LABEL } from "@/lib/ai/prompt-registry";
+import { activePrompt, builtInPrompt, listPromptVersions } from "@/lib/ai/prompt-store";
 import { PROMPT_TEMPLATES } from "@/lib/ai/prompts";
+import { getPlatformGuardrails } from "@/lib/guardrails/platform-store";
 import { isRedisConfigured } from "@/lib/data/local-store";
 import { spendSnapshot } from "@/lib/telemetry/usage";
 import { cn } from "@/lib/utils";
@@ -25,7 +30,19 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
   const kind = pick<KindFilter>(KINDS, params.kind, "all");
   const outcome = pick<OutcomeFilter>(OUTCOMES, params.outcome, "all");
 
-  const [{ now, agents }, spend, feed] = await Promise.all([agentSnapshot(), spendSnapshot(), getObservabilityFeed()]);
+  const [{ now, agents }, spend, feed, registry, negotiatorPrompt, platform] = await Promise.all([
+    agentSnapshot(),
+    spendSnapshot(),
+    getObservabilityFeed(),
+    listPromptVersions("property-negotiator").catch((err) => {
+      console.error("agents: could not load prompt versions", err);
+      return { versions: [], ready: false };
+    }),
+    activePrompt("property-negotiator"),
+    getPlatformGuardrails(),
+  ]);
+  // The inspector shows what the negotiator actually runs: the active registry version.
+  const prompts = PROMPT_TEMPLATES.map((p) => (p.agent === "property-negotiator" ? { ...p, text: negotiatorPrompt.text } : p));
   const health = await providerHealth(feed.events, now);
   const backends = MODEL_BACKENDS.map((id) => ({ id, configured: isBackendConfigured(id) }));
   const agentNames = Object.fromEntries(agents.map(({ agent }) => [agent.id, agent.name]));
@@ -40,8 +57,8 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
         badge={<NoticePill>{`settings in ${store}${isRedisConfigured() ? " · runs in redis" : ""}`}</NoticePill>}
         actions={
           <Inspector
-            prompts={PROMPT_TEMPLATES}
-            guardrails={guardrailInventory()}
+            prompts={prompts}
+            guardrails={guardrailInventory(platform.settings)}
             pricing={PRICING_RULES}
             model={health.configured ? MODEL_BACKEND_LABEL[DEFAULT_BACKEND] : null}
           />
@@ -49,6 +66,36 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
       />
 
       <ProviderHealthPanel health={health} fallbacks={FALLBACK_PATH} now={now} />
+
+      <section aria-labelledby="negotiation-heading" className="mt-8">
+        <div className="mb-3">
+          <h2 id="negotiation-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+            Negotiation controls
+          </h2>
+          <p className="text-fg-subtle mt-1 text-[12.5px]">
+            The negotiator&apos;s prompt and the platform&apos;s guardrails, live. Both are stored in the database and picked up by every server within about 15 seconds.
+          </p>
+        </div>
+        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] 2xl:items-start">
+          <div className="panel px-5 py-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <h3 className="text-fg text-[13.5px] font-medium">Prompt registry · {PROMPT_LABEL["property-negotiator"]}</h3>
+              <span className="text-fg-subtle font-mono text-[11.5px]">live: {negotiatorPrompt.version === null ? "built-in" : `v${negotiatorPrompt.version}`}</span>
+            </div>
+            <PromptRegistry
+              promptKey="property-negotiator"
+              label={PROMPT_LABEL["property-negotiator"]}
+              builtIn={builtInPrompt("property-negotiator")}
+              versions={registry.versions}
+              ready={registry.ready}
+            />
+          </div>
+          <div className="panel px-5 py-4">
+            <h3 className="text-fg mb-4 text-[13.5px] font-medium">Guardrail tuning · platform ceilings</h3>
+            <GuardrailTuning key={platform.updatedAt ?? "default"} settings={platform.settings} ready={platform.ready} updatedAt={platform.updatedAt} />
+          </div>
+        </div>
+      </section>
 
       <div className="mt-6">
         <SpendWidget summary={spend.summary} store={spend.source} agentNames={agentNames} />

@@ -4,6 +4,8 @@ import { tool, type InferUITools, type UIDataTypes, type UIMessage } from "ai";
 import { z } from "zod";
 
 import { checkToolCall, menuPackageRules, minimumSpendRules } from "@/lib/guardrails/engine";
+import { effectiveRules, engineLimits } from "@/lib/guardrails/platform";
+import { getPlatformGuardrails } from "@/lib/guardrails/platform-store";
 import { setMinimumSpendInput, upsertMenuPackageInput } from "@/lib/guardrails/schemas";
 import { describeMultiplier } from "@/lib/rates/venue-pricing";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
@@ -36,13 +38,18 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
             .eq("rfp.status", "open")
             .limit(10),
         ]);
-        const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(venueId), getVenuePricing(venueId)]);
+        const [{ rules }, { pricing }, { settings: platform }] = await Promise.all([getNegotiationRules(venueId), getVenuePricing(venueId), getPlatformGuardrails()]);
         const locked = new Set(pricing.lockedPackageIds);
         return {
           venue,
           packages: (packages ?? []).map((p) => ({ ...p, lockedByHost: locked.has(p.id) })),
           openRfps: rfps ?? [],
-          hostGuardrails: rules,
+          // The host's rules within the platform's ceilings (what offers are actually checked against).
+          hostGuardrails: effectiveRules(rules, platform),
+          proposalLimits: {
+            minimumSpendMaxChangePct: platform.minSpendMaxChangePct,
+            packagePerHeadRangeInr: [platform.packageMinPerHeadInr, platform.packageMaxPerHeadInr],
+          },
           // Set by hand on /property → Pricing. Quotes apply tiers and the calendar on top of package prices automatically.
           hostPricing: {
             minimumSpendLockedByHost: pricing.lockMinSpend,
@@ -63,13 +70,14 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
           "setMinimumSpend",
           input,
           async (a) => {
-            const [{ data, error }, { rules }, { pricing }] = await Promise.all([
+            const [{ data, error }, { rules }, { pricing }, { settings: platform }] = await Promise.all([
               db.from("venues").select("min_spend_inr").eq("id", venueId).single(),
               getNegotiationRules(venueId),
               getVenuePricing(venueId),
+              getPlatformGuardrails(),
             ]);
             if (error) throw new Error(error.message);
-            return minimumSpendRules(a, { current: Number(data.min_spend_inr), floor: rules.minSpendFloor, locked: pricing.lockMinSpend });
+            return minimumSpendRules(a, { current: Number(data.min_spend_inr), floor: rules.minSpendFloor, locked: pricing.lockMinSpend }, engineLimits(platform).minimumSpend);
           },
           { venueId }
         );
@@ -94,13 +102,21 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
           "upsertMenuPackage",
           input,
           async (a) => {
-            const [{ data, error }, { pricing }] = await Promise.all([db.from("venue_menu_packages").select("id, is_active").eq("venue_id", venueId), getVenuePricing(venueId)]);
+            const [{ data, error }, { pricing }, { settings: platform }] = await Promise.all([
+              db.from("venue_menu_packages").select("id, is_active").eq("venue_id", venueId),
+              getVenuePricing(venueId),
+              getPlatformGuardrails(),
+            ]);
             if (error) throw new Error(error.message);
-            return menuPackageRules(a, {
-              activePackageIds: data.filter((p) => p.is_active).map((p) => p.id),
-              packageExists: a.package_id === null || data.some((p) => p.id === a.package_id),
-              lockedPackageIds: pricing.lockedPackageIds,
-            });
+            return menuPackageRules(
+              a,
+              {
+                activePackageIds: data.filter((p) => p.is_active).map((p) => p.id),
+                packageExists: a.package_id === null || data.some((p) => p.id === a.package_id),
+                lockedPackageIds: pricing.lockedPackageIds,
+              },
+              engineLimits(platform).menuPackage
+            );
           },
           { venueId }
         );

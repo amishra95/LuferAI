@@ -4,7 +4,7 @@ import { DEFAULT_BACKEND, MODEL_BACKEND_LABEL, MODEL_BACKENDS } from "@/lib/agen
 import { isBackendConfigured } from "@/lib/ai/model";
 import { llmCircuitBreaker } from "@/lib/circuit-breaker";
 import { GUARDRAIL_LIMITS } from "@/lib/guardrails/schemas";
-import { MAX_DISCOUNT_CAP } from "@/lib/rfp/guardrails";
+import type { PlatformGuardrails } from "@/lib/guardrails/platform";
 import { appProviderHealthStore, combinedCircuit, instanceId, type SharedProviderHealth } from "@/lib/telemetry/provider-health";
 import { listAgentRuns, type LoggedRun } from "@/lib/telemetry/runs";
 import { TRACE_LIST_LIMIT, tracer, type Attributes, type SpanRecord, type TraceRecord } from "@/lib/tracer";
@@ -176,6 +176,10 @@ function fromBroadcast(t: TraceRecord, s: SpanRecord): ObservabilityEvent[] {
       outcome = "auto-decline";
       title = `${venue} · auto-decline`;
       detail = str(o.reason) ?? "Declined automatically: the budget can't reach the venue's minimum spend floor.";
+    } else if (o.status === "escalated") {
+      outcome = "escalated";
+      title = `${venue} · escalated to the host`;
+      detail = `${str(o.reason) ?? "An automatic counter passed the escalation thresholds."} The instant quote stands until the host counters or declines.`;
     } else if (o.status === "no_fit") {
       outcome = "auto-decline";
       title = `${venue} · not a fit`;
@@ -319,10 +323,26 @@ export async function providerHealth(events: ObservabilityEvent[], now = Date.no
   };
 }
 
-/** Rule thresholds for the guardrail inspector, read from the same constants the engine enforces. */
-export function guardrailInventory() {
-  const { booking, minimumSpend, menuPackage } = GUARDRAIL_LIMITS;
+/** Rule thresholds for the guardrail inspector, from the same settings the engine enforces (platform tuning on /agents). */
+export function guardrailInventory(platform: PlatformGuardrails) {
+  const { booking } = GUARDRAIL_LIMITS;
+  const escalation = [
+    platform.escalateDiscountPct !== null ? `deeper than ${platform.escalateDiscountPct}% off` : null,
+    platform.escalateTotalInr !== null ? `above ${formatINR(platform.escalateTotalInr)}` : null,
+  ].filter(Boolean);
   return [
+    {
+      tool: "Platform ceilings",
+      agent: "Tuned by admins",
+      surface: "/agents",
+      gate: "Every offer, auto rule and AI negotiator change, on top of each venue's own rules",
+      rules: [
+        ["Discount cap", `No offer more than ${platform.maxDiscountPct}% below the venue's own price`],
+        ["Auto-counter / auto-decline", `${platform.allowAutoCounter ? "Allowed" : "Off"} / ${platform.allowAutoDecline ? "Allowed" : "Off"} platform-wide`],
+        ["Auto-decline gap", platform.declineGapPct === null ? "Off: only budgets below the floor are declined" : `Also decline budgets more than ${platform.declineGapPct}% under the venue's price`],
+        ["Escalation", escalation.length ? `Automatic counters ${escalation.join(" or ")} wait for the host` : "Off: automatic counters are sent as computed"],
+      ],
+    },
     {
       tool: "Venue negotiation rules",
       agent: "Set per venue by the host",
@@ -330,7 +350,7 @@ export function guardrailInventory() {
       gate: "Every manual counter, direct quote, AI negotiator change and new RFP",
       rules: [
         ["Minimum spend floor", "Pre-GST total no offer may go below (blank = none)"],
-        ["Maximum discount", `Off the venue's own per-head price, 0–${MAX_DISCOUNT_CAP}% (blank = none)`],
+        ["Maximum discount", `Off the venue's own per-head price, within the ${platform.maxDiscountPct}% platform cap (blank = the cap)`],
         ["Auto-counter", "Over-budget RFPs are countered at the client's budget when that stays within the floor and discount ceiling"],
         ["Auto-decline", "RFPs whose budget can't reach the floor are declined (needs a floor)"],
       ],
@@ -342,7 +362,7 @@ export function guardrailInventory() {
       gate: "Host approval (HMAC-signed), then guardrail",
       rules: [
         ["Host lock", "Refused when the host locked the minimum spend on /property → Pricing"],
-        ["Largest change per approved call", `±${Math.round(minimumSpend.maxChangeFraction * 100)}% of the current minimum spend`],
+        ["Largest change per approved call", `±${platform.minSpendMaxChangePct}% of the current minimum spend`],
         ["Absolute range", `${formatINR(0)} – ${formatINR(10_000_000)} pre-GST (schema)`],
         ["From a zero minimum spend", "Only the absolute range applies"],
       ],
@@ -354,7 +374,7 @@ export function guardrailInventory() {
       gate: "Host approval (HMAC-signed), then guardrail",
       rules: [
         ["Host lock", "Packages the host locked on /property → Pricing can't be changed"],
-        ["Per-head price", `${formatINR(menuPackage.minPerHeadInr)} – ${formatINR(menuPackage.maxPerHeadInr)}`],
+        ["Per-head price", `${formatINR(platform.packageMinPerHeadInr)} – ${formatINR(platform.packageMaxPerHeadInr)}`],
         ["Last active package", "Can't be deactivated"],
         ["Package id", "Must belong to this venue"],
       ],

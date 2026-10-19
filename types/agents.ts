@@ -43,8 +43,8 @@ export type AgentTestResult = {
 /** What a row in the /agents activity feed records. */
 export type TraceKind = "negotiation" | "guardrail" | "prompt";
 
-/** Feed badge: Success, Auto-Counter, Auto-Decline, Error/Fallback. */
-export type TraceOutcome = "success" | "auto-counter" | "auto-decline" | "fallback";
+/** Feed badge: Success, Auto-Counter, Auto-Decline, Escalated, Error/Fallback. */
+export type TraceOutcome = "success" | "auto-counter" | "auto-decline" | "escalated" | "fallback";
 
 export type ObservabilityEvent = {
   id: string;
