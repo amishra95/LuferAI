@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardCheck, Download, Eye, Receipt, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, Receipt, ShieldCheck, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -45,6 +45,9 @@ import { listOrderSettlements, orderPaymentsEnabled } from "@/lib/marketplace/se
 import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
 import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
+import { contractsForBookings } from "@/lib/services/contracts/contractStore";
+import { STATUS_LABEL as CONTRACT_STATUS_LABEL } from "@/lib/services/contracts/lifecycle";
+import { IssueContractButton } from "@/components/contracts/contract-actions";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { depositRatesForVenues } from "@/lib/venues/pricing-store";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
@@ -101,7 +104,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const [catalogItems, catalogOrders] =
     tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
   const orderSettlements = await listOrderSettlements(catalogOrders);
-  const [payments, holds, rfps, queue, guestCounts, depositRate] = await Promise.all([
+  const [payments, holds, rfps, queue, guestCounts, depositRate, contracts] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
     live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
@@ -109,6 +112,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     countEventAttendees(bookings.map((b) => b.id)),
     // Venues may set their own deposit (/property → Pricing); checkout charges the same rate.
     live ? depositRatesForVenues(bookings.map((b) => b.venue_id)) : Promise.resolve(() => DEPOSIT_RATE),
+    contractsForBookings(bookings.map((b) => b.id)),
   ]);
   const itc = computeItcSummary(bookings);
   // The concierge (/api/chat) needs a model and the workspace agent switched on.
@@ -556,6 +560,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                           </div>
                           {hold && (b.status === "PENDING" || b.status === "PENDING_APPROVAL") ? (
                             <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />
+                          ) : null}
+                          {contracts.get(b.id) ? (
+                            <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="text-fg-subtle hover:text-fg relative z-10 mt-1.5 inline-flex items-center gap-1 text-[12px] underline-offset-2 hover:underline">
+                              <FileSignature className="size-3" aria-hidden /> {CONTRACT_STATUS_LABEL[contracts.get(b.id)!.status]}
+                            </Link>
+                          ) : company.contracts_required && canRequest && b.status === "PENDING" ? (
+                            <IssueContractButton bookingId={b.id} className="relative z-10 mt-1.5 h-7 px-2 text-[12px]" />
                           ) : null}
                         </TableCell>
                         <TableCell className="relative z-10">

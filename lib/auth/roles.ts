@@ -47,12 +47,13 @@ export function homeFor(role: PortalRole): Portal {
  * users who can request bookings (Organizers and Approvers, not Finance viewers);
  * "client" areas admit every client role. The chat concierge is "client": its
  * tools only search and analyse (scoped to the user's company), never book.
- * Governance is "client" to view; changing it is checked per action.
+ * Governance is "client" to view; changing it is checked per action. "party"
+ * areas (contracts) also admit venue managers; records are checked per page.
  */
-export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance"] as const;
+export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts"] as const;
 export type WorkspaceRoute = (typeof WORKSPACE_ROUTES)[number];
 
-const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client"> = {
+const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client" | "party"> = {
   "/dashboard": "admin",
   "/settings": "admin",
   "/agents": "admin",
@@ -61,6 +62,8 @@ const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client"> = 
   // Every client role sees its company's approval rules and budgets; only Approvers change them
   // (lib/services/enterprise/access.ts).
   "/governance": "client",
+  // A booking's company and its venue (each contract page checks it's theirs).
+  "/contracts": "party",
 };
 
 const BOOKERS: readonly CorporateRole[] = ["ORGANIZER", "APPROVER"];
@@ -76,9 +79,10 @@ export function canAccessWorkspace(
   route: WorkspaceRoute
 ): boolean {
   if (role === "ADMIN") return true;
-  if (role !== "CLIENT" || !corporateRole) return false;
   const access = WORKSPACE_ACCESS[route];
-  return access === "client" || (access === "booker" && BOOKERS.includes(corporateRole));
+  if (access === "party" && role === "PROPERTY") return true;
+  if (role !== "CLIENT" || !corporateRole) return false;
+  return access === "client" || access === "party" || (access === "booker" && BOOKERS.includes(corporateRole));
 }
 
 /** Only same-origin absolute paths are allowed as post-login destinations (no open redirects). */

@@ -36,7 +36,17 @@ function loadRazorpay(): Promise<void> {
  * Razorpay opens with UPI first (dynamic QR on desktop, UPI apps on mobile, or a
  * UPI ID), then cards and netbanking — see RAZORPAY_CHECKOUT_CONFIG.
  */
-export function PayDepositButton({ bookingId, orderId, label }: { label: string } & ({ bookingId: string; orderId?: never } | { orderId: string; bookingId?: never })) {
+export function PayDepositButton({
+  bookingId,
+  orderId,
+  invoiceId,
+  label,
+}: { label: string } & (
+  | { bookingId: string; orderId?: never; invoiceId?: never }
+  | { orderId: string; bookingId?: never; invoiceId?: never }
+  /** A contract instalment (deposit or balance invoice), captured on authorisation. */
+  | { invoiceId: string; bookingId?: never; orderId?: never }
+)) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +59,7 @@ export function PayDepositButton({ bookingId, orderId, label }: { label: string 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // A catalogue order is paid in full and split to the supplier (Razorpay Route).
-        body: JSON.stringify(orderId ? { orderId } : { bookingId }),
+        body: JSON.stringify(invoiceId ? { invoiceId } : orderId ? { orderId } : { bookingId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not start checkout");
@@ -67,7 +77,7 @@ export function PayDepositButton({ bookingId, orderId, label }: { label: string 
         amount: checkout.amountPaise,
         currency: checkout.currency,
         name: "CorpHospitality",
-        description: orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
+        description: invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
         // Server-built: UPI-first display config, prefill, and B2B GST notes that
         // Razorpay stores on the payment (and so includes in every webhook).
         config: checkout.config,

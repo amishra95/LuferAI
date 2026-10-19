@@ -117,6 +117,86 @@ export async function createDepositCheckout(
   return { checkout, invoice };
 }
 
+/**
+ * Pays an issued instalment invoice of an executed contract (migration 0031). The
+ * booking is already confirmed, so the authorisation is captured as soon as the
+ * webhook reports it (captureInstalment below), and the payments_settle_invoice
+ * trigger marks the invoice paid.
+ */
+export async function createInvoiceCheckout(
+  invoiceId: string,
+  member: Member,
+  origin: string
+): Promise<{ checkout: DepositCheckout; invoice: TaxInvoicePayload }> {
+  const gateway = getCheckoutGateway();
+  if (dataSource() !== "supabase" || !gateway) throw new PaymentError(503, "Payments are not configured.");
+
+  const db = createAdminClient();
+  const { data: inv } = await db
+    .from("booking_invoices")
+    .select("*, booking:bookings(id, status, event_date, total_amount_inr, billing_gstin, company:companies(legal_name, gstin, primary_contact_email), venue:venues(name, gstin))")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (!inv?.booking) throw new PaymentError(404, "Invoice not found.");
+  if (member.role !== "ADMIN" && inv.tenant_id !== member.companyId) throw new PaymentError(403, "This invoice belongs to another company.");
+  if (inv.status !== "issued") throw new PaymentError(409, inv.status === "paid" ? "This invoice is already paid." : `This invoice is ${inv.status} and can't be paid now.`);
+  const booking = inv.booking;
+  if (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED") throw new PaymentError(409, `The booking is ${booking.status.toLowerCase()}.`);
+
+  const { data: live } = await db.from("payments").select("id").eq("booking_invoice_id", invoiceId).in("status", ["authorized", "captured"]).maybeSingle();
+  if (live) throw new PaymentError(409, "A payment is already authorised for this invoice.");
+
+  const total = Number(inv.total_inr);
+  const gst = calculateGst({
+    total_amount: Number(booking.total_amount_inr),
+    company_gstin: booking.billing_gstin ?? booking.company!.gstin,
+    venue_gstin: booking.venue!.gstin,
+    booking_id: booking.id,
+    invoice_date: booking.event_date,
+  });
+  const paymentId = crypto.randomUUID();
+  const checkout = await gateway.createDepositCheckout({
+    paymentId,
+    subject: { kind: "booking", id: booking.id },
+    amountPaise: toPaise(total),
+    description: `Invoice ${inv.invoice_number} · ${inv.kind} · ${booking.venue!.name} · ${booking.event_date}`,
+    customerEmail: member.email ?? booking.company!.primary_contact_email,
+    successUrl: `${origin}/contracts/${inv.contract_id}?payment=success`,
+    cancelUrl: `${origin}/contracts/${inv.contract_id}?payment=cancelled`,
+    billing: { customerLegalName: booking.company!.legal_name, invoice: gst, depositInr: total },
+  });
+
+  const { error } = await db.from("payments").insert({
+    id: paymentId,
+    booking_id: booking.id,
+    booking_invoice_id: invoiceId,
+    provider: gateway.name,
+    amount_inr: total,
+    // The instalment's share of the booking's invoice.
+    deposit_rate: Math.min(1, Math.max(0.0001, Math.round((total / gst.invoice_total) * 10_000) / 10_000)),
+    provider_order_id: checkout.orderId,
+    invoice: { ...gst, instalment: { id: inv.id, kind: inv.kind, invoice_number: inv.invoice_number, total_inr: total } } as unknown as Json,
+  });
+  if (error) throw error;
+  return { checkout, invoice: gst };
+}
+
+/** An instalment's authorisation is captured at once: there's no venue decision left to wait for. */
+async function captureInstalment(paymentId: string) {
+  const db = createAdminClient();
+  const { data: payment } = await db.from("payments").select("*").eq("id", paymentId).maybeSingle();
+  if (!payment || payment.status !== "authorized" || !payment.provider_payment_id) return;
+  try {
+    const gateway = getGateway(payment.provider);
+    if (!gateway) throw new Error(`${payment.provider} is not configured`);
+    await gateway.capture(payment.provider_payment_id, toPaise(Number(payment.amount_inr)));
+    await db.from("payments").update({ status: "captured", captured_at: new Date().toISOString(), last_error: null }).eq("id", payment.id);
+  } catch (err) {
+    console.error(`Instalment capture failed for payment ${payment.id}`, err);
+    await db.from("payments").update({ last_error: `capture failed: ${err instanceof Error ? err.message : String(err)}` }).eq("id", payment.id);
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Webhooks
 // ----------------------------------------------------------------------------
@@ -205,6 +285,7 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
   // A catalogue order's payment moving (e.g. authorised after the supplier
   // already confirmed) may mean capturing and paying out now.
   if (payment?.catalog_order_id && outcome === "applied") await syncOrderSettlement(payment.catalog_order_id);
+  if (payment?.booking_invoice_id && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
 
   // Recorded after applying, so a failed apply is retried by the provider.
   await recordEvent(provider, event);

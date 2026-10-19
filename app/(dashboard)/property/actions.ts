@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { requirePortal } from "@/lib/auth/session";
 import { confirmBooking } from "@/lib/bookings/confirm";
 import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, EventWorkspaceError, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
-import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { settleDeposit } from "@/lib/payments/service";
 import { parseCancellationRows, parseDepositPct, parseMultiplierForm, parseTierRows, PRICING_LIMITS } from "@/lib/rates/venue-pricing";
@@ -98,9 +97,8 @@ export async function convertVenueHold(formData: FormData) {
   const bookingId = String(formData.get("booking_id") ?? "");
   if (!bookingId || !venueId) throw new Error("Invalid hold action");
 
-  await updateBookingStatus(bookingId, "CONFIRMED", { venueId });
-  await dispatchBookingConfirmed(bookingId);
-  await settleDeposit(bookingId, "capture");
+  // Same as the venue's Confirm, including the contract requirement (lib/bookings/confirm.ts).
+  await confirmBooking(bookingId, venueId);
 
   revalidatePath("/property");
   revalidatePath("/client");

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, Inbox, Lock, Receipt, Tags, Trash2, Unlock, X } from "lucide-react";
+import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, FileSignature, Inbox, Lock, Receipt, Tags, Trash2, Unlock, X } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
 import { PortalShell } from "@/components/portal/portal-shell";
@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
-import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listEventPlans, listLiveHolds, listVenues } from "@/lib/data";
+import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listCompanies, listEventPlans, listLiveHolds, listVenues } from "@/lib/data";
+import { IssueContractButton } from "@/components/contracts/contract-actions";
+import { contractsForBookings } from "@/lib/services/contracts/contractStore";
 import { todayInIndia } from "@/lib/gst-engine";
 import { DEPOSIT_RATE, dietaryLabel } from "@/lib/quotes";
 import { describeMultiplier, MULTIPLIER_KIND_LABEL, NO_PRICING } from "@/lib/rates/venue-pricing";
@@ -76,7 +78,13 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   const platform = platformState.settings;
   const pricing = venuePricing.pricing;
   const incoming = bookings.filter((b) => b.status === "PENDING");
-  const [holds, liveHolds] = await Promise.all([activeHolds(incoming.map((b) => b.id)), listLiveHolds(venue.id)]);
+  const [holds, liveHolds, contracts, contractCompanies] = await Promise.all([
+    activeHolds(incoming.map((b) => b.id)),
+    listLiveHolds(venue.id),
+    contractsForBookings(bookings.map((b) => b.id)),
+    // Clients that confirm by signed contract: the venue countersigns instead of approving.
+    listCompanies().then((cs) => new Set(cs.filter((c) => c.contracts_required).map((c) => c.id))),
+  ]);
   const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
   // Clients' signed-off event plans, shown under each brief.
@@ -224,12 +232,20 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                             </div>
                           </div>
                           {holds.get(b.id) ? <HoldCountdown createdAt={holds.get(b.id)!.holdStart} expiresAt={holds.get(b.id)!.expiresAt} className="sm:w-44" /> : null}
-                          <form action={respondToBooking} className="flex gap-2">
+                          <form action={respondToBooking} className="flex flex-wrap gap-2">
                             <input type="hidden" name="booking_id" value={b.id} />
                             <input type="hidden" name="venue_id" value={venue.id} />
-                            <Button type="submit" name="intent" value="approve" size="sm">
-                              <Check aria-hidden /> Approve
-                            </Button>
+                            {contracts.get(b.id) ? (
+                              <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="btn btn-primary">
+                                <FileSignature className="size-3.5" aria-hidden /> {contracts.get(b.id)!.status === "awaiting_venue" ? "Countersign" : "Contract"}
+                              </Link>
+                            ) : contractCompanies.has(b.company.id) ? (
+                              <IssueContractButton bookingId={b.id} className="btn-primary" />
+                            ) : (
+                              <Button type="submit" name="intent" value="approve" size="sm">
+                                <Check aria-hidden /> Approve
+                              </Button>
+                            )}
                             <Button type="submit" name="intent" value="decline" size="sm" variant="outline">
                               <X aria-hidden /> Decline
                             </Button>
@@ -352,7 +368,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <HoldCountdown createdAt={h.hold_start} expiresAt={h.hold_expires_at} className="min-w-40 flex-1" />
-                            {booking?.status === "PENDING" ? (
+                            {booking?.status === "PENDING" && !contractCompanies.has(booking.company_id) ? (
                               <form action={convertVenueHold}>
                                 <input type="hidden" name="booking_id" value={booking.id} />
                                 <input type="hidden" name="venue_id" value={venue.id} />
