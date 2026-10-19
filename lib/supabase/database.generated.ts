@@ -418,6 +418,127 @@ export type Database = {
           },
         ]
       }
+      booking_invoices: {
+        Row: {
+          booking_id: string
+          cgst_inr: number
+          contract_id: string
+          created_at: string
+          due_on: string
+          gst: Json
+          id: string
+          igst_inr: number
+          invoice_number: string | null
+          issue_on: string
+          issued_at: string | null
+          kind: string
+          paid_at: string | null
+          payment_id: string | null
+          sequence: number
+          sgst_inr: number
+          status: string
+          taxable_inr: number
+          tenant_id: string
+          total_inr: number
+          updated_at: string
+          venue_id: string
+          voided_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          cgst_inr?: number
+          contract_id: string
+          created_at?: string
+          due_on: string
+          gst: Json
+          id?: string
+          igst_inr?: number
+          invoice_number?: string | null
+          issue_on: string
+          issued_at?: string | null
+          kind: string
+          paid_at?: string | null
+          payment_id?: string | null
+          sequence: number
+          sgst_inr?: number
+          status?: string
+          taxable_inr: number
+          tenant_id: string
+          total_inr: number
+          updated_at?: string
+          venue_id: string
+          voided_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          cgst_inr?: number
+          contract_id?: string
+          created_at?: string
+          due_on?: string
+          gst?: Json
+          id?: string
+          igst_inr?: number
+          invoice_number?: string | null
+          issue_on?: string
+          issued_at?: string | null
+          kind?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          sequence?: number
+          sgst_inr?: number
+          status?: string
+          taxable_inr?: number
+          tenant_id?: string
+          total_inr?: number
+          updated_at?: string
+          venue_id?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_invoices_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_invoices_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_invoices_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_invoices_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           alcohol_included: boolean
@@ -936,6 +1057,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          contracts_required: boolean
           created_at: string
           expense_provider: string
           gstin: string
@@ -947,6 +1069,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contracts_required?: boolean
           created_at?: string
           expense_provider?: string
           gstin: string
@@ -958,6 +1081,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contracts_required?: boolean
           created_at?: string
           expense_provider?: string
           gstin?: string
@@ -975,6 +1099,219 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "gst_state_codes"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      contract_events: {
+        Row: {
+          action: string
+          actor_role: string | null
+          actor_user_id: string | null
+          at: string
+          contract_id: string
+          detail: Json
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          at?: string
+          contract_id: string
+          detail?: Json
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          at?: string
+          contract_id?: string
+          detail?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_events_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_signatures: {
+        Row: {
+          contract_id: string
+          document_sha256: string
+          id: string
+          ip_address: string | null
+          party: string
+          provider_signature_id: string | null
+          signed_at: string
+          signer_email: string | null
+          signer_name: string
+          signer_title: string | null
+          signer_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          contract_id: string
+          document_sha256: string
+          id?: string
+          ip_address?: string | null
+          party: string
+          provider_signature_id?: string | null
+          signed_at?: string
+          signer_email?: string | null
+          signer_name: string
+          signer_title?: string | null
+          signer_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          contract_id?: string
+          document_sha256?: string
+          id?: string
+          ip_address?: string | null
+          party?: string
+          provider_signature_id?: string | null
+          signed_at?: string
+          signer_email?: string | null
+          signer_name?: string
+          signer_title?: string | null
+          signer_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signatures_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          payload: Json
+          provider: string
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          payload: Json
+          provider: string
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          payload?: Json
+          provider?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          booking_id: string
+          close_reason: string | null
+          closed_at: string | null
+          created_at: string
+          document_html: string
+          document_sha256: string
+          executed_at: string | null
+          id: string
+          issued_at: string
+          issued_by: string | null
+          provider: string
+          provider_request_id: string | null
+          revision: number
+          status: string
+          template_key: string
+          template_version: string
+          tenant_id: string
+          terms: Json
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          booking_id: string
+          close_reason?: string | null
+          closed_at?: string | null
+          created_at?: string
+          document_html: string
+          document_sha256: string
+          executed_at?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          provider?: string
+          provider_request_id?: string | null
+          revision?: number
+          status?: string
+          template_key: string
+          template_version: string
+          tenant_id: string
+          terms: Json
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          booking_id?: string
+          close_reason?: string | null
+          closed_at?: string | null
+          created_at?: string
+          document_html?: string
+          document_sha256?: string
+          executed_at?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          provider?: string
+          provider_request_id?: string | null
+          revision?: number
+          status?: string
+          template_key?: string
+          template_version?: string
+          tenant_id?: string
+          terms?: Json
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "contracts_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1567,6 +1904,32 @@ export type Database = {
           },
         ]
       }
+      invoice_number_series: {
+        Row: {
+          fiscal_year: string
+          last_number: number
+          venue_id: string
+        }
+        Insert: {
+          fiscal_year: string
+          last_number?: number
+          venue_id: string
+        }
+        Update: {
+          fiscal_year?: string
+          last_number?: number
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_number_series_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       negotiation_escalation_events: {
         Row: {
           action: string
@@ -1903,6 +2266,7 @@ export type Database = {
           amount_inr: number
           authorized_at: string | null
           booking_id: string | null
+          booking_invoice_id: string | null
           captured_at: string | null
           catalog_order_id: string | null
           created_at: string
@@ -1922,6 +2286,7 @@ export type Database = {
           amount_inr: number
           authorized_at?: string | null
           booking_id?: string | null
+          booking_invoice_id?: string | null
           captured_at?: string | null
           catalog_order_id?: string | null
           created_at?: string
@@ -1941,6 +2306,7 @@ export type Database = {
           amount_inr?: number
           authorized_at?: string | null
           booking_id?: string | null
+          booking_invoice_id?: string | null
           captured_at?: string | null
           catalog_order_id?: string | null
           created_at?: string
@@ -1957,6 +2323,13 @@ export type Database = {
           voided_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_booking_invoice_id_fkey"
+            columns: ["booking_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "booking_invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_booking_id_fkey"
             columns: ["booking_id"]
@@ -3013,6 +3386,7 @@ export type Database = {
       }
       escalate_overdue_approvals: { Args: never; Returns: number }
       gstin_checksum: { Args: { p_first14: string }; Returns: string }
+      indian_fiscal_year: { Args: { d: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
       replace_approval_chain: {

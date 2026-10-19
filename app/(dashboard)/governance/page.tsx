@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { BudgetManager } from "@/components/governance/budget-manager";
+import { ContractRequirement } from "@/components/governance/contract-requirement";
 import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
 import { RequestBoard } from "@/components/governance/request-board";
 import { RuleManager } from "@/components/governance/rule-manager";
@@ -112,6 +113,12 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         departments={departments.map((d) => ({ id: d.id, name: d.name }))}
         canManage={canManage && !unavailable}
         today={now.toISOString().slice(0, 10)}
+      />
+
+      <ContractRequirement
+        companyId={member.role === "ADMIN" ? company.id : null}
+        required={company.contracts_required}
+        canManage={canManage && dataSource() === "supabase"}
       />
 
       <RequestBoard

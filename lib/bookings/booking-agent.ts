@@ -6,6 +6,7 @@ import { placeBookingRequest } from "@/lib/bookings/place-booking";
 import type { ExpenseInput } from "@/lib/bookings/expense";
 import { listRateCards, listVenues } from "@/lib/data";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
+import { contractsRequired } from "@/lib/services/contracts/contractStore";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
 import { tracer } from "@/lib/tracer";
@@ -170,6 +171,11 @@ async function book(input: BookingAgentInput, steps: AgentStep[]): Promise<Omit<
     }
     if (route === "venue") {
       return { ...base, status: "with_venue", message: placed.message };
+    }
+    // Companies that confirm by contract: the agent stops at the venue; signing confirms it.
+    if (await contractsRequired(input.companyId)) {
+      steps.push({ step: "confirm", ok: true, detail: "Your company confirms bookings by signed contract" });
+      return { ...base, status: "with_venue", message: `Booked ${venue.name}. It's confirmed once your Approver signs the contract and the venue countersigns.` };
     }
     await tracer.trace("agent.confirm", () => confirmBooking(placed.bookingId!, venue.id));
     steps.push({ step: "confirm", ok: true, detail: `Confirmed on ${venue.name}'s pre-agreed corporate terms` });

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { getCurrentMember } from "@/lib/auth/session";
 import { createOrderCheckout, MarketplaceError } from "@/lib/marketplace/service";
-import { createDepositCheckout, PaymentError } from "@/lib/payments/service";
+import { createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/lib/payments/service";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -13,8 +13,11 @@ import { siteUrl } from "@/lib/site-url";
  *
  * POST { orderId } → authorise a catalogue order's invoice total (Razorpay only:
  * it's split to the partner through Route; lib/marketplace/service.ts).
+ *
+ * POST { invoiceId } → pay an issued instalment invoice of an executed contract
+ * (deposit or balance); captured as soon as it's authorised.
  */
-const Body = z.union([z.object({ bookingId: z.uuid() }), z.object({ orderId: z.uuid() })]);
+const Body = z.union([z.object({ bookingId: z.uuid() }), z.object({ orderId: z.uuid() }), z.object({ invoiceId: z.uuid() })]);
 
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
@@ -28,7 +31,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const origin = siteUrl(request.nextUrl.origin);
-    const result = "orderId" in parsed.data ? await createOrderCheckout(parsed.data.orderId, member, origin) : await createDepositCheckout(parsed.data.bookingId, member, origin);
+    const body = parsed.data;
+    const result =
+      "orderId" in body
+        ? await createOrderCheckout(body.orderId, member, origin)
+        : "invoiceId" in body
+          ? await createInvoiceCheckout(body.invoiceId, member, origin)
+          : await createDepositCheckout(body.bookingId, member, origin);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof PaymentError || err instanceof MarketplaceError) return NextResponse.json({ error: err.message }, { status: err.status });

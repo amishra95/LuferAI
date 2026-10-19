@@ -46,6 +46,7 @@ const companies: Company[] = [
     primary_contact_email: "events@nimbusanalytics.example",
     monthly_spend_limit_inr: 500000,
     expense_provider: "ramp",
+    contracts_required: false,
     created_at: ts,
     updated_at: ts,
   },
@@ -57,6 +58,7 @@ const companies: Company[] = [
     primary_contact_email: "ea.office@vertexcapital.example",
     monthly_spend_limit_inr: 1200000,
     expense_provider: "concur",
+    contracts_required: false,
     created_at: ts,
     updated_at: ts,
   },
@@ -566,7 +568,10 @@ export function backfillDefaults(db: MockDb): MockDb {
   for (const a of db.poAllocations) a.catalog_order_id ??= null;
   for (const e of db.expenseExports) e.catalog_order_id ??= null;
   for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
-  for (const c of db.companies) c.expense_provider ??= "webhook";
+  for (const c of db.companies) {
+    c.expense_provider ??= "webhook";
+    c.contracts_required ??= false;
+  }
   for (const p of db.policies) {
     p.alcohol_policy ??= "allowed";
     p.restricted_entertainment ??= [];

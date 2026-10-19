@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/escalate-approvals",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/issue-invoices",
+      "schedule": "30 0 * * *"
     }
   ]
 }
