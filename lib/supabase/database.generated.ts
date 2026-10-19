@@ -1042,7 +1042,36 @@ export type Database = {
           checked_in_by?: string | null
           tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_checkins_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: true
+            referencedRelation: "event_attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_checkins_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_checkins_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_checkins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_plans: {
         Row: {
@@ -1096,7 +1125,36 @@ export type Database = {
           venue_ack_by?: string | null
           venue_ack_revision?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_plans_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_plans_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "event_plans_catering_package_id_fkey"
+            columns: ["catering_package_id"]
+            isOneToOne: false
+            referencedRelation: "venue_menu_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_plans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_workspaces: {
         Row: {
@@ -1373,7 +1431,15 @@ export type Database = {
           escalation_id?: string
           id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "negotiation_escalation_events_escalation_id_fkey"
+            columns: ["escalation_id"]
+            isOneToOne: false
+            referencedRelation: "negotiation_escalations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       negotiation_escalations: {
         Row: {
@@ -1427,7 +1493,29 @@ export type Database = {
           updated_at?: string
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "negotiation_escalations_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "rfp_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "negotiation_escalations_rfp_id_fkey"
+            columns: ["rfp_id"]
+            isOneToOne: false
+            referencedRelation: "rfps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "negotiation_escalations_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_audit_log: {
         Row: {
@@ -2024,8 +2112,8 @@ export type Database = {
       }
       rfps: {
         Row: {
-          brief: string
           booking_id: string | null
+          brief: string
           budget_per_head_inr: number | null
           city: string | null
           company_id: string
@@ -2041,8 +2129,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          brief: string
           booking_id?: string | null
+          brief: string
           budget_per_head_inr?: number | null
           city?: string | null
           company_id: string
@@ -2058,8 +2146,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          brief?: string
           booking_id?: string | null
+          brief?: string
           budget_per_head_inr?: number | null
           city?: string | null
           company_id?: string
@@ -2075,6 +2163,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rfps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "rfps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rfps_company_id_fkey"
             columns: ["company_id"]
@@ -2266,7 +2368,15 @@ export type Database = {
           reason?: string | null
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_blocked_dates_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_menu_packages: {
         Row: {
@@ -2307,6 +2417,47 @@ export type Database = {
             foreignKeyName: "venue_menu_packages_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_negotiation_rules: {
+        Row: {
+          alert_whatsapp: string | null
+          auto_counter: boolean
+          auto_decline_below_floor: boolean
+          max_discount_pct: number | null
+          min_spend_floor_inr: number | null
+          updated_at: string
+          updated_by: string | null
+          venue_id: string
+        }
+        Insert: {
+          alert_whatsapp?: string | null
+          auto_counter?: boolean
+          auto_decline_below_floor?: boolean
+          max_discount_pct?: number | null
+          min_spend_floor_inr?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          venue_id: string
+        }
+        Update: {
+          alert_whatsapp?: string | null
+          auto_counter?: boolean
+          auto_decline_below_floor?: boolean
+          max_discount_pct?: number | null
+          min_spend_floor_inr?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_negotiation_rules_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
@@ -2371,39 +2522,6 @@ export type Database = {
           },
         ]
       }
-      venue_negotiation_rules: {
-        Row: {
-          alert_whatsapp: string | null
-          auto_counter: boolean
-          auto_decline_below_floor: boolean
-          max_discount_pct: number | null
-          min_spend_floor_inr: number | null
-          updated_at: string
-          updated_by: string | null
-          venue_id: string
-        }
-        Insert: {
-          alert_whatsapp?: string | null
-          auto_counter?: boolean
-          auto_decline_below_floor?: boolean
-          max_discount_pct?: number | null
-          min_spend_floor_inr?: number | null
-          updated_at?: string
-          updated_by?: string | null
-          venue_id: string
-        }
-        Update: {
-          alert_whatsapp?: string | null
-          auto_counter?: boolean
-          auto_decline_below_floor?: boolean
-          max_discount_pct?: number | null
-          min_spend_floor_inr?: number | null
-          updated_at?: string
-          updated_by?: string | null
-          venue_id?: string
-        }
-        Relationships: []
-      }
       venue_pricing_rules: {
         Row: {
           deposit_pct: number | null
@@ -2435,7 +2553,15 @@ export type Database = {
           updated_by?: string | null
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_pricing_rules_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venues: {
         Row: {
