@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { AGENT_GRID, AgentRow } from "@/components/agents/agent-row";
 import { GuardrailTuning } from "@/components/agents/guardrail-tuning";
+import { EscalationQueue } from "@/components/escalations/escalation-queue";
+import { listEscalations } from "@/lib/escalations/store";
 import { PromptRegistry } from "@/components/agents/prompt-registry";
 import { Inspector } from "@/components/agents/inspector";
 import { ProviderHealthPanel } from "@/components/agents/provider-health";
@@ -41,6 +43,10 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
     activePrompt("property-negotiator"),
     getPlatformGuardrails(),
   ]);
+  const escalations = await listEscalations().catch((err) => {
+    console.error("agents: could not load escalations", err);
+    return { open: [], recent: [], ready: false };
+  });
   // The inspector shows what the negotiator actually runs: the active registry version.
   const prompts = PROMPT_TEMPLATES.map((p) => (p.agent === "property-negotiator" ? { ...p, text: negotiatorPrompt.text } : p));
   const health = await providerHealth(feed.events, now);
@@ -66,6 +72,23 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
       />
 
       <ProviderHealthPanel health={health} fallbacks={FALLBACK_PATH} now={now} />
+
+      <section id="escalations" aria-labelledby="escalations-heading" className="mt-8">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="escalations-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+              Escalation queue{escalations.open.length > 0 ? <span className="text-warn"> · {escalations.open.length} waiting</span> : null}
+            </h2>
+            <p className="text-fg-subtle mt-1 text-[12.5px]">
+              Counter-offers held back by the escalation thresholds below, across every venue. Hosts see their own on /property; either can decide. Every step is in the
+              audit trail.
+            </p>
+          </div>
+        </div>
+        <div className="panel px-5 py-4">
+          <EscalationQueue open={escalations.open} recent={escalations.recent} ready={escalations.ready} showVenue />
+        </div>
+      </section>
 
       <section aria-labelledby="negotiation-heading" className="mt-8">
         <div className="mb-3">

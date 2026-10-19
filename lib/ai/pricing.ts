@@ -15,6 +15,7 @@ export interface ModelPrice {
 export const MODEL_PRICES: Record<string, ModelPrice> = {
   "gpt-4o": { inputPerMTok: 2.5, outputPerMTok: 10 },
   "claude-sonnet-5-5": { inputPerMTok: 2, outputPerMTok: 10 },
+  "llama-3.3-70b-versatile": { inputPerMTok: 0.59, outputPerMTok: 0.79 },
 };
 
 /** USD for one call, rounded to 6 decimals; null when the model's price isn't listed. */

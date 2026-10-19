@@ -22,6 +22,8 @@ import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
+import { listEscalations, venueAlertNumber } from "@/lib/escalations/store";
+import { EscalationQueue } from "@/components/escalations/escalation-queue";
 import { parseCancellationTerms } from "@/lib/venues/profile";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
@@ -53,7 +55,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -63,6 +65,13 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
     live ? quoteableCompanies(venue.id) : Promise.resolve([]),
     live ? getVenuePricing(venue.id) : Promise.resolve({ pricing: NO_PRICING, ready: false }),
     live ? getPlatformGuardrails() : Promise.resolve({ settings: DEFAULT_PLATFORM_GUARDRAILS, ready: false, updatedAt: null }),
+    live
+      ? listEscalations({ venueId: venue.id }).catch((err) => {
+          console.error("property: could not load escalations", err);
+          return { open: [], recent: [], ready: false };
+        })
+      : Promise.resolve({ open: [], recent: [], ready: false }),
+    live ? venueAlertNumber(venue.id) : Promise.resolve(null),
   ]);
   const platform = platformState.settings;
   const pricing = venuePricing.pricing;
@@ -135,6 +144,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             className={cn("relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 px-3 text-[13px] transition-colors", tab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
           >
             {t.label}
+            {t.key === "requests" && escalations.open.length > 0 ? (
+              <Badge variant="warning" title={`${escalations.open.length} counter-offer${escalations.open.length === 1 ? "" : "s"} waiting for your review`}>
+                {escalations.open.length} to review
+              </Badge>
+            ) : null}
             {t.key === "requests" && incoming.length > 0 ? (
               <Badge variant="warning" title={`${incoming.length} request${incoming.length === 1 ? "" : "s"} waiting for you`}>
                 {incoming.length}
@@ -169,6 +183,20 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         ) : (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-start">
             <div className="grid gap-6">
+              {live && (escalations.open.length > 0 || escalations.recent.length > 0 || !escalations.ready) ? (
+                <Card id="escalations" className={cn(escalations.open.length > 0 && "border-warn/40")}>
+                  <CardHeader>
+                    <CardTitle>Counter-offers to review</CardTitle>
+                    <CardDescription>
+                      Automatic counters the platform held back for a person to check: deep discounts or large deals. The client sees your instant quote until you
+                      approve, change the price, or reject.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <EscalationQueue key={venue.id} open={escalations.open} recent={escalations.recent} ready={escalations.ready} alert={{ venueId: venue.id, number: alertNumber }} />
+                  </CardContent>
+                </Card>
+              ) : null}
               <Card>
                 <CardHeader>
                   <CardTitle>Incoming requests</CardTitle>

@@ -1,8 +1,9 @@
 import "server-only";
 
 import { DEFAULT_BACKEND, MODEL_BACKEND_LABEL, MODEL_BACKENDS } from "@/lib/agents/config";
-import { isBackendConfigured } from "@/lib/ai/model";
-import { llmCircuitBreaker } from "@/lib/circuit-breaker";
+import { BACKEND_PROVIDER, isBackendConfigured, isProviderConfigured, providerLatency, providerModelId } from "@/lib/ai/model";
+import { healthOf, PROVIDER_LABEL, PROVIDERS, type Provider } from "@/lib/ai/routing";
+import { llmBreakers } from "@/lib/circuit-breaker";
 import { GUARDRAIL_LIMITS } from "@/lib/guardrails/schemas";
 import type { PlatformGuardrails } from "@/lib/guardrails/platform";
 import { appProviderHealthStore, combinedCircuit, instanceId, type SharedProviderHealth } from "@/lib/telemetry/provider-health";
@@ -250,11 +251,57 @@ function fromRefusedRoute(t: TraceRecord): ObservabilityEvent | null {
   };
 }
 
+/** A person's decision on an escalated counter (lib/escalations/decide.ts). */
+function fromEscalationDecision(t: TraceRecord, s: SpanRecord): ObservabilityEvent {
+  const decision = str(s.attributes.decision) ?? "decided";
+  const venue = str(s.attributes.venue) ?? "Venue";
+  const sent = num(s.attributes.perHeadInr);
+  return {
+    id: `${t.traceId}:${s.spanId}`,
+    at: new Date(s.start).toISOString(),
+    kind: "negotiation",
+    outcome: s.status === "error" ? (s.attributes.refused ? "auto-decline" : "fallback") : decision === "rejected" ? "auto-decline" : "success",
+    agent: s.attributes.by === "ADMIN" ? "admin" : "host",
+    title: s.status === "error" ? `${venue} · escalated counter not sent` : `${venue} · escalated counter ${decision}`,
+    detail:
+      s.status === "error"
+        ? (s.error?.message ?? "The decision failed; the escalation is open again.")
+        : decision === "rejected"
+          ? "Reviewed and rejected: the instant quote stands."
+          : `Reviewed and sent at ${inr(sent)}/head (proposed ${inr(s.attributes.proposedPerHead)}/head).`,
+    durationMs: s.durationMs,
+    tokens: null,
+    traceId: t.traceId,
+    facts: [["by", s.attributes.by === "ADMIN" ? "admin" : "venue host"]],
+    manual: true,
+  };
+}
+
+/** A call that another provider answered (lib/ai/model.ts withFailover). */
+function fromFailover(t: TraceRecord, s: SpanRecord): ObservabilityEvent {
+  const agent = str(s.attributes.agent) ?? ROUTE_AGENT[t.name] ?? "unknown";
+  return {
+    id: `${t.traceId}:${s.spanId}:failover`,
+    at: new Date(s.start).toISOString(),
+    kind: "prompt",
+    outcome: "success",
+    agent,
+    title: `Model failover: ${str(s.attributes.from) ?? "primary"} → ${str(s.attributes.to) ?? "fallback"}`,
+    detail: `${str(s.attributes.reason) ?? "The primary provider was unavailable"}. Answered by ${str(s.attributes.model) ?? "the fallback model"}.`,
+    durationMs: null,
+    tokens: null,
+    traceId: t.traceId,
+    facts: str(s.attributes.tried) ? [["tried", str(s.attributes.tried)!]] : [],
+  };
+}
+
 function fromTrace(t: TraceRecord): ObservabilityEvent[] {
   const out: ObservabilityEvent[] = [];
   const refused = fromRefusedRoute(t);
   if (refused) out.push(refused);
   for (const s of t.spans) {
+    if (s.name === "llm.failover") out.push(fromFailover(t, s));
+    if (s.name === "escalation.decide") out.push(fromEscalationDecision(t, s));
     if (s.name.startsWith("guardrail.")) out.push(fromGuardrail(t, s));
     else if (s.name === "rfp.broadcast") out.push(...fromBroadcast(t, s));
     else if (s.name === "negotiation.respond") out.push(fromHostResponse(t, s));
@@ -298,28 +345,69 @@ export async function listGuardrailEvents(limit = 200): Promise<ObservabilityEve
  */
 export async function providerHealth(events: ObservabilityEvent[], now = Date.now()): Promise<ProviderHealth> {
   const store = appProviderHealthStore();
-  const local = llmCircuitBreaker.snapshot();
-  const shared = await store.read(llmCircuitBreaker.name, now).catch((err): SharedProviderHealth | null => {
-    console.error("agents: provider health store unavailable; showing this instance only", err);
-    return null;
-  });
-  const self = { instance: instanceId(), state: local.state, consecutiveFailures: local.consecutiveFailures, retryAt: local.retryAt, at: now };
-  const instances = [self, ...(shared?.instances.filter((i) => i.instance !== self.instance) ?? [])];
-  const worst = combinedCircuit(instances, now);
-  const stats = shared?.stats24h ?? local.stats;
+  const self = instanceId();
+  let readable = true;
+  const rows = await Promise.all(
+    PROVIDERS.map(async (provider) => {
+      const breaker = llmBreakers[provider];
+      const local = breaker.snapshot();
+      const shared = await store.read(breaker.name, now).catch((err): SharedProviderHealth | null => {
+        if (readable) console.error("agents: provider health store unavailable; showing this instance only", err);
+        readable = false;
+        return null;
+      });
+      const mine = { instance: self, state: local.state, consecutiveFailures: local.consecutiveFailures, retryAt: local.retryAt, at: now };
+      const instances = [mine, ...(shared?.instances.filter((i) => i.instance !== self) ?? [])];
+      const worst = combinedCircuit(instances, now);
+      const stats = shared?.stats24h ?? local.stats;
+      const latencyMs = providerLatency.get(provider);
+      const circuit = worst?.state ?? "CLOSED";
+      return {
+        row: {
+          id: provider,
+          label: PROVIDER_LABEL[provider],
+          model: providerModelId(provider),
+          configured: isProviderConfigured(provider),
+          circuit,
+          consecutiveFailures: worst?.consecutiveFailures ?? local.consecutiveFailures,
+          retryAt: worst?.retryAt ?? null,
+          latencyMs,
+          slow: healthOf({ circuit, latencyMs }) === "slow",
+          stats: { calls: stats.calls, failures: stats.failures, rejected: stats.rejected, retries: stats.retries },
+          degradedInstances: instances.filter((i) => combinedCircuit([i], now)).length,
+        },
+        instances: instances.map((i) => i.instance),
+        transitions: (shared?.transitions ?? []).map((t) => ({ ...t, provider: PROVIDER_LABEL[provider] })),
+      };
+    })
+  );
+  const providers = rows.map((r) => r.row);
+  const primary: Provider = BACKEND_PROVIDER[DEFAULT_BACKEND];
+  const configured = providers.filter((p) => p.configured);
+  const primaryRow = providers.find((p) => p.id === primary)!;
+  const down = configured.length > 0 && configured.every((p) => p.circuit === "OPEN");
+  const primaryHealthy = primaryRow.configured && primaryRow.circuit !== "OPEN" && !primaryRow.slow;
+  const lead = down ? configured.reduce((a, b) => ((a.retryAt ?? Infinity) <= (b.retryAt ?? Infinity) ? a : b)) : primaryRow;
+  const sum = (k: keyof ProviderHealth["stats"]) => providers.reduce((n, p) => n + p.stats[k], 0);
   const since = new Date(now - 86_400_000).toISOString();
   return {
-    configured: isBackendConfigured(DEFAULT_BACKEND),
+    configured: configured.length > 0,
     backends: MODEL_BACKENDS.map((id) => ({ id, label: MODEL_BACKEND_LABEL[id], configured: isBackendConfigured(id) })),
-    circuit: worst?.state ?? "CLOSED",
-    consecutiveFailures: worst?.consecutiveFailures ?? local.consecutiveFailures,
-    retryAt: worst?.retryAt ?? null,
-    stats: { calls: stats.calls, failures: stats.failures, rejected: stats.rejected, retries: stats.retries },
+    primary,
+    routing: down ? "down" : primaryHealthy || configured.length === 0 ? "healthy" : "failover",
+    circuit: lead.circuit,
+    consecutiveFailures: lead.consecutiveFailures,
+    retryAt: lead.retryAt,
+    providers,
+    stats: { calls: sum("calls"), failures: sum("failures"), rejected: sum("rejected"), retries: sum("retries") },
     fallbacks24h: events.filter((e) => e.outcome === "fallback" && e.at >= since).length,
-    store: shared ? store.source : "instance",
-    instances: instances.length,
-    degradedInstances: instances.filter((i) => combinedCircuit([i], now)).length,
-    transitions: (shared?.transitions ?? []).slice(0, 5),
+    failovers24h: events.filter((e) => e.id.endsWith(":failover") && e.at >= since).length,
+    store: readable ? store.source : "instance",
+    instances: new Set(rows.flatMap((r) => r.instances)).size,
+    transitions: rows
+      .flatMap((r) => r.transitions)
+      .sort((a, b) => b.at - a.at)
+      .slice(0, 5),
   };
 }
 

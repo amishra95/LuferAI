@@ -35,9 +35,15 @@ const NO_BUFFER = {
 };
 
 export async function GET(request: NextRequest) {
-  const auth = await authorize((m) => canInspect(m, "agent") || canInspect(m, "venue"));
+  // Venue hosts connect too, for their own venue's escalations (visibleTo filters the rest out).
+  const isHost = (m: { role: string; venueId: string | null }) => m.role === "PROPERTY" && Boolean(m.venueId);
+  const auth = await authorize((m) => canInspect(m, "agent") || canInspect(m, "venue") || isHost(m));
   if ("response" in auth) return auth.response;
-  const audience: TelemetryAudience = { ops: canInspect(auth.member, "agent"), venues: canInspect(auth.member, "venue") };
+  const audience: TelemetryAudience = {
+    ops: canInspect(auth.member, "agent"),
+    venues: canInspect(auth.member, "venue"),
+    venueId: isHost(auth.member) ? auth.member.venueId : null,
+  };
 
   const log = appEventLog();
   const resume = parseCursor(request.headers.get("last-event-id")) ?? parseCursor(request.nextUrl.searchParams.get("since"));
