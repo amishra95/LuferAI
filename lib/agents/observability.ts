@@ -296,6 +296,7 @@ export function guardrailInventory() {
       surface: "/property",
       gate: "Host approval (HMAC-signed), then guardrail",
       rules: [
+        ["Host lock", "Refused when the host locked the minimum spend on /property → Pricing"],
         ["Largest change per approved call", `±${Math.round(minimumSpend.maxChangeFraction * 100)}% of the current minimum spend`],
         ["Absolute range", `${formatINR(0)} – ${formatINR(10_000_000)} pre-GST (schema)`],
         ["From a zero minimum spend", "Only the absolute range applies"],
@@ -307,6 +308,7 @@ export function guardrailInventory() {
       surface: "/property",
       gate: "Host approval (HMAC-signed), then guardrail",
       rules: [
+        ["Host lock", "Packages the host locked on /property → Pricing can't be changed"],
         ["Per-head price", `${formatINR(menuPackage.minPerHeadInr)} – ${formatINR(menuPackage.maxPerHeadInr)}`],
         ["Last active package", "Can't be deactivated"],
         ["Package id", "Must belong to this venue"],
@@ -330,9 +332,11 @@ export function guardrailInventory() {
 /** Deterministic pricing rules behind instant quotes (lib/quotes, lib/rates). No model sets a price. */
 export const PRICING_RULES: [string, string][] = [
   ["Minimum spend", "Every quote is lifted to the venue's minimum spend, or the rate card's override when one is in force."],
+  ["Venue pricing", "Package prices are adjusted by the host's guest-count tier for the party size and multiplied by the largest rate-calendar entry (weekend, peak season, high demand) on the event date. The discount ceiling is measured from that price."],
   ["Package choice", "The dearest active package covering every dietary need within the per-head ask; the cheapest eligible one when none fits."],
   ["Over budget", "If the venue has auto-counter or auto-decline on, its negotiation rules decide (Auto-Counter / Auto-Decline); otherwise the instant quote stands for the host."],
   ["Rate-card discount", "0–100% off the package price (database check). A custom per-head rate replaces the discount."],
   ["No fit", "Too small, no private dining room when required, or no package covers the dietary needs. Shows as Auto-Decline."],
   ["GST", "Added after pricing; never by the model."],
+  ["Deposit", "The venue's own deposit rate when it set one, otherwise 25% of the GST-inclusive total."],
 ];

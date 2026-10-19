@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { approvalItemisation, approvalQueue, orderItemisation, type ApprovalItemisation, type OrderItemisation } from "@/lib/approvals/service";
 import { CATEGORY_LABEL, unitNoun, type Category } from "@/lib/catalog/items";
 import { requirePortal } from "@/lib/auth/session";
-import { listCompanies } from "@/lib/data";
+import { dataSource, listCompanies } from "@/lib/data";
 import { roundInr } from "@/lib/gst-engine";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { depositRatesForVenues } from "@/lib/venues/pricing-store";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "../_components/approval-decision-form";
 
@@ -48,6 +49,8 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
   const selected = typeof id === "string" ? queue.find((a) => a.id === id) ?? null : null;
   const detail = selected?.subject === "booking" ? await approvalItemisation(selected, company.id) : null;
   const orderDetail = selected?.subject === "order" ? await orderItemisation(selected, company.id) : null;
+  // The venue's own deposit (/property → Pricing), which checkout will charge.
+  const depositRate = detail && dataSource() === "supabase" ? (await depositRatesForVenues([detail.booking.venue.id]))(detail.booking.venue.id) : DEPOSIT_RATE;
   const companyQs = member.role === "ADMIN" ? `company=${company.id}` : "";
   const hrefFor = (approvalId: string) => `/client/approvals?${[`id=${approvalId}`, companyQs].filter(Boolean).join("&")}`;
 
@@ -110,7 +113,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
               Select a request to review its GST and policy breakdown.
             </div>
           ) : (
-            <ApprovalDetailPane detail={detail} backHref={`/client/approvals${companyQs ? `?${companyQs}` : ""}`} />
+            <ApprovalDetailPane detail={detail} depositRate={depositRate} backHref={`/client/approvals${companyQs ? `?${companyQs}` : ""}`} />
           )}
         </section>
       </div>
@@ -118,12 +121,12 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
   );
 }
 
-function ApprovalDetailPane({ detail: { approval, booking: b, checks, department }, backHref }: { detail: ApprovalItemisation; backHref: string }) {
+function ApprovalDetailPane({ detail: { approval, booking: b, checks, department }, depositRate, backHref }: { detail: ApprovalItemisation; depositRate: number; backHref: string }) {
   const inv = b.invoice;
   const listPerHead = b.list_budget_per_head_inr != null ? Number(b.list_budget_per_head_inr) : null;
   const list = roundInr(b.party_size * (listPerHead ?? b.budget_per_head_inr));
   const savings = roundInr(Math.max(0, list - inv.taxable_value));
-  const deposit = depositFor(inv.invoice_total);
+  const deposit = depositFor(inv.invoice_total, depositRate);
 
   const lines: { label: string; value: string; strong?: boolean; muted?: boolean }[] = [
     { label: `Menu · ${b.party_size} × ${formatINR(listPerHead ?? b.budget_per_head_inr, true)}`, value: formatINR(list, true) },
@@ -136,7 +139,7 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
           { label: "SGST 9%", value: formatINR(inv.tax_breakup.sgst.amount, true) },
         ]),
     { label: "Invoice total", value: formatINR(inv.invoice_total, true), strong: true },
-    { label: `Deposit once approved (${Math.round(DEPOSIT_RATE * 100)}%)`, value: formatINR(deposit, true), muted: true },
+    { label: `Deposit once approved (${Math.round(depositRate * 1000) / 10}%)`, value: formatINR(deposit, true), muted: true },
     { label: "Input tax credit claimable", value: formatINR(inv.itc_eligible_amount, true), muted: true },
   ];
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, Inbox, Lock, Receipt, Unlock, X } from "lucide-react";
+import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, Inbox, Lock, Receipt, Tags, Trash2, Unlock, X } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
 import { PortalShell } from "@/components/portal/portal-shell";
@@ -14,24 +14,30 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePortal } from "@/lib/auth/session";
 import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listEventPlans, listLiveHolds, listVenues } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
-import { dietaryLabel } from "@/lib/quotes";
+import { DEPOSIT_RATE, dietaryLabel } from "@/lib/quotes";
+import { describeMultiplier, MULTIPLIER_KIND_LABEL, NO_PRICING } from "@/lib/rates/venue-pricing";
 import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
-import { listVenuePackages, listVenueRfps, quoteableCompanies } from "@/lib/rfp/service";
+import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
+import { getVenuePricing } from "@/lib/venues/pricing-store";
+import { parseCancellationTerms } from "@/lib/venues/profile";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { RateCardPill } from "@/components/portal/pills";
 import { activeHolds } from "@/lib/approvals/service";
 import { EventBrief } from "./_components/event-brief";
 import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-forms";
-import { NegotiatorDrawer } from "./_components/negotiator-drawer";
+import { GuardrailsForm, NegotiatorDrawer } from "./_components/negotiator-drawer";
 import { PlanAck } from "./_components/plan-ack";
-import { convertVenueHold, releaseVenueHold, respondToBooking, unblockDateAction } from "./actions";
+import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_components/pricing-forms";
+import { RateCalendar } from "./_components/rate-calendar";
+import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
 
 const monthLabel = (ym: string) =>
   new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
-type Tab = "requests" | "briefs" | "payouts";
+type Tab = "requests" | "briefs" | "pricing" | "payouts";
+const TABS: Tab[] = ["requests", "briefs", "pricing", "payouts"];
 
 export default async function PropertyPage({ searchParams }: PageProps<"/property">) {
   const member = await requirePortal("/property");
@@ -41,11 +47,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
   if (!venue) notFound();
-  const tab: Tab = tabParam === "briefs" ? "briefs" : tabParam === "payouts" ? "payouts" : "requests";
+  const tab: Tab = TABS.find((t) => t === tabParam) ?? "requests";
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -53,7 +59,9 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
     blockedDatesReady(),
     live ? getNegotiationRules(venue.id) : Promise.resolve({ rules: NO_RULES, ready: false }),
     live ? quoteableCompanies(venue.id) : Promise.resolve([]),
+    live ? getVenuePricing(venue.id) : Promise.resolve({ pricing: NO_PRICING, ready: false }),
   ]);
+  const pricing = venuePricing.pricing;
   const incoming = bookings.filter((b) => b.status === "PENDING");
   const [holds, liveHolds] = await Promise.all([activeHolds(incoming.map((b) => b.id)), listLiveHolds(venue.id)]);
   const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
@@ -112,6 +120,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           [
             { key: "requests", label: "Requests & Holds" },
             { key: "briefs", label: "Event Briefs" },
+            { key: "pricing", label: "Pricing" },
             { key: "payouts", label: "Payouts & History" },
           ] as const
         ).map((t) => (
@@ -220,7 +229,9 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                     ) : (
                       <ul className="divide-line divide-y">
                         {rfpInbox.map(({ response: r, rfp, requirements, companyName }) => {
-                          const standard = packages.find((p) => p.id === r.menu_package_id)?.per_head_inr ?? null;
+                          const listPrice = packages.find((p) => p.id === r.menu_package_id)?.per_head_inr ?? null;
+                          // The venue's own price for this event (tiers and rate calendar), as the counter check uses.
+                          const standard = listPrice === null ? null : venueStandardPerHead(listPrice, rfp.party_size, rfp.event_date, pricing);
                           return (
                             <li key={r.id} className="grid gap-3 py-4 first:pt-0">
                               <div>
@@ -402,6 +413,120 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               </ul>
             </CardContent>
           </Card>
+        )
+      ) : tab === "pricing" ? (
+        !live ? (
+          <EmptyState
+            icon={Tags}
+            title="Pricing controls need the live database"
+            description="Menu packages, guest-count tiers, the rate calendar and deposit rules are stored in Supabase. Connect it to set them here."
+          />
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>
+                  <CardDescription>The floor every quote is lifted to, and per-head adjustments by party size.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <MinimumSpendForm
+                    key={`min-${venue.id}`}
+                    venueId={venue.id}
+                    minSpend={Number(venue.min_spend_inr)}
+                    minPerHead={Number(venue.min_spend_per_head_inr)}
+                    tiers={pricing.tiers}
+                    lockMinSpend={pricing.lockMinSpend}
+                    ready={venuePricing.ready}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Food &amp; beverage packages</CardTitle>
+                  <CardDescription>
+                    What instant quotes offer: the dearest active package that covers every dietary need within the client&apos;s budget. Tiers and the rate calendar
+                    apply on top of these prices.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-line divide-y">
+                    {packages.map((p) => (
+                      <li key={p.id}>
+                        <PackageEditor venueId={venue.id} pkg={p} locked={pricing.lockedPackageIds.includes(p.id)} ready={venuePricing.ready} />
+                      </li>
+                    ))}
+                    <li>
+                      <PackageEditor key={`new-${venue.id}-${packages.length}`} venueId={venue.id} pkg={null} locked={false} ready={venuePricing.ready} />
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rate calendar</CardTitle>
+                  <CardDescription>
+                    Weekend surcharges, peak seasons and high-demand dates multiply every package&apos;s price for events on those days. The largest rate in force applies.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-5">
+                  <RateCalendar today={today} multipliers={pricing.multipliers} blocked={new Set(blocks.map((b) => b.blocked_date))} />
+                  {pricing.multipliers.length > 0 ? (
+                    <ul className="divide-line divide-y" aria-label="Rates">
+                      {pricing.multipliers.map((m) => (
+                        <li key={m.id} className="flex items-center gap-3 py-2 text-sm">
+                          <span className="min-w-0 flex-1">
+                            <span className="text-fg">{m.label}</span>
+                            <span className="text-fg-subtle"> · {MULTIPLIER_KIND_LABEL[m.kind]} · </span>
+                            <span className="font-mono text-[12.5px]">{describeMultiplier(m)}</span>
+                          </span>
+                          <form action={removeRateMultiplierAction}>
+                            <input type="hidden" name="multiplier_id" value={m.id} />
+                            <input type="hidden" name="venue_id" value={venue.id} />
+                            <Button type="submit" size="sm" variant="ghost" aria-label={`Remove ${m.label}`}>
+                              <Trash2 aria-hidden /> Remove
+                            </Button>
+                          </form>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <AddRateForm key={`rate-${venue.id}-${pricing.multipliers.length}`} venueId={venue.id} today={today} disabledReason={venuePricing.ready ? undefined : "The rate calendar needs database migration 0027."} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Discount limits</CardTitle>
+                  <CardDescription>Hard limits on every offer: your counters, direct quotes, auto-counters and the AI negotiator. The same settings as the negotiator&apos;s Guardrails tab.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GuardrailsForm key={`rules-${venue.id}`} venueId={venue.id} rules={guardrails.rules} ready={guardrails.ready} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Deposit &amp; cancellation</CardTitle>
+                  <CardDescription>What clients pay up front, and what they get back if they cancel.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TermsForm
+                    key={`terms-${venue.id}`}
+                    venueId={venue.id}
+                    depositPct={pricing.depositPct}
+                    defaultDepositPct={DEPOSIT_RATE * 100}
+                    cancellation={parseCancellationTerms(venue.cancellation_terms)}
+                    ready={venuePricing.ready}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )
       ) : bookings.length === 0 ? (
         <EmptyState

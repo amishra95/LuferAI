@@ -5,7 +5,9 @@ import { z } from "zod";
 
 import { checkToolCall, menuPackageRules, minimumSpendRules } from "@/lib/guardrails/engine";
 import { setMinimumSpendInput, upsertMenuPackageInput } from "@/lib/guardrails/schemas";
+import { describeMultiplier } from "@/lib/rates/venue-pricing";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
+import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { createClient } from "@/lib/supabase/server";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -21,11 +23,11 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
   return {
     getVenueTerms: tool({
       description:
-        "Current commercial terms for this venue: minimum spend, capacity, menu packages, open RFPs it has quoted on, and the host's guardrails (minimum spend floor, maximum discount) that proposals must respect. Call before proposing changes.",
+        "Current commercial terms for this venue: minimum spend, capacity, menu packages, open RFPs it has quoted on, the host's guardrails (minimum spend floor, maximum discount) and the host's own pricing (guest-count tiers, rate calendar, deposit, and the terms locked against AI changes). Proposals must respect all of them. Call before proposing changes.",
       inputSchema: z.object({}),
       execute: async () => {
         const [{ data: venue }, { data: packages }, { data: rfps }] = await Promise.all([
-          db.from("venues").select("name, capacity_max, min_spend_inr, pdr_available").eq("id", venueId).single(),
+          db.from("venues").select("name, capacity_max, min_spend_inr, min_spend_per_head_inr, pdr_available, cancellation_terms").eq("id", venueId).single(),
           db.from("venue_menu_packages").select("id, name, per_head_inr, dietary_tags, description, is_active").eq("venue_id", venueId).order("per_head_inr"),
           db
             .from("rfp_responses")
@@ -34,8 +36,21 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
             .eq("rfp.status", "open")
             .limit(10),
         ]);
-        const { rules } = await getNegotiationRules(venueId);
-        return { venue, packages: packages ?? [], openRfps: rfps ?? [], hostGuardrails: rules };
+        const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(venueId), getVenuePricing(venueId)]);
+        const locked = new Set(pricing.lockedPackageIds);
+        return {
+          venue,
+          packages: (packages ?? []).map((p) => ({ ...p, lockedByHost: locked.has(p.id) })),
+          openRfps: rfps ?? [],
+          hostGuardrails: rules,
+          // Set by hand on /property → Pricing. Quotes apply tiers and the calendar on top of package prices automatically.
+          hostPricing: {
+            minimumSpendLockedByHost: pricing.lockMinSpend,
+            guestTiers: pricing.tiers,
+            rateCalendar: pricing.multipliers.map((m) => ({ label: m.label, applies: describeMultiplier(m) })),
+            depositPct: pricing.depositPct,
+          },
+        };
       },
     }),
 
@@ -48,9 +63,13 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
           "setMinimumSpend",
           input,
           async (a) => {
-            const [{ data, error }, { rules }] = await Promise.all([db.from("venues").select("min_spend_inr").eq("id", venueId).single(), getNegotiationRules(venueId)]);
+            const [{ data, error }, { rules }, { pricing }] = await Promise.all([
+              db.from("venues").select("min_spend_inr").eq("id", venueId).single(),
+              getNegotiationRules(venueId),
+              getVenuePricing(venueId),
+            ]);
             if (error) throw new Error(error.message);
-            return minimumSpendRules(a, { current: Number(data.min_spend_inr), floor: rules.minSpendFloor });
+            return minimumSpendRules(a, { current: Number(data.min_spend_inr), floor: rules.minSpendFloor, locked: pricing.lockMinSpend });
           },
           { venueId }
         );
@@ -75,11 +94,12 @@ export function negotiatorTools(db: ServerClient, venueId: string) {
           "upsertMenuPackage",
           input,
           async (a) => {
-            const { data, error } = await db.from("venue_menu_packages").select("id, is_active").eq("venue_id", venueId);
+            const [{ data, error }, { pricing }] = await Promise.all([db.from("venue_menu_packages").select("id, is_active").eq("venue_id", venueId), getVenuePricing(venueId)]);
             if (error) throw new Error(error.message);
             return menuPackageRules(a, {
               activePackageIds: data.filter((p) => p.is_active).map((p) => p.id),
               packageExists: a.package_id === null || data.some((p) => p.id === a.package_id),
+              lockedPackageIds: pricing.lockedPackageIds,
             });
           },
           { venueId }

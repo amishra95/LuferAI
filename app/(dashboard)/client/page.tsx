@@ -46,6 +46,7 @@ import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
 import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
+import { depositRatesForVenues } from "@/lib/venues/pricing-store";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { listRfps } from "@/lib/rfp/service";
 import type { CorporateRole } from "@/lib/supabase/database.types";
@@ -100,12 +101,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const [catalogItems, catalogOrders] =
     tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
   const orderSettlements = await listOrderSettlements(catalogOrders);
-  const [payments, holds, rfps, queue, guestCounts] = await Promise.all([
+  const [payments, holds, rfps, queue, guestCounts, depositRate] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
     live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
     approvalQueue(member, company.id),
     countEventAttendees(bookings.map((b) => b.id)),
+    // Venues may set their own deposit (/property → Pricing); checkout charges the same rate.
+    live ? depositRatesForVenues(bookings.map((b) => b.venue_id)) : Promise.resolve(() => DEPOSIT_RATE),
   ]);
   const itc = computeItcSummary(bookings);
   // The concierge (/api/chat) needs a model and the workspace agent switched on.
@@ -577,7 +580,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             {canRequest && b.status === "PENDING" && !liveDeposit ? (
                               <PayDepositButton
                                 bookingId={b.id}
-                                label={`Pay ${formatINR(depositFor(b.invoice.invoice_total))} deposit (${Math.round(DEPOSIT_RATE * 100)}%)`}
+                                label={`Pay ${formatINR(depositFor(b.invoice.invoice_total, depositRate(b.venue_id)))} deposit (${Math.round(depositRate(b.venue_id) * 1000) / 10}%)`}
                               />
                             ) : null}
                           </TableCell>

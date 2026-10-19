@@ -13,10 +13,12 @@ import {
 } from "@/lib/quotes";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
+import { depositRateFor, NO_PRICING, priceFor, type VenuePricing } from "@/lib/rates/venue-pricing";
 import { autoDecision, checkOffer } from "@/lib/rfp/guardrails";
 import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tracer } from "@/lib/tracer";
+import { getVenuePricing, pricingForVenues } from "@/lib/venues/pricing-store";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
 
 /** Most venues a single brief is broadcast to. */
@@ -80,7 +82,8 @@ export async function broadcastRfp(input: {
 
   const matched = matchVenues(venues ?? [], req);
   // Hosts' guardrails: over-budget instant quotes may be countered or declined at once.
-  const rules = await rulesForVenues(matched.map((v) => v.id));
+  // Hosts' pricing: guest-count tiers and the rate calendar set each venue's price for this event.
+  const [rules, pricing] = await Promise.all([rulesForVenues(matched.map((v) => v.id)), pricingForVenues(matched.map((v) => v.id))]);
 
   const { data: rfp, error } = await db
     .from("rfps")
@@ -100,13 +103,28 @@ export async function broadcastRfp(input: {
   if (error) throw error;
 
   const now = new Date().toISOString();
-  const outcomes: { venue: string; status: "quoted" | "no_fit" | "auto_counter" | "auto_decline"; perHeadInr?: number; standardPerHead?: number; floored?: boolean; overBudget?: boolean; reason?: string }[] = [];
+  const outcomes: {
+    venue: string;
+    status: "quoted" | "no_fit" | "auto_counter" | "auto_decline";
+    perHeadInr?: number;
+    standardPerHead?: number;
+    floored?: boolean;
+    overBudget?: boolean;
+    reason?: string;
+    /** The host's tier / calendar adjustment, e.g. "Weekend surcharge ×1.2". */
+    pricing?: string;
+  }[] = [];
   const rows = matched.map((venue) => {
     // The card in force on the event date (or today, when the brief has no date).
     const card = (cards ?? []).find((c) => c.venue_id === venue.id && isRateCardActive(c, req.event_date ?? input.today));
+    // Packages at the venue's price for this party size and date; the rate card applies on top.
+    const venuePrice = (list: number) => priceFor(list, { partySize: req.party_size, date: req.event_date }, pricing.get(venue.id) ?? NO_PRICING);
+    const venuePackages = (packages ?? []).filter((p) => p.venue_id === venue.id).map((p) => ({ ...p, per_head_inr: venuePrice(Number(p.per_head_inr)).perHead }));
+    // The tier and calendar rule depend on the event, not the package.
+    const pricingNote = venuePrice(0).note;
     const quote = quoteVenue(
       { ...venue, min_spend_inr: Number(venue.min_spend_inr) },
-      (packages ?? []).filter((p) => p.venue_id === venue.id).map((p) => ({ ...p, per_head_inr: Number(p.per_head_inr) })),
+      venuePackages,
       {
         partySize: req.party_size,
         budgetPerHead: req.budget_per_head_inr,
@@ -132,7 +150,7 @@ export async function broadcastRfp(input: {
     }
     if (quote.status === "quoted" && auto.action === "counter") {
       const list = roundInr(auto.perHead * req.party_size);
-      outcomes.push({ venue: venue.name, status: "auto_counter", perHeadInr: auto.perHead, standardPerHead: quote.per_head_inr, reason: auto.note });
+      outcomes.push({ venue: venue.name, status: "auto_counter", perHeadInr: auto.perHead, standardPerHead: quote.per_head_inr, reason: auto.note, ...(pricingNote ? { pricing: pricingNote } : {}) });
       return {
         rfp_id: rfp.id,
         venue_id: venue.id,
@@ -149,7 +167,7 @@ export async function broadcastRfp(input: {
     }
     outcomes.push(
       quote.status === "quoted"
-        ? { venue: venue.name, status: "quoted", perHeadInr: quote.per_head_inr, floored: quote.min_spend_applied, overBudget: quote.over_budget }
+        ? { venue: venue.name, status: "quoted", perHeadInr: quote.per_head_inr, floored: quote.min_spend_applied, overBudget: quote.over_budget, ...(pricingNote ? { pricing: pricingNote } : {}) }
         : { venue: venue.name, status: "no_fit", reason: quote.reason }
     );
     return quote.status === "quoted"
@@ -162,7 +180,7 @@ export async function broadcastRfp(input: {
           list_amount_inr: quote.price.list_amount,
           rate_card_id: quote.rate_card_id,
           taxable_amount_inr: quote.price.taxable_value,
-          notes: [quote.min_spend_applied && "Minimum spend applied", quote.over_budget && "Above per-head budget"]
+          notes: [pricingNote, quote.min_spend_applied && "Minimum spend applied", quote.over_budget && "Above per-head budget"]
             .filter(Boolean)
             .join(" · ") || null,
           responded_at: now,
@@ -193,7 +211,7 @@ type ResponseRow = RfpResponse & {
   menu_package: { name: string } | null;
 };
 
-function toColumn(r: ResponseRow, companyGstin: string): MatrixColumn {
+function toColumn(r: ResponseRow, companyGstin: string, depositRate?: number): MatrixColumn {
   const priced = (r.status === "quoted" || r.status === "countered") && r.list_amount_inr != null;
   return {
     response_id: r.id,
@@ -210,6 +228,7 @@ function toColumn(r: ResponseRow, companyGstin: string): MatrixColumn {
         })
       : null,
     notes: r.notes,
+    ...(depositRate !== undefined ? { deposit_rate: depositRate } : {}),
   };
 }
 
@@ -230,8 +249,13 @@ export async function listRfps(filter: { companyId?: string; rfpIds?: string[] }
   if (error) throw error;
 
   type Row = Rfp & { company: { gstin: string }; responses: ResponseRow[] };
-  return (data as unknown as Row[]).map(({ company, responses, ...rfp }) => {
-    const columns = sortMatrixColumns(responses.map((r) => toColumn(r, company.gstin)));
+  const rows = data as unknown as Row[];
+  // Venues that set their own deposit show it in the comparison.
+  const pricing = await pricingForVenues([...new Set(rows.flatMap((r) => r.responses.map((x) => x.venue_id)))]);
+  return rows.map(({ company, responses, ...rfp }) => {
+    const columns = sortMatrixColumns(
+      responses.map((r) => toColumn(r, company.gstin, pricing.get(r.venue_id)?.depositPct != null ? depositRateFor(pricing.get(r.venue_id)) : undefined))
+    );
     return {
       rfp,
       columns,
@@ -297,7 +321,7 @@ export async function respondToRfp(input: {
   const db = createAdminClient();
   const { data: existing } = await db
     .from("rfp_responses")
-    .select("id, venue_id, menu_package_id, rfp:rfps!inner(party_size, status)")
+    .select("id, venue_id, menu_package_id, rfp:rfps!inner(party_size, event_date, status)")
     .eq("id", input.responseId)
     .eq("venue_id", input.venueId) // scoped: a venue can only answer its own RFPs
     .maybeSingle();
@@ -327,8 +351,10 @@ export async function respondToRfp(input: {
     if (!pkg && input.menuPackageId) throw new Error("Unknown menu package");
     standardPerHead = pkg ? Number(pkg.per_head_inr) : null;
   }
-  const { rules } = await getNegotiationRules(input.venueId);
-  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: existing.rfp.party_size, standardPerHead });
+  const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId)]);
+  // The discount ceiling is measured from the venue's own price for this party and date.
+  const own = standardPerHead === null ? null : venueStandardPerHead(standardPerHead, existing.rfp.party_size, existing.rfp.event_date, pricing);
+  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: existing.rfp.party_size, standardPerHead: own });
   if (breach) throw new GuardrailError(breach);
 
   const list = roundInr(input.perHeadInr * existing.rfp.party_size);
@@ -353,13 +379,17 @@ export async function respondToRfp(input: {
 export async function listVenuePackages(venueId: string) {
   const { data, error } = await createAdminClient()
     .from("venue_menu_packages")
-    .select("id, name, per_head_inr, dietary_tags, is_active")
+    .select("id, name, per_head_inr, dietary_tags, description, is_active")
     .eq("venue_id", venueId)
     .order("is_active", { ascending: false })
     .order("per_head_inr");
   if (error) throw error;
   return data.map((p) => ({ ...p, per_head_inr: Number(p.per_head_inr) }));
 }
+
+/** A package's list price at the venue's own rate for this party size and date (tiers and calendar). */
+export const venueStandardPerHead = (listPerHead: number, partySize: number, eventDate: string | null, pricing: VenuePricing) =>
+  priceFor(listPerHead, { partySize, date: eventDate }, pricing).perHead;
 
 /** An offer outside the venue's guardrails (lib/rfp/guardrails.ts); its message is for the host. */
 export class GuardrailError extends Error {}
@@ -422,8 +452,9 @@ export async function createDirectQuote(input: DirectQuoteInput): Promise<{ rfpI
     standardPerHead = Number(pkg.per_head_inr);
     packageName = pkg.name;
   }
-  const { rules } = await getNegotiationRules(input.venueId);
-  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: input.partySize, standardPerHead });
+  const [{ rules }, { pricing }] = await Promise.all([getNegotiationRules(input.venueId), getVenuePricing(input.venueId)]);
+  const own = standardPerHead === null ? null : venueStandardPerHead(standardPerHead, input.partySize, input.eventDate, pricing);
+  const breach = checkOffer(rules, { perHead: input.perHeadInr, partySize: input.partySize, standardPerHead: own });
   if (breach) throw new GuardrailError(breach);
 
   const requirements: RfpRequirements = {
