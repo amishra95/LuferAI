@@ -5,17 +5,34 @@ import { isBackendConfigured } from "@/lib/ai/model";
 import { llmCircuitBreaker } from "@/lib/circuit-breaker";
 import { GUARDRAIL_LIMITS } from "@/lib/guardrails/schemas";
 import { MAX_DISCOUNT_CAP } from "@/lib/rfp/guardrails";
+import { appProviderHealthStore, combinedCircuit, instanceId, type SharedProviderHealth } from "@/lib/telemetry/provider-health";
 import { listAgentRuns, type LoggedRun } from "@/lib/telemetry/runs";
 import { TRACE_LIST_LIMIT, tracer, type Attributes, type SpanRecord, type TraceRecord } from "@/lib/tracer";
 import { formatINR } from "@/lib/utils";
 import type { ObservabilityEvent, ProviderHealth, TraceOutcome } from "@/types/agents";
 
 /**
- * The /agents activity feed: prompt calls from the run log (lib/telemetry/runs),
- * plus guardrail decisions and negotiation steps read off recorded traces
- * (lib/tracer). Nothing here is sampled or invented; an empty feed means
- * nothing has run since the logs were last trimmed or the instance restarted.
+ * The /agents dashboard's read API. Everything it shows is persisted, in
+ * Upstash Redis when configured (else process memory):
+ *
+ * - the activity feed: prompt calls from the run log (lib/telemetry/runs), plus
+ *   guardrail decisions and negotiation steps read off recorded traces (lib/tracer);
+ * - provider health: circuit breaker counters and states from every instance
+ *   (lib/telemetry/provider-health);
+ * - the raw logs behind them, re-exported below.
+ *
+ * Nothing here is sampled or invented; an empty feed means nothing has run
+ * since the logs were last trimmed.
  */
+
+export { agentRunStats, listAgentRuns, type LoggedRun } from "@/lib/telemetry/runs";
+export { bookingActivity } from "@/lib/guardrails/state";
+export { TRACE_LIST_LIMIT, type SpanRecord, type TraceRecord } from "@/lib/tracer";
+
+/** Recorded traces, newest first (the same store /admin/analytics reads). */
+export const listTraces = (options: Parameters<typeof tracer.listTraces>[0] = { limit: TRACE_LIST_LIMIT }) => tracer.listTraces(options);
+/** One recorded trace by id, or null once it has been trimmed. */
+export const getTrace = (traceId: string) => tracer.getTrace(traceId);
 
 /** What people do instead when an agent's model call fails. Keep in step with the pages it names. */
 export const FALLBACK_PATH: Record<string, string> = {
@@ -260,17 +277,45 @@ export async function getObservabilityFeed(limit = 200) {
   return { events, errors };
 }
 
-export function providerHealth(events: ObservabilityEvent[], now = Date.now()): ProviderHealth {
-  const snap = llmCircuitBreaker.snapshot();
+/** Guardrail decisions (allowed, refused, failed) from recorded traces, newest first. */
+export async function listGuardrailEvents(limit = 200): Promise<ObservabilityEvent[]> {
+  const traces = await listTraces();
+  return traces
+    .flatMap((t) => t.spans.filter((s) => s.name.startsWith("guardrail.")).map((s) => fromGuardrail(t, s)))
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit);
+}
+
+/**
+ * The AI provider panel: circuit state and counters for the LLM breaker across
+ * every instance (last 24 h), merged with this instance's live breaker so the
+ * page is right even before its own events are flushed. If the shared store
+ * can't be read, this instance's numbers are shown and `store` says so.
+ */
+export async function providerHealth(events: ObservabilityEvent[], now = Date.now()): Promise<ProviderHealth> {
+  const store = appProviderHealthStore();
+  const local = llmCircuitBreaker.snapshot();
+  const shared = await store.read(llmCircuitBreaker.name, now).catch((err): SharedProviderHealth | null => {
+    console.error("agents: provider health store unavailable; showing this instance only", err);
+    return null;
+  });
+  const self = { instance: instanceId(), state: local.state, consecutiveFailures: local.consecutiveFailures, retryAt: local.retryAt, at: now };
+  const instances = [self, ...(shared?.instances.filter((i) => i.instance !== self.instance) ?? [])];
+  const worst = combinedCircuit(instances, now);
+  const stats = shared?.stats24h ?? local.stats;
   const since = new Date(now - 86_400_000).toISOString();
   return {
     configured: isBackendConfigured(DEFAULT_BACKEND),
     backends: MODEL_BACKENDS.map((id) => ({ id, label: MODEL_BACKEND_LABEL[id], configured: isBackendConfigured(id) })),
-    circuit: snap.state,
-    consecutiveFailures: snap.consecutiveFailures,
-    retryAt: snap.retryAt,
-    stats: { calls: snap.stats.calls, failures: snap.stats.failures, rejected: snap.stats.rejected, retries: snap.stats.retries },
+    circuit: worst?.state ?? "CLOSED",
+    consecutiveFailures: worst?.consecutiveFailures ?? local.consecutiveFailures,
+    retryAt: worst?.retryAt ?? null,
+    stats: { calls: stats.calls, failures: stats.failures, rejected: stats.rejected, retries: stats.retries },
     fallbacks24h: events.filter((e) => e.outcome === "fallback" && e.at >= since).length,
+    store: shared ? store.source : "instance",
+    instances: instances.length,
+    degradedInstances: instances.filter((i) => combinedCircuit([i], now)).length,
+    transitions: (shared?.transitions ?? []).slice(0, 5),
   };
 }
 

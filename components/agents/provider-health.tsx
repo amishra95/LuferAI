@@ -22,16 +22,18 @@ function headline(h: ProviderHealth, now: number): { tone: PillTone; label: stri
       body: "The default model backend has no API key in this environment. AI routes answer 503 without calling a model, and every surface falls back to its manual path below.",
     };
   }
+  // With several instances, say how many tripped: each breaker trips on its own.
+  const where = h.instances > 1 ? ` on ${h.degradedInstances} of ${h.instances} instances` : "";
   if (h.circuit === "OPEN") {
     const s = h.retryAt ? Math.max(1, Math.ceil((h.retryAt - now) / 1000)) : null;
     return {
       tone: "error",
-      label: `Circuit open${s ? ` · retry in ${s}s` : ""}`,
+      label: `Circuit open${where}${s ? ` · retry in ${s}s` : ""}`,
       body: `${h.consecutiveFailures} calls in a row failed (rate limits, exhausted credits or provider errors), so model calls are refused without trying. Requests get “temporarily unavailable” and people use the manual paths below until a trial call succeeds.`,
     };
   }
   if (h.circuit === "HALF_OPEN") {
-    return { tone: "warn", label: "Recovering", body: "The provider failed recently. Trial calls are going through; the circuit closes after two succeed." };
+    return { tone: "warn", label: `Recovering${where}`, body: "The provider failed recently. Trial calls are going through; the circuit closes after two succeed." };
   }
   if (h.fallbacks24h > 0) {
     return {
@@ -42,6 +44,17 @@ function headline(h: ProviderHealth, now: number): { tone: PillTone; label: stri
   }
   return { tone: "ok", label: "Healthy", body: "Model calls are going through. Failed calls are retried with backoff (up to 3 times) before an agent falls back." };
 }
+
+const SCOPE: Record<ProviderHealth["store"], string> = {
+  redis: "All instances, last 24 h (Redis)",
+  memory: "This instance, last 24 h (no Redis configured)",
+  instance: "This instance since it started (health store unavailable)",
+};
+
+const ago = (at: number, now: number) => {
+  const m = Math.max(0, Math.round((now - at) / 60_000));
+  return m < 1 ? "just now" : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
+};
 
 /** `fallbacks`: manual path per agent (FALLBACK_PATH in lib/agents/observability). */
 export function ProviderHealthPanel({ health, fallbacks, now }: { health: ProviderHealth; fallbacks: Record<string, string>; now: number }) {
@@ -66,7 +79,8 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
             {h.body}
           </p>
         </div>
-        <dl className="text-fg-muted grid grid-cols-4 gap-x-5 gap-y-0.5 font-mono text-[12px] tabular-nums" title="This server instance, since it started">
+        <div className="text-right">
+        <dl className="text-fg-muted grid grid-cols-4 gap-x-5 gap-y-0.5 font-mono text-[12px] tabular-nums" title={SCOPE[health.store]}>
           {(
             [
               ["calls", health.stats.calls],
@@ -81,7 +95,30 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
             </div>
           ))}
         </dl>
+          <p className="text-fg-faint mt-1 font-mono text-[11px]">
+            {health.store === "redis" ? `${health.instances} instance${health.instances === 1 ? "" : "s"} · 24 h` : health.store === "memory" ? "this instance · 24 h" : "this instance"}
+          </p>
+        </div>
       </div>
+
+      {health.transitions.length > 0 && (
+        <div className="border-line border-t px-5 py-2.5">
+          <span className="label-mono">Recent circuit changes</span>
+          <ul className="mt-1.5 space-y-0.5 font-mono text-[11.5px]">
+            {health.transitions.map((t) => (
+              <li key={`${t.instance}:${t.at}:${t.to}`} className="text-fg-subtle flex flex-wrap gap-x-3">
+                <span className={cn(t.to === "OPEN" ? "text-rose" : t.to === "CLOSED" ? "text-fg-muted" : "text-fg")}>
+                  {t.from} → {t.to}
+                </span>
+                <span className="text-fg-faint">{t.instance}</span>
+                <time className="text-fg-faint ml-auto" dateTime={new Date(t.at).toISOString()}>
+                  {ago(t.at, now)}
+                </time>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <details open={degraded} className="border-line group border-t">
         <summary className="hover:bg-surface-hover flex cursor-pointer list-none items-center gap-2 px-5 py-2.5">

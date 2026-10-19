@@ -76,7 +76,16 @@ export type ProviderHealth = {
   consecutiveFailures: number;
   /** Epoch ms, when an open circuit next lets a trial call through. */
   retryAt: number | null;
+  /** Breaker counters: all instances over the last 24 h, or this instance since start when `store` is "instance". */
   stats: { calls: number; failures: number; rejected: number; retries: number };
   /** Error/Fallback events in the last 24 hours. */
   fallbacks24h: number;
+  /** Where the counters and states come from: shared Redis, this process's memory store, or (store unreadable) the live breaker only. */
+  store: "redis" | "memory" | "instance";
+  /** Instances heard from in the last 24 h, this one included. */
+  instances: number;
+  /** Of those, how many have the circuit open or half-open right now. */
+  degradedInstances: number;
+  /** Latest state changes, newest first. */
+  transitions: { instance: string; from: "CLOSED" | "OPEN" | "HALF_OPEN"; to: "CLOSED" | "OPEN" | "HALF_OPEN"; at: number }[];
 };
