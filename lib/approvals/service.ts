@@ -18,6 +18,7 @@ import { financialYear } from "@/lib/fiscal-year";
 import { sumInr } from "@/lib/gst-engine";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { describePolicyChecks, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
+import { isActionable } from "@/lib/services/enterprise/approvalEngine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Department } from "@/lib/supabase/database.types";
 
@@ -72,11 +73,14 @@ export async function releaseExpiredHolds(): Promise<number> {
 // Approvals (/client/approvals)
 // ----------------------------------------------------------------------------
 
-/** Pending approvals this member should decide: their own queue, or all for an admin. */
+/**
+ * Pending approvals this member should decide: their own queue, or all for an admin.
+ * Queued steps (waiting for an earlier approver, migration 0030) appear once it's their turn.
+ */
 export async function approvalQueue(member: Member, companyId: string): Promise<ApprovalRow[]> {
-  if (member.role === "ADMIN") return listApprovals({ tenantId: companyId, status: "PENDING" });
+  if (member.role === "ADMIN") return (await listApprovals({ tenantId: companyId, status: "PENDING" })).filter(isActionable);
   if (!member.canApprove || member.companyId !== companyId) return [];
-  return listApprovals({ tenantId: companyId, approverId: member.userId, status: "PENDING" });
+  return (await listApprovals({ tenantId: companyId, approverId: member.userId, status: "PENDING" })).filter(isActionable);
 }
 
 export interface OrderItemisation {

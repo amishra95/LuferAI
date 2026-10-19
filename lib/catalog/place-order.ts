@@ -1,12 +1,14 @@
 import "server-only";
 
-import { assignApprovers } from "@/lib/approvals/route";
+import { assignApprovers, signOffPhrase } from "@/lib/approvals/route";
 import { validateExpense, type ExpenseInput } from "@/lib/bookings/expense";
 import { priceOrder, unitNoun, type Category, type OrderInput } from "@/lib/catalog/items";
-import { createCatalogOrder, listCatalogItems, listCompanies, listDepartments, listPoAllocations, listPortalUsers, listPurchaseOrders, PoAllocationError } from "@/lib/data";
+import { createCatalogOrder, listCatalogItems, listCompanies, listDepartments, listPoAllocations, listPortalUsers, listPurchaseOrders, BudgetHoldError, PoAllocationError } from "@/lib/data";
 import { calculateGst, todayInIndia, type TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { selectPo } from "@/lib/procurement/po-ledger";
+import { approvalDemand } from "@/lib/services/enterprise/approvalEngine";
+import { checkGovernance } from "@/lib/services/enterprise/governanceStore";
 import type { Json } from "@/lib/supabase/database.types";
 
 export interface PlaceOrderInput {
@@ -85,14 +87,25 @@ export async function placeCatalogOrder(input: PlaceOrderInput): Promise<PlaceOr
   const po = selectPo(pos, allocations, { tenantId: company.id, eventDate: date, departmentId, amount: p.total, poId: input.poId });
   if (po.kind === "ineligible") return fail(`${po.reason}. Ask your approver or finance team to raise or extend a purchase order.`);
 
-  const reasons = [policy.requiresApproval ? policy.reason : null, po.kind === "over_balance" ? po.reason : null].filter((r): r is string => Boolean(r));
+  // Approval rules and team budgets, as for venue bookings.
+  const governance = await checkGovernance({ tenantId: company.id, departmentId, date, amount: p.total });
+  if (governance.spend.kind === "blocked") return fail(`This order can't be placed: ${governance.spend.reason}.`);
+  const demand = approvalDemand({
+    policy,
+    amount: p.total,
+    rule: governance.rule,
+    budgetReason: governance.spend.kind === "over" ? governance.spend.reason : null,
+    extraReasons: po.kind === "over_balance" ? [po.reason] : [],
+  });
+  const reasons = demand.required ? demand.reasons : [];
   const routed = await assignApprovers({
     companyId: company.id,
     companyName: company.legal_name,
     requesterId: input.userId,
     users,
     reasons,
-    tiers: policy.requiresApproval ? policy.tiers : 1,
+    tiers: demand.required ? demand.levels : 1,
+    ruleId: demand.required ? demand.ruleId : null,
   });
   if (!routed.ok) return fail(routed.message);
 
@@ -120,19 +133,21 @@ export async function placeCatalogOrder(input: PlaceOrderInput): Promise<PlaceOr
       {
         approvals: routed.approvals,
         allocation: po.kind === "ok" || po.kind === "over_balance" ? { po_id: po.po.id, over_balance: po.kind === "over_balance" } : undefined,
+        budgetHolds: governance.spend.kind === "ok" || governance.spend.kind === "over" ? governance.spend.holds : [],
       }
     );
     const base = { status: "success" as const, orderId: order.id, partnerId: item.partner_id, orderStatus: order.status as "PENDING_APPROVAL" | "PLACED", invoice };
     if (routed.approvals.length) {
       return {
         ...base,
-        message: `Order submitted: ${routed.approvals.length > 1 ? "requires manager and senior sign-off" : "requires manager sign-off"} before ${item.partner_name} sees it.`,
+        message: `Order submitted: ${signOffPhrase(routed.approvals.length)} before ${item.partner_name} sees it.`,
         approval: { reason: reasons.join("; "), approverName: routed.approverNames.join(", then "), tiers: routed.approvals.length },
       };
     }
     return { ...base, message: `Order sent to ${item.partner_name}.` };
   } catch (err) {
     if (err instanceof PoAllocationError) return fail(`${err.message}. Try again, or choose another purchase order.`);
+    if (err instanceof BudgetHoldError) return fail(`${err.message}. Try again, or ask your approver to raise the team budget.`);
     console.error("catalog: could not place order", err);
     return fail("Could not place the order. Try again.");
   }

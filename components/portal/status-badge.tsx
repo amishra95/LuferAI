@@ -22,6 +22,7 @@ const APPROVAL_VARIANT = {
   PENDING: "warning",
   APPROVED: "success",
   REJECTED: "destructive",
+  ESCALATED: "secondary",
 } as const satisfies Record<ApprovalStatus, string>;
 
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
