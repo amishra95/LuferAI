@@ -54,7 +54,8 @@ export function DashboardShell({
   }, [toggle]);
 
   // Live telemetry carries operator data (admins) and venue syncs (/venues users).
-  const live = account?.role === "ADMIN" || allowedHrefs.includes("/venues");
+  // Venue hosts get their escalation alerts live (lib/telemetry/events.ts visibleTo).
+  const live = account?.role === "ADMIN" || account?.role === "PROPERTY" || allowedHrefs.includes("/venues");
 
   return (
     <WorkspaceProvider live={live}>

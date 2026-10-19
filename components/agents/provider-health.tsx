@@ -19,31 +19,42 @@ function headline(h: ProviderHealth, now: number): { tone: PillTone; label: stri
     return {
       tone: "error",
       label: "AI off",
-      body: "The default model backend has no API key in this environment. AI routes answer 503 without calling a model, and every surface falls back to its manual path below.",
+      body: "No model provider has an API key in this environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY). AI routes answer 503 without calling a model, and every surface falls back to its manual path below.",
     };
   }
-  // With several instances, say how many tripped: each breaker trips on its own.
-  const where = h.instances > 1 ? ` on ${h.degradedInstances} of ${h.instances} instances` : "";
-  if (h.circuit === "OPEN") {
+  const primary = h.providers.find((p) => p.id === h.primary)!;
+  if (h.routing === "down") {
     const s = h.retryAt ? Math.max(1, Math.ceil((h.retryAt - now) / 1000)) : null;
     return {
       tone: "error",
-      label: `Circuit open${where}${s ? ` · retry in ${s}s` : ""}`,
-      body: `${h.consecutiveFailures} calls in a row failed (rate limits, exhausted credits or provider errors), so model calls are refused without trying. Requests get “temporarily unavailable” and people use the manual paths below until a trial call succeeds.`,
+      label: `All providers down${s ? ` · retry in ${s}s` : ""}`,
+      body: "Every configured provider's circuit is open (rate limits, exhausted credits or outages), so model calls are refused without trying. Requests get “temporarily unavailable” and people use the manual paths below until a trial call succeeds.",
     };
   }
-  if (h.circuit === "HALF_OPEN") {
-    return { tone: "warn", label: `Recovering${where}`, body: "The provider failed recently. Trial calls are going through; the circuit closes after two succeed." };
-  }
-  if (h.fallbacks24h > 0) {
+  if (h.routing === "failover") {
+    const why = !primary.configured ? "has no API key" : primary.circuit === "OPEN" ? "has its circuit open" : primary.slow ? `is slow (${((primary.latencyMs ?? 0) / 1000).toFixed(1)} s to respond)` : "is recovering";
+    const to = h.providers.filter((p) => p.id !== h.primary && p.configured && p.circuit !== "OPEN").map((p) => p.label);
     return {
       tone: "warn",
-      label: `Healthy · ${h.fallbacks24h} fallback${h.fallbacks24h === 1 ? "" : "s"} in 24 h`,
-      body: "Model calls are going through now. Filter the feed to Error/Fallback to see what failed and which manual path took over.",
+      label: `Failing over · ${primary.label} ${primary.circuit === "OPEN" ? "down" : primary.slow ? "slow" : "degraded"}`,
+      body: `${primary.label} ${why}, so calls go to ${to.join(", then ") || "the next provider"} first. Agents keep working; answers may differ in style. Routing returns to ${primary.label} once it's healthy.`,
     };
   }
-  return { tone: "ok", label: "Healthy", body: "Model calls are going through. Failed calls are retried with backoff (up to 3 times) before an agent falls back." };
+  if (primary.circuit === "HALF_OPEN") {
+    return { tone: "warn", label: "Recovering", body: `${primary.label} failed recently. Trial calls are going through; its circuit closes after two succeed, and other providers take calls meanwhile.` };
+  }
+  if (h.failovers24h > 0 || h.fallbacks24h > 0) {
+    const parts = [h.failovers24h ? `${h.failovers24h} failover${h.failovers24h === 1 ? "" : "s"}` : null, h.fallbacks24h ? `${h.fallbacks24h} fallback${h.fallbacks24h === 1 ? "" : "s"}` : null].filter(Boolean);
+    return {
+      tone: "warn",
+      label: `Healthy · ${parts.join(", ")} in 24 h`,
+      body: "Model calls are going through now. Filter the feed to Error/Fallback for calls no provider could answer; failovers are listed under Prompt calls.",
+    };
+  }
+  return { tone: "ok", label: "Healthy", body: "Model calls are going through. A failing provider is retried once, then the call fails over to the next provider before any agent falls back." };
 }
+
+const CIRCUIT_TONE: Record<ProviderHealth["circuit"], PillTone> = { CLOSED: "ok", HALF_OPEN: "warn", OPEN: "error" };
 
 const SCOPE: Record<ProviderHealth["store"], string> = {
   redis: "All instances, last 24 h (Redis)",
@@ -66,7 +77,7 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
         <div className="min-w-0 max-w-2xl">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 id="provider-heading" className="text-fg text-[13.5px] font-medium">
-              AI provider
+              AI providers
             </h2>
             <Pill tone={h.tone}>{h.label}</Pill>
             {health.backends.map((b) => (
@@ -101,12 +112,56 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
         </div>
       </div>
 
+      <div className="border-line overflow-x-auto border-t px-5 py-2.5">
+        <table className="w-full min-w-[32rem] text-left text-[12px]" aria-label="Providers in routing order">
+          <thead>
+            <tr className="label-mono">
+              <th className="py-1 pr-3 font-normal">Provider</th>
+              <th className="py-1 pr-3 font-normal">Model</th>
+              <th className="py-1 pr-3 font-normal">Circuit</th>
+              <th className="py-1 pr-3 text-right font-normal" title="Smoothed time to response headers, this instance">
+                Latency
+              </th>
+              <th className="py-1 text-right font-normal" title={SCOPE[health.store]}>
+                Calls · failed
+              </th>
+            </tr>
+          </thead>
+          <tbody className="font-mono tabular-nums">
+            {health.providers.map((p) => (
+              <tr key={p.id} className={cn(!p.configured && "text-fg-faint")}>
+                <td className="py-1 pr-3">
+                  <span className={cn(p.configured ? "text-fg" : "line-through")}>{p.label}</span>
+                  {p.id === health.primary ? <span className="text-fg-faint"> · primary</span> : p.id === "groq" ? <span className="text-fg-faint"> · fast tier</span> : null}
+                </td>
+                <td className="text-fg-subtle py-1 pr-3">{p.configured ? p.model : "no API key"}</td>
+                <td className="py-1 pr-3">
+                  {p.configured ? (
+                    <Pill tone={p.slow && p.circuit === "CLOSED" ? "warn" : CIRCUIT_TONE[p.circuit]}>
+                      {p.slow && p.circuit === "CLOSED" ? "SLOW" : p.circuit.replace("_", "-")}
+                      {p.degradedInstances > 0 && health.instances > 1 ? ` · ${p.degradedInstances}/${health.instances}` : ""}
+                    </Pill>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className={cn("py-1 pr-3 text-right", p.slow && "text-fg")}>{p.latencyMs === null ? "—" : `${(p.latencyMs / 1000).toFixed(1)} s`}</td>
+                <td className="py-1 text-right">
+                  {p.stats.calls} · <span className={cn(p.stats.failures > 0 && "text-fg")}>{p.stats.failures}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {health.transitions.length > 0 && (
         <div className="border-line border-t px-5 py-2.5">
           <span className="label-mono">Recent circuit changes</span>
           <ul className="mt-1.5 space-y-0.5 font-mono text-[11.5px]">
             {health.transitions.map((t) => (
-              <li key={`${t.instance}:${t.at}:${t.to}`} className="text-fg-subtle flex flex-wrap gap-x-3">
+              <li key={`${t.provider}:${t.instance}:${t.at}:${t.to}`} className="text-fg-subtle flex flex-wrap gap-x-3">
+                <span className="text-fg">{t.provider}</span>
                 <span className={cn(t.to === "OPEN" ? "text-rose" : t.to === "CLOSED" ? "text-fg-muted" : "text-fg")}>
                   {t.from} → {t.to}
                 </span>

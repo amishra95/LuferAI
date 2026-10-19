@@ -12,6 +12,7 @@
  *   expense        a booking was exported to the company's expense system
  *   po             a blanket purchase order was raised, closed, reopened or drawn on
  *   order          a catalogue order moved along its lifecycle (buyer, supplier, approval, agent)
+ *   escalation     a held-back counter-offer was opened, decided or superseded (lib/escalations)
  *
  * Every event has a `seq` from the event log (lib/telemetry/event-log.ts),
  * increasing across server instances, which doubles as the SSE event id so a
@@ -66,6 +67,9 @@ export const ORDER_EVENT_ACTORS = ["buyer", "supplier", "approval", "agent", "ex
 export type OrderEventActor = (typeof ORDER_EVENT_ACTORS)[number];
 
 export const PO_CHANGES = ["created", "closed", "reopened", "reallocated"] as const;
+
+export const ESCALATION_EVENT_STATUSES = ["open", "approved", "modified", "rejected", "superseded"] as const;
+export type EscalationEventStatus = (typeof ESCALATION_EVENT_STATUSES)[number];
 export type PoChange = (typeof PO_CHANGES)[number];
 
 export type TelemetryEventBody =
@@ -79,7 +83,8 @@ export type TelemetryEventBody =
   | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
   | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" }
   | { type: "po"; poId: string; change: PoChange }
-  | { type: "order"; orderId: string; partnerId: string; status: OrderEventStatus; by: OrderEventActor };
+  | { type: "order"; orderId: string; partnerId: string; status: OrderEventStatus; by: OrderEventActor }
+  | { type: "escalation"; escalationId: string; venueId: string; status: EscalationEventStatus };
 
 /** An event as published, before the log numbers it. */
 export type NewTelemetryEvent = TelemetryEventBody & { at: number };
@@ -91,14 +96,18 @@ export type TelemetryEventType = TelemetryEvent["type"];
 /** The SSE `event:` name for telemetry messages (the client listens for it). */
 export const SSE_EVENT = "telemetry";
 
-/** What a viewer may receive: operator data (spans, traces, runs) vs the venue directory. */
+/** What a viewer may receive: operator data (spans, traces, runs), the venue directory, and their own venue's escalations. */
 export interface TelemetryAudience {
   ops: boolean;
   venues: boolean;
+  /** A venue host's venue: they hear its escalations and nothing else operational. */
+  venueId?: string | null;
 }
 
-export function visibleTo(event: Pick<TelemetryEvent, "type">, audience: TelemetryAudience): boolean {
-  return event.type === "venue-sync" || event.type === "venue-updated" ? audience.venues : audience.ops;
+export function visibleTo(event: Pick<TelemetryEvent, "type"> & { venueId?: string }, audience: TelemetryAudience): boolean {
+  if (event.type === "venue-sync" || event.type === "venue-updated") return audience.venues;
+  if (event.type === "escalation") return audience.ops || (Boolean(audience.venueId) && event.venueId === audience.venueId);
+  return audience.ops;
 }
 
 // ----------------------------------------------------------------------------
@@ -216,6 +225,10 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
     case "order":
       return str(v.orderId, 64) && str(v.partnerId, 64) && (ORDER_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (ORDER_EVENT_ACTORS as readonly unknown[]).includes(v.by)
         ? { ...base, type: "order", orderId: v.orderId, partnerId: v.partnerId, status: v.status as OrderEventStatus, by: v.by as OrderEventActor }
+        : null;
+    case "escalation":
+      return str(v.escalationId, 64) && str(v.venueId, 128) && (ESCALATION_EVENT_STATUSES as readonly unknown[]).includes(v.status)
+        ? { ...base, type: "escalation", escalationId: v.escalationId, venueId: v.venueId, status: v.status as EscalationEventStatus }
         : null;
     case "po":
       return str(v.poId, 64) && (PO_CHANGES as readonly unknown[]).includes(v.change) ? { ...base, type: "po", poId: v.poId, change: v.change as PoChange } : null;

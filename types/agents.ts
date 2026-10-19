@@ -67,25 +67,54 @@ export type ObservabilityEvent = {
   fallback?: string;
 };
 
-export type ProviderHealth = {
-  /** The default backend (what the AI routes use) has an API key. */
+type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
+type BreakerStats = { calls: number; failures: number; rejected: number; retries: number };
+
+/** One model provider (lib/ai/routing.ts) as the health panel shows it. */
+export type ProviderHealthRow = {
+  id: "openai" | "anthropic" | "groq";
+  label: string;
+  /** The model it runs. */
+  model: string;
   configured: boolean;
-  /** Every model backend agents can be switched to, and whether it has a key. */
-  backends: { id: string; label: string; configured: boolean }[];
-  circuit: "CLOSED" | "OPEN" | "HALF_OPEN";
+  /** Worst state in force across instances. */
+  circuit: CircuitState;
   consecutiveFailures: number;
   /** Epoch ms, when an open circuit next lets a trial call through. */
   retryAt: number | null;
-  /** Breaker counters: all instances over the last 24 h, or this instance since start when `store` is "instance". */
-  stats: { calls: number; failures: number; rejected: number; retries: number };
+  /** Smoothed time to response headers on this instance, or null before any call. */
+  latencyMs: number | null;
+  /** Recent latency is past the spike threshold, so routing tries it after healthy providers. */
+  slow: boolean;
+  stats: BreakerStats;
+  /** Instances whose circuit for this provider is open or half-open now. */
+  degradedInstances: number;
+};
+
+export type ProviderHealth = {
+  /** Some provider has an API key (AI routes can answer). */
+  configured: boolean;
+  /** Every model backend agents can be switched to, and whether it has a key. */
+  backends: { id: string; label: string; configured: boolean }[];
+  /** The default backend's provider: what calls try first unless an agent chose otherwise. */
+  primary: ProviderHealthRow["id"];
+  /** healthy: the primary answers; failover: calls are going to another provider; down: every configured provider's circuit is open. */
+  routing: "healthy" | "failover" | "down";
+  /** The primary's circuit (or, when down, the soonest to reopen). */
+  circuit: CircuitState;
+  consecutiveFailures: number;
+  retryAt: number | null;
+  providers: ProviderHealthRow[];
+  /** Breaker counters summed over providers: all instances over the last 24 h, or this instance since start when `store` is "instance". */
+  stats: BreakerStats;
   /** Error/Fallback events in the last 24 hours. */
   fallbacks24h: number;
-  /** Where the counters and states come from: shared Redis, this process's memory store, or (store unreadable) the live breaker only. */
+  /** Model failovers in the last 24 hours (from traces). */
+  failovers24h: number;
+  /** Where the counters and states come from: shared Redis, this process's memory store, or (store unreadable) the live breakers only. */
   store: "redis" | "memory" | "instance";
   /** Instances heard from in the last 24 h, this one included. */
   instances: number;
-  /** Of those, how many have the circuit open or half-open right now. */
-  degradedInstances: number;
-  /** Latest state changes, newest first. */
-  transitions: { instance: string; from: "CLOSED" | "OPEN" | "HALF_OPEN"; to: "CLOSED" | "OPEN" | "HALF_OPEN"; at: number }[];
+  /** Latest state changes across providers, newest first. */
+  transitions: { provider: string; instance: string; from: CircuitState; to: CircuitState; at: number }[];
 };

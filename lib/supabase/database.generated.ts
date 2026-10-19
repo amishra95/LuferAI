@@ -1345,6 +1345,90 @@ export type Database = {
           },
         ]
       }
+      negotiation_escalation_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string
+          created_at: string
+          detail: Json
+          escalation_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          detail?: Json
+          escalation_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          detail?: Json
+          escalation_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      negotiation_escalations: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_per_head_inr: number | null
+          decision_note: string | null
+          id: string
+          party_size: number
+          proposed_per_head_inr: number
+          reason: string
+          response_id: string
+          rfp_id: string
+          standard_per_head_inr: number | null
+          status: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_per_head_inr?: number | null
+          decision_note?: string | null
+          id?: string
+          party_size: number
+          proposed_per_head_inr: number
+          reason: string
+          response_id: string
+          rfp_id: string
+          standard_per_head_inr?: number | null
+          status?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_per_head_inr?: number | null
+          decision_note?: string | null
+          id?: string
+          party_size?: number
+          proposed_per_head_inr?: number
+          reason?: string
+          response_id?: string
+          rfp_id?: string
+          standard_per_head_inr?: number | null
+          status?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       partner_audit_log: {
         Row: {
           action: string
@@ -2289,6 +2373,7 @@ export type Database = {
       }
       venue_negotiation_rules: {
         Row: {
+          alert_whatsapp: string | null
           auto_counter: boolean
           auto_decline_below_floor: boolean
           max_discount_pct: number | null
@@ -2298,6 +2383,7 @@ export type Database = {
           venue_id: string
         }
         Insert: {
+          alert_whatsapp?: string | null
           auto_counter?: boolean
           auto_decline_below_floor?: boolean
           max_discount_pct?: number | null
@@ -2307,6 +2393,7 @@ export type Database = {
           venue_id: string
         }
         Update: {
+          alert_whatsapp?: string | null
           auto_counter?: boolean
           auto_decline_below_floor?: boolean
           max_discount_pct?: number | null

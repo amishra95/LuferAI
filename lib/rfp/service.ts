@@ -21,6 +21,8 @@ import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, pricingForVenues } from "@/lib/venues/pricing-store";
+import { notifyEscalation } from "@/lib/escalations/notify";
+import { openEscalations, supersedeEscalations, SYSTEM, type Actor, type NewEscalation } from "@/lib/escalations/store";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
 
 /** Most venues a single brief is broadcast to. */
@@ -110,6 +112,7 @@ export async function broadcastRfp(input: {
   if (error) throw error;
 
   const now = new Date().toISOString();
+  const escalations: Omit<NewEscalation, "rfpId" | "responseId">[] = [];
   const outcomes: {
     venue: string;
     status: "quoted" | "no_fit" | "auto_counter" | "auto_decline" | "escalated";
@@ -173,6 +176,9 @@ export async function broadcastRfp(input: {
       };
     }
     // Escalated: the instant quote stands and the host decides on the counter.
+    if (auto.action === "escalate" && quote.status === "quoted") {
+      escalations.push({ venueId: venue.id, proposedPerHead: auto.perHead, standardPerHead: quote.per_head_inr, partySize: req.party_size, reason: auto.note });
+    }
     if (auto.action === "escalate") outcomes.push({ venue: venue.name, status: "escalated", perHeadInr: auto.perHead, standardPerHead: quote.status === "quoted" ? quote.per_head_inr : undefined, reason: auto.note });
     else outcomes.push(
       quote.status === "quoted"
@@ -203,8 +209,18 @@ export async function broadcastRfp(input: {
   tracer.annotate({ rfp: rfp.id.slice(0, 8), partySize: req.party_size, budgetPerHead: req.budget_per_head_inr, outcomes });
 
   if (rows.length > 0) {
-    const { error: insertError } = await db.from("rfp_responses").insert(rows);
+    const { data: inserted, error: insertError } = await db.from("rfp_responses").insert(rows).select("id, venue_id");
     if (insertError) throw insertError;
+    // Held-back counters go to the venue's escalation queue (lib/escalations), and people are told.
+    const responseFor = new Map(inserted.map((r) => [r.venue_id, r.id]));
+    const opened = await openEscalations(
+      escalations.flatMap((e) => (responseFor.has(e.venueId) ? [{ ...e, rfpId: rfp.id, responseId: responseFor.get(e.venueId)! }] : []))
+    ).catch((err) => {
+      // The instant quotes are already saved: a queue failure mustn't fail the broadcast.
+      console.error("rfp: could not open escalations", err);
+      return [] as string[];
+    });
+    for (const id of opened) notifyEscalation(id, "opened");
   }
 
   const [withMatrix] = await listRfps({ rfpIds: [rfp.id] });
@@ -326,6 +342,8 @@ export async function respondToRfp(input: {
   perHeadInr?: number;
   menuPackageId?: string | null;
   notes?: string | null;
+  /** Who's responding, for the escalation audit trail. */
+  actor?: Actor;
 }) {
   const db = createAdminClient();
   const { data: existing } = await db
@@ -343,6 +361,7 @@ export async function respondToRfp(input: {
       .update({ source: "venue", status: "declined", notes: input.notes ?? null, responded_at: new Date().toISOString() })
       .eq("id", existing.id);
     if (error) throw error;
+    await supersedeOpen(existing.id, input.actor, "Declined from the RFP inbox");
     return;
   }
 
@@ -382,6 +401,16 @@ export async function respondToRfp(input: {
     })
     .eq("id", existing.id);
   if (error) throw error;
+  await supersedeOpen(existing.id, input.actor, `Countered at ₹${input.perHeadInr.toLocaleString("en-IN")} a head from the RFP inbox`);
+}
+
+/** A response answered by hand closes its open escalation (an escalation's own decision has already closed it). Never throws. */
+async function supersedeOpen(responseId: string, actor: Actor | undefined, how: string) {
+  const closed = await supersedeEscalations(responseId, actor ?? SYSTEM, how).catch((err) => {
+    console.error("rfp: could not supersede escalations", err);
+    return [];
+  });
+  for (const e of closed) notifyEscalation(e.id, "decided", "a manual response");
 }
 
 /** A venue's menu packages (active first, cheapest first), for the counter-offer form. */

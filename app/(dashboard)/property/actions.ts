@@ -28,10 +28,10 @@ async function actingVenueId(formData: FormData): Promise<string> {
   return (await actingVenue(formData)).venueId;
 }
 
-async function actingVenue(formData: FormData): Promise<{ venueId: string; userId: string }> {
+async function actingVenue(formData: FormData): Promise<{ venueId: string; userId: string; role: string }> {
   const member = await requirePortal("/property");
   // Never trust the submitted venue for property managers.
-  return { venueId: member.role === "ADMIN" ? String(formData.get("venue_id") ?? "") : (member.venueId ?? ""), userId: member.userId };
+  return { venueId: member.role === "ADMIN" ? String(formData.get("venue_id") ?? "") : (member.venueId ?? ""), userId: member.userId, role: member.role };
 }
 
 /** What the host forms show after submitting (useActionState). */
@@ -109,7 +109,7 @@ export async function convertVenueHold(formData: FormData) {
 
 /** Counter-offer (per-head price, optional package) or decline on an RFP sent to this venue. */
 export async function respondToRfpAction(formData: FormData) {
-  const venueId = await actingVenueId(formData);
+  const { venueId, userId, role } = await actingVenue(formData);
   const responseId = String(formData.get("response_id") ?? "");
   const decline = formData.get("intent") === "decline";
   if (!venueId || !responseId) throw new Error("Invalid RFP response");
@@ -121,6 +121,7 @@ export async function respondToRfpAction(formData: FormData) {
     perHeadInr: Number(formData.get("per_head_inr")) || undefined,
     menuPackageId: String(formData.get("menu_package_id") ?? "") || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
+    actor: { id: userId, role },
   });
 
   revalidatePath("/property");
@@ -130,7 +131,7 @@ export async function respondToRfpAction(formData: FormData) {
 /** Counter or decline from the RFP inbox, with guardrail errors shown inline. */
 export async function counterRfpAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
   try {
-    const venueId = await actingVenueId(formData);
+    const { venueId, userId, role } = await actingVenue(formData);
     const responseId = String(formData.get("response_id") ?? "");
     const decline = formData.get("intent") === "decline";
     if (!venueId || !responseId) return { status: "error", message: "Invalid RFP response." };
@@ -147,6 +148,7 @@ export async function counterRfpAction(_prev: HostFormState, formData: FormData)
             perHeadInr,
             menuPackageId: String(formData.get("menu_package_id") ?? "") || null,
             notes: String(formData.get("notes") ?? "").trim() || null,
+            actor: { id: userId, role },
           });
         } catch (err) {
           // The venue's own guardrails (floor, discount ceiling) refused the counter.

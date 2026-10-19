@@ -408,33 +408,43 @@ export class CircuitBreaker {
 }
 
 // ----------------------------------------------------------------------------
-// Shared breaker for LLM / AI API calls
+// One breaker per LLM provider
 // ----------------------------------------------------------------------------
 
-const g = globalThis as typeof globalThis & { __luferLlmCircuitBreaker?: CircuitBreaker };
+export const LLM_PROVIDERS = ["openai", "anthropic", "groq"] as const;
+export type LlmProvider = (typeof LLM_PROVIDERS)[number];
+
+const g = globalThis as typeof globalThis & { __luferLlmBreakers?: Record<LlmProvider, CircuitBreaker> };
 
 /**
- * One breaker for model calls (OpenAI via the AI SDK, AI Gateway). Kept on
- * globalThis so `next dev` hot reloads don't reset its state.
+ * A breaker per model provider, so one provider's outage trips only its own
+ * circuit and lib/ai/model.ts fails over to the next (lib/ai/routing.ts).
+ * Kept on globalThis so `next dev` hot reloads don't reset their state.
  *
- * Tuned for LLM latency: up to 3 retries with 0.5 s → 8 s backoff (Retry-After
- * honoured up to 8 s), a 60 s per-attempt timeout matching the routes'
- * maxDuration, opening after 5 consecutive failed calls for 30 s, then closing
- * after 2 successful trial calls.
+ * Tuned for failover: one retry (0.5 s → 4 s backoff, Retry-After honoured up
+ * to 4 s) before the call moves to the next provider, a 60 s per-attempt
+ * timeout matching the routes' maxDuration (non-streaming calls only get
+ * headers once the whole answer is written), opening after 5 consecutive
+ * failed calls for 30 s, then closing after 2 successful trial calls.
  *
  * The AI SDK also retries internally (maxRetries, default 2). When wrapping
  * generateText/streamText, pass `maxRetries: 0` so attempts don't multiply.
  */
-export const llmCircuitBreaker: CircuitBreaker = (g.__luferLlmCircuitBreaker ??= new CircuitBreaker({
-  name: "llm",
-  failureThreshold: 5,
-  resetTimeoutMs: 30_000,
-  halfOpenMaxCalls: 1,
-  successThreshold: 2,
-  retry: { maxRetries: 3, baseDelayMs: 500, maxDelayMs: 8_000 },
-  callTimeoutMs: 60_000,
-  onStateChange: ({ name, from, to }) => {
-    const log = to === "OPEN" ? console.error : console.warn;
-    log(`circuit-breaker: "${name}" ${from} → ${to}`);
-  },
-}));
+export const llmBreakers: Record<LlmProvider, CircuitBreaker> = (g.__luferLlmBreakers ??= Object.fromEntries(
+  LLM_PROVIDERS.map((provider) => [
+    provider,
+    new CircuitBreaker({
+      name: `llm.${provider}`,
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+      halfOpenMaxCalls: 1,
+      successThreshold: 2,
+      retry: { maxRetries: 1, baseDelayMs: 500, maxDelayMs: 4_000 },
+      callTimeoutMs: 60_000,
+      onStateChange: ({ name, from, to }) => {
+        const log = to === "OPEN" ? console.error : console.warn;
+        log(`circuit-breaker: "${name}" ${from} → ${to}`);
+      },
+    }),
+  ])
+) as Record<LlmProvider, CircuitBreaker>);
