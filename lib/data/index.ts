@@ -31,6 +31,7 @@ import { canOrderTransition, isOrderStatus, orderAllocationStatus, type OrderSta
 import { MAX_GUESTS, type AttendeeInput, type RsvpResponse, type RsvpStatus } from "@/lib/events/rsvp";
 import { EMPTY_PLAN, planDiffers, type EventPlan, type PlanContent, type RunOfShowItem } from "@/lib/events/plan";
 import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
+import { isActionable, stepsToActivate } from "@/lib/services/enterprise/approvalEngine";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
@@ -268,6 +269,53 @@ export interface NewApprovalRequest {
   approver_id: string;
   /** Why the policy requires sign-off. */
   reason: string;
+  /** Position in the sign-off sequence (1 = first). Defaults to 1. */
+  step?: number;
+  /** false: queued until the step before it is approved (migration 0030). Defaults to true. */
+  active?: boolean;
+  /** The approval_policy_rules band that asked for it; its sla_hours sets the deadline. */
+  rule_id?: string | null;
+}
+
+/** An approval as inserted: queued steps start without activated_at; the trigger sets due_at from the rule. */
+const approvalInsert = ({ active, step, rule_id, ...a }: NewApprovalRequest) => ({
+  ...a,
+  step: step ?? 1,
+  rule_id: rule_id ?? null,
+  ...(active === false ? { activated_at: null } : {}),
+});
+
+/** Local equivalent of an approval insert (no deadlines: approval rules need Supabase). */
+const localApproval = (
+  a: NewApprovalRequest,
+  subject: { tenant_id: string; booking_id: string | null; catalog_order_id: string | null },
+  now: string
+): BookingApproval => ({
+  id: crypto.randomUUID(),
+  ...subject,
+  ...approvalInsert(a),
+  activated_at: a.active === false ? null : now,
+  due_at: null,
+  escalated_from: null,
+  status: "PENDING",
+  decision_note: null,
+  decided_at: null,
+  created_at: now,
+  updated_at: now,
+});
+
+/** Thrown when a team budget can't take the request (migration 0030: budget_holds_check). */
+export class BudgetHoldError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BudgetHoldError";
+  }
+}
+
+export interface NewBudgetHold {
+  budget_id: string;
+  /** Allowed past the budget's balance because the request goes through sign-off. */
+  over_budget: boolean;
 }
 
 /** Thrown when another live hold already locks the venue on the event date. */
@@ -285,16 +333,18 @@ export interface NewHoldRequest {
 
 /**
  * Creates a booking. With `approvals`, the booking starts as PENDING_APPROVAL and
- * one booking_approvals row is raised per approver (tier 1, plus tier 2 for
- * high-value bookings); it reaches the venue once all are approved. Otherwise it
+ * one booking_approvals row is raised per approver, in sequence (step 1 decides
+ * first); it reaches the venue once all are approved. Otherwise it
  * goes straight to the venue as PENDING. With `hold`, an ACTIVE inventory hold locks the venue
  * on the event date; if the date is already held the whole booking is refused.
+ * With `budgetHolds` (Supabase only), the total is held against each team budget.
  */
 export async function createBookingRequest(
   input: NewBookingInput,
-  options: { approvals?: NewApprovalRequest[]; hold?: NewHoldRequest; allocation?: NewPoAllocation } = {}
+  options: { approvals?: NewApprovalRequest[]; hold?: NewHoldRequest; allocation?: NewPoAllocation; budgetHolds?: NewBudgetHold[] } = {}
 ): Promise<BookingDetail> {
   const { hold, allocation } = options;
+  const budgetHolds = options.budgetHolds ?? [];
   const approvals = options.approvals ?? [];
   const total = roundInr(input.party_size * input.budget_per_head_inr);
   const status: BookingStatus = approvals.length ? "PENDING_APPROVAL" : "PENDING";
@@ -336,18 +386,7 @@ export async function createBookingRequest(
     };
     db.bookings.push(booking);
     for (const approval of approvals) {
-      db.approvals.push({
-        id: crypto.randomUUID(),
-        tenant_id: input.company_id,
-        booking_id: booking.id,
-        catalog_order_id: null,
-        ...approval,
-        status: "PENDING",
-        decision_note: null,
-        decided_at: null,
-        created_at: now,
-        updated_at: now,
-      });
+      db.approvals.push(localApproval(approval, { tenant_id: input.company_id, booking_id: booking.id, catalog_order_id: null }, now));
     }
     if (hold) {
       db.holds.push({
@@ -384,7 +423,7 @@ export async function createBookingRequest(
   if (approvals.length) {
     const { error: approvalError } = await supabase
       .from("booking_approvals")
-      .insert(approvals.map((a) => ({ tenant_id: input.company_id, booking_id: data.id, ...a })));
+      .insert(approvals.map((a) => ({ tenant_id: input.company_id, booking_id: data.id, ...approvalInsert(a) })));
     if (approvalError) {
       await undo();
       throw approvalError;
@@ -413,6 +452,17 @@ export async function createBookingRequest(
       // po_allocations_check: another booking spent the balance first, or the PO changed.
       if (allocationError.code === "23514") throw new PoAllocationError(allocationError.message);
       throw allocationError;
+    }
+  }
+  if (budgetHolds.length) {
+    // budget_holds_check: the balance went between the check and the insert, or the budget changed.
+    const { error: holdsError } = await supabase
+      .from("budget_holds")
+      .insert(budgetHolds.map((h) => ({ budget_id: h.budget_id, tenant_id: input.company_id, booking_id: data.id, amount_inr: total, over_budget: h.over_budget })));
+    if (holdsError) {
+      await undo();
+      if (holdsError.code === "23514") throw new BudgetHoldError(holdsError.message);
+      throw holdsError;
     }
   }
   const [created] = (await listBookings()).filter((b) => b.id === data.id);
@@ -822,7 +872,7 @@ function orderAsSubject(o: Pick<CatalogOrder, "id" | "event_date" | "needed_by" 
 export async function decideApproval(
   id: string,
   scope: { approverId: string; tenantId: string },
-  decision: Exclude<ApprovalStatus, "PENDING">,
+  decision: "APPROVED" | "REJECTED",
   note?: string
 ) {
   // Sign-off is sequential: a tier-2 approver decides only after every lower tier has approved.
@@ -834,13 +884,20 @@ export async function decideApproval(
         (x) => x.id === id && x.approver_id === scope.approverId && x.tenant_id === scope.tenantId && x.status === "PENDING"
       );
       if (!a) throw new Error("This approval was not found or has already been decided.");
+      // booking_approvals_guard_update: a queued step waits for the one before it.
+      if (!isActionable(a)) throw new Error("This approval is waiting for an earlier step to be approved.");
       const now = new Date().toISOString();
       Object.assign(a, { status: decision, decision_note: note ?? null, decided_at: now, updated_at: now });
 
-      // Local equivalent of booking_approvals_apply_decision: the last approval (or any
-      // rejection) moves the booking to the venue, or the order to the supplier.
+      // Local equivalent of booking_approvals_apply_decision: an approval activates the next
+      // step; the last one (or any rejection) moves the booking to the venue, or the order to
+      // the supplier. Escalated rows were handed on and hold nothing up.
       const sameSubject = (x: BookingApproval) => (a.booking_id ? x.booking_id === a.booking_id : x.catalog_order_id === a.catalog_order_id);
-      const othersOpen = db.approvals.some((x) => sameSubject(x) && x.id !== a.id && x.status !== "APPROVED");
+      const siblings = db.approvals.filter(sameSubject);
+      if (decision === "APPROVED") {
+        for (const next of stepsToActivate(siblings, a.id)) Object.assign(siblings.find((x) => x.id === next)!, { activated_at: now, updated_at: now });
+      }
+      const othersOpen = siblings.some((x) => x.id !== a.id && x.status !== "APPROVED" && x.status !== "ESCALATED");
       if (a.booking_id) {
         const booking = db.bookings.find((b) => b.id === a.booking_id);
         if (booking?.status === "PENDING_APPROVAL" && (decision === "REJECTED" || !othersOpen)) {
@@ -868,6 +925,7 @@ export async function decideApproval(
     .eq("tenant_id", scope.tenantId)
     .eq("status", "PENDING")
     .select("id");
+  if (error?.hint === "approval_queued") throw new Error("This approval is waiting for an earlier step to be approved.");
   if (error) throw error;
   if (data.length === 0) throw new Error("This approval was not found or has already been decided.");
 }
@@ -894,7 +952,12 @@ async function assertLowerTiersApproved(approvalId: string, tenantId: string) {
   const me = siblings.find((x) => x.id === approvalId);
   if (!me) return; // decideApproval reports "not found"
   const myTier = tiers.get(`${tenantId}:${me.approver_id}`) ?? 1;
-  const waitingOn = siblings.find((x) => x.id !== approvalId && x.status === "PENDING" && (tiers.get(`${tenantId}:${x.approver_id}`) ?? 1) < myTier);
+  // Earlier steps first (migration 0030). Within a step (approvals raised before 0030 all
+  // share step 1), lower tiers first. A later step never holds up an earlier one, even when
+  // an escalation put a higher tier on the earlier step.
+  const waitingOn = siblings.find(
+    (x) => x.id !== approvalId && x.status === "PENDING" && (x.step < me.step || (x.step === me.step && (tiers.get(`${tenantId}:${x.approver_id}`) ?? 1) < myTier))
+  );
   if (waitingOn) {
     const name = users.find((u) => u.id === waitingOn.approver_id)?.name ?? "the previous approver";
     throw new Error(`Waiting for tier-${tiers.get(`${tenantId}:${waitingOn.approver_id}`) ?? 1} sign-off from ${name} first.`);
@@ -1400,7 +1463,10 @@ export type NewCatalogOrder = Omit<CatalogOrder, "id" | "status" | "tracking" | 
  * (checked like a booking's). On Supabase the dependent rows are undone if
  * any insert fails, as for bookings.
  */
-export async function createCatalogOrder(input: NewCatalogOrder, options: { approvals?: NewApprovalRequest[]; allocation?: NewPoAllocation } = {}): Promise<CatalogOrderDetail> {
+export async function createCatalogOrder(
+  input: NewCatalogOrder,
+  options: { approvals?: NewApprovalRequest[]; allocation?: NewPoAllocation; budgetHolds?: NewBudgetHold[] } = {}
+): Promise<CatalogOrderDetail> {
   const approvals = options.approvals ?? [];
   const status = approvals.length ? "PENDING_APPROVAL" : "PLACED";
   if (local()) {
@@ -1425,7 +1491,7 @@ export async function createCatalogOrder(input: NewCatalogOrder, options: { appr
       }
       db.catalogOrders.push(order);
       for (const a of approvals) {
-        db.approvals.push({ id: crypto.randomUUID(), tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, ...a, status: "PENDING", decision_note: null, decided_at: null, created_at: now, updated_at: now });
+        db.approvals.push(localApproval(a, { tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id }, now));
       }
       if (options.allocation) {
         db.poAllocations.push({ id: crypto.randomUUID(), po_id: options.allocation.po_id, tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, amount_inr: Number(input.total_amount_inr), status: "committed", over_balance: options.allocation.over_balance, created_at: now, updated_at: now });
@@ -1442,7 +1508,7 @@ export async function createCatalogOrder(input: NewCatalogOrder, options: { appr
   if (error) throw error;
   const undo = () => supabase.from("catalog_orders").delete().eq("id", data.id);
   if (approvals.length) {
-    const { error: approvalError } = await supabase.from("booking_approvals").insert(approvals.map((a) => ({ tenant_id: input.tenant_id, catalog_order_id: data.id, ...a })));
+    const { error: approvalError } = await supabase.from("booking_approvals").insert(approvals.map((a) => ({ tenant_id: input.tenant_id, catalog_order_id: data.id, ...approvalInsert(a) })));
     if (approvalError) {
       await undo();
       throw approvalError;
@@ -1456,6 +1522,16 @@ export async function createCatalogOrder(input: NewCatalogOrder, options: { appr
       await undo();
       if (allocationError.code === "23514") throw new PoAllocationError(allocationError.message);
       throw allocationError;
+    }
+  }
+  if (options.budgetHolds?.length) {
+    const { error: holdsError } = await supabase
+      .from("budget_holds")
+      .insert(options.budgetHolds.map((h) => ({ budget_id: h.budget_id, tenant_id: input.tenant_id, catalog_order_id: data.id, amount_inr: Number(input.total_amount_inr), over_budget: h.over_budget })));
+    if (holdsError) {
+      await undo();
+      if (holdsError.code === "23514") throw new BudgetHoldError(holdsError.message);
+      throw holdsError;
     }
   }
   return (await listCatalogOrders({ ids: [data.id] }))[0];

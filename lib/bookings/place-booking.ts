@@ -9,9 +9,10 @@ import {
   listPoAllocations,
   listPurchaseOrders,
   listVenues,
+  BudgetHoldError,
   PoAllocationError,
 } from "@/lib/data";
-import { assignApprovers } from "@/lib/approvals/route";
+import { assignApprovers, signOffPhrase } from "@/lib/approvals/route";
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
@@ -20,6 +21,8 @@ import { planHold } from "@/lib/inventory/plan-hold";
 import { selectPo } from "@/lib/procurement/po-ledger";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { applyRateCard } from "@/lib/rates/apply-rate-card";
+import { approvalDemand } from "@/lib/services/enterprise/approvalEngine";
+import { checkGovernance } from "@/lib/services/enterprise/governanceStore";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
 import { minSpendCompliance } from "@/lib/venues/profile";
@@ -161,16 +164,30 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       const po = selectPo(pos, allocations, { tenantId: company.id, eventDate, departmentId, amount: pricing.taxableTotal, poId: input.poId });
       if (po.kind === "ineligible") return { status: "error", message: `${po.reason}. Ask your approver or finance team to raise or extend a purchase order.` };
 
-      // Tier 1 (manager) signs off; above the high-value threshold or the monthly limit tier 2 (senior)
-      // does too, after tier 1. Nobody approves their own request: the requester is skipped and the next tier steps up.
-      const reasons = [policy.requiresApproval ? policy.reason : null, po.kind === "over_balance" ? po.reason : null].filter((r): r is string => Boolean(r));
+      // Approval rules and team budgets (lib/services/enterprise): a hard-capped budget refuses
+      // the booking; otherwise its band sets how many levels sign off, and an overdrawn budget
+      // needs at least one.
+      const governance = await checkGovernance({ tenantId: company.id, departmentId, date: eventDate, amount: pricing.taxableTotal });
+      if (governance.spend.kind === "blocked") return { status: "error", message: `This booking can't be made: ${governance.spend.reason}.` };
+
+      // Policy, rule band, budget and PO combined: the strictest decides how many levels of the
+      // chain sign off, one after another. Nobody approves their own request: the requester is
+      // skipped and the next tier steps up.
+      const demand = approvalDemand({
+        policy,
+        amount: pricing.taxableTotal,
+        rule: governance.rule,
+        budgetReason: governance.spend.kind === "over" ? governance.spend.reason : null,
+        extraReasons: po.kind === "over_balance" ? [po.reason] : [],
+      });
       const routed = await assignApprovers({
         companyId: company.id,
         companyName: company.legal_name,
         requesterId: userId,
         users,
-        reasons,
-        tiers: policy.requiresApproval ? policy.tiers : 1,
+        reasons: demand.required ? demand.reasons : [],
+        tiers: demand.required ? demand.levels : 1,
+        ruleId: demand.required ? demand.ruleId : null,
       });
       if (!routed.ok) return { status: "error", message: routed.message };
       const { approvals, approverNames } = routed;
@@ -193,12 +210,12 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           entertainment,
           ...(expense.ok ? expense.value : { cost_center: "" }),
         },
-        { approvals, hold, allocation }
+        { approvals, hold, allocation, budgetHolds: governance.spend.kind === "ok" || governance.spend.kind === "over" ? governance.spend.holds : [] }
       );
       if (approvals.length) {
         return {
           status: "success",
-          message: approvals.length > 1 ? "Booking submitted — requires manager and senior sign-off." : "Booking submitted — requires manager sign-off.",
+          message: `Booking submitted — ${signOffPhrase(approvals.length)}.`,
           invoice: booking.invoice,
           approval: { reason: approvals[0].reason, approverName: approverNames.join(", then "), tiers: approvals.length },
           holdHours: hours,
@@ -215,6 +232,10 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         venueName: venue!.name,
       };
     } catch (err) {
+      if (err instanceof BudgetHoldError) {
+        // Another booking drew down the team budget between the check and the insert.
+        return { status: "error", message: `${err.message}. Try again, or ask your approver to raise the team budget.` };
+      }
       if (err instanceof PoAllocationError) {
         // Another booking drew down the PO between the check and the insert, or it was closed.
         return { status: "error", message: `${err.message}. Try again, or choose another purchase order.` };

@@ -241,46 +241,121 @@ export type Database = {
           },
         ]
       }
+      approval_policy_rules: {
+        Row: {
+          approval_levels: number
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          id: string
+          is_active: boolean
+          max_amount_inr: number | null
+          min_amount_inr: number
+          name: string
+          sla_hours: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          approval_levels: number
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount_inr?: number | null
+          min_amount_inr?: number
+          name: string
+          sla_hours?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          approval_levels?: number
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount_inr?: number | null
+          min_amount_inr?: number
+          name?: string
+          sla_hours?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_policy_rules_department_fkey"
+            columns: ["department_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "approval_policy_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_approvals: {
         Row: {
+          activated_at: string | null
           approver_id: string
           booking_id: string | null
           catalog_order_id: string | null
           created_at: string
           decided_at: string | null
           decision_note: string | null
+          due_at: string | null
+          escalated_from: string | null
           id: string
           reason: string | null
           requested_by: string
+          rule_id: string | null
           status: Database["public"]["Enums"]["approval_status"]
+          step: number
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
           approver_id: string
           booking_id?: string | null
           catalog_order_id?: string | null
           created_at?: string
           decided_at?: string | null
           decision_note?: string | null
+          due_at?: string | null
+          escalated_from?: string | null
           id?: string
           reason?: string | null
           requested_by?: string
+          rule_id?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
+          step?: number
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
           approver_id?: string
           booking_id?: string | null
           catalog_order_id?: string | null
           created_at?: string
           decided_at?: string | null
           decision_note?: string | null
+          due_at?: string | null
+          escalated_from?: string | null
           id?: string
           reason?: string | null
           requested_by?: string
+          rule_id?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
+          step?: number
           tenant_id?: string
           updated_at?: string
         }
@@ -307,6 +382,13 @@ export type Database = {
             referencedColumns: ["id", "company_id"]
           },
           {
+            foreignKeyName: "booking_approvals_escalated_from_fkey"
+            columns: ["escalated_from"]
+            isOneToOne: false
+            referencedRelation: "booking_approvals"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_approvals_order_fkey"
             columns: ["catalog_order_id", "tenant_id"]
             isOneToOne: false
@@ -319,6 +401,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "platform_users"
             referencedColumns: ["user_id", "company_id"]
+          },
+          {
+            foreignKeyName: "booking_approvals_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "approval_policy_rules"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "booking_approvals_tenant_id_fkey"
@@ -435,6 +524,81 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_holds: {
+        Row: {
+          amount_inr: number
+          booking_id: string | null
+          budget_id: string
+          catalog_order_id: string | null
+          created_at: string
+          id: string
+          over_budget: boolean
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_id?: string | null
+          budget_id: string
+          catalog_order_id?: string | null
+          created_at?: string
+          id?: string
+          over_budget?: boolean
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_id?: string | null
+          budget_id?: string
+          catalog_order_id?: string | null
+          created_at?: string
+          id?: string
+          over_budget?: boolean
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_holds_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "budget_holds_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "budget_holds_budget_fkey"
+            columns: ["budget_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "team_budgets"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "budget_holds_order_fkey"
+            columns: ["catalog_order_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_orders"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "budget_holds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2249,6 +2413,66 @@ export type Database = {
           },
         ]
       }
+      team_budgets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          department_id: string
+          enforcement: string
+          id: string
+          limit_inr: number
+          period: string
+          period_end: string | null
+          period_start: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id: string
+          enforcement?: string
+          id?: string
+          limit_inr: number
+          period: string
+          period_end?: string | null
+          period_start: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id?: string
+          enforcement?: string
+          id?: string
+          limit_inr?: number
+          period?: string
+          period_end?: string | null
+          period_start?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_budgets_department_fkey"
+            columns: ["department_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "team_budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_payouts: {
         Row: {
           catalog_order_id: string
@@ -2766,6 +2990,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      budget_hold_status_for: {
+        Args: { subject_status: string }
+        Returns: string
+      }
       can_join_event_channel: { Args: { topic: string }; Returns: boolean }
       current_company_id: { Args: never; Returns: string }
       current_partner_id: { Args: never; Returns: string }
@@ -2779,9 +3007,18 @@ export type Database = {
       }
       current_venue_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      escalate_booking_approval: {
+        Args: { p_approval_id: string; p_reason?: string }
+        Returns: string
+      }
+      escalate_overdue_approvals: { Args: never; Returns: number }
       gstin_checksum: { Args: { p_first14: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
+      replace_approval_chain: {
+        Args: { p_approvers: string[]; p_tenant_id: string }
+        Returns: undefined
+      }
       rfp_company_id: { Args: { p_rfp_id: string }; Returns: string }
       rfp_sent_to_current_venue: {
         Args: { p_rfp_id: string }
@@ -2789,7 +3026,7 @@ export type Database = {
       }
     }
     Enums: {
-      approval_status: "PENDING" | "APPROVED" | "REJECTED"
+      approval_status: "PENDING" | "APPROVED" | "REJECTED" | "ESCALATED"
       booking_status:
         | "PENDING_APPROVAL"
         | "PENDING"
@@ -2944,7 +3181,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      approval_status: ["PENDING", "APPROVED", "REJECTED"],
+      approval_status: ["PENDING", "APPROVED", "REJECTED", "ESCALATED"],
       booking_status: [
         "PENDING_APPROVAL",
         "PENDING",

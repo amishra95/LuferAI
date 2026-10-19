@@ -47,8 +47,9 @@ export function homeFor(role: PortalRole): Portal {
  * users who can request bookings (Organizers and Approvers, not Finance viewers);
  * "client" areas admit every client role. The chat concierge is "client": its
  * tools only search and analyse (scoped to the user's company), never book.
+ * Governance is "client" to view; changing it is checked per action.
  */
-export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues"] as const;
+export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance"] as const;
 export type WorkspaceRoute = (typeof WORKSPACE_ROUTES)[number];
 
 const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client"> = {
@@ -57,6 +58,9 @@ const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client"> = 
   "/agents": "admin",
   "/chat": "client",
   "/venues": "booker",
+  // Every client role sees its company's approval rules and budgets; only Approvers change them
+  // (lib/services/enterprise/access.ts).
+  "/governance": "client",
 };
 
 const BOOKERS: readonly CorporateRole[] = ["ORGANIZER", "APPROVER"];

@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isCronAuthorized } from "@/lib/api/cron";
 import { releaseExpiredHolds } from "@/lib/approvals/service";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 
@@ -16,17 +16,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/admin";
  */
 export const dynamic = "force-dynamic";
 
-function isAuthorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false; // fail closed when unconfigured
-  const header = request.headers.get("authorization") ?? "";
-  // Hash both sides so the comparison is constant-time regardless of length.
-  const digest = (v: string) => createHash("sha256").update(v).digest();
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
-}
-
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!isSupabaseConfigured()) {

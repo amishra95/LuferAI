@@ -554,7 +554,15 @@ export function backfillDefaults(db: MockDb): MockDb {
   }
   for (const i of db.catalogItems) i.stock_quantity ??= null;
   for (const o of db.catalogOrders) o.commission_rate ??= null;
-  for (const a of db.approvals) a.catalog_order_id ??= null;
+  for (const a of db.approvals) {
+    a.catalog_order_id ??= null;
+    // Migration 0030: approvals raised before it are active, with no deadline.
+    a.step ??= 1;
+    if (a.activated_at === undefined) a.activated_at = a.created_at;
+    a.due_at ??= null;
+    a.rule_id ??= null;
+    a.escalated_from ??= null;
+  }
   for (const a of db.poAllocations) a.catalog_order_id ??= null;
   for (const e of db.expenseExports) e.catalog_order_id ??= null;
   for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
