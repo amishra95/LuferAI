@@ -5,6 +5,7 @@ import { createHash, createHmac } from "node:crypto";
 import { findExpenseExport, listBookings, listCatalogOrders, listCompanies, recordExpenseExport, retryExpenseExport } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import type { ExpenseExport } from "@/lib/supabase/database.types";
+import { markCardReceipts } from "@/lib/finance/card-receipts";
 import { buildExpenseRequest, isExpenseProvider, providerEnv, type ExpenseProvider } from "@/lib/finance/expense-adapters";
 import { buildExpenseReceipt, type ExpenseReceipt } from "@/lib/finance/receipt";
 import type { Json } from "@/lib/supabase/database.generated";
@@ -138,7 +139,10 @@ export async function exportBookingExpense(bookingId: string): Promise<DispatchO
     if (!booking) throw new Error(`Booking ${bookingId} not found`);
     if (!EXPORTABLE.has(booking.status)) throw new Error(`Booking ${bookingId} is ${booking.status}, not confirmed`);
     const receipt = buildExpenseReceipt({ ...booking, company: booking.company, venue: { ...booking.venue } }, new Date().toISOString());
-    return await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing);
+    const outcome = await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing);
+    // Virtual cards issued for the booking (migration 0033) show whether their receipt synced.
+    await markCardReceipts(booking.id, outcome);
+    return outcome;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     audit({ booking_id: bookingId, status: "error", error: message });

@@ -19,6 +19,15 @@ export interface BookingPolicyRules {
   restricted_entertainment?: readonly string[];
 }
 
+/** A department's own limits (department_policies, migration 0033); the stricter of these and the company's apply. */
+export interface DepartmentPolicyRules {
+  name: string;
+  /** Per-head cap, pre-GST. null = company rule only. */
+  max_budget_per_head: number | null;
+  /** Booking total (pre-GST) above which senior (tier 2) sign-off is needed. null = company rule only. */
+  senior_approval_above: number | null;
+}
+
 /** The company-wide monthly limit (companies.monthly_spend_limit_inr; 0 = none) and what's committed so far. */
 export interface SpendLimitInput {
   monthly_limit: number;
@@ -36,6 +45,8 @@ export interface BookingPolicyInput {
   event_date?: string;
   alcohol_included?: boolean;
   entertainment?: readonly string[];
+  /** The department charged, for its own limits (department_policies). */
+  department_id?: string | null;
   /** What headcount counts, for the wording ("guests" by default; "gifts", "tickets"… for catalogue orders). */
   unit?: string;
 }
@@ -86,7 +97,8 @@ export function monthToDateSpend(
 export function evaluateBookingPolicy(
   rules: BookingPolicyRules | null,
   input: Pick<BookingPolicyInput, "total_amount" | "headcount" | "per_head_amount" | "alcohol_included" | "entertainment" | "unit">,
-  spend: SpendLimitInput | null = null
+  spend: SpendLimitInput | null = null,
+  department: DepartmentPolicyRules | null = null
 ): BookingPolicyResult {
   if (input.alcohol_included && rules?.alcohol_policy === "prohibited") {
     return { requiresApproval: false, blocked: true, reason: "company policy doesn't allow alcohol at company events" };
@@ -101,7 +113,14 @@ export function evaluateBookingPolicy(
       `it takes this month's committed spend to ${inr(spend.month_to_date + input.total_amount)}, over the company's ${inr(spend.monthly_limit)} monthly limit`
     );
   }
-  if (!rules) return reasons.length ? { requiresApproval: true, reason: reasons.join("; "), tiers: 2 } : { requiresApproval: false };
+  if (department?.max_budget_per_head != null && input.per_head_amount > Number(department.max_budget_per_head)) {
+    reasons.push(`${inr(input.per_head_amount)} per head exceeds ${department.name}'s ${inr(Number(department.max_budget_per_head))} per-head budget`);
+  }
+  if (department?.senior_approval_above != null && input.total_amount > Number(department.senior_approval_above)) {
+    senior = true;
+    reasons.push(`it is above ${department.name}'s ${inr(Number(department.senior_approval_above))} threshold for senior sign-off`);
+  }
+  if (!rules) return reasons.length ? { requiresApproval: true, reason: reasons.join("; "), tiers: senior ? 2 : 1 } : { requiresApproval: false };
 
   if (input.alcohol_included && rules.alcohol_policy === "approval") reasons.push("it includes alcohol, which needs sign-off under company policy");
   const restricted = restrictedIn(rules, input.entertainment);

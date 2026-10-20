@@ -539,6 +539,51 @@ export type Database = {
           },
         ]
       }
+      booking_memories: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          embedding: string
+          id: string
+          kind: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          embedding: string
+          id?: string
+          kind?: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          embedding?: string
+          id?: string
+          kind?: string
+          summary?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_memories_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_memories_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           alcohol_included: boolean
@@ -1412,6 +1457,48 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department_policies: {
+        Row: {
+          created_at: string
+          department_id: string
+          max_budget_per_head_inr: number | null
+          senior_approval_above_inr: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          max_budget_per_head_inr?: number | null
+          senior_approval_above_inr?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          max_budget_per_head_inr?: number | null
+          senior_approval_above_inr?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_policies_department_fkey"
+            columns: ["department_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "department_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2324,13 +2411,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payments_booking_invoice_id_fkey"
-            columns: ["booking_invoice_id"]
-            isOneToOne: false
-            referencedRelation: "booking_invoices"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payments_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
@@ -2342,6 +2422,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_booking_invoice_id_fkey"
+            columns: ["booking_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "booking_invoices"
             referencedColumns: ["id"]
           },
           {
@@ -2846,6 +2933,39 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          budget_limit_per_head_inr: number | null
+          created_at: string
+          cuisines: string[]
+          dietary: string[]
+          notes: string | null
+          seating: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_limit_per_head_inr?: number | null
+          created_at?: string
+          cuisines?: string[]
+          dietary?: string[]
+          notes?: string | null
+          seating?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_limit_per_head_inr?: number | null
+          created_at?: string
+          cuisines?: string[]
+          dietary?: string[]
+          notes?: string | null
+          seating?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       vendor_payouts: {
         Row: {
           catalog_order_id: string
@@ -3243,6 +3363,91 @@ export type Database = {
           },
         ]
       }
+      virtual_cards: {
+        Row: {
+          amount_limit_inr: number
+          booking_id: string
+          card_token: string
+          created_at: string
+          currency: string
+          expense_error: string | null
+          expense_sync_status: string
+          expense_synced_at: string | null
+          expires_at: string
+          id: string
+          issued_by: string | null
+          last4: string
+          provider: string
+          provider_card_id: string
+          single_use: boolean
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_limit_inr: number
+          booking_id: string
+          card_token: string
+          created_at?: string
+          currency?: string
+          expense_error?: string | null
+          expense_sync_status?: string
+          expense_synced_at?: string | null
+          expires_at: string
+          id?: string
+          issued_by?: string | null
+          last4: string
+          provider: string
+          provider_card_id: string
+          single_use?: boolean
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_limit_inr?: number
+          booking_id?: string
+          card_token?: string
+          created_at?: string
+          currency?: string
+          expense_error?: string | null
+          expense_sync_status?: string
+          expense_synced_at?: string | null
+          expires_at?: string
+          id?: string
+          issued_by?: string | null
+          last4?: string
+          provider?: string
+          provider_card_id?: string
+          single_use?: boolean
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_cards_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id", "company_id"]
+          },
+          {
+            foreignKeyName: "virtual_cards_booking_fkey"
+            columns: ["booking_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "virtual_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       booking_tax_breakdown: {
@@ -3389,6 +3594,17 @@ export type Database = {
       indian_fiscal_year: { Args: { d: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
+      match_booking_memories: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          booking_id: string
+          created_at: string
+          id: string
+          kind: string
+          similarity: number
+          summary: string
+        }[]
+      }
       replace_approval_chain: {
         Args: { p_approvers: string[]; p_tenant_id: string }
         Returns: undefined

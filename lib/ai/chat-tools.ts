@@ -30,6 +30,7 @@ export async function searchVenueCatalogue(filters: VenueSearchFilters) {
     partnerTotal: partner.length,
     partnerNetwork: partners,
     venues: take.map((o) => ({
+      id: o.venue.id,
       name: o.venue.name,
       tier: o.venue.tier,
       supplier: o.venue.supplier,

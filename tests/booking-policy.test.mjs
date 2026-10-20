@@ -56,3 +56,20 @@ test("describePolicyChecks itemises the same rules evaluateBookingPolicy applies
   assert.deepEqual(describePolicyChecks({ max_budget_per_head: null, requires_approval_above: null }, input), []);
   assert.deepEqual(describePolicyChecks(null, input), []);
 });
+
+test("department policy: its per-head cap and senior threshold apply alongside the company's", () => {
+  const dept = { name: "Sales", max_budget_per_head: 1500, senior_approval_above: 50000 };
+  const input = { total_amount: 36000, headcount: 20, per_head_amount: 1800 };
+  // No company policy at all: the department's cap alone needs one sign-off.
+  const capped = evaluateBookingPolicy(null, input, null, dept);
+  assert.equal(capped.requiresApproval, true);
+  assert.equal(capped.tiers, 1);
+  assert.match(capped.reason, /Sales's ₹1,500\.00 per-head budget/);
+  // Over the department's senior threshold: two tiers, even when the company's own rules pass.
+  const company = { max_budget_per_head: 5000, requires_approval_above: null };
+  const big = evaluateBookingPolicy(company, { total_amount: 60000, headcount: 40, per_head_amount: 1500 }, null, dept);
+  assert.equal(big.requiresApproval, true);
+  assert.equal(big.tiers, 2);
+  // Within both: nothing to approve.
+  assert.deepEqual(evaluateBookingPolicy(company, { total_amount: 20000, headcount: 20, per_head_amount: 1000 }, null, dept), { requiresApproval: false });
+});

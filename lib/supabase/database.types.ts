@@ -99,3 +99,10 @@ export type VendorPayout = Tables<"vendor_payouts">;
 export type TcsEntry = Tables<"tcs_entries">;
 export type VenueBlockedDate = Tables<"venue_blocked_dates">;
 export type VenueNegotiationRules = Tables<"venue_negotiation_rules">;
+export type UserPreferences = Tables<"user_preferences">;
+export type BookingMemory = Tables<"booking_memories">;
+export type DepartmentPolicy = Tables<"department_policies">;
+export type VirtualCard = Tables<"virtual_cards">;
+/** virtual_cards.status and .expense_sync_status check constraints (migration 0033). */
+export type VirtualCardStatus = "active" | "used" | "expired" | "cancelled";
+export type ExpenseSyncStatus = "awaiting_confirmation" | "synced" | "mocked" | "failed";

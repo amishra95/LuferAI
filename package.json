@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.78",
+    "@ai-sdk/google": "^4.0.101",
     "@ai-sdk/groq": "^4.0.54",
     "@ai-sdk/openai": "^4.0.83",
     "@ai-sdk/provider": "^4.0.21",
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
     "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-pgvector": "0.0.9",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
