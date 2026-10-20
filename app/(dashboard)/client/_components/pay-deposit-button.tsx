@@ -6,27 +6,7 @@ import { CreditCard, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { DepositCheckout } from "@/lib/payments/gateways";
-
-interface RazorpayInstance {
-  open(): void;
-  on(event: "payment.failed", cb: (resp: { error: { description: string } }) => void): void;
-}
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
-  }
-}
-
-function loadRazorpay(): Promise<void> {
-  if (window.Razorpay) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Couldn't load Razorpay Checkout"));
-    document.body.appendChild(script);
-  });
-}
+import { openCheckout } from "@/lib/payments/open-checkout";
 
 /**
  * Takes the booking deposit. It's captured when the venue confirms and released if
@@ -65,30 +45,13 @@ export function PayDepositButton({
       if (!res.ok) throw new Error(json.error ?? "Could not start checkout");
       const checkout = json.checkout as DepositCheckout;
 
-      if (checkout.provider === "stripe") {
-        window.location.assign(checkout.url);
-        return;
-      }
-
-      await loadRazorpay();
-      const rzp = new window.Razorpay!({
-        key: checkout.keyId,
-        order_id: checkout.orderId,
-        amount: checkout.amountPaise,
-        currency: checkout.currency,
-        name: "CorpHospitality",
+      await openCheckout(checkout, {
         description: invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
-        // Server-built: UPI-first display config, prefill, and B2B GST notes that
-        // Razorpay stores on the payment (and so includes in every webhook).
-        config: checkout.config,
-        notes: checkout.notes,
-        prefill: checkout.prefill,
         // The webhook is the source of truth; refresh to pick up its status.
-        handler: () => setTimeout(() => router.refresh(), 1500),
-        modal: { ondismiss: () => setPending(false) },
+        onPaid: () => setTimeout(() => router.refresh(), 1500),
+        onDismiss: () => setPending(false),
+        onFailed: setError,
       });
-      rzp.on("payment.failed", (resp) => setError(resp.error.description));
-      rzp.open();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start checkout");
       setPending(false);
