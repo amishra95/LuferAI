@@ -82,6 +82,27 @@ export function createLatencyTracker(alpha = 0.3) {
   };
 }
 
+/** How long a provider that refused on account grounds is skipped before it's tried again. */
+export const ACCOUNT_BLOCK_MS = 10 * 60_000;
+
+const ACCOUNT_REFUSAL = /no credits remaining|insufficient[_ ]quota|exceeded your current quota|billing|credit balance is too low|invalid[_ ]api[_ ]key|incorrect api key|api key not valid|permission[_ ]denied|account (?:is )?(?:deactivated|suspended)/i;
+
+/**
+ * The provider refused because of the account, not the request: out of credits
+ * or quota, billing, or a bad/revoked key (401, 402, 403). Retrying the same
+ * provider can't help, but another one can. OpenAI reports exhausted credits
+ * inside an HTTP 200 stream, so the message counts as much as the status.
+ */
+export function isProviderAccountError(error: unknown): boolean {
+  for (let e = error, depth = 0; typeof e === "object" && e !== null && depth < 5; e = (e as { cause?: unknown }).cause, depth++) {
+    const { statusCode, status, message, responseBody } = e as { statusCode?: unknown; status?: unknown; message?: unknown; responseBody?: unknown };
+    const code = typeof statusCode === "number" ? statusCode : typeof status === "number" ? status : null;
+    if (code === 401 || code === 402 || code === 403) return true;
+    if ([message, responseBody].some((t) => typeof t === "string" && ACCOUNT_REFUSAL.test(t))) return true;
+  }
+  return false;
+}
+
 /**
  * Runs `attempt` against each provider in order until one succeeds. Errors
  * that `shouldFailOver` rejects (a bad request, a cancelled call) are thrown

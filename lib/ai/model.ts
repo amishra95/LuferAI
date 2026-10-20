@@ -7,7 +7,17 @@ import type { LanguageModelV4 } from "@ai-sdk/provider";
 import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
 
 import { DEFAULT_BACKEND, type ModelBackend } from "@/lib/agents/config";
-import { createLatencyTracker, PROVIDER_LABEL, PROVIDERS, routeOrder, tryInOrder, type Provider, type ProviderStatus } from "@/lib/ai/routing";
+import {
+  ACCOUNT_BLOCK_MS,
+  createLatencyTracker,
+  isProviderAccountError,
+  PROVIDER_LABEL,
+  PROVIDERS,
+  routeOrder,
+  tryInOrder,
+  type Provider,
+  type ProviderStatus,
+} from "@/lib/ai/routing";
 import { CircuitOpenError, isTransientError, llmBreakers } from "@/lib/circuit-breaker";
 import { trackBreaker } from "@/lib/telemetry/provider-health";
 import { logUsage } from "@/lib/telemetry/usage";
@@ -52,6 +62,16 @@ for (const provider of PROVIDERS) trackBreaker(llmBreakers[provider]);
 const gl = globalThis as typeof globalThis & { __luferLatency?: ReturnType<typeof createLatencyTracker> };
 /** Time to response headers per provider, smoothed (this instance). */
 export const providerLatency = (gl.__luferLatency ??= createLatencyTracker());
+
+/**
+ * Providers that refused on account grounds (out of credits, bad key), until
+ * when (epoch ms, this instance). They go to the back of the route instead of
+ * being tried first on every request; the breaker doesn't see these, because
+ * the refusal can arrive inside an HTTP 200 stream.
+ */
+const ga = globalThis as typeof globalThis & { __luferAccountBlocks?: Map<Provider, number> };
+const accountBlocks = (ga.__luferAccountBlocks ??= new Map());
+const accountBlocked = (p: Provider) => (accountBlocks.get(p) ?? 0) > Date.now();
 
 const isTransientStatus = (status: number) => status === 408 || status === 429 || status >= 500;
 
@@ -213,12 +233,17 @@ function providerModel(provider: Provider, usage: UsageContext | undefined): Lan
  * `llm.failover` span so it shows in traces and the /agents activity feed.
  */
 async function withFailover<T>(primary: Provider, usage: UsageContext | undefined, signal: AbortSignal | undefined, call: (model: LanguageModelV4) => PromiseLike<T>): Promise<T> {
-  const order = routeOrder(primary, providerStatuses());
-  if (order.length === 0) throw new AiUnavailableError("No AI provider is configured.");
+  const routed = routeOrder(primary, providerStatuses());
+  if (routed.length === 0) throw new AiUnavailableError("No AI provider is configured.");
+  // Account-blocked providers last: still tried if nothing else answers.
+  const order = [...routed.filter((p) => !accountBlocked(p)), ...routed.filter(accountBlocked)];
   const { result, provider, index, errors } = await tryInOrder(order, (p) => call(providerModel(p, usage)), {
-    shouldFailOver: isAiUnavailable,
+    shouldFailOver: (err) => isAiUnavailable(err) || isProviderAccountError(err),
     aborted: () => Boolean(signal?.aborted),
-    onSkip: (from, to) => console.warn(`model: ${PROVIDER_LABEL[from]} unavailable, failing over to ${PROVIDER_LABEL[to]}`),
+    onSkip: (from, to, err) => {
+      if (isProviderAccountError(err)) accountBlocks.set(from, Date.now() + ACCOUNT_BLOCK_MS);
+      console.warn(`model: ${PROVIDER_LABEL[from]} ${isProviderAccountError(err) ? "refused (account: credits, quota or key)" : "unavailable"}, failing over to ${PROVIDER_LABEL[to]}`);
+    },
   });
   if (provider !== primary) {
     tracer
@@ -248,7 +273,8 @@ export function getLanguageModel(options: { backend?: ModelBackend; usage?: Usag
   const primary = BACKEND_PROVIDER[options.backend ?? DEFAULT_BACKEND];
   if (!PROVIDERS.some(isProviderConfigured)) return null;
   // Named after the provider that would answer now, so pages show what's live.
-  const first = routeOrder(primary, providerStatuses())[0] ?? primary;
+  const routed = routeOrder(primary, providerStatuses());
+  const first = routed.find((p) => !accountBlocked(p)) ?? routed[0] ?? primary;
   return {
     specificationVersion: "v4",
     provider: "lufer.router",
