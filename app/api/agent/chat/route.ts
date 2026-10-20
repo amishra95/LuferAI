@@ -10,12 +10,15 @@ import { limitAiRequest } from "@/lib/ratelimit";
 import { siteUrl } from "@/lib/site-url";
 import { tracer } from "@/lib/tracer";
 
-export type ConciergeUIMessage = UIMessage<unknown, never, InferUITools<ConciergeTools>>;
+/** The model that answered, so the UI can show it. */
+export type ConciergeMetadata = { model?: string };
+
+export type ConciergeUIMessage = UIMessage<ConciergeMetadata, never, InferUITools<ConciergeTools>>;
 
 export const maxDuration = 60; // Seconds; Vercel allows up to 300 on Hobby and 800 on Pro (Fluid compute)
 
 // Override per environment (GEMINI_MODEL) rather than editing code when models change.
-const modelId = () => process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+const modelId = () => process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 
 const CONCIERGE_SYSTEM = `You are LuferAI Concierge, the corporate hospitality assistant for LuferAI in Bengaluru.
 
@@ -34,7 +37,7 @@ Today is ${new Date().toISOString().slice(0, 10)} (dates are IST). Amounts are i
 const Body = z.object({ messages: z.array(z.unknown()).min(1).max(100) }); // shape-checked by safeValidateUIMessages
 
 /**
- * LuferAI Concierge: Gemini (GEMINI_MODEL, default gemini-2.5-flash) with team-availability, venue and payment
+ * LuferAI Concierge: Gemini (GEMINI_MODEL, default gemini-3.8-flash) with team-availability, venue and payment
  * tools (lib/agent/tools.ts), up to 5 steps per turn. Payments are proposed as
  * a tool call the user approves in the UI; approvals are HMAC-signed
  * (TOOL_APPROVAL_SECRET) so a modified client can't forge one.
@@ -65,12 +68,13 @@ async function handleConcierge(request: NextRequest) {
   if (!validated.success) return NextResponse.json({ error: "invalid_messages" }, { status: 400 });
   const messages = validated.data;
 
+  const model = modelId();
   const modelMessages = await convertToModelMessages(messages, { tools });
-  const llm = tracer.startSpan("llm.stream", { attributes: { model: modelId(), messages: messages.length } });
+  const llm = tracer.startSpan("llm.stream", { attributes: { model, messages: messages.length } });
   // Started inside llm.run so the provider requests and tool calls are its children.
   const result = llm.run(() =>
     streamText({
-      model: google(modelId()),
+      model: google(model),
       instructions: CONCIERGE_SYSTEM,
       messages: modelMessages,
       tools,
@@ -96,6 +100,7 @@ async function handleConcierge(request: NextRequest) {
       stream: result.stream,
       tools,
       originalMessages: messages,
+      messageMetadata: ({ part }) => (part.type === "start" ? { model } : undefined),
       onError: () => "The concierge couldn't respond. Try again.",
     }),
   });

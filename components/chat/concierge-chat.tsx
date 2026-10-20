@@ -44,6 +44,8 @@ export function ConciergeChat() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const busy = status === "submitted" || status === "streaming";
+  // Chosen by the server (GEMINI_MODEL); reported on each reply.
+  const model = messages.findLast((m) => m.metadata?.model)?.metadata?.model;
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
@@ -59,7 +61,7 @@ export function ConciergeChat() {
     <div className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-3xl flex-col">
       <header className="border-line border-b px-4 py-3">
         <h1 className="text-fg text-base font-medium">LuferAI Concierge · test</h1>
-        <p className="text-fg-subtle text-xs">Gemini · up to 5 steps · team availability is mocked</p>
+        <p className="text-fg-subtle text-xs">{model ?? "Gemini"} · up to 5 steps · team availability is mocked</p>
       </header>
 
       <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4" aria-live="polite">
