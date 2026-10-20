@@ -11,6 +11,7 @@ import { DEFAULT_BACKEND, type ModelBackend } from "@/lib/agents/config";
 import {
   ACCOUNT_BLOCK_MS,
   createLatencyTracker,
+  isModelUnavailableError,
   isProviderAccountError,
   PROVIDER_LABEL,
   PROVIDERS,
@@ -27,6 +28,14 @@ import { tracer } from "@/lib/tracer";
 // Default models per provider; override per environment (GEMINI_MODEL,
 // OPENAI_MODEL, GROQ_MODEL) rather than editing code when models change.
 export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+/** For latency-sensitive chat (GEMINI_FAST_MODEL): a few seconds a turn where gemini-3.8-flash can take a minute. */
+export const DEFAULT_GEMINI_FAST_MODEL = "gemini-3.1-flash-lite";
+
+/**
+ * "standard" for multi-step agent work; "fast" for interactive chat that needs
+ * quick turns. Only Gemini has a fast model; other providers run their one model.
+ */
+export type ModelSpeed = "standard" | "fast";
 export const DEFAULT_MODEL = "gpt-4o";
 export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
@@ -171,10 +180,11 @@ export const isProviderConfigured = (provider: Provider) => Boolean(process.env[
 /** Whether the backend's API key is set in this environment. */
 export const isBackendConfigured = (backend: ModelBackend) => isProviderConfigured(BACKEND_PROVIDER[backend]);
 
-/** The model id each provider runs. */
-export function providerModelId(provider: Provider): string {
+/** The model id each provider runs at a speed. */
+export function providerModelId(provider: Provider, speed: ModelSpeed = "standard"): string {
   switch (provider) {
     case "google":
+      if (speed === "fast") return process.env.GEMINI_FAST_MODEL?.trim() || DEFAULT_GEMINI_FAST_MODEL;
       return process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
     case "anthropic":
       return "claude-sonnet-5-5";
@@ -242,8 +252,8 @@ const claudeDefaults: LanguageModelMiddleware = {
 };
 
 /** One provider's model with its middleware: Claude's defaults, and token logging attributed to the model that ran. */
-function providerModel(provider: Provider, usage: UsageContext | undefined): LanguageModelV4 {
-  const id = providerModelId(provider);
+function providerModel(provider: Provider, usage: UsageContext | undefined, speed: ModelSpeed = "standard"): LanguageModelV4 {
+  const id = providerModelId(provider, speed);
   const base = PROVIDER_CLIENT[provider]()(id);
   const middleware = [...(provider === "anthropic" ? [claudeDefaults] : []), ...(usage ? [usageMiddleware(usage)] : [])];
   return middleware.length ? wrapLanguageModel({ model: base, middleware }) : base;
@@ -255,12 +265,29 @@ function providerModel(provider: Provider, usage: UsageContext | undefined): Lan
  * call) is the caller's and is thrown as is. A failover is recorded as an
  * `llm.failover` span so it shows in traces and the /agents activity feed.
  */
-async function withFailover<T>(primary: Provider, usage: UsageContext | undefined, signal: AbortSignal | undefined, call: (model: LanguageModelV4) => PromiseLike<T>): Promise<T> {
+async function withFailover<T>(
+  primary: Provider,
+  usage: UsageContext | undefined,
+  signal: AbortSignal | undefined,
+  speed: ModelSpeed,
+  call: (model: LanguageModelV4) => PromiseLike<T>
+): Promise<T> {
+  // A fast model that's been retired falls back to the provider's standard one before the next provider.
+  const attempt = async (p: Provider) => {
+    if (speed === "standard" || providerModelId(p, "fast") === providerModelId(p)) return call(providerModel(p, usage));
+    try {
+      return await call(providerModel(p, usage, "fast"));
+    } catch (err) {
+      if (!isModelUnavailableError(err) || signal?.aborted) throw err;
+      console.warn(`model: ${providerModelId(p, "fast")} unavailable on ${PROVIDER_LABEL[p]}, using ${providerModelId(p)}`);
+      return call(providerModel(p, usage));
+    }
+  };
   const routed = routeOrder(primary, providerStatuses());
   if (routed.length === 0) throw new AiUnavailableError("No AI provider is configured.");
   // Account-blocked providers last: still tried if nothing else answers.
   const order = [...routed.filter((p) => !accountBlocked(p)), ...routed.filter(accountBlocked)];
-  const { result, provider, index, errors } = await tryInOrder(order, (p) => call(providerModel(p, usage)), {
+  const { result, provider, index, errors } = await tryInOrder(order, attempt, {
     shouldFailOver: (err) => isAiUnavailable(err) || isProviderAccountError(err),
     aborted: () => Boolean(signal?.aborted),
     onSkip: (from, to, err) => {
@@ -274,7 +301,7 @@ async function withFailover<T>(primary: Provider, usage: UsageContext | undefine
         attributes: {
           from: PROVIDER_LABEL[primary],
           to: PROVIDER_LABEL[provider],
-          model: providerModelId(provider),
+          model: providerModelId(provider, speed),
           tried: order.slice(0, index + 1).map((p) => PROVIDER_LABEL[p]).join(" → "),
           agent: usage?.agent ?? null,
           reason: errors.length ? errorText(errors.at(-1)) : `${PROVIDER_LABEL[primary]} skipped: circuit open or slow`,
@@ -290,9 +317,11 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : "unavailable
 /**
  * The routed model for a backend (default Gemini): that backend's provider
  * first, then the others (lib/ai/routing.ts). Null only when no provider has
- * an API key. Pass `usage` to log each call's tokens and cost.
+ * an API key. Pass `usage` to log each call's tokens and cost, and
+ * `speed: "fast"` for interactive chat (Gemini's fast model).
  */
-export function getLanguageModel(options: { backend?: ModelBackend; usage?: UsageContext } = {}): LanguageModelV4 | null {
+export function getLanguageModel(options: { backend?: ModelBackend; usage?: UsageContext; speed?: ModelSpeed } = {}): LanguageModelV4 | null {
+  const speed = options.speed ?? "standard";
   const primary = BACKEND_PROVIDER[options.backend ?? DEFAULT_BACKEND];
   if (!PROVIDERS.some(isProviderConfigured)) return null;
   // Named after the provider that would answer now, so pages show what's live.
@@ -301,11 +330,11 @@ export function getLanguageModel(options: { backend?: ModelBackend; usage?: Usag
   return {
     specificationVersion: "v4",
     provider: "lufer.router",
-    modelId: providerModelId(first),
+    modelId: providerModelId(first, speed),
     // No URL is passed through as-is: the SDK downloads files itself, which every provider accepts.
     supportedUrls: {},
-    doGenerate: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, (m) => m.doGenerate(callOptions)),
-    doStream: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, (m) => m.doStream(callOptions)),
+    doGenerate: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, (m) => m.doGenerate(callOptions)),
+    doStream: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, (m) => m.doStream(callOptions)),
   };
 }
 

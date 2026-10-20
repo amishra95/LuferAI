@@ -18,7 +18,7 @@ export type ConciergeMetadata = { model?: string };
 
 export type ConciergeUIMessage = UIMessage<ConciergeMetadata, never, InferUITools<ConciergeTools>>;
 
-export const maxDuration = 60; // Seconds; Vercel allows up to 300 on Hobby and 800 on Pro (Fluid compute)
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 // Override per environment (GEMINI_MODEL) rather than editing code when models change.
 const modelId = () => process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";

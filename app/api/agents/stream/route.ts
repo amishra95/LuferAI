@@ -31,7 +31,7 @@ import type { AgentId, AgentRecord } from "@/types/agents";
  * agent again.
  */
 
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 const MAX_PROMPT = 2000;
 const HEARTBEAT_MS = 15_000;

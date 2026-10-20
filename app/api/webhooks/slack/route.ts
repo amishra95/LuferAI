@@ -6,7 +6,7 @@ import { extractSlackMessage } from "@/lib/channels/slack";
 import { channelStore } from "@/lib/channels/store";
 import { tracer } from "@/lib/tracer";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 /**
  * Slack Events API endpoint: URL verification and message events. Every

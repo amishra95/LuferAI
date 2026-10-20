@@ -26,7 +26,7 @@ import { tracer } from "@/lib/tracer";
  * in the panel. Approvals are HMAC-signed (TOOL_APPROVAL_SECRET) so a modified
  * client can't forge one. Rate-limited by middleware.ts (/api/ai/*).
  */
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 const Body = z.object({
   messages: z.array(z.unknown()).min(1).max(100), // shape-checked by safeValidateUIMessages

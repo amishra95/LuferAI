@@ -6,7 +6,7 @@ import { channelStore } from "@/lib/channels/store";
 import { extractWhatsAppMessages } from "@/lib/channels/whatsapp";
 import { tracer } from "@/lib/tracer";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 /** Meta's subscription handshake: echo hub.challenge when the verify token matches. */
 export async function GET(req: Request) {
