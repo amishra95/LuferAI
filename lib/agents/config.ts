@@ -20,17 +20,23 @@ export const PROMPTABLE_AGENTS = ["workspace-agent", "channel-concierge"] as con
 export const MAX_INSTRUCTIONS = 1000;
 
 /**
- * Model backends an agent can run on (lib/ai/model.ts). Claude Sonnet 5.5 runs
- * at its default temperature: the API rejects other values, so the setting
- * only applies to gpt-4o.
+ * Model backends an agent can run on (lib/ai/model.ts). Gemini is the default;
+ * its model id comes from GEMINI_MODEL (default gemini-3.8-flash), so the
+ * backend id names the default model. Claude Sonnet 5.5 runs at its default
+ * temperature: the API rejects other values, so the setting only applies to
+ * Gemini and gpt-4o.
  */
-export const MODEL_BACKENDS = ["gpt-4o", "claude-sonnet-5-5"] as const;
+export const MODEL_BACKENDS = ["gemini-3.8-flash", "gpt-4o", "claude-sonnet-5-5"] as const;
 export type ModelBackend = (typeof MODEL_BACKENDS)[number];
-export const DEFAULT_BACKEND: ModelBackend = "gpt-4o";
-export const MODEL_BACKEND_LABEL: Record<ModelBackend, string> = { "gpt-4o": "GPT-4o", "claude-sonnet-5-5": "Claude Sonnet 5.5" };
+export const DEFAULT_BACKEND: ModelBackend = "gemini-3.8-flash";
+export const MODEL_BACKEND_LABEL: Record<ModelBackend, string> = {
+  "gemini-3.8-flash": "Gemini 3.8 Flash",
+  "gpt-4o": "GPT-4o",
+  "claude-sonnet-5-5": "Claude Sonnet 5.5",
+};
 export const isModelBackend = (v: unknown): v is ModelBackend => typeof v === "string" && (MODEL_BACKENDS as readonly string[]).includes(v);
 /** Whether the backend accepts a custom temperature. */
-export const takesTemperature = (backend: ModelBackend) => backend === "gpt-4o";
+export const takesTemperature = (backend: ModelBackend) => backend !== "claude-sonnet-5-5";
 
 export interface AgentPatch {
   enabled?: boolean;

@@ -141,7 +141,7 @@ export function ChatWorkspace({
                   <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
                   no model
                 </span>
-                Chat is unavailable until an OpenAI key is configured.
+                Chat is unavailable until a model provider key (e.g. GOOGLE_GENERATIVE_AI_API_KEY) is configured.
                 <Link href="/settings" className="text-fg-muted hover:text-fg inline-flex items-center gap-0.5 transition-colors">
                   Connect a key <ArrowUpRight className="size-3" aria-hidden />
                 </Link>

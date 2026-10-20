@@ -77,7 +77,7 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
     const form = new FormData(e.currentTarget);
     const result = agentPatchFromForm(agent.id, {
       tools: form.getAll("tools").map(String),
-      // Claude runs at its default; keep the saved gpt-4o value for when it's switched back.
+      // Claude runs at its default; keep the saved value for when it's switched back.
       temperature: !tunable ? (agent.temperature === null ? "" : String(agent.temperature)) : useDefault ? "" : String(temperature),
       maxSteps: String(form.get("maxSteps") ?? ""),
       model,

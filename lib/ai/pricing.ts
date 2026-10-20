@@ -13,6 +13,7 @@ export interface ModelPrice {
 }
 
 export const MODEL_PRICES: Record<string, ModelPrice> = {
+  "gemini-3.8-flash": { inputPerMTok: 0.15, outputPerMTok: 0.6 },
   "gpt-4o": { inputPerMTok: 2.5, outputPerMTok: 10 },
   "claude-sonnet-5-5": { inputPerMTok: 2, outputPerMTok: 10 },
   "llama-3.3-70b-versatile": { inputPerMTok: 0.59, outputPerMTok: 0.79 },

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { agentPatchFromForm, takesTemperature, validateAgentPatch } from "../lib/agents/config.ts";
+import { agentPatchFromForm, DEFAULT_BACKEND, takesTemperature, validateAgentPatch } from "../lib/agents/config.ts";
 import { clipPayload, createRunEventMapper, encodeRunEvent, MAX_PAYLOAD_CHARS, parseSseFrames } from "../lib/agents/run-events.ts";
 import { formatTokens, formatUsd, istDay, summarizeSpend } from "../lib/agents/spend.ts";
 import { costOf } from "../lib/ai/pricing.ts";
@@ -16,6 +16,7 @@ test("costOf prices calls per million tokens and rounds to 6 decimals", () => {
 
 test("costOf returns null for an unlisted model and ignores negative counts", () => {
   assert.equal(costOf("gpt-4o-mini", 100, 100), null);
+  assert.equal(costOf("gemini-3.8-flash", 1_000_000, 1_000_000), 0.75);
   assert.equal(costOf("gpt-4o", -50, 0), 0);
 });
 
@@ -33,9 +34,15 @@ test("agentPatchFromForm carries the model through with the other fields", () =>
   assert.deepEqual(r, { ok: true, patch: { tools: ["searchVenues"], temperature: null, maxSteps: 3, model: "claude-sonnet-5-5" } });
 });
 
-test("only gpt-4o takes a custom temperature", () => {
+test("Gemini and gpt-4o take a custom temperature; Claude runs at its default", () => {
+  assert.equal(takesTemperature("gemini-3.8-flash"), true);
   assert.equal(takesTemperature("gpt-4o"), true);
   assert.equal(takesTemperature("claude-sonnet-5-5"), false);
+});
+
+test("agents default to Gemini", () => {
+  assert.equal(DEFAULT_BACKEND, "gemini-3.8-flash");
+  assert.deepEqual(validateAgentPatch("workspace-agent", { model: "gemini-3.8-flash" }), { ok: true, patch: { model: "gemini-3.8-flash" } });
 });
 
 // --- spend summary -------------------------------------------------------------

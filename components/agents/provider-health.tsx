@@ -19,7 +19,7 @@ function headline(h: ProviderHealth, now: number): { tone: PillTone; label: stri
     return {
       tone: "error",
       label: "AI off",
-      body: "No model provider has an API key in this environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY). AI routes answer 503 without calling a model, and every surface falls back to its manual path below.",
+      body: "No model provider has an API key in this environment (GOOGLE_GENERATIVE_AI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY). AI routes answer 503 without calling a model, and every surface falls back to its manual path below.",
     };
   }
   const primary = h.providers.find((p) => p.id === h.primary)!;

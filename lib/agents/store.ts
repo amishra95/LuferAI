@@ -1,6 +1,6 @@
 import "server-only";
 
-import { AGENT_TOOLS, isModelBackend, type AGENT_IDS, type AgentToolName } from "@/lib/agents/config";
+import { AGENT_TOOLS, DEFAULT_BACKEND, isModelBackend, type AGENT_IDS, type AgentToolName } from "@/lib/agents/config";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { agentRunStats, logAgentRun, type NewRun } from "@/lib/telemetry/runs";
 import type { AgentConfig, AgentId, AgentRecord, AgentStatus } from "@/types/agents";
@@ -31,7 +31,7 @@ const DEFAULTS: AgentConfig[] = [
     temperature: null,
     maxSteps: 5,
     instructions: "",
-    model: "gpt-4o",
+    model: DEFAULT_BACKEND,
   },
   {
     id: "channel-concierge",
@@ -42,7 +42,7 @@ const DEFAULTS: AgentConfig[] = [
     temperature: 0.2,
     maxSteps: 4,
     instructions: "",
-    model: "gpt-4o",
+    model: DEFAULT_BACKEND,
   },
   {
     id: "venue-sourcer",
@@ -53,7 +53,7 @@ const DEFAULTS: AgentConfig[] = [
     temperature: 0.2,
     maxSteps: 3,
     instructions: "",
-    model: "gpt-4o",
+    model: DEFAULT_BACKEND,
   },
   {
     id: "metrics-reporter",
@@ -64,7 +64,7 @@ const DEFAULTS: AgentConfig[] = [
     temperature: 0,
     maxSteps: 2,
     instructions: "",
-    model: "gpt-4o",
+    model: DEFAULT_BACKEND,
   },
 ];
 

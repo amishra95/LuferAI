@@ -105,3 +105,11 @@ test("department policies must belong to the department's own company", async ()
     /foreign key/
   );
 });
+
+test("migration 0034: agents default to Gemini, and saved gpt-4o agents moved to it", async () => {
+  const { rows } = await db.query(`select column_default from information_schema.columns where table_name = 'agent_configurations' and column_name = 'model_backend'`);
+  assert.match(rows[0].column_default, /gemini-3\.8-flash/);
+  await db.query(`insert into agent_configurations (agent_key) values ('test-agent')`);
+  assert.equal((await db.query(`select model_backend from agent_configurations where agent_key = 'test-agent'`)).rows[0].model_backend, "gemini-3.8-flash");
+  await assert.rejects(db.query(`insert into agent_configurations (agent_key, model_backend) values ('bad-agent', 'gpt-5')`), /check constraint/);
+});

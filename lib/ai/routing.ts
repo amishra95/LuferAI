@@ -2,8 +2,9 @@
  * Multi-model routing: which providers a model call tries, in what order.
  *
  * Tiers, from an agent's chosen backend:
- *   1. its own provider (OpenAI for gpt-4o, Anthropic for Claude Sonnet 5.5)
- *   2. the other premium provider
+ *   1. its own provider (Google for Gemini, the default; OpenAI for gpt-4o;
+ *      Anthropic for Claude Sonnet 5.5)
+ *   2. the other premium providers, Google first
  *   3. Groq, the fast tier (open-weight model, cheaper, weaker at long tool use)
  *
  * Within that order, providers that are healthy go first: a provider whose
@@ -16,13 +17,14 @@
  */
 import type { CircuitState } from "../circuit-breaker.ts";
 
-export const PROVIDERS = ["openai", "anthropic", "groq"] as const;
+// Order is the failover preference among premium providers: Gemini first.
+export const PROVIDERS = ["google", "openai", "anthropic", "groq"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
-export const PROVIDER_LABEL: Record<Provider, string> = { openai: "OpenAI", anthropic: "Anthropic", groq: "Groq" };
+export const PROVIDER_LABEL: Record<Provider, string> = { google: "Google Gemini", openai: "OpenAI", anthropic: "Anthropic", groq: "Groq" };
 
 /** Tier of each provider: premium backends agents choose, then the fast fallback. */
-export const PROVIDER_TIER: Record<Provider, "premium" | "fast"> = { openai: "premium", anthropic: "premium", groq: "fast" };
+export const PROVIDER_TIER: Record<Provider, "premium" | "fast"> = { google: "premium", openai: "premium", anthropic: "premium", groq: "fast" };
 
 /** Default for "recent latency is a spike": time to response headers, smoothed. */
 export const LATENCY_SPIKE_MS = 12_000;
@@ -35,7 +37,7 @@ export interface ProviderStatus {
   latencyMs: number | null;
 }
 
-/** Primary first, the other premium provider next, the fast tier last. */
+/** Primary first, the other premium providers next (in PROVIDERS order), the fast tier last. */
 export function tierOrder(primary: Provider): Provider[] {
   const premium = PROVIDERS.filter((p) => PROVIDER_TIER[p] === "premium" && p !== primary);
   const fast = PROVIDERS.filter((p) => PROVIDER_TIER[p] === "fast" && p !== primary);
