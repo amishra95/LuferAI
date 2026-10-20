@@ -22,7 +22,7 @@ import { getCurrentMember } from "@/lib/auth/session";
 import { tracer } from "@/lib/tracer";
 import type { LuferUIMessage } from "@/types/chat";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 const MAX_MESSAGES = 100;
 
@@ -73,7 +73,8 @@ async function handleChat(req: Request) {
   const record = (ok: boolean, extra: { error?: string; tokens?: number; steps?: number } = {}) =>
     recordRun("workspace-agent", { at: new Date().toISOString(), ok, durationMs: Date.now() - started, source: "chat", task: `Chat: “${clip(lastUserText)}”`, ...extra });
 
-  const model = getLanguageModel({ backend: agent.model, usage: { agent: "workspace-agent", source: "chat" } });
+  // Interactive chat: Gemini's fast model (lib/ai/model.ts); agent routes keep the standard one.
+  const model = getLanguageModel({ backend: agent.model, usage: { agent: "workspace-agent", source: "chat" }, speed: "fast" });
   if (!model) return Response.json({ error: backendNotConfigured(agent.model) }, { status: 503 });
   // Provider known to be down: answer at once instead of waiting on retries.
   if (aiCircuitOpen()) return aiUnavailableResponse();

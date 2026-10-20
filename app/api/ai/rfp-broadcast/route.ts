@@ -22,7 +22,7 @@ import { tracer } from "@/lib/tracer";
  *
  * Rate-limited by middleware.ts (/api/ai/*).
  */
-export const maxDuration = 60;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 const Body = z.object({
   brief: z.string().trim().min(20, "Describe the event in a sentence or two").max(4000),

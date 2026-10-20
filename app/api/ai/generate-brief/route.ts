@@ -12,7 +12,7 @@ import { logAgentRun } from "@/lib/telemetry/runs";
 import { formatDate, formatINR } from "@/lib/utils";
 import { tracer } from "@/lib/tracer";
 
-export const maxDuration = 30;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 // useCompletion posts { prompt, ...body }: the booking ID is the prompt.
 const requestSchema = z.object({

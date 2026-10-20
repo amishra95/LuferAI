@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLatencyTracker, healthOf, isProviderAccountError, routeOrder, tierOrder, tryInOrder } from "../lib/ai/routing.ts";
+import { createLatencyTracker, healthOf, isModelUnavailableError, isProviderAccountError, routeOrder, tierOrder, tryInOrder } from "../lib/ai/routing.ts";
 import { LLM_PROVIDERS, llmBreakers } from "../lib/circuit-breaker.ts";
 import { alertText, parseDecision, parseWhatsAppNumber, priceFor, statusFor } from "../lib/escalations/rules.ts";
 import { toTelemetryEvent, visibleTo } from "../lib/telemetry/events.ts";
@@ -90,6 +90,15 @@ test("account refusals (credits, quota, key) fail over; request errors don't", a
     return "answer";
   }, { shouldFailOver: isProviderAccountError });
   assert.deepEqual([result, provider, errors.length], ["answer", "anthropic", 1]);
+});
+
+test("a retired or unknown model is recognised, so the fast tier can fall back to the standard model", () => {
+  // As Google answers for retired models today.
+  assert.equal(isModelUnavailableError({ statusCode: 404, message: "This model models/gemini-2.0-flash is no longer available." }), true);
+  assert.equal(isModelUnavailableError(new Error("models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent.")), true);
+  assert.equal(isModelUnavailableError(new Error("wrapped", { cause: { statusCode: 404 } })), true);
+  assert.equal(isModelUnavailableError({ statusCode: 429, message: "Resource exhausted" }), false);
+  assert.equal(isModelUnavailableError({ statusCode: 400, message: "Invalid schema for function" }), false);
 });
 
 test("each provider has its own breaker, tuned to hand off after one retry", () => {

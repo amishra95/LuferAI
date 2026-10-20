@@ -106,6 +106,20 @@ export function isProviderAccountError(error: unknown): boolean {
 }
 
 /**
+ * The model id itself is gone or unknown to the provider (retired, renamed):
+ * "models/gemini-2.0-flash is no longer available", "… is not found", 404.
+ * Another model on the same provider can still answer.
+ */
+export function isModelUnavailableError(error: unknown): boolean {
+  for (let e = error, depth = 0; typeof e === "object" && e !== null && depth < 5; e = (e as { cause?: unknown }).cause, depth++) {
+    const { statusCode, message } = e as { statusCode?: unknown; message?: unknown };
+    if (statusCode === 404) return true;
+    if (typeof message === "string" && /model\S* (?:is )?(?:no longer available|not found|is not supported)|models\/\S+ is not found/i.test(message)) return true;
+  }
+  return false;
+}
+
+/**
  * Runs `attempt` against each provider in order until one succeeds. Errors
  * that `shouldFailOver` rejects (a bad request, a cancelled call) are thrown
  * at once; the last provider's error is thrown when all fail. Returns the

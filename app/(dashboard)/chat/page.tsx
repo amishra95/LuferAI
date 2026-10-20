@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Chat" };
 export default async function ChatPage() {
   await syncAgentConfigs();
   const agent = getAgent("workspace-agent");
-  const model = getLanguageModel({ backend: agent?.model });
+  const model = getLanguageModel({ backend: agent?.model, speed: "fast" });
   const { inspectorOpen } = await getPreferences();
   // Re-rendered live when the agent is switched on or off elsewhere (LiveRefresh).
   const agentEnabled = agent?.enabled ?? true;

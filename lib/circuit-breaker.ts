@@ -422,10 +422,11 @@ const g = globalThis as typeof globalThis & { __luferLlmBreakers?: Record<LlmPro
  * Kept on globalThis so `next dev` hot reloads don't reset their state.
  *
  * Tuned for failover: one retry (0.5 s → 4 s backoff, Retry-After honoured up
- * to 4 s) before the call moves to the next provider, a 60 s per-attempt
- * timeout matching the routes' maxDuration (non-streaming calls only get
- * headers once the whole answer is written), opening after 5 consecutive
- * failed calls for 30 s, then closing after 2 successful trial calls.
+ * to 4 s) before the call moves to the next provider, a 120 s per-attempt
+ * timeout (non-streaming calls only get headers once the whole answer is
+ * written, and gemini-3.8-flash can take over a minute; AI routes allow 300 s),
+ * opening after 5 consecutive failed calls for 30 s, then closing after 2
+ * successful trial calls.
  *
  * The AI SDK also retries internally (maxRetries, default 2). When wrapping
  * generateText/streamText, pass `maxRetries: 0` so attempts don't multiply.
@@ -438,7 +439,7 @@ const llmBreaker = (provider: LlmProvider) =>
     halfOpenMaxCalls: 1,
     successThreshold: 2,
     retry: { maxRetries: 1, baseDelayMs: 500, maxDelayMs: 4_000 },
-    callTimeoutMs: 60_000,
+    callTimeoutMs: 120_000,
     onStateChange: ({ name, from, to }) => {
       const log = to === "OPEN" ? console.error : console.warn;
       log(`circuit-breaker: "${name}" ${from} → ${to}`);

@@ -9,7 +9,7 @@ import { getCorporatePolicy, listCompanies, listVenues } from "@/lib/data";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
 import { tracer } from "@/lib/tracer";
 
-export const maxDuration = 30;
+export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
 const requestSchema = z.object({
   prompt: z.string().trim().min(3).max(500),
