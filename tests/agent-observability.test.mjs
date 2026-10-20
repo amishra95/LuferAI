@@ -17,6 +17,7 @@ test("costOf prices calls per million tokens and rounds to 6 decimals", () => {
 test("costOf returns null for an unlisted model and ignores negative counts", () => {
   assert.equal(costOf("gpt-4o-mini", 100, 100), null);
   assert.equal(costOf("gemini-3.8-flash", 1_000_000, 1_000_000), 4.5);
+  assert.equal(costOf("gemini-3.1-flash-lite", 1_000_000, 1_000_000), 1.75);
   assert.equal(costOf("gemini-2.0-flash", 1_000_000, 1_000_000), 0.5);
   assert.equal(costOf("gemini-1.5-flash", 1_000_000, 1_000_000), 0.375);
   assert.equal(costOf("gpt-4o", -50, 0), 0);

@@ -14,6 +14,7 @@ export interface ModelPrice {
 
 export const MODEL_PRICES: Record<string, ModelPrice> = {
   "gemini-3.8-flash": { inputPerMTok: 0.75, outputPerMTok: 3.75 },
+  "gemini-3.1-flash-lite": { inputPerMTok: 0.25, outputPerMTok: 1.5 },
   "gemini-2.0-flash": { inputPerMTok: 0.1, outputPerMTok: 0.4 },
   "gemini-1.5-flash": { inputPerMTok: 0.075, outputPerMTok: 0.3 },
   "gpt-4o": { inputPerMTok: 2.5, outputPerMTok: 10 },
