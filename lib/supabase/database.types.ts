@@ -34,12 +34,60 @@ type HoldsTable = Omit<GeneratedHolds, "Insert"> & {
   Insert: Omit<GeneratedHolds["Insert"], "hold_expires_at"> & { hold_expires_at?: string };
 };
 
+// ----------------------------------------------------------------------------
+// Concierge memory (migration 0032), until `npm run db:types` is next run
+// ----------------------------------------------------------------------------
+// Hand-written to match supabase/migrations/20261024120000_concierge_memory.sql.
+// Once the generated file includes these tables, delete this block and the
+// overrides below. Embeddings travel as pgvector text: JSON.stringify(number[]).
+
+type UserPreferencesRow = {
+  user_id: string;
+  dietary: string[];
+  seating: string | null;
+  cuisines: string[];
+  budget_limit_per_head_inr: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type UserPreferencesTable = {
+  Row: UserPreferencesRow;
+  Insert: Pick<UserPreferencesRow, "user_id"> & Partial<Omit<UserPreferencesRow, "user_id">>;
+  Update: Partial<UserPreferencesRow>;
+  Relationships: [];
+};
+
+type BookingMemoryRow = {
+  id: string;
+  user_id: string;
+  booking_id: string | null;
+  kind: "booking" | "feedback" | "note";
+  summary: string;
+  embedding: string;
+  created_at: string;
+};
+type BookingMemoriesTable = {
+  Row: BookingMemoryRow;
+  Insert: Pick<BookingMemoryRow, "user_id" | "summary" | "embedding"> & Partial<Omit<BookingMemoryRow, "user_id" | "summary" | "embedding">>;
+  Update: Partial<BookingMemoryRow>;
+  Relationships: [];
+};
+
+type MatchBookingMemories = {
+  Args: { query_embedding: string; match_count?: number };
+  Returns: { id: string; booking_id: string | null; kind: string; summary: string; created_at: string; similarity: number }[];
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
-  public: Omit<GeneratedPublic, "Tables"> & {
+  public: Omit<GeneratedPublic, "Tables" | "Functions"> & {
     Tables: Omit<GeneratedPublic["Tables"], "bookings" | "inventory_holds"> & {
       bookings: BookingsTable;
       inventory_holds: HoldsTable;
+      user_preferences: UserPreferencesTable;
+      booking_memories: BookingMemoriesTable;
     };
+    Functions: GeneratedPublic["Functions"] & { match_booking_memories: MatchBookingMemories };
   };
 };
 
@@ -99,3 +147,5 @@ export type VendorPayout = Tables<"vendor_payouts">;
 export type TcsEntry = Tables<"tcs_entries">;
 export type VenueBlockedDate = Tables<"venue_blocked_dates">;
 export type VenueNegotiationRules = Tables<"venue_negotiation_rules">;
+export type UserPreferences = UserPreferencesRow;
+export type BookingMemory = BookingMemoryRow;

@@ -6,6 +6,10 @@ import { z } from "zod";
 import { searchVenueCatalogue } from "@/lib/ai/chat-tools";
 import { venueSearchSchema } from "@/lib/ai/venue-sourcing";
 import type { Member } from "@/lib/auth/session";
+import { googleFreeBusy, isGoogleCalendarConfigured, type BusyInterval } from "@/lib/agent/connectors/google-calendar";
+import { queryInventory } from "@/lib/agent/connectors/reservation-inventory";
+import { sendWhatsAppMessage, whatsAppProvider } from "@/lib/agent/connectors/whatsapp";
+import { createMemoryTools, type MemoryClient } from "@/lib/agent/memory";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import type { DepositCheckout } from "@/lib/payments/gateways";
 import { createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/lib/payments/service";
@@ -13,7 +17,7 @@ import { createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/li
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 
 // ----------------------------------------------------------------------------
-// Team availability (mock until a calendar integration lands)
+// Team availability: Google Calendar free/busy, else a mock calendar
 // ----------------------------------------------------------------------------
 
 const DAY_START = 9 * 60; // 09:00 IST
@@ -29,8 +33,8 @@ function hash(text: string) {
 
 const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
-/** Free/busy per 30-minute block for one attendee: roughly a third of working blocks are busy. */
-function busyBlocks(attendee: string, date: string): Set<number> {
+/** Mock free/busy per 30-minute block for one attendee: roughly a third of working blocks are busy. */
+function mockBusyBlocks(attendee: string, date: string): Set<number> {
   const busy = new Set<number>();
   for (let t = DAY_START; t < DAY_END; t += BLOCK) {
     // Evenings are mostly free: that's when team events happen.
@@ -40,12 +44,44 @@ function busyBlocks(attendee: string, date: string): Set<number> {
   return busy;
 }
 
-/**
- * Mock team calendar: deterministic free/busy per attendee and date, so a demo
- * conversation gives the same answer twice. Swap the body for a Google/Microsoft
- * calendar query once one is connected; the input/output shape can stay.
- */
-export function mockTeamAvailability(input: { date: string; attendees: string[]; durationMinutes: number; earliest?: string | null; latest?: string | null }) {
+/** Epoch ms of minute `t` (from IST midnight) on `date`. */
+const istMs = (date: string, t: number) => Date.parse(`${date}T00:00:00+05:30`) + t * 60_000;
+
+/** The 30-minute blocks of `date` that overlap any busy interval. */
+function blocksFromIntervals(date: string, busy: BusyInterval[]): Set<number> {
+  const ranges = busy.map((i) => [Date.parse(i.start), Date.parse(i.end)] as const);
+  const blocks = new Set<number>();
+  for (let t = DAY_START; t < DAY_END; t += BLOCK) {
+    const [s, e] = [istMs(date, t), istMs(date, t + BLOCK)];
+    if (ranges.some(([bs, be]) => bs < e && be > s)) blocks.add(t);
+  }
+  return blocks;
+}
+
+export interface AvailabilityQuery {
+  date: string;
+  attendees: string[];
+  durationMinutes: number;
+  earliest?: string | null;
+  latest?: string | null;
+}
+
+type Slot = { start: string; end: string; available: string[]; unavailable: string[] };
+
+export interface TeamAvailability {
+  /** "mock": Google Calendar isn't configured and the slots are simulated. */
+  source: "google" | "mock";
+  date: string;
+  timezone: "Asia/Kolkata";
+  durationMinutes: number;
+  /** Attendees left out of the slot search, and why. */
+  unreadCalendars: { attendee: string; reason: string }[];
+  allFreeSlots: Slot[];
+  bestPartialSlots: Slot[];
+}
+
+/** Slots on the date ranked by how many attendees are free, from each attendee's busy blocks. */
+function findSlots(input: AvailabilityQuery, calendars: { attendee: string; busy: Set<number> }[]): Pick<TeamAvailability, "allFreeSlots" | "bestPartialSlots"> {
   const toMin = (s: string | null | undefined, fallback: number) => {
     if (!s) return fallback;
     const [h, m] = s.split(":").map(Number);
@@ -53,27 +89,44 @@ export function mockTeamAvailability(input: { date: string; attendees: string[];
   };
   const from = toMin(input.earliest, DAY_START);
   const to = toMin(input.latest, DAY_END);
-  const calendars = input.attendees.map((a) => ({ attendee: a, busy: busyBlocks(a, input.date) }));
+  const names = calendars.map((c) => c.attendee);
   const blocksNeeded = Math.ceil(input.durationMinutes / BLOCK);
 
-  const slots: { start: string; end: string; available: string[]; unavailable: string[] }[] = [];
+  const slots: Slot[] = [];
   for (let t = from; t + blocksNeeded * BLOCK <= to; t += BLOCK) {
     const span = Array.from({ length: blocksNeeded }, (_, i) => t + i * BLOCK);
     const available = calendars.filter((c) => span.every((b) => !c.busy.has(b))).map((c) => c.attendee);
-    slots.push({ start: hhmm(t), end: hhmm(t + blocksNeeded * BLOCK), available, unavailable: input.attendees.filter((a) => !available.includes(a)) });
+    slots.push({ start: hhmm(t), end: hhmm(t + blocksNeeded * BLOCK), available, unavailable: names.filter((a) => !available.includes(a)) });
   }
   // Best first: most attendees free, then earliest.
   slots.sort((a, b) => b.available.length - a.available.length);
   const everyone = slots.filter((s) => s.unavailable.length === 0);
-  return {
-    source: "mock" as const,
-    date: input.date,
-    timezone: "Asia/Kolkata",
-    durationMinutes: input.durationMinutes,
-    attendeeCount: input.attendees.length,
-    allFreeSlots: everyone.slice(0, 5),
-    bestPartialSlots: everyone.length ? [] : slots.slice(0, 3),
-  };
+  return { allFreeSlots: everyone.slice(0, 5), bestPartialSlots: everyone.length ? [] : slots.slice(0, 3) };
+}
+
+/**
+ * Mock team calendar: deterministic free/busy per attendee and date, so a demo
+ * conversation gives the same answer twice. Used when Google Calendar isn't configured.
+ */
+export function mockTeamAvailability(input: AvailabilityQuery): TeamAvailability {
+  const calendars = input.attendees.map((a) => ({ attendee: a, busy: mockBusyBlocks(a, input.date) }));
+  return { source: "mock", date: input.date, timezone: "Asia/Kolkata", durationMinutes: input.durationMinutes, unreadCalendars: [], ...findSlots(input, calendars) };
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Free/busy from Google Calendar. Attendees must be calendar emails; unreadable calendars are reported, not guessed. */
+async function googleTeamAvailability(input: AvailabilityQuery): Promise<TeamAvailability> {
+  const emails = input.attendees.filter((a) => EMAIL.test(a));
+  const unread: { attendee: string; reason: string }[] = input.attendees.filter((a) => !EMAIL.test(a)).map((attendee) => ({ attendee, reason: "not an email address" }));
+  const freeBusy = emails.length ? await googleFreeBusy(emails, new Date(istMs(input.date, DAY_START)).toISOString(), new Date(istMs(input.date, DAY_END)).toISOString()) : {};
+  const calendars: { attendee: string; busy: Set<number> }[] = [];
+  for (const email of emails) {
+    const cal = freeBusy[email];
+    if (!cal || "error" in cal) unread.push({ attendee: email, reason: cal?.error ?? "not returned" });
+    else calendars.push({ attendee: email, busy: blocksFromIntervals(input.date, cal.busy) });
+  }
+  return { source: "google", date: input.date, timezone: "Asia/Kolkata", durationMinutes: input.durationMinutes, unreadCalendars: unread, ...findSlots(input, calendars) };
 }
 
 type PaymentResult =
@@ -110,20 +163,23 @@ async function createPayment({ bookingId, invoiceId }: { bookingId?: string | nu
  * the model, so a prompt can't pay another company's invoice: the payments
  * service checks ownership again on every call.
  */
-export function createConciergeTools({ member, origin }: { member: Member; origin: string }) {
+export function createConciergeTools({ member, origin, memory }: { member: Member; origin: string; memory: MemoryClient | null }) {
   return {
-    checkTeamAvailability: tool({
+    // Memory needs the live database; without it the concierge simply doesn't remember.
+    ...(memory ? createMemoryTools(memory, member.userId) : {}),
+    checkGoogleCalendarAvailability: tool({
       description:
-        "Find time slots on a date when the given team members are all free (IST, 09:00–22:00). " +
-        "Returns up to 5 slots where everyone is free, or the best partial slots if none. Currently backed by a mock calendar.",
+        "Find time slots on a date when the given people are all free (IST, 09:00–22:00), from their Google Calendar free/busy. " +
+        "Pass calendar email addresses. Returns up to 5 slots where everyone is free, or the best partial slots, and lists calendars it couldn't read. " +
+        "source \"mock\" means Google Calendar isn't connected and the slots are simulated: say so.",
       inputSchema: z.object({
         date: isoDate.describe("Event date, YYYY-MM-DD."),
-        attendees: z.array(z.string().trim().min(1).max(120)).min(1).max(50).describe("Names or emails of the people who need to attend."),
+        attendees: z.array(z.string().trim().min(1).max(120)).min(1).max(50).describe("Attendees' calendar email addresses (names only work with the mock calendar)."),
         durationMinutes: z.number().int().min(30).max(480).describe("How long the event runs, in minutes."),
         earliest: z.string().regex(/^\d{2}:\d{2}$/).nullish().describe("Earliest start, HH:MM (24h). Omit for 09:00."),
         latest: z.string().regex(/^\d{2}:\d{2}$/).nullish().describe("Latest end, HH:MM (24h). Omit for 22:00."),
       }),
-      execute: async (input) => mockTeamAvailability(input),
+      execute: async (input): Promise<TeamAvailability> => (isGoogleCalendarConfigured() ? googleTeamAvailability(input) : mockTeamAvailability(input)),
     }),
 
     searchVenues: tool({
@@ -146,6 +202,41 @@ export function createConciergeTools({ member, origin }: { member: Member; origi
           })
         );
         return { ...result, eventDate, venues };
+      },
+    }),
+
+    queryReservationInventory: tool({
+      description:
+        "Day-by-day reservation availability for one venue (an id from searchVenues) over up to 31 days. " +
+        "Own venues report holds, bookings and blocked dates; partner venues ask their supplier's inventory API when one is connected.",
+      inputSchema: z.object({
+        venueId: z.string().trim().min(1).max(80).describe("The venue's id from searchVenues."),
+        from: isoDate,
+        to: isoDate.describe("Last date to check (inclusive), at most 31 days after `from`."),
+        partySize: z.number().int().min(1).max(5000),
+      }),
+      execute: async (input) => {
+        const days = (Date.parse(input.to) - Date.parse(input.from)) / 86_400_000;
+        if (!(days >= 0 && days <= 31)) return { status: "invalid" as const, message: "`to` must be on or after `from`, within 31 days." };
+        return queryInventory(input);
+      },
+    }),
+
+    sendWhatsAppConfirmation: tool({
+      description:
+        "Send a booking summary to a phone number on WhatsApp. The user approves the exact message before it's sent. " +
+        "Use only after the user asks for a confirmation to be sent, with the details they've agreed.",
+      inputSchema: z.object({
+        to: z.string().regex(/^\+[1-9]\d{7,14}$/).describe("Recipient in E.164 format, e.g. +919876543210."),
+        summary: z.string().trim().min(10).max(1000).describe("The message: venue, date, time, guests, and anything the guest must know."),
+      }),
+      execute: async ({ to, summary }) => {
+        if (!whatsAppProvider()) return { ok: false as const, error: "WhatsApp isn't configured for this environment." };
+        try {
+          return { ok: true as const, ...(await sendWhatsAppMessage(to, `LuferAI booking update\n\n${summary}`)) };
+        } catch (err) {
+          return { ok: false as const, error: err instanceof Error ? err.message : "Send failed" };
+        }
       },
     }),
 
