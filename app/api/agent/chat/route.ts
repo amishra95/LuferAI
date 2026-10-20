@@ -32,7 +32,13 @@ How you work:
    - checkGoogleCalendarAvailability: when the attendees are free on a date (needs their calendar emails).
    - searchVenues: matching venues, estimated cost and (with eventDate) whether bookable venues are free that day.
    - queryReservationInventory: a venue's availability over a range of dates, once you have its id.
-   - createInvoiceAndPayment: only for an existing booking id or invoice id the user gave you. The user approves it before it runs.
+   - checkSpendPolicy: before proposing a booking, whether company/department policy needs sign-off.
+   - requestVenuePartnerBooking: send the request to the venue (the user approves first). Ask for the cost centre if you don't know it.
+   - createInvoiceAndPayment: a Razorpay checkout for an existing booking or invoice id. The user approves it before it runs.
+   - issueCorporateVirtualCard: a single-use card capped at the approved budget (sandbox: test cards only). The user approves first.
+   - sendSlackApprovalRequest: when a booking is waiting for internal approval. Never tell the user a payment went through if a tool returned needsApproval.
+   - generateBookingContract, then signBookingContract: the B2B agreement. Summarise deposit, GST, minimum spend and cancellation terms,
+     share the link, and only sign when the user has confirmed their full name and that they've read it.
    - sendWhatsAppConfirmation: only when the user asks for a confirmation to be sent. The user approves the message first.
    - Memory: updateUserPreferences when the user states a lasting preference; saveBookingMemory after a booking or feedback
      worth remembering; recallBookingMemories to look up past events beyond those already listed below.
@@ -41,6 +47,16 @@ How you work:
 4. End with a short plan, then a "Next actions" list: one line each, starting with a verb (e.g. "Book Toit Indiranagar for 24 Oct, 19:30–22:00").
 
 Today is ${new Date().toISOString().slice(0, 10)} (dates are IST). Amounts are in INR; write them like ₹2,500.`;
+
+/** Whether the step's tool results include a refusal for pending internal approval (lib/agent/enterprise-tools.ts). */
+function awaitingApproval(step: { toolResults: readonly ({ toolName: string; output: unknown } | undefined)[] } | undefined): boolean {
+  return Boolean(
+    step?.toolResults.some((r) => {
+      const out = r?.output;
+      return r?.toolName !== "sendSlackApprovalRequest" && typeof out === "object" && out !== null && "needsApproval" in out && out.needsApproval === true;
+    })
+  );
+}
 
 const Body = z.object({ messages: z.array(z.unknown()).min(1).max(100) }); // shape-checked by safeValidateUIMessages
 
@@ -104,8 +120,17 @@ async function handleConcierge(request: NextRequest) {
       toolApproval: {
         createInvoiceAndPayment: { type: "user-approval", reason: "Creates a GST invoice and a Razorpay checkout for this booking." },
         sendWhatsAppConfirmation: { type: "user-approval", reason: "Sends this message on WhatsApp." },
+        requestVenuePartnerBooking: { type: "user-approval", reason: "Sends this booking request to the venue and holds the date." },
+        issueCorporateVirtualCard: { type: "user-approval", reason: "Issues a single-use corporate card for this booking (sandbox: test card)." },
+        signBookingContract: {
+          type: "user-approval",
+          reason: "Approving signs this contract electronically in your name. Read it in full at the contract link first.",
+        },
       },
       experimental_toolApprovalSecret: approvalSecret,
+      // A payment or card refused for pending approval must be followed by the Slack reminder,
+      // not a retry or a claim that it went through.
+      prepareStep: ({ steps }) => (awaitingApproval(steps.at(-1)) ? { toolChoice: { type: "tool", toolName: "sendSlackApprovalRequest" } } : {}),
       stopWhen: isStepCount(5),
       onEnd: ({ totalUsage, steps }) => {
         llm.setAttributes({ tokens: totalUsage.totalTokens, steps: steps.length });

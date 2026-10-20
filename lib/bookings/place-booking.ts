@@ -155,6 +155,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         event_date: eventDate,
         alcohol_included: alcoholIncluded,
         entertainment,
+        department_id: departmentId,
       });
       if (policy.blocked) return { status: "error", message: `This booking can't be made: ${policy.reason}.` };
 

@@ -9,7 +9,9 @@ import type { Member } from "@/lib/auth/session";
 import { googleFreeBusy, isGoogleCalendarConfigured, type BusyInterval } from "@/lib/agent/connectors/google-calendar";
 import { queryInventory } from "@/lib/agent/connectors/reservation-inventory";
 import { sendWhatsAppMessage, whatsAppProvider } from "@/lib/agent/connectors/whatsapp";
+import { createEnterpriseTools, needsApproval, type NeedsApproval } from "@/lib/agent/enterprise-tools";
 import { createMemoryTools, type MemoryClient } from "@/lib/agent/memory";
+import { listBookings } from "@/lib/data";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import type { DepositCheckout } from "@/lib/payments/gateways";
 import { createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/lib/payments/service";
@@ -132,7 +134,8 @@ async function googleTeamAvailability(input: AvailabilityQuery): Promise<TeamAva
 type PaymentResult =
   /** amountInr is what this checkout charges (null for a Stripe instalment, whose amount stays on Stripe's page). */
   | { ok: true; kind: "deposit" | "instalment"; amountInr: number | null; invoiceTotalInr: number; checkout: DepositCheckout }
-  | { ok: false; error: string };
+  | { ok: false; error: string }
+  | NeedsApproval;
 
 /** Deposit or instalment checkout through lib/payments/service.ts, which re-checks the member owns the booking. */
 async function createPayment({ bookingId, invoiceId }: { bookingId?: string | null; invoiceId?: string | null }, member: Member, origin: string): Promise<PaymentResult> {
@@ -145,6 +148,9 @@ async function createPayment({ bookingId, invoiceId }: { bookingId?: string | nu
       const amountInr = checkout.provider === "razorpay" ? checkout.amountPaise / 100 : null;
       return { ok: true, kind: "instalment", amountInr, invoiceTotalInr: invoice.invoice_total, checkout };
     }
+    // Policy breaches hold the booking at PENDING_APPROVAL: no money moves until the chain signs off.
+    const [booking] = await listBookings({ ids: [bookingId!] });
+    if (booking?.status === "PENDING_APPROVAL" && (member.role === "ADMIN" || booking.company_id === member.companyId)) return needsApproval(booking.id);
     const { checkout, invoice } = await createDepositCheckout(bookingId!, member, origin);
     return { ok: true, kind: "deposit", amountInr: invoice.deposit_amount, invoiceTotalInr: invoice.invoice_total, checkout };
   } catch (err) {
@@ -167,6 +173,7 @@ export function createConciergeTools({ member, origin, memory }: { member: Membe
   return {
     // Memory needs the live database; without it the concierge simply doesn't remember.
     ...(memory ? createMemoryTools(memory, member.userId) : {}),
+    ...createEnterpriseTools({ member, origin }),
     checkGoogleCalendarAvailability: tool({
       description:
         "Find time slots on a date when the given people are all free (IST, 09:00–22:00), from their Google Calendar free/busy. " +
@@ -256,7 +263,7 @@ export function createConciergeTools({ member, origin, memory }: { member: Membe
         type: "json" as const,
         value: output.ok
           ? { ok: true, kind: output.kind, amountInr: output.amountInr, invoiceTotalInr: output.invoiceTotalInr, provider: output.checkout.provider }
-          : { ok: false, error: output.error },
+          : { ok: false, error: output.error, ...("needsApproval" in output && { needsApproval: true, bookingId: output.bookingId }) },
       }),
     }),
   };
