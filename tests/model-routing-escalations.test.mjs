@@ -12,9 +12,19 @@ const all = (over = {}) => [status("openai", over.openai), status("anthropic", o
 
 // --- routing ------------------------------------------------------------------------------
 
-test("tierOrder: the agent's provider, the other premium one, then the fast tier", () => {
-  assert.deepEqual(tierOrder("openai"), ["openai", "anthropic", "groq"]);
-  assert.deepEqual(tierOrder("anthropic"), ["anthropic", "openai", "groq"]);
+test("tierOrder: the agent's provider, the other premium ones (Gemini first), then the fast tier", () => {
+  assert.deepEqual(tierOrder("google"), ["google", "openai", "anthropic", "groq"]);
+  assert.deepEqual(tierOrder("openai"), ["openai", "google", "anthropic", "groq"]);
+  assert.deepEqual(tierOrder("anthropic"), ["anthropic", "google", "openai", "groq"]);
+});
+
+test("routeOrder with Gemini configured: Gemini leads, and OpenAI out of service falls behind the rest", () => {
+  const withGoogle = (over = {}) => [status("google", over.google), ...all(over)];
+  assert.deepEqual(routeOrder("google", withGoogle()), ["google", "openai", "anthropic", "groq"]);
+  assert.deepEqual(routeOrder("google", withGoogle({ google: { circuit: "OPEN" } })), ["openai", "anthropic", "groq", "google"]);
+  assert.deepEqual(routeOrder("google", withGoogle({ openai: { configured: false } })), ["google", "anthropic", "groq"]);
+  // An agent still saved on gpt-4o tries Gemini second.
+  assert.deepEqual(routeOrder("openai", withGoogle()), ["openai", "google", "anthropic", "groq"]);
 });
 
 test("routeOrder puts healthy providers first, slow ones next, open circuits last, and skips unconfigured ones", () => {
@@ -83,7 +93,7 @@ test("account refusals (credits, quota, key) fail over; request errors don't", a
 });
 
 test("each provider has its own breaker, tuned to hand off after one retry", () => {
-  assert.deepEqual(LLM_PROVIDERS.map((p) => llmBreakers[p].name), ["llm.openai", "llm.anthropic", "llm.groq"]);
+  assert.deepEqual(LLM_PROVIDERS.map((p) => llmBreakers[p].name), ["llm.google", "llm.openai", "llm.anthropic", "llm.groq"]);
   assert.notEqual(llmBreakers.openai, llmBreakers.groq);
 });
 

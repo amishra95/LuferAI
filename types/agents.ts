@@ -72,7 +72,7 @@ type BreakerStats = { calls: number; failures: number; rejected: number; retries
 
 /** One model provider (lib/ai/routing.ts) as the health panel shows it. */
 export type ProviderHealthRow = {
-  id: "openai" | "anthropic" | "groq";
+  id: "google" | "openai" | "anthropic" | "groq";
   label: string;
   /** The model it runs. */
   model: string;

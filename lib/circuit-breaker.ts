@@ -411,7 +411,7 @@ export class CircuitBreaker {
 // One breaker per LLM provider
 // ----------------------------------------------------------------------------
 
-export const LLM_PROVIDERS = ["openai", "anthropic", "groq"] as const;
+export const LLM_PROVIDERS = ["google", "openai", "anthropic", "groq"] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 const g = globalThis as typeof globalThis & { __luferLlmBreakers?: Record<LlmProvider, CircuitBreaker> };
@@ -430,21 +430,22 @@ const g = globalThis as typeof globalThis & { __luferLlmBreakers?: Record<LlmPro
  * The AI SDK also retries internally (maxRetries, default 2). When wrapping
  * generateText/streamText, pass `maxRetries: 0` so attempts don't multiply.
  */
-export const llmBreakers: Record<LlmProvider, CircuitBreaker> = (g.__luferLlmBreakers ??= Object.fromEntries(
-  LLM_PROVIDERS.map((provider) => [
-    provider,
-    new CircuitBreaker({
-      name: `llm.${provider}`,
-      failureThreshold: 5,
-      resetTimeoutMs: 30_000,
-      halfOpenMaxCalls: 1,
-      successThreshold: 2,
-      retry: { maxRetries: 1, baseDelayMs: 500, maxDelayMs: 4_000 },
-      callTimeoutMs: 60_000,
-      onStateChange: ({ name, from, to }) => {
-        const log = to === "OPEN" ? console.error : console.warn;
-        log(`circuit-breaker: "${name}" ${from} → ${to}`);
-      },
-    }),
-  ])
-) as Record<LlmProvider, CircuitBreaker>);
+const llmBreaker = (provider: LlmProvider) =>
+  new CircuitBreaker({
+    name: `llm.${provider}`,
+    failureThreshold: 5,
+    resetTimeoutMs: 30_000,
+    halfOpenMaxCalls: 1,
+    successThreshold: 2,
+    retry: { maxRetries: 1, baseDelayMs: 500, maxDelayMs: 4_000 },
+    callTimeoutMs: 60_000,
+    onStateChange: ({ name, from, to }) => {
+      const log = to === "OPEN" ? console.error : console.warn;
+      log(`circuit-breaker: "${name}" ${from} → ${to}`);
+    },
+  });
+
+// Fills in any provider missing from a cache made before it was added (a running `next dev`).
+const cachedBreakers = (g.__luferLlmBreakers ??= {} as Record<LlmProvider, CircuitBreaker>);
+for (const provider of LLM_PROVIDERS) cachedBreakers[provider] ??= llmBreaker(provider);
+export const llmBreakers: Record<LlmProvider, CircuitBreaker> = cachedBreakers;

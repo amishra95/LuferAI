@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModelV4 } from "@ai-sdk/provider";
@@ -23,14 +24,16 @@ import { trackBreaker } from "@/lib/telemetry/provider-health";
 import { logUsage } from "@/lib/telemetry/usage";
 import { tracer } from "@/lib/tracer";
 
-// Default models per provider; override per environment (OPENAI_MODEL,
-// GROQ_MODEL) rather than editing code when models change.
+// Default models per provider; override per environment (GEMINI_MODEL,
+// OPENAI_MODEL, GROQ_MODEL) rather than editing code when models change.
+export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 export const DEFAULT_MODEL = "gpt-4o";
 export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /**
  * Model calls are routed across providers (lib/ai/routing.ts): an agent's own
- * backend first, the other premium provider next, Groq last, healthiest first.
+ * backend first (Gemini by default), the other premium providers next, Groq
+ * last, healthiest first.
  * Each provider's HTTP calls go through its own breaker (llmBreakers in
  * lib/circuit-breaker.ts): a retry with backoff on 429 / 5xx / network errors,
  * then fail fast while it's down. When a provider gives up, the router fails
@@ -141,19 +144,27 @@ async function breakerFetch(provider: Provider, input: Parameters<typeof fetch>[
 }
 
 const g = globalThis as typeof globalThis & {
+  __luferGoogle?: ReturnType<typeof createGoogleGenerativeAI>;
   __luferOpenAI?: ReturnType<typeof createOpenAI>;
   __luferAnthropic?: ReturnType<typeof createAnthropic>;
   __luferGroq?: ReturnType<typeof createGroq>;
 };
+// Reads GOOGLE_GENERATIVE_AI_API_KEY, like the concierge's default `google` provider.
+const google = () => (g.__luferGoogle ??= createGoogleGenerativeAI({ fetch: resilientFetchFor("google") }));
 const openai = () => (g.__luferOpenAI ??= createOpenAI({ fetch: resilientFetchFor("openai") }));
 const anthropic = () => (g.__luferAnthropic ??= createAnthropic({ fetch: resilientFetchFor("anthropic") }));
 const groq = () => (g.__luferGroq ??= createGroq({ fetch: resilientFetchFor("groq") }));
 
 /** The API key each provider needs. */
-const PROVIDER_KEY: Record<Provider, string> = { openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY", groq: "GROQ_API_KEY" };
+const PROVIDER_KEY: Record<Provider, string> = {
+  google: "GOOGLE_GENERATIVE_AI_API_KEY",
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  groq: "GROQ_API_KEY",
+};
 
 /** The provider each backend an agent can choose runs on. */
-export const BACKEND_PROVIDER: Record<ModelBackend, Provider> = { "gpt-4o": "openai", "claude-sonnet-5-5": "anthropic" };
+export const BACKEND_PROVIDER: Record<ModelBackend, Provider> = { "gemini-3.8-flash": "google", "gpt-4o": "openai", "claude-sonnet-5-5": "anthropic" };
 
 export const isProviderConfigured = (provider: Provider) => Boolean(process.env[PROVIDER_KEY[provider]]?.trim());
 
@@ -161,8 +172,20 @@ export const isProviderConfigured = (provider: Provider) => Boolean(process.env[
 export const isBackendConfigured = (backend: ModelBackend) => isProviderConfigured(BACKEND_PROVIDER[backend]);
 
 /** The model id each provider runs. */
-export const providerModelId = (provider: Provider) =>
-  provider === "anthropic" ? "claude-sonnet-5-5" : provider === "groq" ? process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL : process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
+export function providerModelId(provider: Provider): string {
+  switch (provider) {
+    case "google":
+      return process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+    case "anthropic":
+      return "claude-sonnet-5-5";
+    case "groq":
+      return process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
+    case "openai":
+      return process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
+  }
+}
+
+const PROVIDER_CLIENT: Record<Provider, () => (id: string) => LanguageModelV4> = { google, openai, anthropic, groq };
 
 /** Each provider's circuit and latency now, for routing and the /agents health panel. */
 export function providerStatuses(): ProviderStatus[] {
@@ -221,7 +244,7 @@ const claudeDefaults: LanguageModelMiddleware = {
 /** One provider's model with its middleware: Claude's defaults, and token logging attributed to the model that ran. */
 function providerModel(provider: Provider, usage: UsageContext | undefined): LanguageModelV4 {
   const id = providerModelId(provider);
-  const base = provider === "anthropic" ? anthropic()(id) : provider === "groq" ? groq()(id) : openai()(id);
+  const base = PROVIDER_CLIENT[provider]()(id);
   const middleware = [...(provider === "anthropic" ? [claudeDefaults] : []), ...(usage ? [usageMiddleware(usage)] : [])];
   return middleware.length ? wrapLanguageModel({ model: base, middleware }) : base;
 }
@@ -265,7 +288,7 @@ async function withFailover<T>(primary: Provider, usage: UsageContext | undefine
 const errorText = (e: unknown) => (e instanceof Error ? e.message : "unavailable");
 
 /**
- * The routed model for a backend (default gpt-4o): that backend's provider
+ * The routed model for a backend (default Gemini): that backend's provider
  * first, then the others (lib/ai/routing.ts). Null only when no provider has
  * an API key. Pass `usage` to log each call's tokens and cost.
  */
@@ -286,7 +309,8 @@ export function getLanguageModel(options: { backend?: ModelBackend; usage?: Usag
   };
 }
 
-export const AI_NOT_CONFIGURED = "AI features are not configured: set OPENAI_API_KEY, ANTHROPIC_API_KEY or GROQ_API_KEY for this environment.";
+export const AI_NOT_CONFIGURED =
+  "AI features are not configured: set GOOGLE_GENERATIVE_AI_API_KEY (or OPENAI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY) for this environment.";
 
 /** 503 message when no provider can serve an agent's backend. */
 export const backendNotConfigured = (backend: ModelBackend) =>
