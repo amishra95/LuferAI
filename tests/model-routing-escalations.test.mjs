@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLatencyTracker, healthOf, routeOrder, tierOrder, tryInOrder } from "../lib/ai/routing.ts";
+import { createLatencyTracker, healthOf, isProviderAccountError, routeOrder, tierOrder, tryInOrder } from "../lib/ai/routing.ts";
 import { LLM_PROVIDERS, llmBreakers } from "../lib/circuit-breaker.ts";
 import { alertText, parseDecision, parseWhatsAppNumber, priceFor, statusFor } from "../lib/escalations/rules.ts";
 import { toTelemetryEvent, visibleTo } from "../lib/telemetry/events.ts";
@@ -61,6 +61,25 @@ test("tryInOrder fails over on unavailability only, and reports who answered", a
   assert.deepEqual(calls, ["openai", "anthropic", "groq"]);
   await assert.rejects(tryInOrder(["openai", "groq"], async () => Promise.reject(down), { shouldFailOver, aborted: () => true }));
   await assert.rejects(tryInOrder([], async () => "x", { shouldFailOver }), /No AI provider/);
+});
+
+test("account refusals (credits, quota, key) fail over; request errors don't", async () => {
+  // As OpenAI sends it: inside an HTTP 200 stream, so there's no status code to go on.
+  const noCredits = Object.assign(new Error("You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/."), { name: "AI_APICallError" });
+  assert.equal(isProviderAccountError(noCredits), true);
+  assert.equal(isProviderAccountError({ statusCode: 429, message: "You exceeded your current quota, please check your plan and billing details." }), true);
+  assert.equal(isProviderAccountError({ statusCode: 401, message: "Incorrect API key provided" }), true);
+  assert.equal(isProviderAccountError({ statusCode: 400, message: "Your credit balance is too low to access the Anthropic API." }), true);
+  assert.equal(isProviderAccountError(new Error("wrapped", { cause: { statusCode: 403 } })), true);
+  // The caller's own mistakes stay with the caller.
+  assert.equal(isProviderAccountError({ statusCode: 400, message: "Invalid schema for function 'searchVenues'" }), false);
+  assert.equal(isProviderAccountError(new Error("context_length_exceeded")), false);
+
+  const { result, provider, errors } = await tryInOrder(["openai", "anthropic"], async (p) => {
+    if (p === "openai") throw noCredits;
+    return "answer";
+  }, { shouldFailOver: isProviderAccountError });
+  assert.deepEqual([result, provider, errors.length], ["answer", "anthropic", 1]);
 });
 
 test("each provider has its own breaker, tuned to hand off after one retry", () => {
