@@ -15,6 +15,7 @@ import {
 } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
 import { computePlatformMetrics, listApprovals, listBookings, listCompanies, listExpenseExports, listOnboardingRequests } from "@/lib/data";
@@ -49,6 +50,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </Link>
       }
     >
+      <AdminTabs current="/admin" />
       <section aria-labelledby="exec-heading" className="mb-10 grid gap-6">
         <h2 id="exec-heading" className="sr-only">
           Executive spend analytics

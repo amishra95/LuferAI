@@ -24,6 +24,13 @@ export const ALLOWED_TRANSITIONS: Record<LifecycleStatus, readonly LifecycleStat
   CANCELLED: [],
 };
 
+/**
+ * Where a new request starts: with the venue ("PENDING", in its property portal
+ * inbox) unless someone must sign off first ("PENDING_APPROVAL", hidden from
+ * the venue until approved).
+ */
+export const initialStatus = (approvalsRequired: number): "PENDING" | "PENDING_APPROVAL" => (approvalsRequired > 0 ? "PENDING_APPROVAL" : "PENDING");
+
 export const canTransition = (from: LifecycleStatus, to: LifecycleStatus) => ALLOWED_TRANSITIONS[from].includes(to);
 
 export const isFinal = (status: LifecycleStatus) => ALLOWED_TRANSITIONS[status].length === 0;

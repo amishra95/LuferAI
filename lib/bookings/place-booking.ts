@@ -23,6 +23,7 @@ import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { applyRateCard } from "@/lib/rates/apply-rate-card";
 import { approvalDemand } from "@/lib/services/enterprise/approvalEngine";
 import { checkGovernance } from "@/lib/services/enterprise/governanceStore";
+import { initialStatus } from "@/lib/bookings/lifecycle";
 import { publishBooking } from "@/lib/telemetry/live";
 import { getNegotiatedRate } from "@/lib/rates/getNegotiatedRate";
 import { formatINR } from "@/lib/utils";
@@ -216,7 +217,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       );
       // Live update for every entry point: open client, admin and property portals refresh
       // (the venue's host hears it too; PENDING_APPROVAL stays off their inbox until signed off).
-      void publishBooking(booking.id, venue!.id, approvals.length ? "PENDING_APPROVAL" : "PENDING", "request");
+      void publishBooking(booking.id, venue!.id, initialStatus(approvals.length), "request");
       if (approvals.length) {
         return {
           status: "success",
