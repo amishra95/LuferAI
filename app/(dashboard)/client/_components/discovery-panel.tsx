@@ -6,7 +6,9 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { AlertTriangle, ArrowUp, ArrowUpRight, RotateCw, Sparkles, Square } from "lucide-react";
 
-import { AgentMark, ChatMessage, ThinkingDots } from "@/components/chat/chat-message";
+import { AgentProgressIndicator } from "@/components/chat/agent-progress-indicator";
+import { AgentMark, ChatMessage } from "@/components/chat/chat-message";
+import { activityFromParts } from "@/lib/agents/tool-progress";
 import { cn } from "@/lib/utils";
 import type { LuferUIMessage } from "@/types/chat";
 
@@ -95,10 +97,10 @@ export function DiscoveryPanel({ offline, reason }: { offline: boolean; reason?:
             // Tool details live in /chat's inspector; here the summary is enough.
             <ChatMessage key={m.id} message={m} streaming={status === "streaming" && m === last && m.role === "assistant"} selectedToolCallId={null} onSelectTool={() => {}} />
           ))}
-          {status === "submitted" && (
+          {busy && (
             <div className="flex gap-3.5">
-              <AgentMark live />
-              <ThinkingDots />
+              {status === "submitted" ? <AgentMark live /> : <span aria-hidden className="w-6 shrink-0" />}
+              <AgentProgressIndicator status={status} activity={activityFromParts(last?.role === "assistant" ? last.parts : [])} className="flex-1" />
             </div>
           )}
           {error && (

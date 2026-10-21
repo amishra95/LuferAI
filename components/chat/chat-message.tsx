@@ -72,19 +72,8 @@ export function ChatMessage({
           return null;
         })}
 
-        {streaming && message.parts.length === 0 && <ThinkingDots />}
         {tokens != null && <p className="text-fg-subtle font-mono text-caption tabular-nums">{tokens.toLocaleString("en-US")} tokens</p>}
       </div>
     </div>
-  );
-}
-
-export function ThinkingDots() {
-  return (
-    <span className="inline-flex items-center gap-1 py-2" aria-label="Agent is thinking">
-      {[0, 160, 320].map((d) => (
-        <span key={d} className="bg-fg-faint size-1 animate-pulse rounded-full" style={{ animationDelay: `${d}ms` }} />
-      ))}
-    </span>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Play, Square } from "lucide-react";
+import { Play, Square } from "lucide-react";
 
+import { AgentProgressIndicator } from "@/components/chat/agent-progress-indicator";
 import { formatTokens, formatUsd } from "@/lib/agents/spend";
 import { parseSseFrames, type RunEvent } from "@/lib/agents/run-events";
+import { activityFromRunEvents } from "@/lib/agents/tool-progress";
 import { cn } from "@/lib/utils";
 
 const STEP_LABEL: Record<RunEvent["type"], string> = {
@@ -118,8 +120,8 @@ export function LiveRun({ agentId, disabled }: { agentId: string; disabled?: str
             <RunStep key={i} event={e} />
           ))}
           {running && (
-            <li className="text-fg-subtle flex items-center gap-2 font-mono text-caption">
-              <Loader2 className="size-3 animate-spin" aria-hidden /> running…
+            <li>
+              <AgentProgressIndicator status="streaming" activity={activityFromRunEvents(events)} />
             </li>
           )}
           {error && (

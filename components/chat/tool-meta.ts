@@ -1,5 +1,6 @@
 import { BarChart3, PieChart, Search, TrendingUp, type LucideIcon } from "lucide-react";
 
+import { toolProgress } from "@/lib/agents/tool-progress";
 import type { ChatToolName, LuferMessagePart } from "@/types/chat";
 
 export type LuferToolPart = Extract<LuferMessagePart, { type: `tool-${ChatToolName}` }>;
@@ -9,29 +10,29 @@ export type ToolPhase = "running" | "done" | "error" | "denied";
 export const TOOL_META: Record<ChatToolName, { title: string; running: string; done: string; icon: LucideIcon; summary: string }> = {
   searchVenues: {
     title: "searchVenues",
-    running: "Searching venue catalogue",
-    done: "Searched venue catalogue",
+    running: toolProgress("searchVenues").running,
+    done: toolProgress("searchVenues").done,
     icon: Search,
     summary: "Filters venues by location, capacity, budget and features.",
   },
   getPlatformMetrics: {
     title: "getPlatformMetrics",
-    running: "Aggregating platform metrics",
-    done: "Aggregated platform metrics",
+    running: toolProgress("getPlatformMetrics").running,
+    done: toolProgress("getPlatformMetrics").done,
     icon: BarChart3,
     summary: "Booking counts, GBV, commission and GST totals.",
   },
   analyzeSpend: {
     title: "analyzeSpend",
-    running: "Analysing spend",
-    done: "Analysed spend",
+    running: toolProgress("analyzeSpend").running,
+    done: toolProgress("analyzeSpend").done,
     icon: PieChart,
     summary: "Spend, GST and savings by month, venue, department or cost centre.",
   },
   forecastBudget: {
     title: "forecastBudget",
-    running: "Forecasting budget",
-    done: "Forecast budget",
+    running: toolProgress("forecastBudget").running,
+    done: toolProgress("forecastBudget").done,
     icon: TrendingUp,
     summary: "Projects spend from trend and bookings, and checks it against budget.",
   },
