@@ -61,6 +61,8 @@ export async function listDirectory(): Promise<{ venues: DirectoryVenue[]; partn
     commission_rate: Number(v.commission_rate),
     supplier: null,
     bookable: true,
+    latitude: v.latitude != null ? Number(v.latitude) : null,
+    longitude: v.longitude != null ? Number(v.longitude) : null,
   }));
   return { venues: [...own, ...partner.venues, ...extranet], partners: partner.status };
 }

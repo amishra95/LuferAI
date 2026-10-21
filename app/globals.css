@@ -312,6 +312,49 @@
   color: var(--color-linen);
   z-index: 1;
 }
+/* Policy fit: a coloured dot and border (green in policy, amber needs approval). */
+.venue-marker[data-tone] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-width: 2px;
+}
+.venue-marker[data-tone]::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--marker-tone);
+}
+.venue-marker[data-tone="ok"] {
+  --marker-tone: var(--color-sage);
+  border-color: var(--color-sage);
+}
+.venue-marker[data-tone="warn"] {
+  --marker-tone: var(--color-warn);
+  border-color: var(--color-warn);
+}
+.venue-marker[data-tone]:hover,
+.venue-marker[data-tone]:focus-visible {
+  border-color: var(--color-plum);
+}
+/* Selected keeps its tone on the dot; the linen ring separates it from the plum fill. */
+.venue-marker[data-tone][data-selected="true"] {
+  border-color: var(--color-plum);
+}
+.venue-marker[data-tone][data-selected="true"]::before {
+  box-shadow: 0 0 0 1.5px var(--color-linen);
+}
+.office-marker {
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-badge);
+  border: 1.5px dashed var(--color-plum);
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font: 600 11px/1.2 var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+}
 @media (pointer: coarse) {
   .venue-marker {
     min-height: 2.75rem;

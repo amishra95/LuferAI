@@ -1,10 +1,12 @@
 "use client";
 
 import { useId, useState } from "react";
-import { AlertTriangle, BadgePercent, Check, DoorClosed, Search, Users } from "lucide-react";
+import { AlertTriangle, BadgePercent, Check, DoorClosed, MapPin, Search, Users } from "lucide-react";
 
+import { Pill } from "@/components/portal/pills";
 import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
+import type { VenuePolicyStatus } from "@/lib/venues/discovery";
 
 export interface VenuePickerOption {
   id: string;
@@ -27,7 +29,8 @@ const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString(
 
 /**
  * The inside of a venue card: name, area, starting price, capacity,
- * minimum spend, rate card and (with a guest count) whether the group fits.
+ * minimum spend, rate card, (with a guest count) whether the group fits and,
+ * where given, its policy fit and distance from the office.
  * Shared by the booking wizard's VenuePicker and the client portal's venue
  * list, which wrap it in a radio label and a button respectively.
  *
@@ -38,6 +41,8 @@ export function VenueCardBody({
   guests = 0,
   indicator,
   metaId,
+  policy,
+  distance,
 }: {
   venue: VenuePickerOption;
   /** Guests entered so far; 0 hides the fit hint. */
@@ -45,6 +50,10 @@ export function VenueCardBody({
   /** Top-right affordance (a radio dot, an arrow). Decorative. */
   indicator?: React.ReactNode;
   metaId?: string;
+  /** The company's policy fit at this venue's minimums (venuePolicyStatus). */
+  policy?: VenuePolicyStatus;
+  /** e.g. "1.8 km from HQ" (officeDistanceLabel). */
+  distance?: string | null;
 }) {
   const tooSmall = guests > 0 && guests > v.capacity_max;
   return (
@@ -98,8 +107,25 @@ export function VenueCardBody({
         ) : null}
       </div>
 
-      {v.rate_card_label || v.dietary?.length ? (
+      {v.rate_card_label || v.dietary?.length || policy || distance ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {policy ? (
+            policy.status === "in_policy" ? (
+              <Pill tone="ok">In policy</Pill>
+            ) : (
+              <Pill tone="warn" title={`Needs approval: ${policy.reason}`}>
+                Needs approval
+              </Pill>
+            )
+          ) : null}
+          {distance ? (
+            <span
+              title="Straight-line distance"
+              className="border-line text-fg-muted rounded-badge inline-flex items-center gap-1 border px-2.5 py-0.5 text-caption leading-4 font-medium"
+            >
+              <MapPin className="size-3.5" aria-hidden /> {distance}
+            </span>
+          ) : null}
           {v.rate_card_label ? (
             <span
               title="Your company's negotiated rate applies"

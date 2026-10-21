@@ -26,6 +26,9 @@ export interface DirectoryVenue {
   supplier: string | null;
   /** Internal venues book directly; partner venues go through the supplier (quote request). */
   bookable: boolean;
+  /** For the map; partner feeds don't provide coordinates. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 /** What a supplier network's directory feed must provide per venue. */

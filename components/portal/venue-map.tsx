@@ -5,6 +5,7 @@ import { MapPinOff } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { cn } from "@/lib/utils";
+import { MAX_BADGE_KM, distanceKm, type OfficeLocation } from "@/lib/venues/discovery";
 
 export interface MapVenue {
   id: string;
@@ -13,25 +14,32 @@ export interface MapVenue {
   longitude: number | null;
   /** Short marker label, e.g. the min spend. */
   label: string;
+  /** Policy fit, shown as the marker's colour: ok = in policy, warn = needs sign-off. */
+  tone?: "ok" | "warn";
 }
+
+const TONE_TEXT = { ok: "in policy", warn: "needs approval" } as const;
 
 const KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 const STYLE = process.env.NEXT_PUBLIC_MAPTILER_STYLE ?? "dataviz-dark";
 
 /**
  * Dark vector map of venues (MapLibre + MapTiler). Markers are real buttons, so
- * they're keyboard reachable and announce the venue. Without
+ * they're keyboard reachable and announce the venue (and its policy fit). The
+ * company's office gets its own pin when it's in town. Without
  * NEXT_PUBLIC_MAPTILER_KEY it renders a placeholder; the list stays usable.
  */
 export function VenueMap({
   venues,
   selectedId,
   onSelect,
+  office = null,
   className,
 }: {
   venues: MapVenue[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  office?: OfficeLocation | null;
   className?: string;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -44,7 +52,12 @@ export function VenueMap({
   });
 
   const placed = venues.filter((v): v is MapVenue & { latitude: number; longitude: number } => v.latitude != null && v.longitude != null);
-  const placedKey = placed.map((v) => `${v.id}:${v.latitude}:${v.longitude}:${v.label}`).join("|");
+  // Pin the office only near a venue; one in another city would zoom the map out to the country.
+  const nearOffice = office && placed.some((v) => distanceKm(office, v) <= MAX_BADGE_KM) ? office : null;
+  const placedKey =
+    placed.map((v) => `${v.id}:${v.latitude}:${v.longitude}:${v.label}:${v.tone}`).join("|") +
+    (nearOffice ? `|office:${nearOffice.latitude}:${nearOffice.longitude}:${nearOffice.label}` : "");
+  const toned = placed.some((v) => v.tone);
 
   useEffect(() => {
     if (!KEY || !container.current || placed.length === 0) return;
@@ -74,13 +87,23 @@ export function VenueMap({
         el.type = "button";
         el.className = "venue-marker";
         el.textContent = v.label;
-        el.setAttribute("aria-label", `${v.name}, ${v.label}`);
+        if (v.tone) el.dataset.tone = v.tone;
+        el.setAttribute("aria-label", [v.name, v.label, v.tone && TONE_TEXT[v.tone]].filter(Boolean).join(", "));
         el.addEventListener("click", () => onSelectRef.current(v.id));
         markerEls.set(v.id, el);
         new Marker({ element: el, anchor: "bottom" }).setLngLat([v.longitude, v.latitude]).addTo(map);
         bounds.extend([v.longitude, v.latitude]);
       }
-      if (placed.length > 1) map.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 0 });
+      if (nearOffice) {
+        const el = document.createElement("div");
+        el.className = "office-marker";
+        el.textContent = nearOffice.label;
+        el.setAttribute("role", "img");
+        el.setAttribute("aria-label", `Your ${nearOffice.label}`);
+        new Marker({ element: el, anchor: "bottom" }).setLngLat([nearOffice.longitude, nearOffice.latitude]).addTo(map);
+        bounds.extend([nearOffice.longitude, nearOffice.latitude]);
+      }
+      if (placed.length > 1 || nearOffice) map.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 0 });
     })().catch(() => setFailed(true));
 
     return () => {
@@ -116,5 +139,19 @@ export function VenueMap({
     );
   }
 
-  return <div ref={container} className={cn("overflow-hidden rounded-lg border border-line/60", className)} role="region" aria-label="Venue map" />;
+  return (
+    <div className={cn("relative overflow-hidden rounded-lg border border-line/60", className)}>
+      <div ref={container} className="absolute inset-0" role="region" aria-label="Venue map" />
+      {toned ? (
+        <ul className="glass pointer-events-none absolute top-2 left-2 flex gap-3 rounded-md px-2.5 py-1.5 text-caption text-fg-muted" aria-label="Map key">
+          <li className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="status-dot bg-sage" /> In policy
+          </li>
+          <li className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="status-dot bg-warn" /> Needs approval
+          </li>
+        </ul>
+      ) : null}
+    </div>
+  );
 }

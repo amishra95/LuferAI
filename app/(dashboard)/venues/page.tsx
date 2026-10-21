@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, MessageSquarePlus, NotebookPen, Search, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, List, Map as MapIcon, MessageSquarePlus, NotebookPen, Search, SearchX } from "lucide-react";
+
+import { toVenueOption } from "@/app/(dashboard)/client/_components/venue-options";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
+import { segmentClass } from "@/components/portal/segment";
+import type { MapVenue } from "@/components/portal/venue-map";
+import { VenueMapView } from "@/components/venues/venue-map-view";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { getCurrentMember } from "@/lib/auth/session";
+import { getVenueCatalog } from "@/lib/catalog";
 import { venueEventPrompt } from "@/lib/chat/concierge-link";
-import { dataSource } from "@/lib/data";
-import { listDirectory } from "@/lib/venues/directory";
+import { dataSource, getCorporatePolicy, listCompanies } from "@/lib/data";
+import { listDirectory, type DirectoryVenue } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
+import { officeOf, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
@@ -76,12 +83,42 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
   );
 }
 
+const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
+
+/**
+ * Map pins for the matches, coloured by the viewer's company policy when they
+ * belong to one (admins see plain pins), plus that company's office.
+ */
+async function mapData(matches: DirectoryVenue[], companyId: string | null): Promise<{ venues: MapVenue[]; office: OfficeLocation | null }> {
+  const [companies, policy, catalog] = companyId
+    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId)])
+    : [[], null, null];
+  const company = companies.find((c) => c.id === companyId);
+  const options = new Map((catalog?.venues ?? []).map((v) => [v.id, toVenueOption(v)]));
+  return {
+    office: company ? officeOf(company) : null,
+    venues: matches.map((v) => {
+      const option = options.get(v.id);
+      const fit = company && option ? venuePolicyStatus(policy, option) : null;
+      return {
+        id: v.id,
+        name: v.name,
+        latitude: v.latitude ?? null,
+        longitude: v.longitude ?? null,
+        label: compact(option?.min_spend_inr ?? v.min_spend_inr),
+        tone: fit ? (fit.status === "in_policy" ? "ok" : "warn") : undefined,
+      };
+    }),
+  };
+}
+
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
   const query = parseVenueQuery(await searchParams);
   const [{ venues, partners }, member] = await Promise.all([listDirectory(), getCurrentMember()]);
   // Row booking actions for admins and client users (the modal decides who can file).
   const canRequest = member?.role === "ADMIN" || member?.role === "CLIENT";
-  const { rows, total, page, pageCount } = applyVenueQuery(venues, query);
+  const { matches, rows, total, page, pageCount } = applyVenueQuery(venues, query);
+  const map = query.view === "map" ? await mapData(matches, member?.companyId ?? null) : null;
   const areas = [...new Set(venues.map((v) => v.neighborhood))].sort();
   const source = dataSource();
   const filtered = Boolean(query.q || query.tier || query.area || query.pdr || query.minCapacity);
@@ -134,6 +171,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         {query.sort !== "name" && <input type="hidden" name="sort" value={query.sort} />}
         {query.dir !== "asc" && <input type="hidden" name="dir" value={query.dir} />}
         {query.size !== 10 && <input type="hidden" name="size" value={query.size} />}
+        {query.view !== "list" && <input type="hidden" name="view" value={query.view} />}
         <div className="flex gap-1">
           <button type="submit" className="btn btn-primary h-9">
             Apply
@@ -145,6 +183,23 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
           )}
         </div>
       </form>
+
+      <nav className="mb-3 flex gap-1" aria-label="Venue view">
+        {(["list", "map"] as const).map((view) => (
+          <Link
+            key={view}
+            href={venueHref(query, { view })}
+            scroll={false}
+            aria-current={query.view === view ? "page" : undefined}
+            className={cn(segmentClass(query.view === view), "gap-1.5")}
+          >
+            {view === "list" ? <List className="size-3.5" aria-hidden /> : <MapIcon className="size-3.5" aria-hidden />}
+            {view === "list" ? "List view" : "Map view"}
+          </Link>
+        ))}
+      </nav>
+
+      {map && total > 0 ? <VenueMapView venues={map.venues} office={map.office} className="mb-3 h-[45dvh] lg:h-[28rem]" /> : null}
 
       {partners.status === "unavailable" && (
         <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-meta">

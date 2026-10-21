@@ -92,6 +92,14 @@ from (values
 ) as c(id, lat, lng)
 where v.id = c.id;
 
+-- Company offices (venue distance badges) ------------------------------------------------
+-- Nimbus works from Embassy GolfLinks, Bengaluru; Vertex from Connaught Place,
+-- Delhi, so its Bengaluru venues show no distance badge.
+update public.companies set office_latitude = 12.953900, office_longitude = 77.641300, office_label = 'HQ'
+  where id = '11111111-1111-4111-8111-111111111111';
+update public.companies set office_latitude = 28.630400, office_longitude = 77.217700, office_label = 'Delhi office'
+  where id = '22222222-2222-4222-8222-222222222222';
+
 -- Corporate policies --------------------------------------------------------------------
 -- Nimbus: ₹2,500/head cap, sign-off above ₹1.5L. Vertex: ₹4,500/head, no threshold.
 -- Approvers (approval_chains) reference auth users, so they're set up per environment.
