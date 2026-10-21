@@ -7,6 +7,7 @@ import { TracePanels } from "@/components/admin/trace-panels";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LiveBadge } from "@/components/portal/live-badge";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
@@ -90,6 +91,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
         </div>
       }
     >
+      <AdminTabs current="/admin/analytics" />
       {loadError && (
         <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-lg border px-4 py-2.5 text-meta">
           Some analytics couldn&apos;t be loaded right now ({loadError}).

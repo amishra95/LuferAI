@@ -26,7 +26,7 @@ import type {
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
-import { canTransition } from "@/lib/bookings/lifecycle";
+import { canTransition, initialStatus } from "@/lib/bookings/lifecycle";
 import { canOrderTransition, isOrderStatus, orderAllocationStatus, type OrderStatus } from "@/lib/catalog/orders";
 import { MAX_GUESTS, type AttendeeInput, type RsvpResponse, type RsvpStatus } from "@/lib/events/rsvp";
 import { EMPTY_PLAN, planDiffers, type EventPlan, type PlanContent, type RunOfShowItem } from "@/lib/events/plan";
@@ -347,7 +347,7 @@ export async function createBookingRequest(
   const budgetHolds = options.budgetHolds ?? [];
   const approvals = options.approvals ?? [];
   const total = roundInr(input.party_size * input.budget_per_head_inr);
-  const status: BookingStatus = approvals.length ? "PENDING_APPROVAL" : "PENDING";
+  const status: BookingStatus = initialStatus(approvals.length);
   const row = {
     ...input,
     notes: input.notes ?? null,
