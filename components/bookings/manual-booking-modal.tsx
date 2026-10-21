@@ -35,8 +35,11 @@ type Load =
   | { status: "readOnly"; message: string }
   | { status: "error"; message: string };
 
-// The default button is already coral (ink text: white on coral fails contrast); make it the brand pill.
-const SUBMIT = "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:px-6";
+// The brand pill, in green rather than the default coral. `!` beats btn-primary's colors (incl. its
+// nested :hover); emerald-700 keeps white text above 4.5:1 (emerald-600 doesn't).
+const SUBMIT =
+  "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:px-6 " +
+  "border-emerald-700! bg-emerald-700! text-white! hover:border-emerald-800! hover:bg-emerald-800! hover:text-white!";
 
 export function ManualBookingModal({
   venueId,
