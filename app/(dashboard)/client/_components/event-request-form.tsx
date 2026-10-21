@@ -63,6 +63,7 @@ const EMPTY: BookingFormInput = {
   cost_center: "",
   project_code: "",
   billing_gstin: "",
+  contact_phone: "",
   notes: "",
 };
 
@@ -86,6 +87,7 @@ export function EventRequestForm({
   submitLabel = "Send request",
   submitClassName,
   extraFields,
+  defaultPhone = "",
 }: {
   /** Used for the negotiated-rate preview; the server scopes it to the session's company. */
   companyId: string;
@@ -105,9 +107,11 @@ export function EventRequestForm({
   submitClassName?: string;
   /** Hidden fields sent with the request (e.g. on_behalf_of when an admin files it). */
   extraFields?: Record<string, string>;
+  /** The requester's saved mobile, to prefill the contact number. */
+  defaultPhone?: string;
 }) {
   const [state, formAction, pending] = useActionState<BookingRequestState, FormData>(submitBookingRequest, { status: "idle" });
-  const [values, setValues] = useState<BookingFormInput>({ ...EMPTY, venue_id: defaultVenueId });
+  const [values, setValues] = useState<BookingFormInput>({ ...EMPTY, venue_id: defaultVenueId, contact_phone: defaultPhone });
   const [step, setStep] = useState(0);
   const [clientErrors, setClientErrors] = useState<Errors>({});
   const set = (field: BookingFormField, value: string) => {
@@ -267,7 +271,7 @@ export function EventRequestForm({
   }
 
   function startOver() {
-    setValues({ ...EMPTY, venue_id: venueId });
+    setValues({ ...EMPTY, venue_id: venueId, contact_phone: values.contact_phone });
     setDetails(EMPTY_EVENT_DETAILS);
     setClientErrors({});
     setStep(0);
@@ -567,6 +571,30 @@ export function EventRequestForm({
               </p>
             )}
           </div>
+        </div>
+
+        <div className="grid content-start gap-2 sm:max-w-xs">
+          <Label htmlFor="contact_phone">
+            Your mobile <span className="text-fg-subtle font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="contact_phone"
+            name="contact_phone"
+            type="tel"
+            autoComplete="tel"
+            value={values.contact_phone}
+            onChange={(e) => set("contact_phone", e.target.value)}
+            placeholder="98450 12345"
+            aria-invalid={Boolean(err("contact_phone"))}
+            aria-describedby="contact-phone-help"
+          />
+          {err("contact_phone") ? (
+            <FieldError message={err("contact_phone")} />
+          ) : (
+            <p id="contact-phone-help" className="text-muted-foreground text-caption">
+              For updates about this event, e.g. when the venue accepts.
+            </p>
+          )}
         </div>
 
         <div className="grid content-start gap-2">

@@ -69,9 +69,14 @@ export async function closeStream(page: Page, path: string) {
   await page.evaluate((p) => window.__e2e!.streams[p]!.close(), path);
 }
 
+export type SessionRole = "admin" | "buyer" | "property";
+
+/** Where `role`'s saved session lives (playwright/.auth/<role>.json, or E2E_AUTH_DIR). */
+export const sessionFile = (role: SessionRole) => path.join(process.env.E2E_AUTH_DIR ?? "playwright/.auth", `${role}.json`);
+
 /** A saved session for `role`, or the test is skipped (see playwright.config.ts). */
-export function signInAs(role: "admin" | "buyer") {
-  const file = path.join(process.env.E2E_AUTH_DIR ?? "playwright/.auth", `${role}.json`);
+export function signInAs(role: SessionRole) {
+  const file = sessionFile(role);
   const missing = !existsSync(file);
   test.skip(missing, `No saved ${role} session at ${file}`);
   if (!missing) test.use({ storageState: file });

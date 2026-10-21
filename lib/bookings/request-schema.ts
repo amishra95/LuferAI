@@ -13,13 +13,14 @@
  */
 import { z } from "zod";
 
+import { normalizePhone } from "../phone.ts";
 import { validateExpense, type ExpenseField } from "./expense.ts";
 
-export type BookingFormField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | "department_id" | "notes" | ExpenseField;
+export type BookingFormField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | "department_id" | "contact_phone" | "notes" | ExpenseField;
 
 export const BOOKING_STEPS = [
   { id: "event", title: "Event", fields: ["venue_id", "event_date", "party_size", "budget_per_head_inr"] },
-  { id: "billing", title: "Billing", fields: ["department_id", "cost_center", "project_code", "billing_gstin", "notes"] },
+  { id: "billing", title: "Billing", fields: ["department_id", "cost_center", "project_code", "billing_gstin", "contact_phone", "notes"] },
   { id: "review", title: "Review", fields: [] },
 ] as const satisfies readonly { id: string; title: string; fields: readonly BookingFormField[] }[];
 
@@ -60,6 +61,12 @@ export function bookingRequestSchema(ctx: BookingSchemaContext) {
       cost_center: text,
       project_code: text,
       billing_gstin: text,
+      // The requester's mobile for this event (stored E.164 for SMS); optional.
+      contact_phone: text
+        .optional()
+        .transform((v) => v ?? "")
+        .refine((v) => normalizePhone(v) !== null, "Enter a mobile number, e.g. 98450 12345")
+        .transform((v) => normalizePhone(v) || null),
       notes: text.max(NOTES_MAX, `Notes: up to ${NOTES_MAX} characters`).transform((v) => v || undefined),
     })
     .superRefine((v, issue) => {
@@ -118,6 +125,7 @@ export function bookingFormInput(formData: FormData): BookingFormInput {
     cost_center: get("cost_center"),
     project_code: get("project_code"),
     billing_gstin: get("billing_gstin"),
+    contact_phone: get("contact_phone"),
     notes: get("notes"),
   };
 }

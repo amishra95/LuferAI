@@ -5,6 +5,7 @@
  */
 
 export interface AcceptedBooking {
+  bookingId: string;
   venueName: string;
   venueArea: string;
   /** YYYY-MM-DD */
@@ -32,6 +33,8 @@ const formatDate = (iso: string) => {
   return `${part.weekday}, ${part.day} ${part.month} ${part.year}`;
 };
 const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
+/** The booking's short reference: the id's first 8 characters, upper-cased. */
+export const bookingRef = (id: string) => id.slice(0, 8).toUpperCase();
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export function bookingAcceptedMessage(b: AcceptedBooking): { subject: string; text: string; html: string } {
@@ -45,6 +48,8 @@ export function bookingAcceptedMessage(b: AcceptedBooking): { subject: string; t
           ["SGST 9%", b.invoice.tax_breakup.sgst.amount],
         ];
   const rows: [string, string][] = [
+    // The short reference the app shows (and ⌘K finds), with the full id after it.
+    ["Booking ID", `${bookingRef(b.bookingId)} (${b.bookingId})`],
     ["Venue", `${b.venueName}, ${b.venueArea}`],
     ["Date", date],
     ["Guests", String(b.partySize)],

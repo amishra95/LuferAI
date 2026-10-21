@@ -7,8 +7,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Customer notifications. Email goes through Resend's HTTP API when
- * RESEND_API_KEY and NOTIFY_FROM_EMAIL are set; otherwise it's skipped (and
- * logged), so a missing provider never breaks the flow that triggered it.
+ * RESEND_API_KEY and NOTIFY_FROM_EMAIL are set. Without them nothing is sent
+ * and nothing throws: in development and tests the whole message is logged
+ * (to check it without a provider); in production only that it was skipped,
+ * since the message carries the customer's address and booking details.
  */
 
 export type NotifyOutcome = { status: "sent"; to: string } | { status: "skipped"; reason: string } | { status: "failed"; error: string };
@@ -16,7 +18,12 @@ export type NotifyOutcome = { status: "sent"; to: string } | { status: "skipped"
 async function sendEmail(message: { to: string; subject: string; text: string; html: string }): Promise<NotifyOutcome> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFY_FROM_EMAIL;
-  if (!key || !from) return { status: "skipped", reason: "No email provider configured (RESEND_API_KEY, NOTIFY_FROM_EMAIL)." };
+  if (!key || !from) {
+    if (process.env.NODE_ENV !== "production") {
+      console.info(`notify: [email not sent: no provider configured]\nTo: ${message.to}\nSubject: ${message.subject}\n\n${message.text}`);
+    }
+    return { status: "skipped", reason: "No email provider configured (RESEND_API_KEY, NOTIFY_FROM_EMAIL)." };
+  }
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -53,6 +60,7 @@ export async function notifyVenueAccepted(bookingId: string, venueId: string): P
     const to = await recipientFor(booking);
     if (!to) return { status: "skipped", reason: "No address for the requester or the company." };
     const message = bookingAcceptedMessage({
+      bookingId: booking.id,
       venueName: booking.venue.name,
       venueArea: `${booking.venue.neighborhood}, ${booking.venue.city}`,
       eventDate: booking.event_date,

@@ -7,6 +7,7 @@ import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
 import { budgetCapError } from "@/lib/bookings/event-details";
 import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
 import { getVenueCatalog } from "@/lib/catalog";
+import { getUserPhone, saveUserPhone } from "@/lib/services/contact";
 import { runBookingAgent, type AgentBookingOutcome } from "@/lib/bookings/booking-agent";
 import type { OrderEventStatus } from "@/lib/telemetry/events";
 import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingStatus } from "@/lib/data";
@@ -115,12 +116,15 @@ export async function submitBookingRequest(
     eventDate: v.event_date,
     partySize: v.party_size,
     budgetPerHead: v.budget_per_head_inr,
+    requesterPhone: v.contact_phone,
     notes,
     departmentId: v.department_id,
     expense: { costCenter: v.cost_center, projectCode: v.project_code, taxId: v.billing_gstin },
     checkoutToken: String(formData.get("slot_token") ?? "") || null,
   });
   if (result.status === "success") {
+    // Remembered for their next request (not when an admin files on someone's behalf).
+    if (member.role === "CLIENT" && v.contact_phone) await saveUserPhone(member.userId, v.contact_phone);
     revalidatePath("/client");
     revalidatePath("/property");
     revalidatePath("/admin");
@@ -135,6 +139,8 @@ export interface ManualBookingContext {
   companyGstin: string;
   venues: VenueOption[];
   departments: { id: string; name: string }[];
+  /** The signed-in requester's saved mobile, to prefill the form (clients only). */
+  phone?: string | null;
   /** Admins only: the companies they can file for, and who at this one may request (Organizers, Approvers). */
   onBehalf?: { companies: { id: string; name: string }[]; requesters: { id: string; name: string; role: string }[] };
 }
@@ -161,6 +167,7 @@ export async function getManualBookingContext(companyId?: string): Promise<Manua
     companyGstin: company.gstin,
     venues: venues.map(toVenueOption),
     departments: departments.map((d) => ({ id: d.id, name: d.name })),
+    phone: admin ? null : await getUserPhone(member.userId),
     ...(admin && {
       onBehalf: {
         companies: companies.map((c) => ({ id: c.id, name: c.legal_name })),
