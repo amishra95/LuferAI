@@ -82,9 +82,9 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         </nav>
       ) : null}
 
-      <dl className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="panel px-4 py-3">
+          <div key={s.label} className="panel p-5">
             <dt className="label-mono">{s.label}</dt>
             <dd className={cn("figure text-fg mt-1 text-section", s.warn && "text-warn")}>{s.value}</dd>
           </div>

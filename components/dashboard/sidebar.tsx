@@ -15,7 +15,7 @@ export function Monogram({ name, className }: { name: string; className?: string
     <span
       aria-hidden
       className={cn(
-        "bg-plum-light text-gold grid size-7 shrink-0 place-items-center rounded-badge text-caption font-semibold",
+        "bg-plum-light text-gold grid size-7 shrink-0 place-items-center rounded-tile text-caption font-semibold",
         className
       )}
     >

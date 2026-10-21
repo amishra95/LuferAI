@@ -49,11 +49,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </Link>
       }
     >
-      <section aria-labelledby="exec-heading" className="mb-10 grid gap-4">
+      <section aria-labelledby="exec-heading" className="mb-10 grid gap-6">
         <h2 id="exec-heading" className="sr-only">
           Executive spend analytics
         </h2>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardDescription>Corporate spend · {a.fyLabel} to date (pre-GST)</CardDescription>
@@ -87,7 +87,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </Card>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key metrics">
+      <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key metrics">
         <StatCard label="Total bookings" value={String(m.totalBookings)} hint={`${m.pendingBookings} awaiting venue approval`} icon={CalendarCheck} />
         <StatCard label="Gross booking value" value={formatINR(m.grossBookingValue)} hint="Pre-GST, excludes cancelled" icon={IndianRupee} />
         <StatCard label="Commission earned" value={formatINR(m.commissionEarned)} hint="Confirmed + completed bookings" icon={Landmark} />

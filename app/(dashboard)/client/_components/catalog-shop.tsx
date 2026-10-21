@@ -445,7 +445,7 @@ function AgentPick({ today }: { today: string }) {
   }
 
   return (
-    <section className="panel px-5 py-4" aria-label="Let the agent pick">
+    <section className="panel p-5" aria-label="Let the agent pick">
       <h3 className="label-mono mb-2.5 flex items-center gap-1.5">
         <Bot className="size-3.5" aria-hidden /> Let the agent pick
       </h3>

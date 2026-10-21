@@ -37,12 +37,12 @@ export function ToolStatus({
       aria-pressed={selected}
       title="Inspect this call"
       className={cn(
-        "inline-flex h-7 max-w-full min-w-0 items-center gap-2 rounded-full border pr-1.5 pl-1.5 text-left text-meta leading-none transition-colors",
+        "inline-flex h-7 max-w-full min-w-0 items-center gap-2 rounded-badge border px-1.5 text-left text-caption font-medium leading-none transition-colors",
         PHASE_STYLE[phase],
         selected && "ring-focus ring-1"
       )}
     >
-      <span className="bg-surface-raised text-fg-subtle grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-caption leading-none tabular-nums">
+      <span className="bg-surface-raised text-fg-subtle rounded-badge inline-flex items-center px-2.5 py-0.5 font-mono text-caption leading-4 font-medium tabular-nums">
         {String(step).padStart(2, "0")}
       </span>
       {phase === "running" ? (

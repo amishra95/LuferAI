@@ -22,12 +22,12 @@ export default function Loading() {
       }
     >
       <LoadingRegion label="Loading agent analytics…">
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <MetricSkeleton key={i} delay={i * 120} />
           ))}
         </section>
-        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
           <ChartCardSkeleton />
           <ChartCardSkeleton delay={150} />
         </div>

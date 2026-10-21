@@ -196,7 +196,7 @@ function NoActivity({ kind }: { kind: KindFilter }) {
           </>
         }
       />
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="mt-4 grid gap-6 md:grid-cols-2">
         <TriggerCard
           surface="/client"
           steps={[

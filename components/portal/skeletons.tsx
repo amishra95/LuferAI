@@ -27,7 +27,7 @@ export function LoadingRegion({ label, children, className }: { label: string; c
 /** Same box as StatCard: label + icon row, 30px figure (24px off-scope), change pill and context. */
 export function MetricSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="panel flex flex-col p-4">
+    <div className="panel flex flex-col p-5">
       <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-2.5 w-20" delay={delay} />
         <Skeleton className="size-4 rounded-full" delay={delay} />
@@ -46,12 +46,12 @@ const BAR_HEIGHTS = [58, 72, 64, 80, 70, 86, 62];
 /** Card with a title, description and a faint bar chart. */
 export function ChartCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="panel flex flex-col gap-4 py-4">
-      <div className="grid gap-2 px-4">
+    <div className="panel flex flex-col gap-4 py-5">
+      <div className="grid gap-2 px-5">
         <Skeleton className="h-3.5 w-24" delay={delay} />
         <Skeleton className="h-3 w-40" delay={delay} />
       </div>
-      <div className="border-line mx-4 flex h-60 items-end gap-[6%] border-b px-4 pb-px">
+      <div className="border-line mx-5 flex h-60 items-end gap-[6%] border-b px-4 pb-px">
         {BAR_HEIGHTS.map((h, i) => (
           <div key={i} className="flex-1" style={{ height: `${h}%` }}>
             <Skeleton className="h-full rounded-t-sm rounded-b-none" delay={delay + i * 90} />

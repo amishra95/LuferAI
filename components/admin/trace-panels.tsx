@@ -93,7 +93,7 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
         />
       ) : (
         <div className="grid gap-4">
-          <div className="grid gap-4 2xl:grid-cols-2">
+          <div className="grid gap-6 2xl:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Routes</CardTitle>

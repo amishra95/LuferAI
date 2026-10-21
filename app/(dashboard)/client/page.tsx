@@ -315,7 +315,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           readOnlyReason={role === "ORGANIZER" ? "Only Approvers can raise purchase orders." : "Finance viewers have read-only access to purchase orders."}
         />
       ) : activeTab === "signoffs" ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {signOffs.length === 0 ? (
             <Card>
               <CardContent className="text-fg-subtle py-6 text-center text-meta">No bookings are waiting for sign-off.</CardContent>
@@ -388,9 +388,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       ) : (
         <>
           <section aria-label="Booking status" className="mb-10 flex flex-wrap items-start justify-between gap-4">
-            <dl className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+            <dl className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-4">
               {statusCounts(bookings).map((c) => (
-                <div key={c.status} className="panel px-4 py-3">
+                <div key={c.status} className="panel p-5">
                   <dt className="label-mono">{c.label}</dt>
                   <dd className={cn("mt-1.5 font-mono text-title leading-none tabular-nums", c.count ? "text-fg" : "text-fg-faint")}>{c.count}</dd>
                 </div>

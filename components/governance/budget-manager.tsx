@@ -62,12 +62,12 @@ export function BudgetManager({
           description={departments.length ? "Set a monthly or quarterly limit for a team. Requests are held against it while they await approval." : "Budgets are per team. Add departments to the company first."}
         />
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid gap-6 md:grid-cols-2">
           {sorted.map((b) => {
             const past = b.period_end < today;
             const meter = { amount: b.balance.limit, committed: b.balance.held + b.balance.committed, consumed: b.balance.consumed, remaining: b.balance.remaining, usedPct: b.balance.usedPct, overrun: b.balance.overrun };
             return (
-              <li key={b.id} className={cn("panel grid gap-3 p-4", past && "opacity-70")}>
+              <li key={b.id} className={cn("panel grid gap-3 p-5", past && "opacity-70")}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="text-fg text-body font-medium">{b.departmentName}</span>
                   <span className="text-fg-subtle text-caption">{periodLabel(b.period, b.period_start)}</span>

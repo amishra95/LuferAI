@@ -51,6 +51,8 @@
   --color-surface-hover: color-mix(in srgb, var(--color-plum) 4%, var(--color-white)); /* row and item hover */
   --color-line: var(--color-sand);
   --color-line-strong: color-mix(in srgb, var(--color-sand) 75%, var(--color-ink-muted)); /* inputs, outlined buttons */
+  /* Outer edge of cards, table frames and side panels: plum-light at 30% (20% in dark). */
+  --color-frame: color-mix(in srgb, var(--color-plum-light) 30%, transparent);
   --color-fg: var(--color-ink);
   --color-fg-muted: color-mix(in srgb, var(--color-ink) 60%, var(--color-ink-muted));
   --color-fg-subtle: var(--color-ink-muted);
@@ -87,7 +89,8 @@
   /* Shape --------------------------------------------------------------- */
   --radius-control: 12px; /* buttons, inputs */
   --radius-card: 14px;
-  --radius-badge: 6px;
+  --radius-badge: 9999px; /* badges, status pills, step indicators */
+  --radius-tile: 6px; /* monogram tile, key caps */
   --radius-container: 24px;
   --shadow-card: 0 1px 2px rgb(26 21 35 / 0.04);
 }
@@ -139,6 +142,7 @@
     --color-surface-hover: color-mix(in srgb, var(--color-plum-light) 55%, var(--color-plum));
     --color-line: var(--color-plum-light);
     --color-line-strong: color-mix(in srgb, var(--color-plum-light) 70%, var(--color-on-plum-muted));
+    --color-frame: color-mix(in srgb, var(--color-plum-light) 20%, transparent);
     --color-fg: var(--color-linen);
     --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-plum-muted));
     --color-fg-subtle: var(--color-on-plum-muted);
@@ -361,10 +365,10 @@ html:has(.lufer) {
   }
 }
 
-/* Card: white surface, soft 1px border, 14px radius, at most a hairline shadow. */
+/* Card: white surface (plum in dark), 1px frame border, 14px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
 @utility panel {
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-frame);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
@@ -372,7 +376,7 @@ html:has(.lufer) {
 /* A clickable card (venue cards, pickers): border steps up on hover, plum when selected. */
 @utility panel-interactive {
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-frame);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   transition:
@@ -391,6 +395,57 @@ html:has(.lufer) {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
+}
+
+/* Page widths: the workspace (dashboard, portals) and the public site. */
+@utility container-app {
+  width: 100%;
+  max-width: 80rem; /* max-w-7xl */
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+@utility container-public {
+  width: 100%;
+  max-width: 72rem; /* max-w-6xl */
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Vertical rhythm between major blocks of the public site (py-12, py-20 from lg). */
+@utility section-block {
+  padding-block: 3rem;
+  @media (width >= 64rem) {
+    padding-block: 5rem;
+  }
+}
+
+/* Data tables: scrolls sideways inside a framed, rounded box. */
+@utility table-frame {
+  overflow-x: auto;
+  border: 1px solid var(--color-frame);
+  border-radius: var(--radius-card);
+}
+
+/* Column heading: small, uppercase, muted. */
+@utility table-head {
+  font-size: var(--text-caption);
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
 }
 
 /* Large rounded container (hero blocks, page-level groupings). */
@@ -521,8 +576,8 @@ html:has(.lufer) {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  height: 1.375rem;
-  padding-inline: 0.5rem;
+  padding: 0.125rem 0.625rem; /* py-0.5 px-2.5 */
+  line-height: 1rem;
   border-radius: var(--radius-badge);
   border: 1px solid var(--color-line);
   background: transparent;

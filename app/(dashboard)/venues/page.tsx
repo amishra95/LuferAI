@@ -164,13 +164,13 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[46rem] text-meta">
                 <thead>
-                  <tr className="border-line border-b">
+                  <tr className="border-line bg-surface-hover border-b">
                     {COLUMNS.map((c) => (
                       <th
                         key={c.label}
                         scope="col"
                         aria-sort={c.key && query.sort === c.key ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
-                        className={cn("label-mono h-10 px-4 font-medium first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
+                        className={cn("table-head h-10 px-4 first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
                       >
                         <SortHeader column={c} query={query} />
                       </th>

@@ -213,7 +213,7 @@ export function EventRoom({
                 <svg width="16" height="16" viewBox="0 0 16 16" className="-translate-x-0.5 -translate-y-0.5">
                   <path d="M1 1l5.5 13 1.8-5.2L13.5 7z" className="stroke-ink" style={{ fill: who.color }} strokeWidth="1" />
                 </svg>
-                <span className="rounded-badge text-ink ml-3 px-1.5 py-0.5 text-caption font-medium whitespace-nowrap" style={{ background: who.color }}>
+                <span className="rounded-badge text-ink ml-3 px-2.5 py-0.5 text-caption font-medium whitespace-nowrap" style={{ background: who.color }}>
                   {who.name}
                 </span>
               </div>

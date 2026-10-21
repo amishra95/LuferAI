@@ -36,7 +36,7 @@ export function AgentProgressIndicator({
   const Icon = ACTIVITY_ICON[activity.kind];
   return (
     <div role="status" aria-live="polite" className={cn("flex h-7 min-w-0 items-center", className)}>
-      <span className="on-plum bg-plum-light inline-flex h-7 max-w-full min-w-0 items-center gap-2 rounded-full pr-3 pl-2.5 text-meta leading-none">
+      <span className="on-plum bg-plum-light rounded-badge inline-flex h-7 max-w-full min-w-0 items-center gap-2 px-2.5 text-caption font-medium leading-none">
         <span aria-hidden className="status-dot bg-gold animate-pulse motion-reduce:animate-none" />
         <Icon aria-hidden className="text-fg-subtle size-3.5 shrink-0" strokeWidth={1.75} />
         <span className="text-fg-subtle truncate">{activity.label}…</span>

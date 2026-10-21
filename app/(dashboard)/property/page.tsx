@@ -130,7 +130,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-3" aria-label="Summary">
+      <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
         <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} hint="Net of commission, before GST pass-through" />

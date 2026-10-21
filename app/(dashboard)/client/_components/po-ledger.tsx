@@ -102,7 +102,7 @@ export function PoLedger({
     );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-fg text-body font-semibold tracking-tight">Purchase orders</h2>
@@ -141,7 +141,7 @@ export function PoLedger({
       )}
 
       {canManage && unallocated.length > 0 && state.pos.some((p) => p.status === "open") && (
-        <section className="panel px-5 py-4">
+        <section className="panel p-5">
           <h3 className="label-mono mb-2">Not on a PO</h3>
           <ul className="divide-line divide-y">
             {unallocated.map((b) => (
@@ -165,7 +165,7 @@ function BudgetOverview({ pos, state }: { pos: PurchaseOrder[]; state: State }) 
   const total = rows.reduce((t, r) => ({ amount: t.amount + r.balance.amount, remaining: t.remaining + r.balance.remaining }), { amount: 0, remaining: 0 });
   const atRisk = rows.filter((r) => budgetTone(r.balance) !== "ok").length;
   return (
-    <section className="panel px-5 py-4" aria-label="Budget overview">
+    <section className="panel p-5" aria-label="Budget overview">
       <header className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h3 className="label-mono">Budget overview</h3>
         <span className="text-fg-subtle font-mono text-caption tabular-nums">
@@ -258,9 +258,9 @@ function PoPanel({
         <div className="border-line overflow-x-auto border-t">
           <table className="w-full min-w-[34rem] text-meta">
             <thead>
-              <tr className="border-line border-b">
+              <tr className="border-line bg-surface-hover border-b">
                 {["Booking", "Status", "Amount", "Balance after", ""].map((h, i) => (
-                  <th key={i} scope="col" className={cn("label-mono h-8 px-3 font-medium first:pl-5 last:pr-5", i >= 2 && i <= 3 ? "text-right" : "text-left")}>
+                  <th key={i} scope="col" className={cn("table-head h-10 px-4 first:pl-5 last:pr-5", i >= 2 && i <= 3 ? "text-right" : "text-left")}>
                     {h}
                   </th>
                 ))}
@@ -271,8 +271,8 @@ function PoPanel({
                 const b = bookings.find((x) => x.id === subjectOf(a));
                 return (
                   <tr key={a.id} className={cn("border-line border-b last:border-b-0", a.status === "released" && "text-fg-faint")}>
-                    <td className="text-fg max-w-64 truncate py-2 pr-3 pl-5">{b?.label ?? subjectOf(a).slice(0, 8)}</td>
-                    <td className="text-fg-subtle px-3 font-mono text-caption">
+                    <td className="text-fg max-w-64 truncate py-3 pr-4 pl-5">{b?.label ?? subjectOf(a).slice(0, 8)}</td>
+                    <td className="text-fg-subtle px-4 font-mono text-caption">
                       {a.status}
                       {a.over_balance && <span className="text-rose"> · signed-off overrun</span>}
                       {b?.reconciliation ? <div className="font-sans text-caption">{b.reconciliation.label}</div> : null}
@@ -391,7 +391,7 @@ function NewPoForm({
   }
 
   return (
-    <form onSubmit={submit} className="panel grid gap-3 px-5 py-4 text-meta sm:grid-cols-2">
+    <form onSubmit={submit} className="panel grid gap-3 p-5 text-meta sm:grid-cols-2">
       <h3 className="label-mono sm:col-span-2">Raise a purchase order</h3>
       <label className="grid gap-1">
         <span className="text-fg-subtle">PO number</span>

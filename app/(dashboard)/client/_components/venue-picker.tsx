@@ -102,7 +102,7 @@ export function VenueCardBody({
           {v.rate_card_label ? (
             <span
               title="Your company's negotiated rate applies"
-              className="border-line text-fg-muted rounded-badge inline-flex h-5 items-center gap-1 border px-2 text-caption"
+              className="border-line text-fg-muted rounded-badge inline-flex items-center gap-1 border px-2.5 py-0.5 text-caption leading-4 font-medium"
             >
               <BadgePercent className="size-3.5" aria-hidden /> Rate card {v.rate_card_label}
             </span>
@@ -156,7 +156,7 @@ export function VenuePicker({
             <label
               key={v.id}
               className={cn(
-                "panel-interactive flex cursor-pointer flex-col gap-2 p-3",
+                "panel-interactive flex cursor-pointer flex-col gap-2 p-5",
                 guests > v.capacity_max && !selected && "opacity-70 hover:opacity-100"
               )}
             >

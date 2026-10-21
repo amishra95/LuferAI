@@ -10,7 +10,7 @@ export default function Loading() {
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-3.5 w-72 max-w-full" delay={80} />
         </div>
-        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <div className="mb-6 grid gap-6 sm:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <MetricSkeleton key={i} delay={i * 90} />
           ))}
@@ -25,7 +25,7 @@ export default function Loading() {
             <div key={col} className="border-line grid w-[18rem] shrink-0 content-start gap-2 rounded-lg border p-2 lg:w-auto lg:flex-1">
               <Skeleton className="m-1.5 h-2.5 w-20" delay={col * 80} />
               {Array.from({ length: col === 0 ? 3 : 2 - (col % 2) }, (_, i) => (
-                <div key={i} className="panel grid gap-2 px-3.5 py-3">
+                <div key={i} className="panel grid gap-2 p-5">
                   <Skeleton className="h-3.5 w-32" delay={col * 80 + i * 110} />
                   <Skeleton className="h-3 w-44" delay={col * 80 + i * 110} />
                   <Skeleton className="h-6 w-20" delay={col * 80 + i * 110 + 60} />

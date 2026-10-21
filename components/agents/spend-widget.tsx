@@ -40,7 +40,7 @@ export function SpendWidget({ summary, store, agentNames }: { summary: SpendSumm
 
       <div className="border-line grid gap-6 border-t px-5 py-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <DailyCost days={summary.daily} />
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1">
           <Breakdown title="By agent" rows={summary.byAgent.slice(0, 5).map((r) => ({ key: r.agentKey, label: agentNames[r.agentKey] ?? r.agentKey, ...r }))} />
           <Breakdown title="By model" rows={summary.byModel.slice(0, 4).map((r) => ({ key: r.model, label: r.model, mono: true, ...r }))} />
         </div>

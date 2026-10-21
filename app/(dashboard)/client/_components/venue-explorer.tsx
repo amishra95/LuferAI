@@ -91,7 +91,7 @@ export function VenueExplorer({
         />
       ) : (
         <>
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
             <ul className={cn("grid content-start gap-3 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2 ", mobileView === "map" && "max-lg:hidden")}>
               {options.map((v) => {
                 const active = v.id === selectedId;
@@ -104,7 +104,7 @@ export function VenueExplorer({
                       aria-current={active ? "true" : undefined}
                       aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
                       data-selected={active}
-                      className="panel-interactive group flex w-full cursor-pointer flex-col gap-2 p-3 text-left"
+                      className="panel-interactive group flex w-full cursor-pointer flex-col gap-2 p-5 text-left"
                     >
                       <VenueCardBody
                         venue={v}
