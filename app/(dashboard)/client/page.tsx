@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, Receipt, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, Plus, Receipt, ShieldCheck, Sparkles, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -19,6 +19,7 @@ import { activeHolds, approvalQueue } from "@/lib/approvals/service";
 import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
+import { conciergeHref, teamEventPrompt } from "@/lib/chat/concierge-link";
 import { costCentreLock, receiptState } from "@/lib/bookings/expense-meta";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
@@ -178,13 +179,21 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       title={company.legal_name}
       subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
       actions={
-        queue.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {queue.length > 0 ? (
+            <Button asChild variant="outline">
+              <Link href={approvalsHref}>
+                <ClipboardCheck aria-hidden /> {queue.length} awaiting approval
+              </Link>
+            </Button>
+          ) : null}
+          {/* Always offered, read-only admin view included: /chat is open to every client role and admins. */}
           <Button asChild variant="outline">
-            <Link href={approvalsHref}>
-              <ClipboardCheck aria-hidden /> {queue.length} awaiting approval
+            <Link href={conciergeHref({ companyId: company.id })}>
+              <Sparkles className="text-coral" aria-hidden /> Launch AI Assistant
             </Link>
           </Button>
-        ) : null
+        </div>
       }
     >
       {companies.length > 1 ? (
@@ -387,6 +396,17 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : (
         <>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-section text-fg font-semibold">Bookings</h2>
+            {canRequest ? (
+              <Button asChild className="rounded-full px-5 font-medium has-[>svg]:px-5">
+                <Link href={conciergeHref({ companyId: company.id, prompt: teamEventPrompt(company.legal_name) })}>
+                  <Plus aria-hidden /> Request team event
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+
           <section aria-label="Booking status" className="mb-10 flex flex-wrap items-start justify-between gap-4">
             <dl className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-4">
               {statusCounts(bookings).map((c) => (
