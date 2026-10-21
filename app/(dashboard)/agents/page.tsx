@@ -85,7 +85,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
             </p>
           </div>
         </div>
-        <div className="panel px-5 py-4">
+        <div className="panel p-5">
           <EscalationQueue open={escalations.open} recent={escalations.recent} ready={escalations.ready} showVenue />
         </div>
       </section>
@@ -100,7 +100,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
           </p>
         </div>
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] 2xl:items-start">
-          <div className="panel px-5 py-4">
+          <div className="panel p-5">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <h3 className="text-fg text-body font-medium">Prompt registry · {PROMPT_LABEL["property-negotiator"]}</h3>
               <span className="text-fg-subtle font-mono text-caption">live: {negotiatorPrompt.version === null ? "built-in" : `v${negotiatorPrompt.version}`}</span>
@@ -113,7 +113,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
               ready={registry.ready}
             />
           </div>
-          <div className="panel px-5 py-4">
+          <div className="panel p-5">
             <h3 className="text-fg mb-4 text-body font-medium">Guardrail tuning · platform ceilings</h3>
             <GuardrailTuning key={platform.updatedAt ?? "default"} settings={platform.settings} ready={platform.ready} updatedAt={platform.updatedAt} />
           </div>

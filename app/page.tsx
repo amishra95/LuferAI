@@ -30,17 +30,17 @@ const portals = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 pt-[calc(4rem+var(--app-safe-top))] pb-[calc(4rem+var(--app-safe-bottom))] sm:px-6">
+    <main className="container-public flex flex-1 flex-col justify-center pt-[calc(3rem+var(--app-safe-top))] pb-[calc(3rem+var(--app-safe-bottom))] lg:pt-[calc(5rem+var(--app-safe-top))] lg:pb-[calc(5rem+var(--app-safe-bottom))]">
       <section className="on-plum container-block px-6 py-10 sm:px-10">
         <p className="text-gold text-meta font-semibold">CorpHospitality · India</p>
-        <h1 className="font-display text-hero mt-2 max-w-2xl font-medium">GST-compliant corporate hospitality, from request to invoice.</h1>
+        <h1 className="font-display text-hero mt-2 max-w-2xl font-semibold">GST-compliant corporate hospitality, from request to invoice.</h1>
         <p className="text-fg-subtle mt-3 max-w-2xl">
           Every booking is invoiced under SAC 998596 with CGST + SGST or IGST worked out from the
           two parties&apos; GSTINs.
         </p>
       </section>
 
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
+      <section aria-label="Portals" className="section-block grid gap-6 md:grid-cols-3">
         {portals.map(({ href, icon: Icon, title, audience, body }) => (
           <Link key={href} href={href} className="group">
             <Card className="group-hover:border-line-strong h-full transition-colors">
@@ -56,7 +56,7 @@ export default function Home() {
             </Card>
           </Link>
         ))}
-      </div>
+      </section>
 
       <HowItWorks />
     </main>

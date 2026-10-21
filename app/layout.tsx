@@ -6,7 +6,7 @@ import "./globals.css";
 // Velvet Night type: Plus Jakarta Sans for UI, Fraunces for display headings,
 // Geist Mono (self-hosted) for code only. next/font self-hosts the Google fonts.
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-jakarta", display: "swap" });
-const fraunces = Fraunces({ subsets: ["latin"], weight: ["500"], variable: "--font-fraunces", display: "swap" });
+const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-fraunces", display: "swap" });
 const geistMono = GeistMono;
 
 export const viewport: Viewport = {

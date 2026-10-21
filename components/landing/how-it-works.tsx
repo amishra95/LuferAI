@@ -77,10 +77,10 @@ function IconTile({ icon: Icon, className }: { icon: LucideIcon; className?: str
 
 export function HowItWorks() {
   return (
-    <section aria-labelledby="how-it-works" className="mt-20">
+    <section aria-labelledby="how-it-works" className="section-block border-frame border-t">
       <header className="max-w-2xl">
-        <span className="badge-warn rounded-badge inline-flex h-6 items-center px-2 text-caption font-medium">How it works</span>
-        <h2 id="how-it-works" className="font-display text-hero text-fg mt-3 font-medium">
+        <span className="badge-warn rounded-badge inline-flex items-center px-2.5 py-0.5 text-caption leading-4 font-medium">How it works</span>
+        <h2 id="how-it-works" className="font-display text-hero text-fg mt-3 font-semibold">
           The architecture of execution
         </h2>
         <p className="text-fg-subtle mt-3">
@@ -92,7 +92,7 @@ export function HowItWorks() {
       {/* What LuferAI is */}
       <div className="on-plum container-block border-plum-light mt-10 border px-6 py-8 sm:px-10">
         <p className="text-gold text-meta font-semibold">What is LuferAI</p>
-        <p className="font-display text-section mt-2 max-w-3xl font-medium leading-snug">
+        <p className="font-display text-section mt-2 max-w-3xl font-semibold leading-snug">
           A Gemini-powered B2B platform for corporate dining, venue booking and hospitality procurement.
         </p>
         <p className="text-fg-subtle mt-3 max-w-3xl">
@@ -110,12 +110,12 @@ export function HowItWorks() {
       </div>
 
       {/* Three steps */}
-      <ol className="mt-10 grid gap-4 md:grid-cols-3">
+      <ol className="mt-10 grid gap-6 md:grid-cols-3">
         {STEPS.map((s, i) => (
-          <li key={s.title} className="panel flex flex-col p-5">
+          <li key={s.title} className="panel flex flex-col p-6">
             <div className="flex items-center justify-between">
               <IconTile icon={s.icon} className="bg-surface-raised text-link" />
-              <span className="badge-success rounded-badge inline-flex h-6 items-center px-2 text-caption font-semibold">Step {i + 1}</span>
+              <span className="badge-success rounded-badge inline-flex items-center px-2.5 py-0.5 text-caption leading-4 font-medium">Step {i + 1}</span>
             </div>
             <h3 className="text-card-title text-fg mt-4 font-semibold">{s.title}</h3>
             <p className="text-fg-subtle mt-2">{s.body}</p>
@@ -126,9 +126,9 @@ export function HowItWorks() {
 
       {/* Capabilities */}
       <h3 className="text-section text-fg mt-16 font-semibold">Everything LuferAI does</h3>
-      <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {CAPABILITIES.map((c) => (
-          <li key={c.title} className="panel flex gap-4 p-5">
+          <li key={c.title} className="panel flex gap-4 p-6">
             <IconTile icon={c.icon} className="on-plum text-gold" />
             <div className="min-w-0">
               <h4 className="text-card-title text-fg font-semibold">{c.title}</h4>

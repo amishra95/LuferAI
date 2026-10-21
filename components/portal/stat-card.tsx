@@ -40,7 +40,7 @@ export function StatCard({
   change?: MetricChange | null;
 }) {
   return (
-    <div className="panel flex flex-col p-4">
+    <div className="panel flex flex-col p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="label-mono">{label}</p>
         {Icon ? <Icon className="text-fg-faint size-3.5" strokeWidth={1.75} aria-hidden /> : null}

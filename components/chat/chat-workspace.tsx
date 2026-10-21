@@ -116,17 +116,17 @@ export function ChatWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1">
-      <div className="relative flex min-w-0 flex-1 flex-col">
+      {/* Thread: fills the space under the header; messages scroll, the composer stays anchored below. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           ref={scroller}
           onScroll={(e) => {
             const el = e.currentTarget;
             pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
           }}
-          className="flex-1 overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto"
         >
-          {/* Bottom padding clears the floating composer. */}
-          <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-48 sm:px-6">
+          <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-8 sm:px-6 lg:px-8">
             {!noModel && !agentEnabled && (
               <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                 <span className="pill">
@@ -209,8 +209,8 @@ export function ChatWorkspace({
           </div>
         </div>
 
-        <div className="bg-canvas border-line pointer-events-none absolute inset-x-0 bottom-0 border-t px-4 pt-3 pb-4 sm:px-6 sm:pb-5">
-          <div className="pointer-events-auto mx-auto max-w-[46rem]">
+        <div className="bg-canvas border-frame shrink-0 border-t px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:px-8">
+          <div className="mx-auto max-w-[46rem]">
             <PromptBar
               busy={busy}
               disabled={offline}
@@ -230,7 +230,8 @@ export function ChatWorkspace({
         </div>
       </div>
 
-      <div className={cn("border-line bg-surface hidden w-[21rem] shrink-0 border-l", inspectorOpen && "lg:block")}>
+      {/* Inspector: fixed width, full height beside the thread (it scrolls on its own). */}
+      <div className={cn("border-frame bg-surface sticky top-0 hidden h-full w-80 shrink-0 self-stretch border-l", inspectorOpen && "lg:block")}>
         {inspector(() => setInspectorOpen(false))}
       </div>
 

@@ -10,7 +10,7 @@ export default function Loading() {
           <Skeleton className="h-6 w-64" />
           <Skeleton className="h-3.5 w-96 max-w-full" delay={80} />
         </div>
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="border-line grid gap-2 rounded-md border px-3 py-2.5">
               <Skeleton className="h-2.5 w-14" delay={i * 80} />

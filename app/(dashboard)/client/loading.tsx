@@ -15,15 +15,15 @@ export default function Loading() {
             <Skeleton key={w} className={`h-3.5 ${w}`} delay={i * 60} />
           ))}
         </div>
-        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-10 grid grid-cols-2 gap-6 sm:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="panel grid gap-2.5 px-4 py-3">
+            <div key={i} className="panel grid gap-2.5 p-5">
               <Skeleton className="h-2.5 w-20" delay={i * 80} />
               <Skeleton className="h-5 w-8" delay={i * 80 + 60} />
             </div>
           ))}
         </div>
-        <div className="panel mb-10 grid gap-3 px-5 py-4">
+        <div className="panel mb-10 grid gap-3 p-5">
           <Skeleton className="h-3.5 w-40" />
           <div className="flex flex-wrap gap-2">
             {[0, 1, 2].map((i) => (

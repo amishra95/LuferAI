@@ -128,7 +128,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         </div>
       ) : null}
 
-      <section className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Summary">
+      <section className="mb-6 grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Live listings" value={String(listings.filter((l) => l.status === "active").length)} hint={`${listings.length} total`} icon={Store} />
         <StatCard label="Rates in effect" value={String(rates.filter((r) => isRateActiveOn(r, today)).length)} hint={`${liveRates.length} current or upcoming`} icon={CalendarRange} />
         <StatCard label="Your role" value={roleLabel} hint={can.has("rates.edit") ? "Can edit listings and rates" : "Read-only, can pause listings"} icon={can.has("team.manage") ? Users : Building} />

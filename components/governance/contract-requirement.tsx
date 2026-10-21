@@ -29,7 +29,7 @@ export function ContractRequirement({ companyId, required, canManage }: { compan
       <SectionLabel>
         <span id="contracts-heading">Contracts</span>
       </SectionLabel>
-      <div className="panel flex flex-wrap items-center gap-4 p-4">
+      <div className="panel flex flex-wrap items-center gap-4 p-5">
         <FileSignature className="text-fg-subtle size-5 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-fg text-meta font-medium">{on ? "Bookings are confirmed by signed contract" : "Venues confirm bookings directly"}</p>

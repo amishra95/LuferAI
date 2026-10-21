@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /** Badge: soft tinted background with dark text of the same colour family. Always carries a text label. */
 const badgeVariants = cva(
   // Flat label; status variants use the soft palette (mint / gold / error) and lead with a dot.
-  "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border px-2 text-caption font-medium tabular-nums whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border px-2.5 py-0.5 text-caption leading-4 font-medium tabular-nums whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {

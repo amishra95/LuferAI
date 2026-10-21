@@ -49,7 +49,7 @@ export function PartnerCatalog({
     });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {!gstin && <GstinBanner partnerId={partnerId} canSet={canSetGstin} />}
 
       <section className="panel overflow-hidden" aria-label="Catalogue items">
@@ -72,9 +72,9 @@ export function PartnerCatalog({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] text-meta">
               <thead>
-                <tr className="border-line border-b">
+                <tr className="border-line bg-surface-hover border-b">
                   {["Item", "Category", "Price", "Tax", "Quantity", "Stock", "Status", ""].map((h, i) => (
-                    <th key={i} scope="col" className={cn("label-mono h-9 px-3 text-left font-medium first:pl-5 last:pr-5", (i === 2 || i === 4 || i === 5) && "text-right")}>
+                    <th key={i} scope="col" className={cn("table-head h-10 px-4 text-left first:pl-5 last:pr-5", (i === 2 || i === 4 || i === 5) && "text-right")}>
                       {h}
                     </th>
                   ))}
@@ -83,23 +83,23 @@ export function PartnerCatalog({
               <tbody>
                 {list.map((i) => (
                   <tr key={i.id} className={cn("border-line border-b last:border-b-0", i.status === "paused" && "text-fg-faint")}>
-                    <td className="py-2.5 pr-3 pl-5">
+                    <td className="py-3 pr-4 pl-5">
                       <p className="text-fg font-medium">{i.name}</p>
                       <p className="text-fg-subtle font-mono text-caption">{i.ref}</p>
                     </td>
-                    <td className="px-3">{CATEGORY_LABEL[i.category as Category] ?? i.category}</td>
-                    <td className="px-3 text-right font-mono tabular-nums">{formatINR(Number(i.unit_price_inr))}</td>
-                    <td className="px-3 font-mono text-caption">
+                    <td className="px-4">{CATEGORY_LABEL[i.category as Category] ?? i.category}</td>
+                    <td className="px-4 text-right font-mono tabular-nums">{formatINR(Number(i.unit_price_inr))}</td>
+                    <td className="px-4 font-mono text-caption">
                       {i.tax_kind} {i.tax_code} · {i.gst_rate_percent}%
                     </td>
-                    <td className="px-3 text-right font-mono tabular-nums">
+                    <td className="px-4 text-right font-mono tabular-nums">
                       {i.min_quantity}
                       {i.max_quantity ? `–${i.max_quantity}` : "+"}
                     </td>
-                    <td className="px-3 text-right">
+                    <td className="px-4 text-right">
                       <StockCell partnerId={partnerId} item={i} canEdit={canEdit} />
                     </td>
-                    <td className="px-3 font-mono text-caption">{i.status}</td>
+                    <td className="px-4 font-mono text-caption">{i.status}</td>
                     <td className="py-2 pr-5 pl-3 text-right">
                       {canStatus && (
                         <button type="button" onClick={() => void setStatus(i, i.status === "active" ? "paused" : "active")} className="btn btn-ghost h-7 px-2.5 text-caption">
@@ -254,7 +254,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
   );
 
   return (
-    <form onSubmit={submit} className="panel grid gap-2.5 px-5 py-4 text-caption sm:grid-cols-3">
+    <form onSubmit={submit} className="panel grid gap-2.5 p-5 text-caption sm:grid-cols-3">
       <h3 className="label-mono sm:col-span-3">New catalogue item</h3>
       <label className="grid gap-1">
         <span className="text-fg-subtle">Category</span>
@@ -447,7 +447,7 @@ export function PartnerOrders({
   }
   const cancelled = list.filter((o) => laneOf(o) === "cancelled");
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2" role="list" aria-label="Fulfilment board">
         {LANES.map((lane) => {
           const inLane = list.filter((o) => laneOf(o) === lane.key).sort((a, b) => dueOf(a).localeCompare(dueOf(b)));
@@ -509,7 +509,7 @@ export function PartnerOrders({
         })}
       </div>
       {cancelled.length > 0 && (
-        <details className="panel px-4 py-3">
+        <details className="panel p-5">
           <summary className="label-mono cursor-pointer">Cancelled · {cancelled.length}</summary>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {cancelled.map((o) => (

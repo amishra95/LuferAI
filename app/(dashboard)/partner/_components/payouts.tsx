@@ -89,7 +89,7 @@ export function PartnerPayouts({
         </CardContent>
       </Card>
 
-      <section className="grid gap-3 sm:grid-cols-3" aria-label="Payout summary">
+      <section className="grid gap-6 sm:grid-cols-3" aria-label="Payout summary">
         <StatCard label="On hold" value={formatINR(held, true)} hint="Released when you mark orders delivered" icon={Banknote} />
         <StatCard label="Released" value={formatINR(paid, true)} hint="Settling or in your bank" icon={Landmark} />
         <StatCard label="TCS credited" value={formatINR(tcsTotal, true)} hint="Section 52, net of returns" icon={Receipt} />

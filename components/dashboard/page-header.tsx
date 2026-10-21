@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
-/** Standard page frame: one width, one gutter, one vertical rhythm for every module. */
+/** Standard page frame: one width (max-w-7xl), one gutter, one vertical rhythm for every module. */
 export function Page({ children, width = "default" }: { children: React.ReactNode; width?: "default" | "narrow" }) {
   return (
-    <div className={cn("mx-auto w-full px-4 pt-6 pb-12 sm:px-6 sm:pt-8", width === "narrow" ? "max-w-4xl" : "max-w-6xl")}>
+    <div className={cn("pt-8 pb-12 lg:pt-10 lg:pb-20", width === "narrow" ? "mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8" : "container-app")}>
       {children}
     </div>
   );
@@ -21,9 +21,9 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 data-slot="page-title" className="text-fg text-title font-display flex flex-wrap items-center gap-2.5 font-medium">
+        <h1 data-slot="page-title" className="text-fg text-title font-display flex flex-wrap items-center gap-2.5 font-semibold">
           {title}
           {badge}
         </h1>

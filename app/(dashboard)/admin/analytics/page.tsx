@@ -96,7 +96,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
         </p>
       )}
 
-      <section aria-label={`Summary, last ${RANGE_LABEL[range]}`} className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={`Summary, last ${RANGE_LABEL[range]}`} className="mb-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Runs" value={int(t.runs)} change={runsChange} hint={runsChange ? versus : noComparison} icon={Activity} />
         <StatCard
           label="Success rate"
@@ -137,7 +137,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
         />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          <div className="mb-6 grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Runs</CardTitle>
@@ -207,7 +207,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
             </CardContent>
           </Card>
 
-          <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
             <Card>
               <CardHeader>
                 <CardTitle>By channel</CardTitle>

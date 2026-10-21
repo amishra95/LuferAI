@@ -79,7 +79,7 @@ export function Header({
       >
         <Search className="size-4" aria-hidden />
         <span className="hidden text-meta sm:inline">Search</span>
-        <kbd className="border-line rounded-badge hidden border px-1 text-caption lg:inline">⌘K</kbd>
+        <kbd className="border-line rounded-tile hidden border px-1 text-caption lg:inline">⌘K</kbd>
       </button>
 
       <Link

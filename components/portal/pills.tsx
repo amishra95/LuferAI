@@ -28,7 +28,7 @@ export function Pill({ tone, children, title, className }: { tone: PillTone; chi
     <span
       title={title}
       className={cn(
-        "rounded-badge inline-flex h-5 items-center gap-1.5 border px-2 text-caption font-medium whitespace-nowrap tabular-nums",
+        "rounded-badge inline-flex items-center gap-1.5 border px-2.5 py-0.5 text-caption leading-4 font-medium whitespace-nowrap tabular-nums",
         TONE[tone],
         className
       )}

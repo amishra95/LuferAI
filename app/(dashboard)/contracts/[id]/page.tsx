@@ -87,7 +87,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
           {signer?.ok ? (
             <SignPanel contractId={contract.id} documentSha256={contract.document_sha256} party={signer.party} defaultName="" />
           ) : awaited ? (
-            <p className="panel text-fg-muted p-4 text-meta leading-5">
+            <p className="panel text-fg-muted p-5 text-meta leading-5">
               {contract.provider === "dropbox_sign"
                 ? `Waiting for the ${awaited === "client" ? "client's" : "venue's"} signature on Dropbox Sign (sent by email).`
                 : signer && !signer.ok
@@ -95,9 +95,9 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
                   : `Waiting for the ${awaited === "client" ? "client's Approver to sign" : "venue to countersign"}.`}
             </p>
           ) : status === "executed" ? (
-            <p className="panel text-fg-muted p-4 text-meta leading-5">Executed {contract.executed_at ? when(contract.executed_at) : ""}. The booking is confirmed.</p>
+            <p className="panel text-fg-muted p-5 text-meta leading-5">Executed {contract.executed_at ? when(contract.executed_at) : ""}. The booking is confirmed.</p>
           ) : (
-            <div className="panel grid gap-3 p-4">
+            <div className="panel grid gap-3 p-5">
               <p className="text-fg-muted text-meta leading-5">
                 {STATUS_LABEL[status]}
                 {contract.close_reason ? `: ${contract.close_reason}` : ""}.

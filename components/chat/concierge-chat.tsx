@@ -60,13 +60,14 @@ export function ConciergeChat() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-3xl flex-col">
-      <header className="border-line border-b px-4 py-3">
-        <h1 className="text-fg text-body font-medium">LuferAI Concierge · test</h1>
+    // Fills the space under the header, like /chat: messages scroll, the composer stays anchored below.
+    <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+      <header className="border-frame shrink-0 border-b px-4 py-3 sm:px-6">
+        <h1 className="text-fg font-display text-section font-semibold">LuferAI Concierge · test</h1>
         <p className="text-fg-subtle text-caption">{model ?? "Gemini"} · up to 5 steps · team availability is mocked</p>
       </header>
 
-      <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite">
         {messages.length === 0 ? (
           <div className="grid gap-2">
             {SUGGESTIONS.map((s) => (
@@ -104,30 +105,32 @@ export function ConciergeChat() {
         {error ? <p className="text-rose text-body">{error.message.includes("429") ? "Too many requests — wait a minute." : error.message || "Something went wrong."}</p> : null}
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-        className="glass m-3 flex items-center gap-2 rounded-lg p-1.5"
-      >
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Plan an event, find a venue, or pay a booking…"
-          aria-label="Message the concierge"
-          className="border-0 bg-transparent shadow-none focus-visible:ring-0"
-        />
-        {busy ? (
-          <Button type="button" variant="outline" size="icon" onClick={stop} aria-label="Stop" className="shrink-0 rounded-lg">
-            <Square aria-hidden />
-          </Button>
-        ) : (
-          <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send" className="shrink-0 rounded-lg">
-            <Send aria-hidden />
-          </Button>
-        )}
-      </form>
+      <div className="border-frame shrink-0 border-t px-4 pt-3 pb-4 sm:px-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(input);
+          }}
+          className="border-line-strong bg-elevated focus-within:border-focus focus-within:ring-focus/25 flex items-center gap-2 rounded-lg border p-1.5 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] focus-within:ring-[3px]"
+        >
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Plan an event, find a venue, or pay a booking…"
+            aria-label="Message the concierge"
+            className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+          />
+          {busy ? (
+            <Button type="button" variant="outline" size="icon" onClick={stop} aria-label="Stop" className="shrink-0 rounded-md">
+              <Square aria-hidden />
+            </Button>
+          ) : (
+            <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send" className="shrink-0 rounded-md">
+              <Send aria-hidden />
+            </Button>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

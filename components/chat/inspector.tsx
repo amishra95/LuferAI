@@ -27,8 +27,8 @@ const PHASE_DOT = {
 
 function Section({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <section className="border-line border-b px-5 py-5 last:border-b-0">
-      <h3 className="label-mono mb-3 flex items-center justify-between">
+    <section className="border-frame border-b px-5 py-5 last:border-b-0">
+      <h3 className="table-head mb-3 flex items-center justify-between">
         {title}
         {aside}
       </h3>
@@ -84,8 +84,8 @@ export function Inspector({
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden" aria-label="Context and tool inspector">
-      <header className="border-line flex h-12 shrink-0 items-center justify-between border-b pr-2.5 pl-5">
-        <h2 className="text-fg text-meta font-medium">Inspector</h2>
+      <header className="border-frame flex h-12 shrink-0 items-center justify-between border-b pr-2.5 pl-5">
+        <h2 className="text-fg text-body font-semibold">Inspector</h2>
         <button type="button" onClick={onClose} aria-label="Close inspector" className="btn btn-ghost btn-icon size-8">
           <X className="size-4" aria-hidden />
         </button>

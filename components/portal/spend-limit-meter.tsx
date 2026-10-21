@@ -15,7 +15,7 @@ export function SpendLimitMeter({ committed, limit, month, className }: { commit
   const tone = budgetTone({ usedPct: pct, overrun: committed > limit });
   const note = TONE_NOTE[tone];
   return (
-    <section aria-label="Monthly spend limit" className={cn("panel px-5 py-4", className)}>
+    <section aria-label="Monthly spend limit" className={cn("panel p-5", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="label-mono">Committed for events in {month}</h2>
         <p className="font-mono text-meta tabular-nums">

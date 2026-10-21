@@ -45,7 +45,7 @@ export function PromptBar({
         e.preventDefault();
         submit();
       }}
-      className="border-line-strong bg-elevated/85 focus-within:border-fg/50 focus-within:ring-[3px] focus-within:ring-fg/15 rounded-lg border transition-colors"
+      className="border-line-strong bg-elevated focus-within:border-focus focus-within:ring-focus/25 rounded-lg border shadow-[var(--shadow-card)] transition-[border-color,box-shadow] focus-within:ring-[3px]"
     >
       <label htmlFor="prompt" className="sr-only">
         Message the agent
@@ -67,40 +67,43 @@ export function PromptBar({
         placeholder={disabled ? "Chat is unavailable until a model key is added in Settings" : "Ask about venues, bookings, spend or budgets…"}
         className="text-fg placeholder:text-fg-faint block field-sizing-content max-h-52 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-body leading-6 focus:outline-none"
       />
-      <div className="flex items-center gap-0.5 px-2 pb-2">
-        <button type="button" onClick={onNewChat} disabled={!canReset} className="btn btn-ghost h-7 rounded-lg px-2 text-caption">
-          <Plus className="size-3.5" aria-hidden /> New
-        </button>
-        <button
-          type="button"
-          onClick={onToggleInspector}
-          aria-pressed={inspectorOpen}
-          className={cn("btn btn-ghost h-7 rounded-lg px-2 text-caption", inspectorOpen && "text-fg")}
-        >
-          <PanelRight className={cn("size-3.5", inspectorOpen && "text-fg")} aria-hidden /> Inspector
-        </button>
-        <span className="text-fg-subtle ml-auto hidden pr-2 font-mono text-caption sm:inline">
+      <div className="flex items-center gap-2 px-3 pb-2.5">
+        <span className="text-fg-subtle hidden font-mono text-caption sm:inline">
           {value.length > MAX_LENGTH * 0.8 ? `${value.length}/${MAX_LENGTH}` : "↵ send  ⇧↵ newline"}
         </span>
-        {busy ? (
+        {/* Actions, right-aligned: new chat, inspector, then send / stop. */}
+        <div className="ml-auto flex items-center gap-1">
+          <button type="button" onClick={onNewChat} disabled={!canReset} className="btn btn-ghost h-8 px-2.5 text-caption">
+            <Plus className="size-3.5" aria-hidden /> New
+          </button>
           <button
             type="button"
-            onClick={onStop}
-            aria-label="Stop generating"
-            className="border-fg/30 bg-fg/10 text-fg hover:bg-fg/15 grid size-8 place-items-center rounded-lg border transition-colors"
+            onClick={onToggleInspector}
+            aria-pressed={inspectorOpen}
+            className={cn("btn btn-ghost h-8 px-2.5 text-caption", inspectorOpen && "text-fg")}
           >
-            <Square className="size-2.5 fill-current" aria-hidden />
+            <PanelRight className={cn("size-3.5", inspectorOpen && "text-fg")} aria-hidden /> Inspector
           </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!text || disabled}
-            aria-label="Send message"
-            className="bg-coral text-on-coral hover:bg-coral-hover disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-md transition-colors"
-          >
-            <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
-          </button>
-        )}
+          {busy ? (
+            <button
+              type="button"
+              onClick={onStop}
+              aria-label="Stop generating"
+              className="border-fg/30 bg-fg/10 text-fg hover:bg-fg/15 focus-visible:outline-focus grid size-8 place-items-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <Square className="size-2.5 fill-current" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!text || disabled}
+              aria-label="Send message"
+              className="bg-coral text-on-coral hover:bg-coral-hover disabled:bg-surface-raised disabled:text-fg-faint focus-visible:outline-focus grid size-8 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );

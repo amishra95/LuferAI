@@ -43,7 +43,7 @@ export function SignPanel({ contractId, documentSha256, party, defaultName }: { 
   const decline = useAction<{ ok: true }>();
 
   return (
-    <div className="panel grid gap-3 p-4">
+    <div className="panel grid gap-3 p-5">
       <div>
         <h2 className="text-fg text-body font-medium">{party === "client" ? "Sign for your company" : "Countersign for the venue"}</h2>
         <p className="text-fg-subtle mt-1 text-meta leading-5">

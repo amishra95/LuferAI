@@ -97,7 +97,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
           <RoomPresence />
         </div>
 
-        <dl aria-label="Event overview" className="panel grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
+        <dl aria-label="Event overview" className="panel grid grid-cols-2 gap-x-6 gap-y-4 p-5 sm:grid-cols-3 lg:grid-cols-5">
           <Fact label="Date">
             {formatDate(booking.event_date)}
             <span className="text-fg-subtle block text-caption">

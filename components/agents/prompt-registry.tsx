@@ -100,7 +100,7 @@ export function PromptRegistry({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)]">
-      <nav aria-label={`${label} prompt versions`} className="grid content-start gap-1">
+      <nav aria-label={`${label} prompt versions`} className="grid min-w-0 content-start gap-1">
         <span className="label-mono mb-1 flex items-center gap-1.5">
           <History className="size-3" aria-hidden /> Versions
         </span>
@@ -114,11 +114,11 @@ export function PromptRegistry({
             }}
             aria-current={e.id === selected.id ? "true" : undefined}
             className={cn(
-              "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-meta",
+              "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-meta",
               e.id === selected.id ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-hover hover:text-fg"
             )}
           >
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="font-mono">{e.label}</span>
               {edits[e.id] && (edits[e.id].body !== e.body || edits[e.id].note !== (e.note ?? "")) ? <span className="text-warn"> •</span> : null}
               {e.note ? <span className="text-fg-faint block truncate text-caption">{e.note}</span> : null}
