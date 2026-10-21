@@ -14,8 +14,9 @@ import { sessionFile } from "./support/stream";
  * This creates and confirms a real booking in whatever database the target
  * app uses, so it runs only when asked: E2E_ALLOW_WRITES=1, plus saved
  * sessions for an Organizer (buyer.json) and Mosaic's property manager
- * (property.json; see playwright.config.ts). Point it at a staging project,
- * not production. Chromium only, so one run makes one booking.
+ * (property.json), which e2e/auth.setup.ts saves from ORGANIZER_EMAIL and
+ * PROPERTY_MANAGER_EMAIL. Point it at a staging project, not production.
+ * Chromium only, so one run makes one booking.
  */
 
 const VENUE = "Mosaic Kitchen & Bar";
@@ -23,7 +24,6 @@ const writes = process.env.E2E_ALLOW_WRITES === "1";
 const sessions = { organizer: sessionFile("buyer"), property: sessionFile("property") };
 
 test.skip(!writes, "Creates and confirms a real booking: set E2E_ALLOW_WRITES=1 (against staging)");
-test.skip(!existsSync(sessions.organizer) || !existsSync(sessions.property), `Needs saved sessions at ${sessions.organizer} and ${sessions.property}`);
 
 /** A date 100–160 days out, so it's free and unlikely to clash with an earlier run's hold. */
 function eventDate(): string {
@@ -38,6 +38,8 @@ async function signedIn(page: Page, path: string) {
 
 test("a venue's acceptance reaches the organizer's portal live", async ({ browser, browserName }) => {
   test.skip(browserName !== "chromium", "One booking per run");
+  // Checked when the test runs, not when files load: the setup project may have just saved them.
+  test.skip(!existsSync(sessions.organizer) || !existsSync(sessions.property), `Needs saved sessions at ${sessions.organizer} and ${sessions.property} (run with PROPERTY_MANAGER_EMAIL / ORGANIZER_EMAIL set)`);
   test.setTimeout(150_000);
   const marker = `E2E live acceptance ${Date.now()}`;
 
