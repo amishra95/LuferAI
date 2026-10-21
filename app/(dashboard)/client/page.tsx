@@ -31,6 +31,7 @@ import {
   computeItcSummary,
   countEventAttendees,
   dataSource,
+  getCorporatePolicy,
   listApprovalComments,
   listApprovals,
   listBookings,
@@ -54,6 +55,7 @@ import { STATUS_LABEL as CONTRACT_STATUS_LABEL } from "@/lib/services/contracts/
 import { IssueContractButton } from "@/components/contracts/contract-actions";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { depositRatesForVenues } from "@/lib/venues/pricing-store";
+import { officeOf } from "@/lib/venues/discovery";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { listRfps } from "@/lib/rfp/service";
 import type { CorporateRole } from "@/lib/supabase/database.types";
@@ -95,7 +97,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   if (!company) notFound();
 
   const live = dataSource() === "supabase";
-  const [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments] = await Promise.all([
+  const [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments, policy] = await Promise.all([
     listBookings({ companyId: company.id }),
     getVenueCatalog(company.id),
     listPortalUsers({ companyId: company.id }),
@@ -104,6 +106,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     listPurchaseOrders({ tenantId: company.id }),
     listPoAllocations({ tenantId: company.id }),
     listDepartments({ companyIds: [company.id] }),
+    getCorporatePolicy(company.id),
   ]);
   const [catalogItems, catalogOrders] =
     tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
@@ -449,7 +452,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   <RfpBroadcastForm />
                 </section>
               ) : null}
-              <VenueExplorer venues={catalog.venues} company={{ id: company.id, gstin: company.gstin }} departments={catalog.departments} defaultPhone={requesterPhone ?? undefined} />
+              <VenueExplorer
+                venues={catalog.venues}
+                company={{ id: company.id, gstin: company.gstin }}
+                departments={catalog.departments}
+                defaultPhone={requesterPhone ?? undefined}
+                policy={policy && { max_budget_per_head: policy.max_budget_per_head, requires_approval_above: policy.requires_approval_above }}
+                office={officeOf(company)}
+              />
             </div>
           ) : null}
 

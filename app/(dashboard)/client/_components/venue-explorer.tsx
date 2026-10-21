@@ -6,11 +6,14 @@ import { ArrowUpRight, List, Map as MapIcon, MapPinned } from "lucide-react";
 import { EmptyState } from "@/components/portal/empty-state";
 import { RateCardPill } from "@/components/portal/pills";
 import { ResponsiveSheetContent } from "@/components/portal/responsive-sheet";
+import { segmentClass } from "@/components/portal/segment";
 import { VenueMap } from "@/components/portal/venue-map";
 import { Sheet, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { CatalogVenue } from "@/lib/catalog";
 import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
+import type { BookingPolicyRules } from "@/lib/policies/evaluate-booking-policy";
+import { officeDistanceLabel, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
 import { AiVenueSearch } from "./ai-venue-search";
 import { EventRequestForm, type VenuePrefill } from "./event-request-form";
@@ -20,29 +23,37 @@ import { toVenueOption } from "./venue-options";
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
 
 /**
- * Venue list and map side by side (desktop) or toggled from a glass dock (mobile).
- * Picking a venue — card, marker, or an AI search result — opens its drawer with
- * packages and the request form pre-set to that venue (and, from search, the
- * guest count and per-head estimate).
+ * Venue cards as a list, or (Map view) beside an interactive map: map on the
+ * right on desktop, on top on phones. Cards and pins show the company's policy
+ * fit; cards show the distance from the office. Picking a venue — card, marker,
+ * or an AI search result — opens its drawer with packages and the request form
+ * pre-set to that venue (and, from search, the guest count and per-head estimate).
  */
 export function VenueExplorer({
   venues,
   company,
   departments,
   defaultPhone,
+  policy = null,
+  office = null,
 }: {
   venues: CatalogVenue[];
   company: { id: string; gstin: string };
   departments: { id: string; name: string }[];
   /** The requester's saved mobile, prefilled in the request form. */
   defaultPhone?: string;
+  /** The company's corporate_policies limits; null = no policy (every venue in policy). */
+  policy?: Pick<BookingPolicyRules, "max_budget_per_head" | "requires_approval_above"> | null;
+  /** The company's office, for distance badges and the map's office pin. */
+  office?: OfficeLocation | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [mobileView, setMobileView] = useState<"list" | "map">("list");
+  const [view, setView] = useState<"list" | "map">("list");
   const [prefill, setPrefill] = useState<VenuePrefill>();
   const selected = venues.find((v) => v.id === selectedId) ?? null;
   const options = venues.map(toVenueOption);
+  const fit = new Map(options.map((o) => [o.id, venuePolicyStatus(policy, o)]));
 
   const pick = (id: string) => {
     setSelectedId(id);
@@ -59,13 +70,23 @@ export function VenueExplorer({
 
   return (
     <section aria-labelledby="venues-heading" className="relative">
-      <div className="mb-3 flex items-end justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="venues-heading" className="text-fg text-body font-semibold tracking-tight">
             Venues
           </h2>
           <p className="text-fg-subtle mt-0.5 text-meta">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
         </div>
+        {venues.length ? (
+          <div className="flex gap-1" role="group" aria-label="Venue view">
+            {(["list", "map"] as const).map((v) => (
+              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cn(segmentClass(view === v), "gap-1.5")}>
+                {v === "list" ? <List className="size-3.5" aria-hidden /> : <MapIcon className="size-3.5" aria-hidden />}
+                {v === "list" ? "List view" : "Map view"}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-4">
@@ -79,41 +100,48 @@ export function VenueExplorer({
           description="Venues appear here once they're onboarded for your company. Prices, rate cards and availability show up with them."
         />
       ) : (
-        <>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <ul className={cn("grid content-start gap-3 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2 ", mobileView === "map" && "max-lg:hidden")}>
-              {options.map((v) => {
-                const active = v.id === selectedId;
-                return (
-                  <li key={v.id} className="grid">
-                    <button
-                      type="button"
-                      onClick={() => pick(v.id)}
-                      onMouseEnter={() => setSelectedId(v.id)}
-                      aria-current={active ? "true" : undefined}
-                      aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
-                      data-selected={active}
-                      className="panel-interactive group flex w-full cursor-pointer flex-col gap-2 p-5 text-left"
-                    >
-                      <VenueCardBody
-                        venue={v}
-                        indicator={
-                          <ArrowUpRight
-                            aria-hidden
-                            className={cn(
-                              "size-3.5 shrink-0 group-hover:text-fg",
-                              active ? "text-fg" : "text-fg-faint"
-                            )}
-                          />
-                        }
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+        <div className={cn("grid gap-6", view === "map" && "lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]")}>
+          <ul
+            className={cn(
+              "grid content-start gap-3 sm:grid-cols-2",
+              view === "map" ? "lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2" : "lg:grid-cols-3"
+            )}
+          >
+            {options.map((v, i) => {
+              const active = v.id === selectedId;
+              return (
+                <li key={v.id} className="grid">
+                  <button
+                    type="button"
+                    onClick={() => pick(v.id)}
+                    onMouseEnter={() => setSelectedId(v.id)}
+                    aria-current={active ? "true" : undefined}
+                    aria-label={`${v.name}, ${v.neighborhood}: view packages and request`}
+                    data-selected={active}
+                    className="panel-interactive group flex w-full cursor-pointer flex-col gap-2 p-5 text-left"
+                  >
+                    <VenueCardBody
+                      venue={v}
+                      policy={policy ? fit.get(v.id) : undefined}
+                      distance={officeDistanceLabel(office, venues[i])}
+                      indicator={
+                        <ArrowUpRight
+                          aria-hidden
+                          className={cn(
+                            "size-3.5 shrink-0 group-hover:text-fg",
+                            active ? "text-fg" : "text-fg-faint"
+                          )}
+                        />
+                      }
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
 
-            <div className={cn("lg:sticky lg:top-20 lg:self-start", mobileView === "list" && "max-lg:hidden")}>
+          {view === "map" ? (
+            <div className="max-lg:order-first lg:sticky lg:top-20 lg:self-start">
               <VenueMap
                 venues={venues.map((v) => ({
                   id: v.id,
@@ -121,35 +149,16 @@ export function VenueExplorer({
                   latitude: v.latitude,
                   longitude: v.longitude,
                   label: compact(v.rate_card?.minSpendOverride ?? v.min_spend_inr),
+                  tone: policy ? (fit.get(v.id)?.status === "requires_approval" ? "warn" : "ok") : undefined,
                 }))}
                 selectedId={selectedId}
                 onSelect={pick}
-                className="h-[60dvh] lg:h-[34rem]"
+                office={office}
+                className="h-[45dvh] lg:h-[34rem]"
               />
             </div>
-          </div>
-
-          {/* Mobile list/map dock — floats above the bottom nav. */}
-          <div className="pointer-events-none sticky bottom-[calc(5rem+var(--app-safe-bottom))] z-20 mt-4 flex justify-center lg:hidden">
-            <div className="glass pointer-events-auto flex rounded-full p-1" role="group" aria-label="Venue view">
-              {(["list", "map"] as const).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  aria-pressed={mobileView === view}
-                  onClick={() => setMobileView(view)}
-                  className={cn(
-                    "inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-body capitalize transition",
-                    mobileView === view ? "bg-selected text-on-selected" : "text-fg-muted"
-                  )}
-                >
-                  {view === "list" ? <List className="size-4" aria-hidden /> : <MapIcon className="size-4" aria-hidden />}
-                  {view}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
+          ) : null}
+        </div>
       )}
 
       <Sheet open={open && !!selected} onOpenChange={setOpen}>

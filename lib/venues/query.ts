@@ -14,6 +14,8 @@ export type VenueQuery = {
   dir: "asc" | "desc";
   page: number;
   size: (typeof PAGE_SIZES)[number];
+  /** list = the table; map = every match on a map above it. */
+  view: "list" | "map";
 };
 
 type Params = Record<string, string | string[] | undefined>;
@@ -35,6 +37,7 @@ export function parseVenueQuery(params: Params): VenueQuery {
     dir: one(params.dir) === "desc" ? "desc" : "asc",
     page: Math.max(1, Math.floor(Number(one(params.page)) || 1)),
     size: PAGE_SIZES.includes(size) ? size : 10,
+    view: one(params.view) === "map" ? "map" : "list",
   };
 }
 
@@ -51,6 +54,7 @@ export function venueHref(q: VenueQuery, patch: Partial<VenueQuery> = {}): strin
   if (v.dir !== "asc") p.set("dir", v.dir);
   if (v.page > 1) p.set("page", String(v.page));
   if (v.size !== 10) p.set("size", String(v.size));
+  if (v.view !== "list") p.set("view", v.view);
   const s = p.toString();
   return s ? `/venues?${s}` : "/venues";
 }
@@ -75,6 +79,8 @@ export function applyVenueQuery(venues: DirectoryVenue[], q: VenueQuery) {
   const pageCount = Math.max(1, Math.ceil(filtered.length / q.size));
   const page = Math.min(q.page, pageCount);
   return {
+    /** Every match, for the map; rows is the current page. */
+    matches: filtered,
     total: filtered.length,
     page,
     pageCount,

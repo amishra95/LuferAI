@@ -1118,6 +1118,9 @@ export type Database = {
           id: string
           legal_name: string
           monthly_spend_limit_inr: number
+          office_label: string
+          office_latitude: number | null
+          office_longitude: number | null
           primary_contact_email: string
           state_code: string | null
           updated_at: string
@@ -1130,6 +1133,9 @@ export type Database = {
           id?: string
           legal_name: string
           monthly_spend_limit_inr?: number
+          office_label?: string
+          office_latitude?: number | null
+          office_longitude?: number | null
           primary_contact_email: string
           state_code?: string | null
           updated_at?: string
@@ -1142,6 +1148,9 @@ export type Database = {
           id?: string
           legal_name?: string
           monthly_spend_limit_inr?: number
+          office_label?: string
+          office_latitude?: number | null
+          office_longitude?: number | null
           primary_contact_email?: string
           state_code?: string | null
           updated_at?: string
