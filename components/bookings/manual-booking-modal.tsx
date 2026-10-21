@@ -175,6 +175,7 @@ export function ManualBookingModal({
                     venues={load.context.venues}
                     departments={load.context.departments}
                     defaultVenueId={venueId && load.context.venues.some((v) => v.id === venueId) ? venueId : ""}
+                    defaultPhone={load.context.phone ?? ""}
                     withEventDetails
                     submitLabel="Submit direct RFP"
                     submitClassName={SUBMIT}

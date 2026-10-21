@@ -1,8 +1,12 @@
 /**
  * Validation for the admin's property manager form (app/(dashboard)/admin/managers).
  * Pure (no server imports), so the browser, the server actions and
- * tests/property-managers.test.mjs share it.
+ * tests/property-delivery.test.mjs share it.
  */
+
+import { normalizePhone } from "../phone.ts";
+
+export { normalizePhone };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,22 +19,6 @@ export interface ManagerInput {
   /** E.164 (+91…), or "" when not given. */
   phone: string;
   venueId: string;
-}
-
-/**
- * Indian numbers in any common spelling (98450 12345, +91-98450-12345,
- * 098450 12345) become +91XXXXXXXXXX; other international numbers must start
- * with + and a country code. Returns null when it isn't a phone number.
- */
-export function normalizePhone(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
-  const digits = trimmed.replace(/[\s().-]/g, "");
-  if (/^\+[1-9]\d{7,14}$/.test(digits)) return digits;
-  const local = digits.replace(/^0/, "");
-  if (/^[6-9]\d{9}$/.test(local)) return `+91${local}`;
-  if (/^91[6-9]\d{9}$/.test(digits)) return `+${digits}`;
-  return null;
 }
 
 export function parseManagerInput(raw: Record<ManagerField, string>): { ok: true; value: ManagerInput } | { ok: false; errors: Partial<Record<ManagerField, string>> } {

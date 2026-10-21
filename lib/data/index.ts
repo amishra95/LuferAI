@@ -267,6 +267,8 @@ export interface NewBookingInput {
   entertainment?: string[];
   /** The employee filing the request (migration 20261027120000), told when the venue accepts. */
   requested_by?: string | null;
+  /** Their mobile for this event, E.164 (migration 20261028120000). */
+  requested_by_phone?: string | null;
 }
 
 export interface NewApprovalRequest {
@@ -364,6 +366,7 @@ export async function createBookingRequest(
     alcohol_included: input.alcohol_included ?? false,
     entertainment: input.entertainment ?? [],
     requested_by: input.requested_by ?? null,
+    requested_by_phone: input.requested_by_phone ?? null,
   };
 
   if (local()) return mutateDb((db) => {
@@ -417,11 +420,13 @@ export async function createBookingRequest(
 
   // commission_rate is snapshotted from the venue by the bookings_snapshot_commission_rate trigger.
   const supabase = createAdminClient();
-  const insertBooking = (values: typeof row | Omit<typeof row, "requested_by">) =>
-    supabase.from("bookings").insert({ ...values, total_amount_inr: total, status }).select("id").single();
+  const insertBooking = (values: Partial<typeof row>) =>
+    supabase.from("bookings").insert({ ...(values as typeof row), total_amount_inr: total, status }).select("id").single();
   let { data, error } = await insertBooking(row);
-  // Before migration 20261027120000 there's no requested_by column: book without it.
-  const { requested_by: requestedBy, ...withoutRequester } = row;
+  // Before migrations 20261028120000 / 20261027120000 these columns don't exist: book without them.
+  const { requested_by_phone: phone, ...withoutPhone } = row;
+  if (isMissingColumnError(error) && phone !== undefined) ({ data, error } = await insertBooking(withoutPhone));
+  const { requested_by: requestedBy, ...withoutRequester } = withoutPhone;
   if (isMissingColumnError(error) && requestedBy !== undefined) ({ data, error } = await insertBooking(withoutRequester));
   if (error || !data) throw error ?? new Error("Could not create the booking.");
 

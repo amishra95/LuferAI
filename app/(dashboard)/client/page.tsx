@@ -22,6 +22,7 @@ import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
 import { teamEventPrompt } from "@/lib/chat/concierge-link";
+import { getUserPhone } from "@/lib/services/contact";
 import { costCentreLock, receiptState } from "@/lib/bookings/expense-meta";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
@@ -133,6 +134,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const user = member.role === "CLIENT" ? users.find((u) => u.id === member.userId) : undefined;
   const role = user?.role ?? null;
   const canRequest = role === "ORGANIZER" || role === "APPROVER";
+  // Prefills the request form's mobile with the one they gave last time.
+  const requesterPhone = canRequest && user ? await getUserPhone(user.id) : null;
 
   // Open sign-offs: bookings still waiting, with all their tiers (decided and pending).
   const openBookingIds = new Set(bookings.filter((b) => b.status === "PENDING_APPROVAL").map((b) => b.id));
@@ -446,7 +449,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   <RfpBroadcastForm />
                 </section>
               ) : null}
-              <VenueExplorer venues={catalog.venues} company={{ id: company.id, gstin: company.gstin }} departments={catalog.departments} />
+              <VenueExplorer venues={catalog.venues} company={{ id: company.id, gstin: company.gstin }} departments={catalog.departments} defaultPhone={requesterPhone ?? undefined} />
             </div>
           ) : null}
 

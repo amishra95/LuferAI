@@ -245,6 +245,7 @@ test("venue_accepted_at is only stamped once, on the first move to CONFIRMED", a
 test("the confirmation email: subject, summary, locked price, GST breakdown and the voucher link", () => {
   const invoice = calculateGst({ total_amount: 64000, company_gstin: "29AABCN4821K1ZA", venue_gstin: "29AAGCM3382R1ZM" });
   const m = bookingAcceptedMessage({
+    bookingId: "4f3c2b1a-0000-4000-8000-000000000001",
     venueName: "Mosaic Kitchen & Bar",
     venueArea: "Koramangala, Bengaluru",
     eventDate: EVENT_DATE,
@@ -256,11 +257,23 @@ test("the confirmation email: subject, summary, locked price, GST breakdown and 
     recipientName: "Priya",
   });
   assert.equal(m.subject, "Good news! Mosaic Kitchen & Bar has accepted your event request for Thu, 18 Mar 2027");
-  for (const line of ["Guests: 40", "Per head (locked): ₹1,600.00", "Taxable value: ₹64,000.00", "CGST 9%: ₹5,760.00", "SGST 9%: ₹5,760.00", "Invoice total: ₹75,520.00"]) {
+  for (const line of ["Booking ID: 4F3C2B1A (4f3c2b1a-0000-4000-8000-000000000001)", "Venue: Mosaic Kitchen & Bar, Koramangala, Bengaluru", "Date: Thu, 18 Mar 2027", "Guests: 40", "Per head (locked): ₹1,600.00", "Taxable value: ₹64,000.00", "CGST 9%: ₹5,760.00", "SGST 9%: ₹5,760.00", "Invoice total: ₹75,520.00"]) {
     assert.ok(m.text.includes(line), line);
   }
   assert.ok(m.text.includes("https://lufer-ai.vercel.app/client/events/b1"));
   assert.ok(m.html.includes("Mosaic Kitchen &amp; Bar accepted your event request"));
   assert.ok(m.html.includes('href="https://lufer-ai.vercel.app/client/events/b1"'));
   assert.ok(!m.text.includes("IGST"));
+});
+
+test("bookings keep the requester's mobile in E.164 (and refuse anything else)", async () => {
+  const row = (phone) =>
+    db.query(
+      `insert into bookings (company_id, venue_id, party_size, budget_per_head_inr, total_amount_inr, status, event_date, requested_by, requested_by_phone)
+       values ($1, $2, 40, 1600, 64000, 'PENDING', $3, $4, $5) returning requested_by_phone`,
+      [NIMBUS, MOSAIC, EVENT_DATE, ORGANIZER, phone]
+    );
+  assert.equal((await row(normalizePhone("98450 12345"))).rows[0].requested_by_phone, "+919845012345");
+  assert.equal((await row(null)).rows[0].requested_by_phone, null);
+  await assert.rejects(row("98450 12345"), /bookings_requested_by_phone_e164/);
 });

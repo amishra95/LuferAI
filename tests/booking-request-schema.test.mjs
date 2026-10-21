@@ -14,6 +14,7 @@ const valid = {
   cost_center: " eng-blr ",
   project_code: "",
   billing_gstin: "",
+  contact_phone: "",
   notes: "  PDR please  ",
 };
 
@@ -29,8 +30,16 @@ test("a complete request parses to typed, normalised values", () => {
     cost_center: "eng-blr",
     project_code: "",
     billing_gstin: "",
+    contact_phone: null,
     notes: "PDR please",
   });
+});
+
+test("contact phone: optional, normalised to E.164, rejected when it isn't a number", () => {
+  assert.equal(validateBookingForm({ ...valid, contact_phone: "098450 12345" }, ctx).value.contact_phone, "+919845012345");
+  assert.equal(validateBookingForm({ ...valid, contact_phone: "" }, ctx).value.contact_phone, null);
+  assert.match(validateBookingForm({ ...valid, contact_phone: "12" }, ctx).errors.contact_phone, /mobile number/);
+  assert.equal(stepOf("contact_phone"), "billing");
 });
 
 test("messages match placeBookingRequest's", () => {

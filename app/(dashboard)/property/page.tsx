@@ -243,7 +243,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                               <IssueContractButton bookingId={b.id} className="btn-secondary" />
                             ) : (
                               <Button type="submit" name="intent" value="approve" size="sm" variant="secondary">
-                                <Check aria-hidden /> Approve
+                                <Check aria-hidden /> Accept request
                               </Button>
                             )}
                             <Button type="submit" name="intent" value="decline" size="sm" variant="outline">

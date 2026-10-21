@@ -35,6 +35,8 @@ export interface PlaceBookingInput {
   companyId: string;
   /** The requesting employee: must be an Organizer or Approver at the company. */
   userId: string;
+  /** Their mobile for this event, E.164 (lib/phone.ts), if given. */
+  requesterPhone?: string | null;
   venueId: string;
   eventDate: string; // YYYY-MM-DD
   partySize: number;
@@ -212,6 +214,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           alcohol_included: alcoholIncluded,
           entertainment,
           requested_by: userId || null,
+          requested_by_phone: input.requesterPhone ?? null,
           ...(expense.ok ? expense.value : { cost_center: "" }),
         },
         { approvals, hold, allocation, budgetHolds: governance.spend.kind === "ok" || governance.spend.kind === "over" ? governance.spend.holds : [] }

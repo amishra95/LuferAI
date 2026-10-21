@@ -605,6 +605,7 @@ export type Database = {
           project_code: string | null
           rate_card_id: string | null
           requested_by: string | null
+          requested_by_phone: string | null
           sac_code: string
           settled_at: string | null
           status: Database["public"]["Enums"]["booking_status"]
@@ -633,6 +634,7 @@ export type Database = {
           project_code?: string | null
           rate_card_id?: string | null
           requested_by?: string | null
+          requested_by_phone?: string | null
           sac_code?: string
           settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
@@ -661,6 +663,7 @@ export type Database = {
           project_code?: string | null
           rate_card_id?: string | null
           requested_by?: string | null
+          requested_by_phone?: string | null
           sac_code?: string
           settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]

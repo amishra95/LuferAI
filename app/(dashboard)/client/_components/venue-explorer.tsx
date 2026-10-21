@@ -29,10 +29,13 @@ export function VenueExplorer({
   venues,
   company,
   departments,
+  defaultPhone,
 }: {
   venues: CatalogVenue[];
   company: { id: string; gstin: string };
   departments: { id: string; name: string }[];
+  /** The requester's saved mobile, prefilled in the request form. */
+  defaultPhone?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -196,6 +199,7 @@ export function VenueExplorer({
                   departments={departments}
                   prefill={prefill}
                   venues={options}
+                  defaultPhone={defaultPhone}
                 />
               </div>
             </div>

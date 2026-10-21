@@ -13,6 +13,7 @@ import { placeBookingRequest, type PlaceBookingResult } from "@/lib/bookings/pla
 import { mergeParsed, parseReservationText } from "@/lib/channels/parse-reservation";
 import { channelStore, maskSender } from "@/lib/channels/store";
 import { listVenues } from "@/lib/data";
+import { normalizePhone } from "@/lib/phone";
 import { bookingRules, checkToolCall } from "@/lib/guardrails/engine";
 import { createBookingInput, type CreateBookingInput } from "@/lib/guardrails/schemas";
 import { bookingActivity, recordBooking } from "@/lib/guardrails/state";
@@ -104,6 +105,8 @@ async function createBooking(link: ChannelLink | undefined, venues: Venue[], raw
     budgetPerHead: args.budgetPerHead,
     notes: args.notes,
     expense: { costCenter: args.costCenter || link!.defaultCostCenter, projectCode: args.projectCode },
+    // A WhatsApp booking's sender is the requester's phone.
+    requesterPhone: link!.channel === "whatsapp" ? normalizePhone(link!.senderId) || null : null,
   });
   if (result.status === "success") {
     await recordBooking(link!.channel, link!.senderId, venue!.id, args.eventDate).catch((err) => console.error("guardrails: could not record booking activity", err));
