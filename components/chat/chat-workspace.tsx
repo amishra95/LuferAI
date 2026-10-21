@@ -6,11 +6,13 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { AlertTriangle, ArrowUpRight, MapPin, PieChart, RotateCw, TrendingUp, Users } from "lucide-react";
 
-import { AgentMark, ChatMessage, ThinkingDots } from "@/components/chat/chat-message";
+import { AgentProgressIndicator } from "@/components/chat/agent-progress-indicator";
+import { AgentMark, ChatMessage } from "@/components/chat/chat-message";
 import { Inspector, type SessionInfo } from "@/components/chat/inspector";
 import { PromptBar } from "@/components/chat/prompt-bar";
 import { isLuferToolPart, type LuferToolPart } from "@/components/chat/tool-meta";
 import { Drawer } from "@/components/dashboard/drawer";
+import { activityFromParts } from "@/lib/agents/tool-progress";
 import { cn } from "@/lib/utils";
 import type { LuferUIMessage } from "@/types/chat";
 
@@ -59,6 +61,8 @@ export function ChatWorkspace({
 
   const busy = status === "submitted" || status === "streaming";
   const last = messages.at(-1);
+  // The turn in flight: the assistant reply being streamed, if it has started.
+  const activity = activityFromParts(busy && last?.role === "assistant" ? last.parts : []);
 
   const toolCalls = useMemo<LuferToolPart[]>(
     () => messages.flatMap((m) => (m.role === "assistant" ? m.parts.filter(isLuferToolPart) : [])),
@@ -183,12 +187,13 @@ export function ChatWorkspace({
                     onSelectTool={selectTool}
                   />
                 ))}
-                {status === "submitted" && (
-                  <div className="flex gap-3.5">
-                    <AgentMark live />
-                    <ThinkingDots />
-                  </div>
-                )}
+              </div>
+            )}
+
+            {busy && (
+              <div className="mt-6 flex gap-3.5">
+                {status === "submitted" ? <AgentMark live /> : <span aria-hidden className="w-6 shrink-0" />}
+                <AgentProgressIndicator status={status} activity={activity} className="flex-1" />
               </div>
             )}
 

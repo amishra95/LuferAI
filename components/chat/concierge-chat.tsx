@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, getToolName, isToolUIPart, lastAssistantMessageIsCompleteWithApprovalResponses, type ChatAddToolApproveResponseFunction } from "ai";
-import { Check, CreditCard, Loader2, Send, Square, Wrench, X } from "lucide-react";
+import { Check, CreditCard, Loader2, Send, Square, X } from "lucide-react";
 
+import { ACTIVITY_ICON, AgentProgressIndicator } from "@/components/chat/agent-progress-indicator";
 import { Markdown } from "@/components/chat/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { activityFromParts, toolProgress } from "@/lib/agents/tool-progress";
 import { openCheckout } from "@/lib/payments/open-checkout";
 import { formatINR } from "@/lib/utils";
 import type { ConciergeUIMessage } from "@/app/api/agent/chat/route";
@@ -96,7 +98,9 @@ export function ConciergeChat() {
             </div>
           )
         )}
-        {status === "submitted" ? <Loader2 className="text-fg-faint size-4 animate-spin" aria-label="Thinking" /> : null}
+        {busy ? (
+          <AgentProgressIndicator status={status} activity={activityFromParts(messages.at(-1)?.role === "assistant" ? messages.at(-1)!.parts : [])} />
+        ) : null}
         {error ? <p className="text-rose text-body">{error.message.includes("429") ? "Too many requests — wait a minute." : error.message || "Something went wrong."}</p> : null}
       </div>
 
@@ -131,12 +135,19 @@ export function ConciergeChat() {
 function ToolCall({ part, onRespond }: { part: ToolPart; onRespond: ChatAddToolApproveResponseFunction }) {
   const name = getToolName(part);
   const running = part.state === "input-streaming" || part.state === "input-available" || (part.state === "approval-responded" && part.approval.approved);
+  const progress = toolProgress(name);
+  const Icon = ACTIVITY_ICON[progress.kind];
 
   return (
     <div className="border-line bg-surface rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
-        {running ? <Loader2 className="text-fg-subtle size-3.5 animate-spin" aria-hidden /> : <Wrench className="text-fg-subtle size-3.5" aria-hidden />}
-        <span className="text-fg font-mono text-caption">{name}</span>
+        {running ? (
+          <span aria-hidden className="status-dot bg-gold animate-pulse motion-reduce:animate-none" />
+        ) : (
+          <Icon className="text-fg-subtle size-3.5" strokeWidth={1.75} aria-hidden />
+        )}
+        <span className="text-fg text-meta font-medium">{running ? `${progress.running}…` : part.state === "output-available" ? progress.done : progress.running}</span>
+        <span className="text-fg-subtle font-mono text-caption">{name}</span>
         <Badge variant={part.state === "output-error" ? "destructive" : part.state === "output-available" ? "success" : "outline"}>{STATE_LABEL[part.state]}</Badge>
       </div>
 
