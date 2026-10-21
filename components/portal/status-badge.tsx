@@ -12,7 +12,9 @@ const BOOKING_VARIANT = {
 
 const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-export function BookingStatusBadge({ status }: { status: BookingStatus }) {
+/** `client`: the customer's wording, where a confirmed booking reads "Accepted by venue" (green). */
+export function BookingStatusBadge({ status, audience }: { status: BookingStatus; audience?: "client" }) {
+  if (audience === "client" && status === "CONFIRMED") return <Badge variant="success">Accepted by venue</Badge>;
   return (
     <Badge variant={BOOKING_VARIANT[status]}>{status === "PENDING_APPROVAL" ? "Awaiting sign-off" : titleCase(status)}</Badge>
   );

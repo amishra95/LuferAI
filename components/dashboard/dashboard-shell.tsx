@@ -58,9 +58,10 @@ export function DashboardShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [toggle]);
 
-  // Live telemetry carries operator data (admins) and venue syncs (/venues users).
-  // Venue hosts get their escalation alerts live (lib/telemetry/events.ts visibleTo).
-  const live = account?.role === "ADMIN" || account?.role === "PROPERTY" || allowedHrefs.includes("/venues");
+  // Live telemetry carries operator data (admins) and venue syncs (/venues users). Venue hosts
+  // get their venue's escalations and bookings, client users their company's bookings
+  // (lib/telemetry/events.ts visibleTo).
+  const live = account?.role === "ADMIN" || account?.role === "PROPERTY" || account?.role === "CLIENT" || allowedHrefs.includes("/venues");
 
   const content = (
     <>

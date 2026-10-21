@@ -604,11 +604,13 @@ export type Database = {
           party_size: number
           project_code: string | null
           rate_card_id: string | null
+          requested_by: string | null
           sac_code: string
           settled_at: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
           updated_at: string
+          venue_accepted_at: string | null
           venue_id: string
         }
         Insert: {
@@ -630,11 +632,13 @@ export type Database = {
           party_size: number
           project_code?: string | null
           rate_card_id?: string | null
+          requested_by?: string | null
           sac_code?: string
           settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr: number
           updated_at?: string
+          venue_accepted_at?: string | null
           venue_id: string
         }
         Update: {
@@ -656,11 +660,13 @@ export type Database = {
           party_size?: number
           project_code?: string | null
           rate_card_id?: string | null
+          requested_by?: string | null
           sac_code?: string
           settled_at?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount_inr?: number
           updated_at?: string
+          venue_accepted_at?: string | null
           venue_id?: string
         }
         Relationships: [

@@ -9,8 +9,8 @@ test("diffBookings reports status changes, new and removed bookings", () => {
   const after = [b("4", "PENDING", "Olive Room", "2026-12-01"), b("1", "PENDING"), b("2", "CONFIRMED", "The Copper Courtyard", "2026-10-16")];
   assert.deepEqual(diffBookings(before, after), [
     { id: "4", kind: "added", message: "New booking: Olive Room on 1 Dec (with the venue)" },
-    { id: "1", kind: "status", message: "Saffron Terrace on 6 Nov is now with the venue" },
-    { id: "2", kind: "status", message: "The Copper Courtyard on 16 Oct is now confirmed" },
+    { id: "1", kind: "status", message: "Saffron Terrace on 6 Nov is now with the venue", to: "PENDING", venue: "Saffron Terrace" },
+    { id: "2", kind: "status", message: "The Copper Courtyard on 16 Oct is now confirmed", to: "CONFIRMED", venue: "The Copper Courtyard" },
     { id: "3", kind: "removed", message: "Saffron Terrace on 6 Nov is no longer listed" },
   ]);
   assert.deepEqual(diffBookings(before, before), []);

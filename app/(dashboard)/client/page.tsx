@@ -589,9 +589,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         <TableCell className="text-right font-medium tabular-nums">{formatINR(b.invoice.invoice_total)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <BookingStatusBadge status={b.status} />
+                            <BookingStatusBadge status={b.status} audience="client" />
                             {payment ? <PaymentStatusBadge status={payment.status} /> : null}
                           </div>
+                          {b.status === "CONFIRMED" || b.status === "COMPLETED" || b.status === "SETTLED" ? (
+                            <Link href={`/client/events/${b.id}`} className="text-fg-subtle hover:text-fg relative z-10 mt-1.5 inline-flex items-center gap-1 text-caption underline-offset-2 hover:underline">
+                              <Receipt className="size-3" aria-hidden /> Voucher &amp; invoice
+                            </Link>
+                          ) : null}
                           {hold && (b.status === "PENDING" || b.status === "PENDING_APPROVAL") ? (
                             <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />
                           ) : null}

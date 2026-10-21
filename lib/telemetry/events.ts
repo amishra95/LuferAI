@@ -60,8 +60,8 @@ export type VenueChange = (typeof VENUE_CHANGES)[number];
 
 export const BOOKING_EVENT_STATUSES = ["PENDING_APPROVAL", "PENDING", "CONFIRMED", "COMPLETED", "SETTLED", "CANCELLED"] as const;
 export type BookingEventStatus = (typeof BOOKING_EVENT_STATUSES)[number];
-/** What changed the booking: a new request (any entry point), the booking agent, a sign-off, an expense sync. */
-export const BOOKING_EVENT_ACTORS = ["request", "agent", "approval", "expense"] as const;
+/** What changed the booking: a new request (any entry point), the booking agent, a sign-off, the venue's response, an expense sync. */
+export const BOOKING_EVENT_ACTORS = ["request", "agent", "approval", "venue", "expense"] as const;
 export type BookingEventActor = (typeof BOOKING_EVENT_ACTORS)[number];
 
 export const ORDER_EVENT_STATUSES = ["PENDING_APPROVAL", "PLACED", "CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED", "CANCELLED"] as const;
@@ -82,7 +82,7 @@ export type TelemetryEventBody =
   | { type: "venue-sync"; total: number; partners: PartnerSyncStatus }
   | { type: "agent-config"; agentId: string; enabled: boolean; changed: AgentConfigField[] }
   | { type: "venue-updated"; venueId: string; change: VenueChange }
-  | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: BookingEventActor }
+  | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: BookingEventActor; /** The booking's company: its client users hear the event. */ companyId?: string }
   | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
   | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" }
   | { type: "po"; poId: string; change: PoChange }
@@ -105,14 +105,22 @@ export interface TelemetryAudience {
   venues: boolean;
   /** A venue host's venue: they hear its escalations and its bookings, nothing else operational. */
   venueId?: string | null;
+  /** A client user's company: they hear its bookings' events (a venue accepting, a sign-off), nothing else. */
+  companyId?: string | null;
 }
 
-export function visibleTo(event: Pick<TelemetryEvent, "type"> & { venueId?: string; status?: string }, audience: TelemetryAudience): boolean {
+export function visibleTo(event: Pick<TelemetryEvent, "type"> & { venueId?: string; status?: string; companyId?: string }, audience: TelemetryAudience): boolean {
   if (event.type === "venue-sync" || event.type === "venue-updated") return audience.venues;
   if (event.type === "escalation") return audience.ops || (Boolean(audience.venueId) && event.venueId === audience.venueId);
   // A host hears their own venue's bookings so the property portal stays live, except
   // requests still awaiting the company's sign-off: those reach the venue once approved.
-  if (event.type === "booking") return audience.ops || (Boolean(audience.venueId) && event.venueId === audience.venueId && event.status !== "PENDING_APPROVAL");
+  if (event.type === "booking") {
+    return (
+      audience.ops ||
+      (Boolean(audience.venueId) && event.venueId === audience.venueId && event.status !== "PENDING_APPROVAL") ||
+      (Boolean(audience.companyId) && event.companyId === audience.companyId)
+    );
+  }
   return audience.ops;
 }
 
@@ -218,7 +226,7 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
         : null;
     case "booking":
       return str(v.bookingId, 64) && str(v.venueId, 128) && (BOOKING_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (BOOKING_EVENT_ACTORS as readonly unknown[]).includes(v.by)
-        ? { ...base, type: "booking", bookingId: v.bookingId, venueId: v.venueId, status: v.status as BookingEventStatus, by: v.by as BookingEventActor }
+        ? { ...base, type: "booking", bookingId: v.bookingId, venueId: v.venueId, status: v.status as BookingEventStatus, by: v.by as BookingEventActor, ...(str(v.companyId, 64) && { companyId: v.companyId }) }
         : null;
     case "approval":
       return str(v.approvalId, 64) && str(v.bookingId, 64) && (v.decision === "APPROVED" || v.decision === "REJECTED")

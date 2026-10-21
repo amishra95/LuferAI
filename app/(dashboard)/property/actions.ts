@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { requirePortal } from "@/lib/auth/session";
 import { confirmBooking } from "@/lib/bookings/confirm";
-import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, EventWorkspaceError, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
+import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, EventWorkspaceError, listBookings, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { settleDeposit } from "@/lib/payments/service";
 import { parseCancellationRows, parseDepositPct, parseMultiplierForm, parseTierRows, PRICING_LIMITS } from "@/lib/rates/venue-pricing";
@@ -13,6 +14,8 @@ import { getNegotiationRules, saveNegotiationRules } from "@/lib/rfp/rules-store
 import { createDirectQuote, GuardrailError, isMissingColumn, respondToRfp } from "@/lib/rfp/service";
 import { todayInIndia } from "@/lib/gst-engine";
 import type { BookingStatus } from "@/lib/supabase/database.types";
+import { notifyVenueAccepted } from "@/lib/services/notifications";
+import { publishBooking } from "@/lib/telemetry/live";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, PricingError, saveCancellationTerms, saveMenuPackage, saveMinimumSpend, saveVenuePricing } from "@/lib/venues/pricing-store";
 
@@ -63,7 +66,8 @@ export async function respondToBooking(formData: FormData) {
   // Scoped to the venue so one property can never update another's booking. The
   // bookings_sync_inventory_holds trigger converts/releases the date hold.
   if (next === "CONFIRMED") {
-    // Status, expense export and deposit capture (lib/bookings/confirm.ts).
+    // Status (the bookings_stamp_venue_accepted trigger records when), expense export
+    // and deposit capture (lib/bookings/confirm.ts).
     await confirmBooking(bookingId, venueId);
   } else {
     await updateBookingStatus(bookingId, next, { venueId });
@@ -71,9 +75,16 @@ export async function respondToBooking(formData: FormData) {
     if (next === "CANCELLED") await settleDeposit(bookingId, "void");
   }
 
+  // Live: the company's client users (and admins) hear it at once; the client portal
+  // celebrates an acceptance. The customer's email goes out after the response.
+  const companyId = (await listBookings({ venueId })).find((b) => b.id === bookingId)?.company_id;
+  await publishBooking(bookingId, venueId, next, "venue", companyId);
+  if (next === "CONFIRMED") after(() => notifyVenueAccepted(bookingId, venueId));
+
   revalidatePath("/property");
   revalidatePath("/client");
   revalidatePath("/admin");
+  revalidatePath("/venues");
 }
 
 /** Releases one of the acting venue's live holds early, freeing the date. */
