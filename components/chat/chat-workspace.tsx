@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { AlertTriangle, ArrowUpRight, MapPin, PieChart, RotateCw, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Building2, MapPin, PieChart, RotateCw, TrendingUp, Users } from "lucide-react";
 
 import { AgentProgressIndicator } from "@/components/chat/agent-progress-indicator";
 import { AgentMark, ChatMessage } from "@/components/chat/chat-message";
@@ -41,6 +41,8 @@ export function ChatWorkspace({
   offline: noModel,
   agentEnabled,
   defaultInspectorOpen,
+  companyName,
+  initialDraft = "",
 }: {
   model: string;
   /** No model configured: chat is unavailable. */
@@ -48,6 +50,10 @@ export function ChatWorkspace({
   /** The workspace agent is switched off on the Agents page. */
   agentEnabled: boolean;
   defaultInspectorOpen: boolean;
+  /** The company the user came from (/chat?company=…), shown as context. */
+  companyName?: string;
+  /** Draft for the composer (/chat?prompt=…). */
+  initialDraft?: string;
 }) {
   // Either way the chat route would refuse, so don't offer to send.
   const offline = noModel || !agentEnabled;
@@ -155,6 +161,11 @@ export function ChatWorkspace({
             {messages.length === 0 ? (
               <div className="pt-[8vh]">
                 <AgentMark />
+                {companyName ? (
+                  <p className="pill mt-5">
+                    <Building2 className="size-3.5" aria-hidden /> {companyName}
+                  </p>
+                ) : null}
                 <h1 className="text-fg mt-5 text-title font-semibold tracking-[-0.03em]">What should we look into?</h1>
                 <p className="text-fg-subtle mt-1.5 text-body">
                   The agent searches venues and analyses spend and budgets from your booking data. Every tool call is inspectable.
@@ -212,6 +223,8 @@ export function ChatWorkspace({
         <div className="bg-canvas border-frame shrink-0 border-t px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:px-8">
           <div className="mx-auto max-w-[46rem]">
             <PromptBar
+              key={initialDraft}
+              initialValue={initialDraft}
               busy={busy}
               disabled={offline}
               onSend={send}

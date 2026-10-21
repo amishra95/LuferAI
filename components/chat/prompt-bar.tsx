@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, PanelRight, Plus, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ export function PromptBar({
   onToggleInspector,
   inspectorOpen,
   canReset,
+  initialValue = "",
 }: {
   busy: boolean;
   /** No model configured: the composer can't send. */
@@ -27,9 +28,18 @@ export function PromptBar({
   onToggleInspector: () => void;
   inspectorOpen: boolean;
   canReset: boolean;
+  /** A draft to start from (e.g. /chat?prompt=…): shown in the composer, never sent on its own. */
+  initialValue?: string;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const ref = useRef<HTMLTextAreaElement>(null);
+  // Arriving with a draft: focus it with the caret at the end, ready to edit.
+  useEffect(() => {
+    const el = ref.current;
+    if (!initialValue || !el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [initialValue]);
   const text = value.trim();
 
   function submit() {

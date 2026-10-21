@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { Drawer } from "@/components/dashboard/drawer";
@@ -8,6 +8,7 @@ import { Header } from "@/components/dashboard/header";
 import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ToastProvider } from "@/components/dashboard/toast";
+import { FloatingAiConcierge } from "@/components/ui/floating-ai-concierge";
 import { InspectorSidebar } from "@/components/workspace/inspector-sidebar";
 import { LiveRefresh } from "@/components/workspace/live-refresh";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
@@ -77,6 +78,12 @@ export function DashboardShell({
             />
             {/* Pages own their padding and width: most scroll, Chat fills the pane. */}
             <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</main>
+            {/* Concierge shortcut for everyone who can use the workspace chat. */}
+            {allowedHrefs.includes("/chat") ? (
+              <Suspense fallback={null}>
+                <FloatingAiConcierge />
+              </Suspense>
+            ) : null}
           </div>
 
           {/* Entity inspector: docked beside the page on wide screens, an overlay below lg. */}
