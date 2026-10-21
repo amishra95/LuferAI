@@ -642,3 +642,68 @@ html:has(.lufer) {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ------------------------------------------------------------------------- */
+/* Public landing (app/page.tsx, components/landing)                           */
+/* ------------------------------------------------------------------------- */
+
+/* Card on the plum landing surface: deep plum fill, fine plum-light frame, coral lift on hover. */
+@utility landing-card {
+  background: color-mix(in srgb, var(--color-plum) 70%, var(--color-ink));
+  border: 1px solid color-mix(in srgb, var(--color-plum-light) 90%, var(--color-on-plum-muted));
+  border-radius: var(--radius-card);
+  transition:
+    border-color 300ms,
+    transform 300ms,
+    box-shadow 300ms;
+  &:hover,
+  &:has(:focus-visible) {
+    border-color: color-mix(in srgb, var(--color-coral) 40%, transparent);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -16px color-mix(in srgb, var(--color-coral) 45%, transparent);
+  }
+}
+
+/* Soft radial glow behind the hero and preview. */
+@utility landing-glow {
+  background-image:
+    radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--color-coral) 16%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 85% 30%, color-mix(in srgb, var(--color-gold) 10%, transparent), transparent 70%);
+}
+
+/* Faint grid lines on the hero surface. */
+@utility landing-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-plum-light) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-plum-light) 45%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(70% 60% at 50% 0%, black, transparent);
+}
+
+/* Headline accent: coral into gold. */
+@utility text-gradient-brand {
+  background: linear-gradient(90deg, var(--color-coral), var(--color-gold));
+  background-clip: text;
+  color: transparent;
+}
+
+/* Bid rows in the hero preview arrive one after another (delay set inline). */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@utility animate-landing-rise {
+  animation: landing-rise 500ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
