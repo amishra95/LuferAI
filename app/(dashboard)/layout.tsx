@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { canAccess, canAccessWorkspace, PORTALS, WORKSPACE_ROUTES } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
@@ -22,6 +23,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...(member.role === "ADMIN" ? ["/admin/analytics"] : []),
       ]
     : [];
+  // The in-page concierge drawer runs the same workspace chat as /chat, with the same checks.
+  let chat = null;
+  if (allowedHrefs.includes("/chat")) {
+    await syncAgentConfigs();
+    const agent = getAgent("workspace-agent");
+    const chatModel = getLanguageModel({ backend: agent?.model, speed: "fast" });
+    chat = { model: chatModel?.modelId ?? "none", offline: !chatModel, agentEnabled: agent?.enabled ?? true };
+  }
 
   // `lufer` scopes the design system (warm light theme).
   return (
@@ -32,6 +41,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         system={model ? { mode: "live", model: model.modelId } : { mode: "demo" }}
         account={member ? { email: member.email, role: member.role } : null}
         allowedHrefs={allowedHrefs}
+        chat={chat}
       >
         {children}
       </DashboardShell>

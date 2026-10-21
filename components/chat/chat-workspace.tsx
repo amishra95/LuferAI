@@ -43,6 +43,8 @@ export function ChatWorkspace({
   defaultInspectorOpen,
   companyName,
   initialDraft = "",
+  draftKey,
+  variant = "page",
 }: {
   model: string;
   /** No model configured: chat is unavailable. */
@@ -54,7 +56,13 @@ export function ChatWorkspace({
   companyName?: string;
   /** Draft for the composer (/chat?prompt=…). */
   initialDraft?: string;
+  /** Re-applies the draft when it changes, even to the same text (the chat drawer bumps it per open). */
+  draftKey?: string | number;
+  /** "drawer": the narrow in-page slide-over; the inspector always opens as an overlay. */
+  variant?: "page" | "drawer";
 }) {
+  const inDrawer = variant === "drawer";
+  const Heading = inDrawer ? "h2" : "h1";
   // Either way the chat route would refuse, so don't offer to send.
   const offline = noModel || !agentEnabled;
   const { messages, sendMessage, status, stop, error, regenerate, setMessages, clearError } = useChat<LuferUIMessage>({
@@ -94,12 +102,12 @@ export function ChatWorkspace({
 
   function selectTool(id: string | null) {
     setSelectedToolCallId(id);
-    if (id && window.matchMedia(DESKTOP).matches) setInspectorOpen(true);
+    if (id && !inDrawer && window.matchMedia(DESKTOP).matches) setInspectorOpen(true);
     else if (id) setMobileInspector(true);
   }
 
   function toggleInspector() {
-    if (window.matchMedia(DESKTOP).matches) setInspectorOpen((o) => !o);
+    if (!inDrawer && window.matchMedia(DESKTOP).matches) setInspectorOpen((o) => !o);
     else setMobileInspector((o) => !o);
   }
 
@@ -132,7 +140,7 @@ export function ChatWorkspace({
           }}
           className="min-h-0 flex-1 overflow-y-auto"
         >
-          <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-8 sm:px-6 lg:px-8">
+          <div className={cn("mx-auto max-w-[46rem]", inDrawer ? "px-4 pt-5 pb-6 sm:px-5" : "px-4 pt-8 pb-8 sm:px-6 lg:px-8")}>
             {!noModel && !agentEnabled && (
               <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                 <span className="pill">
@@ -159,14 +167,14 @@ export function ChatWorkspace({
             )}
 
             {messages.length === 0 ? (
-              <div className="pt-[8vh]">
+              <div className={inDrawer ? "pt-2" : "pt-[8vh]"}>
                 <AgentMark />
                 {companyName ? (
                   <p className="pill mt-5">
                     <Building2 className="size-3.5" aria-hidden /> {companyName}
                   </p>
                 ) : null}
-                <h1 className="text-fg mt-5 text-title font-semibold tracking-[-0.03em]">What should we look into?</h1>
+                <Heading className="text-fg mt-5 text-title font-semibold tracking-[-0.03em]">What should we look into?</Heading>
                 <p className="text-fg-subtle mt-1.5 text-body">
                   The agent searches venues and analyses spend and budgets from your booking data. Every tool call is inspectable.
                 </p>
@@ -220,10 +228,10 @@ export function ChatWorkspace({
           </div>
         </div>
 
-        <div className="bg-canvas border-frame shrink-0 border-t px-4 pt-3 pb-4 sm:px-6 sm:pb-5 lg:px-8">
+        <div className={cn("bg-canvas border-frame shrink-0 border-t px-4 pt-3", inDrawer ? "pb-[calc(1rem+var(--app-safe-bottom))] sm:px-5" : "pb-4 sm:px-6 sm:pb-5 lg:px-8")}>
           <div className="mx-auto max-w-[46rem]">
             <PromptBar
-              key={initialDraft}
+              key={draftKey ?? initialDraft}
               initialValue={initialDraft}
               busy={busy}
               disabled={offline}
@@ -236,7 +244,7 @@ export function ChatWorkspace({
                 clearError();
               }}
               onToggleInspector={toggleInspector}
-              inspectorOpen={inspectorOpen}
+              inspectorOpen={inDrawer ? mobileInspector : inspectorOpen}
               canReset={messages.length > 0}
             />
           </div>
@@ -244,11 +252,13 @@ export function ChatWorkspace({
       </div>
 
       {/* Inspector: fixed width, full height beside the thread (it scrolls on its own). */}
-      <div className={cn("border-frame bg-surface sticky top-0 hidden h-full w-80 shrink-0 self-stretch border-l", inspectorOpen && "lg:block")}>
-        {inspector(() => setInspectorOpen(false))}
-      </div>
+      {inDrawer ? null : (
+        <div className={cn("border-frame bg-surface sticky top-0 hidden h-full w-80 shrink-0 self-stretch border-l", inspectorOpen && "lg:block")}>
+          {inspector(() => setInspectorOpen(false))}
+        </div>
+      )}
 
-      <Drawer open={mobileInspector} onClose={() => setMobileInspector(false)} side="right" label="Inspector" className="lg:hidden">
+      <Drawer open={mobileInspector} onClose={() => setMobileInspector(false)} side="right" label="Inspector" className={inDrawer ? "absolute" : "lg:hidden"}>
         {inspector(() => setMobileInspector(false))}
       </Drawer>
     </div>
