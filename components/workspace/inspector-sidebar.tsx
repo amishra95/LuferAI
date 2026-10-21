@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, ArrowUpRight, Check, Copy, Loader2, Play, RefreshCw, RotateCw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowUpRight, Check, Copy, Loader2, NotebookPen, Play, RefreshCw, RotateCw, X } from "lucide-react";
 
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
+import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { runAgentTest } from "@/app/(dashboard)/agents/actions";
 import { AgentStatusBadge, displayStatus, TestResult } from "@/components/agents/agent-row";
 import { useAgentMutations } from "@/components/agents/use-agent-mutations";
@@ -164,7 +165,7 @@ export function InspectorSidebar() {
       {current?.status === "ok" && (
         <footer className="border-line flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-2.5">
           {current.entity.kind === "venue" && current.entity.viewer.canRequest ? (
-            <RequestVenueEvent venue={current.entity.venue} className="mb-1.5" />
+            <VenueBookingActions entity={current.entity} className="mb-1.5 w-full" />
           ) : null}
           <Link href={pageHref(current.entity).href} className="btn h-7 px-2.5 text-caption">
             {pageHref(current.entity).label}
@@ -406,14 +407,32 @@ function RetryTest({ agentId }: { agentId: string }) {
   );
 }
 
-/** Opens the concierge drawer with an event brief for this venue (organizers and approvers). */
-function RequestVenueEvent({ venue, className }: { venue: VenueDetail["venue"]; className?: string }) {
+/**
+ * The venue's booking actions for organizers and approvers: plan it with the
+ * concierge (drawer, pre-filled brief), or book it by hand (the manual booking
+ * modal, venue pre-selected; Lufer.ai venues only, partner listings quote via their network).
+ */
+function VenueBookingActions({ entity, className }: { entity: VenueDetail; className?: string }) {
+  const { venue, viewer } = entity;
   return (
-    <Button asChild size="lg" className={cn("w-full rounded-full font-medium shadow-sm", className)}>
-      <ChatDrawerTrigger prompt={venueEventPrompt(venue)}>
-        <span className="truncate">Request event at {venue.name}</span> <ArrowRight aria-hidden />
-      </ChatDrawerTrigger>
-    </Button>
+    <div className={cn("grid gap-2", className)}>
+      <Button asChild size="lg" className="w-full rounded-full font-medium shadow-sm">
+        <ChatDrawerTrigger prompt={venueEventPrompt(venue)}>
+          <span className="truncate">Request event at {venue.name}</span> <ArrowRight aria-hidden />
+        </ChatDrawerTrigger>
+      </Button>
+      {viewer.canBook ? (
+        <ManualBookingModal
+          venueId={venue.id}
+          venueName={venue.name}
+          trigger={
+            <Button variant="outline" size="lg" className="border-plum/20 text-plum hover:bg-plum/5 w-full rounded-full font-medium dark:border-line-strong dark:text-fg">
+              <NotebookPen aria-hidden /> Book manually
+            </Button>
+          }
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -427,7 +446,7 @@ function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<Teleme
       </Title>
       {entity.viewer.canRequest ? (
         <div className="border-line border-b px-4 py-3">
-          <RequestVenueEvent venue={venue} />
+          <VenueBookingActions entity={entity} />
         </div>
       ) : null}
       <Section title="Listing">

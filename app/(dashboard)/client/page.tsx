@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, Plus, Receipt, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, NotebookPen, Plus, Receipt, ShieldCheck, Sparkles, Users } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -14,6 +14,7 @@ import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatCompanyScope, ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
@@ -401,11 +402,20 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-section text-fg font-semibold">Bookings</h2>
             {canRequest ? (
-              <Button asChild className="rounded-full px-5 font-medium has-[>svg]:px-5">
-                <ChatDrawerTrigger companyId={company.id} prompt={teamEventPrompt(company.legal_name)}>
-                  <Plus aria-hidden /> Request team event
-                </ChatDrawerTrigger>
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <ManualBookingModal
+                  trigger={
+                    <Button variant="outline" className="rounded-full px-5 font-medium has-[>svg]:px-5">
+                      <NotebookPen aria-hidden /> New manual RFP
+                    </Button>
+                  }
+                />
+                <Button asChild className="rounded-full px-5 font-medium has-[>svg]:px-5">
+                  <ChatDrawerTrigger companyId={company.id} prompt={teamEventPrompt(company.legal_name)}>
+                    <Plus aria-hidden /> Request team event
+                  </ChatDrawerTrigger>
+                </Button>
+              </div>
             ) : null}
           </div>
 
