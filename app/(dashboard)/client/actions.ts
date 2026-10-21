@@ -84,9 +84,12 @@ export async function submitBookingRequest(
   formData: FormData
 ): Promise<BookingRequestState> {
   const member = await requirePortal("/client");
-  // The requester is the signed-in employee (admins can't request sign-off for a company).
+  // The requester is the signed-in employee. Admins file on behalf of one of the
+  // company's employees (the manual booking modal); placeBookingRequest checks
+  // that person belongs to the company and may request, then runs policy and
+  // approvals as them.
   const companyId = tenantFor(member, formData.get("company_id"));
-  const userId = member.role === "CLIENT" ? member.userId : "";
+  const userId = member.role === "CLIENT" ? member.userId : member.role === "ADMIN" ? String(formData.get("on_behalf_of") ?? "") : "";
 
   // Same schema the form validates with step by step; this pass is authoritative.
   // Checks that need data (capacity, minimum spend, the company's GSTIN, policy) run in placeBookingRequest.
@@ -97,6 +100,14 @@ export async function submitBookingRequest(
   const overCap = budgetCapError({ partySize: v.party_size, perHead: v.budget_per_head_inr, cap: Number(formData.get("budget_cap_inr")) || null });
   if (overCap) return { status: "error", fieldErrors: { budget_per_head_inr: overCap }, message: "Please fix the highlighted fields." };
 
+  // An admin-filed request says so, for the venue and the audit trail.
+  let notes = v.notes;
+  if (member.role === "ADMIN") {
+    const onBehalf = (await listPortalUsers({ companyId })).find((u) => u.id === userId);
+    if (!onBehalf) return { status: "error", message: "Choose who this request is filed for." };
+    notes = [`Filed by a Lufer.ai admin${member.email ? ` (${member.email})` : ""} on behalf of ${onBehalf.name}.`, notes].filter(Boolean).join("\n\n");
+  }
+
   const result = await placeBookingRequest({
     companyId,
     userId,
@@ -104,7 +115,7 @@ export async function submitBookingRequest(
     eventDate: v.event_date,
     partySize: v.party_size,
     budgetPerHead: v.budget_per_head_inr,
-    notes: v.notes,
+    notes,
     departmentId: v.department_id,
     expense: { costCenter: v.cost_center, projectCode: v.project_code, taxId: v.billing_gstin },
     checkoutToken: String(formData.get("slot_token") ?? "") || null,
@@ -122,26 +133,38 @@ export interface ManualBookingContext {
   companyGstin: string;
   venues: VenueOption[];
   departments: { id: string; name: string }[];
+  /** Admins only: the companies they can file for, and who at this one may request (Organizers, Approvers). */
+  onBehalf?: { companies: { id: string; name: string }[]; requesters: { id: string; name: string; role: string }[] };
 }
 
 /**
- * What the manual booking modal needs, loaded when it opens: the caller's
- * company, its bookable venues (with negotiated terms) and departments. Only
- * Organizers and Approvers request bookings (placeBookingRequest checks again).
+ * What the manual booking modal needs, loaded when it opens: the company, its
+ * bookable venues (with negotiated terms) and departments. Organizers and
+ * Approvers book for their own company; admins pick a company (`companyId`)
+ * and an employee to file for. Finance viewers are read-only (`readOnly`).
+ * placeBookingRequest re-checks all of this on submit.
  */
-export async function getManualBookingContext(): Promise<ManualBookingContext | { error: string }> {
+export async function getManualBookingContext(companyId?: string): Promise<ManualBookingContext | { readOnly: string } | { error: string }> {
   const member = await requirePortal("/client");
-  if (member.role !== "CLIENT" || !member.companyId || (member.corporateRole !== "ORGANIZER" && member.corporateRole !== "APPROVER")) {
-    return { error: "Only Organizers and Approvers can request bookings." };
+  const companies = await listCompanies();
+  const admin = member.role === "ADMIN";
+  if (!admin && (member.role !== "CLIENT" || (member.corporateRole !== "ORGANIZER" && member.corporateRole !== "APPROVER"))) {
+    return { readOnly: "Your role is read-only, so it can't file booking requests. An Organizer or Approver at your company can, or ask the concierge to plan it with you." };
   }
-  const company = (await listCompanies()).find((c) => c.id === member.companyId);
-  if (!company) return { error: "Your company wasn't found." };
-  const { venues, departments } = await getVenueCatalog(company.id);
+  const company = admin ? (companies.find((c) => c.id === companyId) ?? companies[0]) : companies.find((c) => c.id === member.companyId);
+  if (!company) return { error: admin ? "No companies to book for yet." : "Your company wasn't found." };
+  const [{ venues, departments }, users] = await Promise.all([getVenueCatalog(company.id), admin ? listPortalUsers({ companyId: company.id }) : Promise.resolve([])]);
   return {
     companyId: company.id,
     companyGstin: company.gstin,
     venues: venues.map(toVenueOption),
     departments: departments.map((d) => ({ id: d.id, name: d.name })),
+    ...(admin && {
+      onBehalf: {
+        companies: companies.map((c) => ({ id: c.id, name: c.legal_name })),
+        requesters: users.filter((u) => u.role === "ORGANIZER" || u.role === "APPROVER").map((u) => ({ id: u.id, name: u.name, role: u.role === "APPROVER" ? "Approver" : "Organizer" })),
+      },
+    }),
   };
 }
 
