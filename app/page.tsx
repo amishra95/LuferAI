@@ -1,14 +1,17 @@
-import { Hero } from "@/components/landing/hero";
+import { Hero, SiteHeader } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Portals } from "@/components/landing/portals";
 
-// The whole landing sits on one full-bleed plum surface; .on-plum remaps the tokens.
+// Editorial linen landing: light in every OS theme (see .landing in globals.css).
 export default function Home() {
   return (
-    <main className="landing on-plum flex flex-1 flex-col pb-[calc(3rem+var(--app-safe-bottom))]">
-      <Hero />
-      <Portals />
-      <HowItWorks />
-    </main>
+    <div className="landing flex flex-1 flex-col">
+      <SiteHeader />
+      <main className="flex flex-1 flex-col pb-[calc(3rem+var(--app-safe-bottom))]">
+        <Hero />
+        <Portals />
+        <HowItWorks />
+      </main>
+    </div>
   );
 }
