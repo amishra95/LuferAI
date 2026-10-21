@@ -63,7 +63,7 @@ export function PartnerPayouts({
   return (
     <div className="space-y-6">
       {!enabled ? (
-        <p role="status" className="border-line text-fg-muted rounded-md border px-4 py-3 text-[12.5px]">
+        <p role="status" className="border-line text-fg-muted rounded-md border px-4 py-3 text-meta">
           Online payment and payouts are off in this environment: they need Supabase, Razorpay keys with Route enabled, and PLATFORM_GSTIN.
         </p>
       ) : null}
@@ -80,11 +80,11 @@ export function PartnerPayouts({
           {isAdmin ? (
             <PayoutTermsForm partnerId={partner.id} accountId={partner.razorpay_account_id} commissionRate={Number(partner.commission_rate)} />
           ) : partner.razorpay_account_id ? (
-            <p className="font-mono text-[12.5px]">
+            <p className="font-mono text-meta">
               Connected: {partner.razorpay_account_id.slice(0, 8)}…{partner.razorpay_account_id.slice(-4)}
             </p>
           ) : (
-            <p className="text-warn text-[12.5px]">Not connected yet. Paid orders wait until your Lufer.ai contact connects your Razorpay linked account.</p>
+            <p className="text-warn text-meta">Not connected yet. Paid orders wait until your Lufer.ai contact connects your Razorpay linked account.</p>
           )}
         </CardContent>
       </Card>
@@ -109,7 +109,7 @@ export function PartnerPayouts({
               description="A payout starts when you confirm an order the buyer has paid for, and is released when you mark it delivered."
               action={
                 ordersHref ? (
-                  <Link href={ordersHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                  <Link href={ordersHref} className="btn btn-primary h-8 px-3 text-meta">
                     Go to Orders
                   </Link>
                 ) : null
@@ -132,21 +132,21 @@ export function PartnerPayouts({
                   <TableRow key={r.orderId}>
                     <TableCell>
                       <div className="font-medium">{r.label}</div>
-                      <div className="text-fg-subtle text-xs">{r.company}</div>
+                      <div className="text-fg-subtle text-caption">{r.company}</div>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatINR(Number(r.payout.gross_inr), true)}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {formatINR(Number(r.payout.commission_inr) + Number(r.payout.commission_gst_inr), true)}
-                      <div className="text-fg-faint text-[11px]">{Math.round(Number(r.payout.commission_rate) * 10_000) / 100}% + GST</div>
+                      <div className="text-fg-faint text-caption">{Math.round(Number(r.payout.commission_rate) * 10_000) / 100}% + GST</div>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {formatINR(Number(r.payout.tcs_inr), true)}
-                      <div className="text-fg-faint text-[11px]">{r.payout.tcs_rate_bps / 100}%</div>
+                      <div className="text-fg-faint text-caption">{r.payout.tcs_rate_bps / 100}%</div>
                     </TableCell>
                     <TableCell className="text-right font-mono font-medium tabular-nums">{formatINR(Number(r.payout.net_payout_inr), true)}</TableCell>
                     <TableCell>
-                      <span className={cn("text-[12.5px]", r.payout.status === "failed" && "text-rose", r.payout.status === "settled" && "text-sage")}>{STATUS_LABEL[r.payout.status] ?? r.payout.status}</span>
-                      {r.payout.last_error || r.issues.length ? <div className="text-warn mt-0.5 max-w-60 text-[11px]">{r.payout.last_error ?? r.issues[0]}</div> : null}
+                      <span className={cn("text-meta", r.payout.status === "failed" && "text-rose", r.payout.status === "settled" && "text-sage")}>{STATUS_LABEL[r.payout.status] ?? r.payout.status}</span>
+                      {r.payout.last_error || r.issues.length ? <div className="text-warn mt-0.5 max-w-60 text-caption">{r.payout.last_error ?? r.issues[0]}</div> : null}
                     </TableCell>
                   </TableRow>
                 ))}

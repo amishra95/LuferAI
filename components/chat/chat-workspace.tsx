@@ -124,7 +124,7 @@ export function ChatWorkspace({
           {/* Bottom padding clears the floating composer. */}
           <div className="mx-auto max-w-[46rem] px-4 pt-8 pb-48 sm:px-6">
             {!noModel && !agentEnabled && (
-              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                 <span className="pill">
                   <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
                   agent off
@@ -136,7 +136,7 @@ export function ChatWorkspace({
               </div>
             )}
             {noModel && (
-              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+              <div role="status" className="text-fg-subtle mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                 <span className="pill">
                   <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
                   no model
@@ -151,8 +151,8 @@ export function ChatWorkspace({
             {messages.length === 0 ? (
               <div className="pt-[8vh]">
                 <AgentMark />
-                <h1 className="text-fg mt-5 text-[24px] font-semibold tracking-[-0.03em]">What should we look into?</h1>
-                <p className="text-fg-subtle mt-1.5 text-[14px]">
+                <h1 className="text-fg mt-5 text-title font-semibold tracking-[-0.03em]">What should we look into?</h1>
+                <p className="text-fg-subtle mt-1.5 text-body">
                   The agent searches venues and analyses spend and budgets from your booking data. Every tool call is inspectable.
                 </p>
                 <ul className="panel mt-8 overflow-hidden">
@@ -162,7 +162,7 @@ export function ChatWorkspace({
                         type="button"
                         onClick={() => send(text)}
                         disabled={offline}
-                        className="disabled:pointer-events-none disabled:opacity-60 group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-[13.5px] transition-colors"
+                        className="disabled:pointer-events-none disabled:opacity-60 group text-fg-muted hover:bg-surface-hover hover:text-fg flex w-full items-center gap-3.5 px-4 py-3.5 text-left text-body transition-colors"
                       >
                         <Icon className="text-fg-faint group-hover:text-fg size-4 shrink-0 transition-colors" strokeWidth={1.75} aria-hidden />
                         <span className="flex-1">{text}</span>
@@ -193,10 +193,10 @@ export function ChatWorkspace({
             )}
 
             {error && (
-              <div role="alert" className="border-rose/20 bg-rose/[0.05] text-rose mt-8 flex items-center gap-3 rounded-lg border px-4 py-3 text-[13px]">
+              <div role="alert" className="border-rose/20 bg-rose/[0.05] text-rose mt-8 flex items-center gap-3 rounded-lg border px-4 py-3 text-meta">
                 <AlertTriangle className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1">{errorText(error)}</span>
-                <button type="button" onClick={() => void regenerate()} className="btn btn-ghost text-rose hover:text-rose h-7 px-2 text-[12px]">
+                <button type="button" onClick={() => void regenerate()} className="btn btn-ghost text-rose hover:text-rose h-7 px-2 text-caption">
                   <RotateCw className="size-3" aria-hidden /> Retry
                 </button>
               </div>

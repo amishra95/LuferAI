@@ -91,7 +91,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
       }
     >
       {loadError && (
-        <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-lg border px-4 py-2.5 text-[12.5px]">
+        <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-6 rounded-lg border px-4 py-2.5 text-meta">
           Some analytics couldn&apos;t be loaded right now ({loadError}).
         </p>
       )}
@@ -179,7 +179,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                 <TableBody>
                   {s.agents.map((a) => (
                     <InspectableRow as="tr" key={a.agent} kind="agent" id={a.agent} className="hover:bg-surface-hover border-line border-b transition-colors">
-                      <TableCell className="font-mono text-[12.5px]">
+                      <TableCell className="font-mono text-meta">
                         <InspectButton kind="agent" id={a.agent} className="block truncate">
                           {a.agent}
                         </InspectButton>
@@ -242,14 +242,14 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
               </CardHeader>
               <CardContent>
                 {s.failures.length === 0 ? (
-                  <p className="text-fg-subtle inline-flex items-center gap-1.5 py-4 text-[13px]">
+                  <p className="text-fg-subtle inline-flex items-center gap-1.5 py-4 text-meta">
                     <CheckCircle2 className="size-4" aria-hidden /> No failed runs in the last {RANGE_LABEL[range]}.
                   </p>
                 ) : (
                   <ul className="divide-line divide-y">
                     {s.failures.map((f) => (
                       <li key={f.id ?? `${f.at}-${f.agent}`} className="py-2.5 first:pt-0 last:pb-0">
-                        <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+                        <p className="flex flex-wrap items-baseline gap-x-2 text-meta">
                           <AlertTriangle className="size-3.5 shrink-0 translate-y-0.5 text-rose" aria-label="Failed" />
                           {f.id ? (
                             <InspectButton kind="run" id={f.id} label={f.task} className="text-fg min-w-0 break-words">
@@ -259,8 +259,8 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
                             <span className="text-fg min-w-0 break-words">{f.task}</span>
                           )}
                         </p>
-                        <p className="mt-0.5 pl-5.5 text-[12.5px] break-words text-rose">{f.error}</p>
-                        <p className="text-fg-subtle mt-0.5 pl-5.5 font-mono text-[11px]">
+                        <p className="mt-0.5 pl-5.5 text-meta break-words text-rose">{f.error}</p>
+                        <p className="text-fg-subtle mt-0.5 pl-5.5 font-mono text-caption">
                           {f.agent} · {CHANNEL_LABEL[f.channel] ?? f.channel} · {when.format(new Date(f.at))}
                         </p>
                       </li>
@@ -275,7 +275,7 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
 
       <TracePanels summary={traceSummary} rangeLabel={RANGE_LABEL[range]} source={isRedisConfigured() ? "redis" : "memory"} />
 
-      <p className="text-fg-subtle text-[12px] leading-5">
+      <p className="text-fg-subtle text-caption leading-5">
         {isRedisConfigured() ? "From the shared run log in Upstash Redis" : "From this server instance's memory (Upstash Redis isn't configured)"}, which keeps the
         latest {int(RUN_LOG_LIMIT)} runs.
         {truncated && oldest && ` Older runs have been trimmed, so this view starts at ${when.format(new Date(oldest))}.`}

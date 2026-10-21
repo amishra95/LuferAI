@@ -42,8 +42,8 @@ export interface CursorPosition extends CursorMessage {
   seenAt: number;
 }
 
-// Distinct in hue and readable on the zinc-950 canvas; identity only, not status.
-const PALETTE = ["#60a5fa", "#f472b6", "#a78bfa", "#2dd4bf", "#fb923c", "#facc15", "#38bdf8", "#e879f9"];
+// Velvet Night tokens (app/globals.css), all light enough for ink initials; identity only, not status.
+const PALETTE = ["var(--color-gold)", "var(--color-mint)", "var(--color-on-plum-muted)", "var(--color-gold-soft)", "var(--color-mint-soft)"];
 
 /** A stable colour per user, the same in every collaborator's browser. */
 export function colorFor(userId: string): string {

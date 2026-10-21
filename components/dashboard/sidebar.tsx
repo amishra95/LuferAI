@@ -15,7 +15,7 @@ export function Monogram({ name, className }: { name: string; className?: string
     <span
       aria-hidden
       className={cn(
-        "bg-fg text-canvas grid size-6 shrink-0 place-items-center rounded-[5px] font-mono text-[11px] font-semibold",
+        "bg-plum-light text-gold grid size-7 shrink-0 place-items-center rounded-badge text-caption font-semibold",
         className
       )}
     >
@@ -50,7 +50,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
+        "on-plum border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
         collapsed ? "w-[3.75rem]" : "w-60",
         className
       )}
@@ -58,7 +58,7 @@ export function Sidebar({
       <div className={cn("flex h-14 shrink-0 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
         <Link href="/dashboard" onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
           <Monogram name={workspaceName} />
-          {!collapsed && <span className="text-fg truncate text-[13.5px] font-semibold tracking-tight">{workspaceName}</span>}
+          {!collapsed && <span className="text-fg truncate text-body font-semibold tracking-tight">{workspaceName}</span>}
         </Link>
         {onClose && (
           <button type="button" onClick={onClose} aria-label="Close navigation" className="btn btn-ghost btn-icon ml-auto size-8">
@@ -88,13 +88,13 @@ export function Sidebar({
                       title={collapsed ? label : undefined}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] tracking-[-0.005em] transition-[color,background-color,box-shadow,transform] duration-150",
+                        "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-meta font-medium transition-[color,background-color,box-shadow,transform] duration-150",
                         collapsed && "justify-center px-0",
                         active ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
                       )}
                     >
-                      {/* Copper rail marks the current page. */}
-                      {active && <span aria-hidden className="bg-fg absolute top-2 bottom-2 -left-2.5 w-[2px] rounded-r-full" />}
+                      {/* Gold rail marks the current page. */}
+                      {active && <span aria-hidden className="bg-gold absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full" />}
                       <Icon
                         className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
                         strokeWidth={1.75}
@@ -118,7 +118,7 @@ export function Sidebar({
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={`${collapsed ? "Expand" : "Collapse"} sidebar (⌘B)`}
             className={cn(
-              "text-fg-subtle hover:bg-surface-raised hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] transition-[color,background-color,transform] duration-150",
+              "text-fg-subtle hover:bg-surface-raised hover:text-fg flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-meta transition-[color,background-color,transform] duration-150",
               collapsed && "justify-center px-0"
             )}
           >
@@ -128,7 +128,7 @@ export function Sidebar({
               <>
                 <PanelLeftClose className="size-[15px]" strokeWidth={1.75} aria-hidden />
                 <span>Collapse</span>
-                <kbd className="text-fg-subtle ml-auto font-mono text-[10.5px]">⌘B</kbd>
+                <kbd className="text-fg-subtle ml-auto text-caption">⌘B</kbd>
               </>
             )}
           </button>

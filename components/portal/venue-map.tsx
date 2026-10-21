@@ -104,7 +104,7 @@ export function VenueMap({
   if (!KEY || failed || placed.length === 0) {
     return (
       <div className={cn("grid place-items-center rounded-lg border border-dashed border-line bg-surface p-6 text-center", className)}>
-        <div className="grid justify-items-center gap-2 text-sm text-fg-subtle">
+        <div className="grid justify-items-center gap-2 text-body text-fg-subtle">
           <MapPinOff className="size-5" aria-hidden />
           {placed.length === 0
             ? "No venue locations yet."

@@ -15,7 +15,7 @@ const INTENT_TEXT = { good: "improvement", bad: "worse", neutral: "change" } as 
 export function ChangePill({ change, className }: { change: MetricChange; className?: string }) {
   const Icon = change.direction === "up" ? ArrowUpRight : change.direction === "down" ? ArrowDownRight : Minus;
   return (
-    <span className={cn("inline-flex shrink-0 items-center gap-0.5 font-mono text-[11.5px] tabular-nums", INTENT[change.intent], className)}>
+    <span className={cn("inline-flex shrink-0 items-center gap-0.5 font-mono text-caption tabular-nums", INTENT[change.intent], className)}>
       <Icon className="size-3" strokeWidth={2} aria-hidden />
       {change.label}
       <span className="sr-only"> ({INTENT_TEXT[change.intent]})</span>
@@ -45,9 +45,9 @@ export function StatCard({
         <p className="label-mono">{label}</p>
         {Icon ? <Icon className="text-fg-faint size-3.5" strokeWidth={1.75} aria-hidden /> : null}
       </div>
-      <p className="text-fg mt-3 font-mono text-[22px] leading-none font-medium tracking-tight tabular-nums">{value}</p>
+      <p className="text-fg mt-3 font-mono text-title leading-none font-medium tracking-tight tabular-nums">{value}</p>
       {change || hint ? (
-        <p className="text-fg-subtle mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+        <p className="text-fg-subtle mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption">
           {change ? <ChangePill change={change} /> : null}
           {hint ? <span>{hint}</span> : null}
         </p>

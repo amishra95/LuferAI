@@ -65,21 +65,21 @@ export function PromptBar({
         maxLength={MAX_LENGTH}
         disabled={disabled}
         placeholder={disabled ? "Chat is unavailable until a model key is added in Settings" : "Ask about venues, bookings, spend or budgets…"}
-        className="text-fg placeholder:text-fg-faint block field-sizing-content max-h-52 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14px] leading-6 focus:outline-none"
+        className="text-fg placeholder:text-fg-faint block field-sizing-content max-h-52 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-body leading-6 focus:outline-none"
       />
       <div className="flex items-center gap-0.5 px-2 pb-2">
-        <button type="button" onClick={onNewChat} disabled={!canReset} className="btn btn-ghost h-7 rounded-lg px-2 text-[12px]">
+        <button type="button" onClick={onNewChat} disabled={!canReset} className="btn btn-ghost h-7 rounded-lg px-2 text-caption">
           <Plus className="size-3.5" aria-hidden /> New
         </button>
         <button
           type="button"
           onClick={onToggleInspector}
           aria-pressed={inspectorOpen}
-          className={cn("btn btn-ghost h-7 rounded-lg px-2 text-[12px]", inspectorOpen && "text-fg")}
+          className={cn("btn btn-ghost h-7 rounded-lg px-2 text-caption", inspectorOpen && "text-fg")}
         >
           <PanelRight className={cn("size-3.5", inspectorOpen && "text-fg")} aria-hidden /> Inspector
         </button>
-        <span className="text-fg-subtle ml-auto hidden pr-2 font-mono text-[10.5px] sm:inline">
+        <span className="text-fg-subtle ml-auto hidden pr-2 font-mono text-caption sm:inline">
           {value.length > MAX_LENGTH * 0.8 ? `${value.length}/${MAX_LENGTH}` : "↵ send  ⇧↵ newline"}
         </span>
         {busy ? (
@@ -96,7 +96,7 @@ export function PromptBar({
             type="submit"
             disabled={!text || disabled}
             aria-label="Send message"
-            className="bg-fg text-canvas hover:bg-fg-muted disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-md transition-colors"
+            className="bg-coral text-on-coral hover:bg-coral-hover disabled:bg-surface-raised disabled:text-fg-faint grid size-8 place-items-center rounded-md transition-colors"
           >
             <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
           </button>

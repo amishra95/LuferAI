@@ -98,7 +98,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         {query.dir !== "asc" && <input type="hidden" name="dir" value={query.dir} />}
         {query.size !== 10 && <input type="hidden" name="size" value={query.size} />}
         <div className="flex gap-1">
-          <button type="submit" className="btn btn-primary h-9 rounded-[10px]">
+          <button type="submit" className="btn btn-primary h-9">
             Apply
           </button>
           {filtered && (
@@ -110,7 +110,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
       </form>
 
       {partners.status === "unavailable" && (
-        <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-[12.5px]">
+        <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-meta">
           {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
         </p>
       )}
@@ -144,15 +144,15 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
               {rows.map((v) => (
                 <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-fg min-w-0 truncate text-[13.5px] font-medium">
+                    <p className="text-fg min-w-0 truncate text-body font-medium">
                       <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
                         {v.name}
                       </InspectButton>
                     </p>
-                    <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">{formatINR(v.min_spend_inr)}</p>
+                    <p className="text-fg shrink-0 font-mono text-meta tabular-nums">{formatINR(v.min_spend_inr)}</p>
                   </div>
-                  <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
-                    <span className="text-fg-muted font-sans text-[12.5px]">{v.neighborhood}</span>
+                  <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-caption tabular-nums">
+                    <span className="text-fg-muted font-sans text-meta">{v.neighborhood}</span>
                     <span>{v.capacity_max} guests</span>
                     <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
                     {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
@@ -162,7 +162,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             </ul>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[46rem] text-[13px]">
+              <table className="w-full min-w-[46rem] text-meta">
                 <thead>
                   <tr className="border-line border-b">
                     {COLUMNS.map((c) => (
@@ -186,7 +186,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                             {v.name}
                           </InspectButton>
                         </p>
-                        <p className="text-fg-subtle mt-0.5 truncate text-[12px]" title={v.address}>
+                        <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
                           {v.address}
                         </p>
                       </td>
@@ -207,7 +207,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                       <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
                         {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
                       </td>
-                      <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-[12px] xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
+                      <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
                     </InspectableRow>
                   ))}
                 </tbody>
@@ -216,7 +216,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
           </>
         )}
 
-        <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-[11.5px]">
+        <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-caption">
           <span className="tabular-nums">
             {first}–{first ? first + rows.length - 1 : 0} of {total}
             {filtered && <span className="text-fg-subtle"> · filtered from {venues.length}</span>}

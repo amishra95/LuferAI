@@ -33,14 +33,14 @@ export function Header({
   });
 
   return (
-    <header className="border-line relative z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
+    <header className="on-plum border-line relative z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
       <button type="button" onClick={onOpenMobileNav} aria-label="Open navigation" className="btn btn-ghost btn-icon -ml-1.5 md:hidden">
         <Menu className="size-4" aria-hidden />
       </button>
       <Monogram name={workspaceName} className="md:hidden" />
 
       <nav aria-label="Breadcrumb" className="min-w-0">
-        <ol className="flex items-center gap-2 text-[13px]">
+        <ol className="flex items-center gap-2 text-meta">
           <li className="hidden sm:block">
             <Link href="/dashboard" className="text-fg-subtle hover:text-fg transition-colors">
               {workspaceName}
@@ -50,7 +50,7 @@ export function Header({
             const last = i === crumbs.length - 1;
             return (
               <Fragment key={path}>
-                <li aria-hidden className={i === 0 ? "text-fg-faint hidden font-mono sm:block" : "text-fg-faint font-mono"}>
+                <li aria-hidden className={i === 0 ? "text-fg-faint hidden sm:block" : "text-fg-faint"}>
                   /
                 </li>
                 <li className="min-w-0 truncate">
@@ -78,8 +78,8 @@ export function Header({
         className="btn btn-ghost text-fg-subtle ml-auto h-8 gap-2 px-2 sm:px-2.5"
       >
         <Search className="size-4" aria-hidden />
-        <span className="hidden text-[12.5px] sm:inline">Search</span>
-        <kbd className="border-line hidden rounded border px-1 font-mono text-[10.5px] lg:inline">⌘K</kbd>
+        <span className="hidden text-meta sm:inline">Search</span>
+        <kbd className="border-line rounded-badge hidden border px-1 text-caption lg:inline">⌘K</kbd>
       </button>
 
       <Link
@@ -102,7 +102,7 @@ export function Header({
 
       {account ? (
         <form action={signOut} className="flex items-center gap-2">
-          {account.email && <span className="text-fg-subtle hidden text-[12.5px] lg:inline">{account.email}</span>}
+          {account.email && <span className="text-fg-subtle hidden text-meta lg:inline">{account.email}</span>}
           <button type="submit" aria-label="Sign out" title="Sign out" className="btn btn-ghost btn-icon">
             <LogOut className="size-4" aria-hidden />
           </button>

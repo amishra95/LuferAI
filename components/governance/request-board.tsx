@@ -37,15 +37,15 @@ function Step({ s, companyId, canEscalate, now }: { s: ApprovalRequestView["step
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
-      <span className="figure text-fg-subtle w-12 shrink-0 text-[12px]">Step {s.step}</span>
-      <span className="text-fg min-w-0 text-[13px]">{s.approverName}</span>
-      {s.escalatedFromNames.length ? <span className="text-fg-faint text-[12px]">escalated from {s.escalatedFromNames.join(", then ")}</span> : null}
+      <span className="figure text-fg-subtle w-12 shrink-0 text-caption">Step {s.step}</span>
+      <span className="text-fg min-w-0 text-meta">{s.approverName}</span>
+      {s.escalatedFromNames.length ? <span className="text-fg-faint text-caption">escalated from {s.escalatedFromNames.join(", then ")}</span> : null}
       <Pill tone={overdue ? "error" : STATE[s.state].tone}>{overdue ? "Past deadline" : STATE[s.state].label}</Pill>
       {s.state === "waiting" && s.approval.due_at ? (
-        <span className={cn("figure text-[12px]", overdue ? "text-rose" : "text-fg-subtle")}>due {when(s.approval.due_at)}</span>
+        <span className={cn("figure text-caption", overdue ? "text-rose" : "text-fg-subtle")}>due {when(s.approval.due_at)}</span>
       ) : null}
       {canEscalate && s.state === "waiting" ? (
-        <button type="button" className="btn btn-ghost ml-auto h-7 px-2 text-[12px]" disabled={act.pending} onClick={escalate}>
+        <button type="button" className="btn btn-ghost ml-auto h-7 px-2 text-caption" disabled={act.pending} onClick={escalate}>
           {act.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <TrendingUp className="size-3.5" aria-hidden />}
           Escalate
         </button>
@@ -58,15 +58,15 @@ function Request({ r, companyId, canEscalate, now }: { r: ApprovalRequestView; c
   return (
     <li className="grid gap-2 px-4 py-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-fg text-[13.5px] font-medium">{r.booking.venue_name}</span>
-        <span className="text-fg-subtle text-[12px]">
+        <span className="text-fg text-body font-medium">{r.booking.venue_name}</span>
+        <span className="text-fg-subtle text-caption">
           {r.booking.event_date ? `${formatDate(r.booking.event_date)} · ` : ""}
           {r.booking.party_size} {r.subject === "order" ? "units" : "guests"} · requested by {r.requesterName}
         </span>
-        <span className="figure text-fg ml-auto text-[13px]">{formatINR(r.booking.total_amount_inr)}</span>
+        <span className="figure text-fg ml-auto text-meta">{formatINR(r.booking.total_amount_inr)}</span>
         <Pill tone={OUTCOME[r.outcome].tone}>{OUTCOME[r.outcome].label}</Pill>
       </div>
-      {r.reason ? <p className="text-fg-subtle text-[12px] leading-5">{r.reason}</p> : null}
+      {r.reason ? <p className="text-fg-subtle text-caption leading-5">{r.reason}</p> : null}
       <ol className="border-line border-l pl-3" aria-label="Sign-off steps">
         {r.steps.map((s) => (
           <Step key={s.approval.id} s={s} companyId={companyId} canEscalate={canEscalate && r.outcome === "pending"} now={now} />

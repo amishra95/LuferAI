@@ -21,7 +21,7 @@ export interface HostPackage {
 export function Feedback({ state }: { state: HostFormState }) {
   if (state.status === "idle" || !state.message) return null;
   return (
-    <p role={state.status === "error" ? "alert" : "status"} className={cn("text-[12.5px] leading-5", state.status === "error" ? "text-rose" : "text-sage")}>
+    <p role={state.status === "error" ? "alert" : "status"} className={cn("text-meta leading-5", state.status === "error" ? "text-rose" : "text-sage")}>
       {state.message}
     </p>
   );
@@ -49,22 +49,22 @@ export function BlockDates({ venueId, today, disabledReason, compact = false }: 
         <Button type="button" size={compact ? "sm" : "default"} onClick={() => setOpen(true)} disabled={Boolean(disabledReason)} title={disabledReason}>
           <Plus aria-hidden /> Block dates
         </Button>
-        {disabledReason ? <span className="text-fg-subtle text-[12px]">{disabledReason}</span> : <Feedback state={state} />}
+        {disabledReason ? <span className="text-fg-subtle text-caption">{disabledReason}</span> : <Feedback state={state} />}
       </div>
     );
   }
   return (
     <form action={action} className="border-line bg-surface grid w-full gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
       <input type="hidden" name="venue_id" value={venueId} />
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">From</span>
         <Input name="from" type="date" min={today} required autoFocus />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">To (optional)</span>
         <Input name="to" type="date" min={today} />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Reason (only you see it)</span>
         <Input name="reason" maxLength={120} placeholder="e.g. Maintenance, private event" />
       </label>
@@ -129,7 +129,7 @@ export function RfpCounterForm({
         </div>
       </div>
       {lowestAllowed > 0 && state.status !== "error" ? (
-        <p className="text-fg-subtle text-[12px]">Your guardrails allow {formatINR(lowestAllowed)} a head or more for this request.</p>
+        <p className="text-fg-subtle text-caption">Your guardrails allow {formatINR(lowestAllowed)} a head or more for this request.</p>
       ) : null}
       <Feedback state={state} />
     </form>
@@ -163,7 +163,7 @@ export function DirectQuote({
         <Button type="button" variant="outline" size={size} onClick={() => setOpen(true)} disabled={Boolean(reason)} title={reason}>
           <FileSignature aria-hidden /> Create direct quote
         </Button>
-        {reason ? <span className="text-fg-subtle max-w-72 text-[12px]">{reason}</span> : <Feedback state={state} />}
+        {reason ? <span className="text-fg-subtle max-w-72 text-caption">{reason}</span> : <Feedback state={state} />}
       </div>
     );
   }
@@ -171,7 +171,7 @@ export function DirectQuote({
     <form action={action} className="border-line bg-surface grid w-full gap-3 rounded-lg border p-4 sm:grid-cols-2">
       <input type="hidden" name="venue_id" value={venueId} />
       <h3 className="label-mono sm:col-span-2">Direct quote</h3>
-      <label className="grid gap-1 text-[12.5px] sm:col-span-2">
+      <label className="grid gap-1 text-meta sm:col-span-2">
         <span className="text-fg-subtle">Client</span>
         <NativeSelect name="company_id" required defaultValue="">
           <option value="" disabled>
@@ -184,19 +184,19 @@ export function DirectQuote({
           ))}
         </NativeSelect>
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Event date</span>
         <Input name="event_date" type="date" min={today} required />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Guests</span>
         <Input name="party_size" type="number" min={1} step={1} required />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Per head (₹, pre-GST)</span>
         <Input name="per_head_inr" type="number" min={1} step="any" required />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Menu package</span>
         <NativeSelect name="menu_package_id" defaultValue="">
           <option value="">No package</option>
@@ -207,11 +207,11 @@ export function DirectQuote({
           ))}
         </NativeSelect>
       </label>
-      <label className="grid gap-1 text-[12.5px] sm:col-span-2">
+      <label className="grid gap-1 text-meta sm:col-span-2">
         <span className="text-fg-subtle">Note to client (optional)</span>
         <Input name="notes" maxLength={280} placeholder="What's included, terms, validity" />
       </label>
-      <p className="text-fg-subtle text-[12px] sm:col-span-2">Checked against your capacity, the date&apos;s availability and your guardrails. GST is added on the client&apos;s side.</p>
+      <p className="text-fg-subtle text-caption sm:col-span-2">Checked against your capacity, the date&apos;s availability and your guardrails. GST is added on the client&apos;s side.</p>
       <div className="sm:col-span-2">
         <Feedback state={state} />
       </div>

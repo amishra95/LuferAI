@@ -36,12 +36,12 @@ export function ToolStatus({
       aria-pressed={selected}
       title="Inspect this call"
       className={cn(
-        "inline-flex h-7 max-w-full items-center gap-2 rounded-full border pr-3 pl-1.5 text-left text-[12.5px] transition-colors",
+        "inline-flex h-7 max-w-full items-center gap-2 rounded-full border pr-3 pl-1.5 text-left text-meta transition-colors",
         PHASE_STYLE[phase],
         selected && "ring-fg/50 ring-1"
       )}
     >
-      <span className="bg-surface-raised text-fg-subtle grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-[10px] leading-none tabular-nums">
+      <span className="bg-surface-raised text-fg-subtle grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 font-mono text-caption leading-none tabular-nums">
         {String(step).padStart(2, "0")}
       </span>
       {phase === "running" ? (
@@ -55,7 +55,7 @@ export function ToolStatus({
         {phase === "error" && `${meta.title} failed`}
         {phase === "denied" && `${meta.title} denied`}
       </span>
-      {summary && <span className="text-fg-subtle hidden font-mono text-[11px] sm:inline">{summary}</span>}
+      {summary && <span className="text-fg-subtle hidden font-mono text-caption sm:inline">{summary}</span>}
       {phase === "done" && <Check className="text-sage size-3.5 shrink-0" strokeWidth={2.25} aria-label="done" />}
       {phase === "error" && <AlertTriangle className="size-3.5 shrink-0" aria-label="failed" />}
       {phase === "denied" && <Ban className="size-3.5 shrink-0" aria-label="denied" />}

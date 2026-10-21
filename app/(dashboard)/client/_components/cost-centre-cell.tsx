@@ -38,7 +38,7 @@ export function CostCentreCell({
 
   if (locked) {
     return (
-      <div className="font-mono text-[12px]" title={locked}>
+      <div className="font-mono text-caption" title={locked}>
         {value ? (
           <span className="inline-flex items-center gap-1">
             {value}
@@ -98,7 +98,7 @@ export function CostCentreCell({
             aria-label="Cost centre"
             aria-invalid={Boolean(error)}
             placeholder="e.g. ENG-BLR"
-            className="field h-7 w-28 px-2 font-mono text-[12px] uppercase"
+            className="field h-7 w-28 px-2 font-mono text-caption uppercase"
           />
           <button type="submit" aria-label="Save cost centre" className="btn btn-icon size-7">
             <Check className="size-3.5" aria-hidden />
@@ -108,7 +108,7 @@ export function CostCentreCell({
           </button>
         </div>
         {error && (
-          <p role="alert" className="text-rose max-w-48 text-[11.5px] leading-4">
+          <p role="alert" className="text-rose max-w-48 text-caption leading-4">
             {error}
           </p>
         )}
@@ -117,7 +117,7 @@ export function CostCentreCell({
   }
 
   return (
-    <div className="font-mono text-[12px]">
+    <div className="font-mono text-caption">
       {value ? (
         <button
           type="button"
@@ -133,7 +133,7 @@ export function CostCentreCell({
         <button
           type="button"
           onClick={start}
-          className={cn("border-line-strong text-fg-subtle hover:text-fg hover:border-fg-subtle inline-flex h-6 items-center gap-1 rounded-md border border-dashed px-2 font-sans text-[12px]")}
+          className={cn("border-line-strong text-fg-subtle hover:text-fg hover:border-fg-subtle inline-flex h-6 items-center gap-1 rounded-md border border-dashed px-2 font-sans text-caption")}
         >
           <Plus className="size-3" aria-hidden /> Assign
         </button>

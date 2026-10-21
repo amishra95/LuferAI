@@ -50,8 +50,8 @@ export function VenueCardBody({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-fg line-clamp-2 text-[13.5px] leading-snug font-medium">{v.name}</p>
-          <p className="text-fg-subtle mt-0.5 truncate text-[12px]">
+          <p className="text-fg line-clamp-2 text-body leading-snug font-medium">{v.name}</p>
+          <p className="text-fg-subtle mt-0.5 truncate text-caption">
             {v.neighborhood} · {v.city}
           </p>
         </div>
@@ -61,16 +61,16 @@ export function VenueCardBody({
       <p className="flex items-baseline gap-1.5">
         {v.from_per_head_inr != null ? (
           <>
-            <span className="text-fg-subtle text-[11.5px]">from</span>
-            <span className="figure text-fg text-[13px] font-medium">{formatINR(v.from_per_head_inr)}</span>
-            <span className="text-fg-subtle text-[11.5px]">/ head</span>
+            <span className="text-fg-subtle text-caption">from</span>
+            <span className="figure text-fg text-meta font-medium">{formatINR(v.from_per_head_inr)}</span>
+            <span className="text-fg-subtle text-caption">/ head</span>
           </>
         ) : (
-          <span className="text-fg-subtle text-[12px]">Packages on request</span>
+          <span className="text-fg-subtle text-caption">Packages on request</span>
         )}
       </p>
 
-      <div id={metaId} className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+      <div id={metaId} className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
         <span className="inline-flex items-center gap-1">
           <Users className="size-3.5" aria-hidden /> Up to <span className="figure text-fg-muted">{v.capacity_max}</span>
         </span>
@@ -102,12 +102,12 @@ export function VenueCardBody({
           {v.rate_card_label ? (
             <span
               title="Your company's negotiated rate applies"
-              className="border-line text-fg-muted inline-flex h-5 items-center gap-1 rounded-[4px] border px-1.5 font-mono text-[10.5px]"
+              className="border-line text-fg-muted rounded-badge inline-flex h-5 items-center gap-1 border px-2 text-caption"
             >
               <BadgePercent className="size-3.5" aria-hidden /> Rate card {v.rate_card_label}
             </span>
           ) : null}
-          {v.dietary?.length ? <span className="text-fg-faint text-[11.5px]">{v.dietary.join(" · ")}</span> : null}
+          {v.dietary?.length ? <span className="text-fg-faint text-caption">{v.dietary.join(" · ")}</span> : null}
         </div>
       ) : null}
     </>
@@ -143,7 +143,7 @@ export function VenuePicker({
     <fieldset aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-3">
       <legend className="mb-2 flex w-full items-baseline justify-between gap-3">
         <span className="label-mono">Choose your venue</span>
-        <span className="text-fg-subtle font-mono text-[11px] tabular-nums">
+        <span className="text-fg-subtle font-mono text-caption tabular-nums">
           {venues.length} {venues.length === 1 ? "venue" : "venues"} · pre-GST
         </span>
       </legend>
@@ -178,7 +178,7 @@ export function VenuePicker({
                     aria-hidden
                     className={cn(
                       "grid size-4 shrink-0 place-items-center rounded-full border",
-                      selected ? "border-fg bg-fg text-canvas" : "border-line-strong"
+                      selected ? "border-selected bg-selected text-on-selected" : "border-line-strong"
                     )}
                   >
                     {selected ? <Check className="size-2.5" strokeWidth={3} /> : null}
@@ -191,7 +191,7 @@ export function VenuePicker({
       </div>
 
       {error ? (
-        <p id={`${id}-error`} className="text-destructive text-xs">
+        <p id={`${id}-error`} className="text-destructive text-caption">
           {error}
         </p>
       ) : null}

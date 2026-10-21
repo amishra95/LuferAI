@@ -34,11 +34,11 @@ export function ApprovalThread({
         <ol className="mb-3 space-y-2.5">
           {comments.map((c) => (
             <li key={c.id} className={c.mine ? "bg-surface-raised rounded-lg px-3.5 py-2.5" : "border-line rounded-lg border px-3.5 py-2.5"}>
-              <p className="flex items-baseline justify-between gap-3 text-[12px]">
+              <p className="flex items-baseline justify-between gap-3 text-caption">
                 <span className="text-fg font-medium">{c.author}</span>
-                <time className="text-fg-subtle font-mono text-[11px]">{c.at}</time>
+                <time className="text-fg-subtle font-mono text-caption">{c.at}</time>
               </p>
-              <p className="text-fg-muted mt-1 text-[13px] leading-5 whitespace-pre-wrap">{c.body}</p>
+              <p className="text-fg-muted mt-1 text-meta leading-5 whitespace-pre-wrap">{c.body}</p>
             </li>
           ))}
         </ol>
@@ -66,7 +66,7 @@ export function ApprovalThread({
         </form>
       ) : null}
       {state.status === "error" && (
-        <p role="alert" className="text-rose mt-2 text-[12.5px]">
+        <p role="alert" className="text-rose mt-2 text-meta">
           {state.message}
         </p>
       )}

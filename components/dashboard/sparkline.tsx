@@ -79,7 +79,7 @@ export function Sparkline({
             aria-hidden
           />
           <div
-            className="border-line bg-elevated/95 text-fg pointer-events-none absolute -top-9 z-10 -translate-x-1/2 rounded-lg border px-2 py-1 font-mono text-[11px] whitespace-nowrap"
+            className="border-line bg-elevated/95 text-fg pointer-events-none absolute -top-9 z-10 -translate-x-1/2 rounded-lg border px-2 py-1 font-mono text-caption whitespace-nowrap"
             style={{ left: `${Math.min(85, Math.max(15, (x(hover) / W) * 100))}%` }}
           >
             {formatValue(data[hover])}

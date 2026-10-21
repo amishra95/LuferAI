@@ -68,17 +68,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <section aria-labelledby="activity-heading" className="min-w-0">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 id="activity-heading" className="text-fg text-[15px] font-semibold tracking-[-0.01em]">
+              <h2 id="activity-heading" className="text-fg text-body font-semibold tracking-[-0.01em]">
                 Activity
               </h2>
-              <p className="text-fg-subtle mt-0.5 font-mono text-[11px] tabular-nums">
+              <p className="text-fg-subtle mt-0.5 font-mono text-caption tabular-nums">
                 {events.length} recent · times in IST
               </p>
             </div>
             <ChannelFilter value={filter} counts={counts} />
           </div>
           {liveError && (
-            <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-lg border px-4 py-2.5 text-[12.5px]">
+            <p role="status" className="border-rose/20 bg-rose/[0.04] text-rose mb-3 rounded-lg border px-4 py-2.5 text-meta">
               Some activity couldn&apos;t be loaded right now ({liveError}).
             </p>
           )}

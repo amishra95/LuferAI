@@ -33,7 +33,7 @@ export function MarkdownMatrix({ markdown }: { markdown: string }) {
   return (
     <div className="grid gap-3">
       {intro.map((l, i) => (
-        <p key={i} className="text-sm">
+        <p key={i} className="text-body">
           <Inline text={l} />
         </p>
       ))}

@@ -210,10 +210,10 @@ export function EventRoom({
                 // Idle cursors fade out before they're dropped.
                 style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, opacity: now - c.seenAt > CURSOR_IDLE_MS ? 0 : 1, transitionDuration: now - c.seenAt > CURSOR_IDLE_MS ? "600ms" : undefined }}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" className="-translate-x-0.5 -translate-y-0.5 drop-shadow">
-                  <path d="M1 1l5.5 13 1.8-5.2L13.5 7z" fill={who.color} stroke="#09090b" strokeWidth="1" />
+                <svg width="16" height="16" viewBox="0 0 16 16" className="-translate-x-0.5 -translate-y-0.5">
+                  <path d="M1 1l5.5 13 1.8-5.2L13.5 7z" className="stroke-ink" style={{ fill: who.color }} strokeWidth="1" />
                 </svg>
-                <span className="ml-3 rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-zinc-950" style={{ background: who.color }}>
+                <span className="rounded-badge text-ink ml-3 px-1.5 py-0.5 text-caption font-medium whitespace-nowrap" style={{ background: who.color }}>
                   {who.name}
                 </span>
               </div>
@@ -246,19 +246,19 @@ export function RoomPresence() {
     return () => clearTimeout(t);
   }, [people]);
 
-  if (status === "unavailable") return <span className="text-fg-subtle font-mono text-[11px]">Single-player · live collaboration needs Supabase</span>;
+  if (status === "unavailable") return <span className="text-fg-subtle font-mono text-caption">Single-player · live collaboration needs Supabase</span>;
   const shown = people.slice(0, MAX_AVATARS);
   const extra = people.length - shown.length;
   return (
     <div className="flex items-center gap-3">
       <ul className="flex -space-x-1.5" aria-label="People in this workspace">
         {leaving.map((p) => (
-          <li key={`leaving-${p.userId}`} aria-hidden className="animate-out fade-out zoom-out-90 fill-mode-forwards ring-canvas flex size-7 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-950 ring-2 duration-300" style={{ background: p.color }}>
+          <li key={`leaving-${p.userId}`} aria-hidden className="animate-out fade-out zoom-out-90 fill-mode-forwards ring-canvas flex size-7 items-center justify-center rounded-full text-caption font-semibold text-ink ring-2 duration-300" style={{ background: p.color }}>
             {p.initials}
           </li>
         ))}
         {extra > 0 ? (
-          <li className="ring-canvas bg-surface-raised text-fg-muted order-last flex size-7 items-center justify-center rounded-full font-mono text-[10.5px] ring-2" title={people.slice(MAX_AVATARS).map((p) => p.name).join(", ")}>
+          <li className="ring-canvas bg-surface-raised text-fg-muted order-last flex size-7 items-center justify-center rounded-full font-mono text-caption ring-2" title={people.slice(MAX_AVATARS).map((p) => p.name).join(", ")}>
             +{extra}
           </li>
         ) : null}
@@ -266,7 +266,7 @@ export function RoomPresence() {
           <li
             key={p.userId}
             title={`${p.name}${p.self ? " (you)" : ""}${p.section ? ` · ${p.section}` : ""}${p.tabs > 1 ? ` · ${p.tabs} tabs` : ""}`}
-            className="animate-in fade-in zoom-in-90 ring-canvas flex size-7 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-950 ring-2 duration-300"
+            className="animate-in fade-in zoom-in-90 ring-canvas flex size-7 items-center justify-center rounded-full text-caption font-semibold text-ink ring-2 duration-300"
             style={{ background: p.color }}
           >
             <span aria-hidden>{p.initials}</span>
@@ -277,7 +277,7 @@ export function RoomPresence() {
           </li>
         ))}
       </ul>
-      <span className={cn("inline-flex items-center gap-1.5 font-mono text-[11px]", status === "offline" ? "text-rose" : "text-fg-subtle")}>
+      <span className={cn("inline-flex items-center gap-1.5 font-mono text-caption", status === "offline" ? "text-rose" : "text-fg-subtle")}>
         <span aria-hidden className={status === "live" ? "status-dot bg-sage" : "size-1.5 rounded-full bg-current"} />
         {status === "live" ? `Live · ${people.length} here` : status === "connecting" ? "Connecting…" : "Offline · changes still save"}
       </span>
@@ -291,7 +291,7 @@ export function SectionPresence({ section }: { section: RoomSection }) {
   const here = people.filter((p) => !p.self && p.section === section);
   if (!here.length) return null;
   return (
-    <span className="text-fg-subtle inline-flex items-center gap-1.5 text-[12px] font-normal">
+    <span className="text-fg-subtle inline-flex items-center gap-1.5 text-caption font-normal">
       {here.map((p) => (
         <span key={p.userId} aria-hidden className="size-2 rounded-full" style={{ background: p.color }} />
       ))}
@@ -311,17 +311,17 @@ export function ActivityTicker() {
     return () => clearInterval(t);
   }, []);
   if (activity.length === 0) {
-    return <p className="text-fg-subtle text-[12.5px]">Nothing yet. Edits by your team and guests&apos; replies show up here{status === "live" ? " as they happen" : ""}.</p>;
+    return <p className="text-fg-subtle text-meta">Nothing yet. Edits by your team and guests&apos; replies show up here{status === "live" ? " as they happen" : ""}.</p>;
   }
   return (
     <ol className="grid gap-2.5" aria-live="polite" aria-relevant="additions" aria-label="Recent activity">
       {activity.map((a) => (
-        <li key={a.id} className="animate-in fade-in slide-in-from-top-1 flex gap-2.5 text-[12.5px] leading-5 duration-300">
+        <li key={a.id} className="animate-in fade-in slide-in-from-top-1 flex gap-2.5 text-meta leading-5 duration-300">
           <span aria-hidden className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", KIND_DOT[a.kind])} />
           <span className="min-w-0 flex-1">
             <span className="text-fg font-medium">{a.actor}</span> <span className="text-fg-muted">{a.text}</span>
           </span>
-          <time dateTime={a.at} className="text-fg-faint shrink-0 font-mono text-[11px] tabular-nums">
+          <time dateTime={a.at} className="text-fg-faint shrink-0 font-mono text-caption tabular-nums">
             {relativeTime(a.at, now)}
           </time>
         </li>

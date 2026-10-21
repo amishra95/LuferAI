@@ -199,12 +199,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       ) : null}
 
       {user && role ? (
-        <p className="text-fg-subtle mb-8 text-[12.5px]">
+        <p className="text-fg-subtle mb-8 text-meta">
           Signed in as <span className="text-fg">{user.name}</span> · {ROLE_LABEL[role]}. {ROLE_HELP[role]}
         </p>
       ) : (
         <div role="note" className="bg-surface-raised border-line mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5">
-          <p className="text-fg-muted flex min-w-0 flex-1 items-center gap-2 text-[12.5px]">
+          <p className="text-fg-muted flex min-w-0 flex-1 items-center gap-2 text-meta">
             <ShieldCheck className="text-fg-subtle size-4 shrink-0" aria-hidden />
             <span>
               <span className="text-fg font-medium">Platform admin view: read-only here.</span>{" "}
@@ -222,7 +222,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       )}
 
       {deposit === "success" || deposit === "cancelled" ? (
-        <p role="status" className="bg-surface-raised mb-6 rounded-lg px-4 py-3 text-[13px]">
+        <p role="status" className="bg-surface-raised mb-6 rounded-lg px-4 py-3 text-meta">
           {deposit === "success"
             ? "Deposit authorised — it's captured only when the venue confirms. Status updates here in a moment."
             : "Checkout cancelled. Nothing was charged."}
@@ -243,7 +243,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             href={href({ tab: t.key === "bookings" ? undefined : t.key })}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
-              "relative -mb-px inline-flex h-10 items-center gap-2 px-3 text-[13px] transition-colors",
+              "relative -mb-px inline-flex h-10 items-center gap-2 px-3 text-meta transition-colors",
               activeTab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg"
             )}
           >
@@ -252,7 +252,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             {t.key === "signoffs" && t.count > 0 ? (
               <Badge variant={waitingOnMe > 0 ? "warning" : "secondary"}>{waitingOnMe > 0 ? `${waitingOnMe} for you` : t.count}</Badge>
             ) : null}
-            {activeTab === t.key && <span aria-hidden className="bg-fg absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
+            {activeTab === t.key && <span aria-hidden className="bg-link absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
           </Link>
         ))}
       </nav>
@@ -318,7 +318,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         <div className="space-y-4">
           {signOffs.length === 0 ? (
             <Card>
-              <CardContent className="text-fg-subtle py-6 text-center text-[13px]">No bookings are waiting for sign-off.</CardContent>
+              <CardContent className="text-fg-subtle py-6 text-center text-meta">No bookings are waiting for sign-off.</CardContent>
             </Card>
           ) : (
             signOffs.map((s) => {
@@ -340,12 +340,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-fg-subtle flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11.5px]">
+                    <p className="text-fg-subtle flex flex-wrap gap-x-4 gap-y-1 font-mono text-caption">
                       <span>cc {b.cost_center ?? "—"}</span>
                       {b.project_code && <span>project {b.project_code}</span>}
                       {b.billing_gstin && <span>billed to {b.billing_gstin}</span>}
                     </p>
-                    {s.approvals[0]?.reason && <p className="text-fg-muted text-[13px]">Needs sign-off because {s.approvals[0].reason}.</p>}
+                    {s.approvals[0]?.reason && <p className="text-fg-muted text-meta">Needs sign-off because {s.approvals[0].reason}.</p>}
 
                     <ol className="space-y-2" aria-label="Sign-off chain">
                       {s.approvals.map((a) => {
@@ -353,7 +353,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         return (
                           <li key={a.id} className="border-line flex flex-wrap items-center gap-3 rounded-lg border px-3.5 py-2.5">
                             <span className="label-mono">Tier {a.tier ?? 1}</span>
-                            <span className="text-fg text-[13px]">{a.approver_name}</span>
+                            <span className="text-fg text-meta">{a.approver_name}</span>
                             <span className="ml-auto">
                               {a.status === "APPROVED" ? (
                                 <Badge variant="success">approved</Badge>
@@ -365,7 +365,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                                 <Badge variant="warning">pending</Badge>
                               )}
                             </span>
-                            {a.decision_note && <p className="text-fg-subtle w-full text-[12.5px]">“{a.decision_note}”</p>}
+                            {a.decision_note && <p className="text-fg-subtle w-full text-meta">“{a.decision_note}”</p>}
                           </li>
                         );
                       })}
@@ -373,7 +373,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
                     {mine && user ? (
                       <div className="bg-surface-raised rounded-lg p-4">
-                        <p className="text-fg mb-2 text-[13px] font-medium">Your sign-off</p>
+                        <p className="text-fg mb-2 text-meta font-medium">Your sign-off</p>
                         <ApprovalDecisionForm approvalId={mine.id} />
                       </div>
                     ) : null}
@@ -392,7 +392,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               {statusCounts(bookings).map((c) => (
                 <div key={c.status} className="panel px-4 py-3">
                   <dt className="label-mono">{c.label}</dt>
-                  <dd className={cn("mt-1.5 font-mono text-[22px] leading-none tabular-nums", c.count ? "text-fg" : "text-fg-faint")}>{c.count}</dd>
+                  <dd className={cn("mt-1.5 font-mono text-title leading-none tabular-nums", c.count ? "text-fg" : "text-fg-faint")}>{c.count}</dd>
                 </div>
               ))}
             </dl>
@@ -446,8 +446,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                         const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null }; tax?: { invoice_total?: number } };
                         return (
                           <TableRow key={e.id}>
-                            <TableCell className="font-mono text-[12px]">{CLOCK.format(new Date(e.created_at))}</TableCell>
-                            <TableCell className="font-mono text-[12px]">
+                            <TableCell className="font-mono text-caption">{CLOCK.format(new Date(e.created_at))}</TableCell>
+                            <TableCell className="font-mono text-caption">
                               {r.expense?.cost_center ?? "—"}
                               {r.expense?.project_code && <span className="text-fg-subtle"> / {r.expense.project_code}</span>}
                             </TableCell>
@@ -456,7 +456,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                               <Badge variant={e.status === "failed" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-[12px]" download>
+                              <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-caption" download>
                                 <Download className="size-3.5" aria-hidden /> JSON
                               </a>
                             </TableCell>
@@ -529,9 +529,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                           ) : (
                             <div className="font-medium">{b.venue.name}</div>
                           )}
-                          <div className="text-fg-subtle text-xs">{b.venue.neighborhood}</div>
+                          <div className="text-fg-subtle text-caption">{b.venue.neighborhood}</div>
                           {workspace ? (
-                            <span className="text-fg-muted mt-1 inline-flex items-center gap-1 text-[12px]">
+                            <span className="text-fg-muted mt-1 inline-flex items-center gap-1 text-caption">
                               <Users className="size-3" aria-hidden />
                               {guestCounts.get(b.id) ? `${guestCounts.get(b.id)} guests` : "Plan guests"}
                             </span>
@@ -562,11 +562,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />
                           ) : null}
                           {contracts.get(b.id) ? (
-                            <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="text-fg-subtle hover:text-fg relative z-10 mt-1.5 inline-flex items-center gap-1 text-[12px] underline-offset-2 hover:underline">
+                            <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="text-fg-subtle hover:text-fg relative z-10 mt-1.5 inline-flex items-center gap-1 text-caption underline-offset-2 hover:underline">
                               <FileSignature className="size-3" aria-hidden /> {CONTRACT_STATUS_LABEL[contracts.get(b.id)!.status]}
                             </Link>
                           ) : company.contracts_required && canRequest && b.status === "PENDING" ? (
-                            <IssueContractButton bookingId={b.id} className="relative z-10 mt-1.5 h-7 px-2 text-[12px]" />
+                            <IssueContractButton bookingId={b.id} className="relative z-10 mt-1.5 h-7 px-2 text-caption" />
                           ) : null}
                         </TableCell>
                         <TableCell className="relative z-10">
@@ -576,7 +576,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                               <Download className="text-fg-subtle size-3" aria-label="Download receipt JSON" />
                             </a>
                           ) : receipt.kind === "none" ? (
-                            <span title={receipt.hint} className="text-fg-faint text-[12px]">
+                            <span title={receipt.hint} className="text-fg-faint text-caption">
                               {receipt.label}
                             </span>
                           ) : (
@@ -619,16 +619,16 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           {rfps.length > 0 ? (
             <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
               <div>
-                <h2 id="rfp-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+                <h2 id="rfp-heading" className="text-fg text-body font-semibold tracking-tight">
                   RFP comparisons
                 </h2>
-                <p className="text-fg-subtle text-[13px]">Instant quotes from your packages and rate card; venues can counter-offer.</p>
+                <p className="text-fg-subtle text-meta">Instant quotes from your packages and rate card; venues can counter-offer.</p>
               </div>
               {rfps.map(({ rfp, markdown, columns }) =>
                 rfp.origin === "venue" && columns[0] ? (
                   <Card key={rfp.id} className="gap-3">
                     <CardHeader className="flex flex-row flex-wrap items-center gap-2">
-                      <CardTitle className="text-base">Direct quote from {columns[0].venue.name}</CardTitle>
+                      <CardTitle className="text-body">Direct quote from {columns[0].venue.name}</CardTitle>
                       <Badge variant={rfp.status === "open" ? "warning" : "secondary"}>{rfp.status === "open" ? "Open" : rfp.status === "awarded" ? "Booked" : "Closed"}</Badge>
                       <CardDescription className="flex-1 text-right">{formatDate(rfp.created_at.slice(0, 10))}</CardDescription>
                     </CardHeader>
@@ -651,7 +651,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 ) : (
                 <Card key={rfp.id} className="gap-3">
                   <CardHeader className="flex flex-row flex-wrap items-center gap-2">
-                    <CardTitle className="text-base">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
+                    <CardTitle className="text-body">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
                     <CardDescription className="line-clamp-1 flex-1">{rfp.brief}</CardDescription>
                     <CopyButton text={markdown} label="Copy Markdown" />
                   </CardHeader>

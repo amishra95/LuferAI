@@ -44,7 +44,7 @@ export function ApprovalDecisionForm({ approvalId, className }: { approvalId: st
   if (decision !== "PENDING") {
     return (
       <div className={className ?? "grid gap-3"} role="status">
-        <p className="text-fg flex items-center gap-2 text-sm">
+        <p className="text-fg flex items-center gap-2 text-body">
           {decision === "APPROVED" ? <Check className="text-sage size-4" aria-hidden /> : <X className="text-rose size-4" aria-hidden />}
           {decision === "APPROVED" ? "Approved" : "Rejected"}
           {pending && <Loader2 className="text-fg-subtle size-3.5 animate-spin" aria-label="Saving" />}
@@ -64,7 +64,7 @@ export function ApprovalDecisionForm({ approvalId, className }: { approvalId: st
           rows={2}
           maxLength={500}
           placeholder="Reason for the exception, or what to change"
-          className="field-sizing-content min-h-11 resize-none rounded-md border border-line bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-faint focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="field-sizing-content min-h-11 resize-none rounded-md border border-line bg-surface px-3 py-2 text-body text-fg placeholder:text-fg-faint focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         />
       </div>
       <div className="grid grid-cols-2 gap-2">

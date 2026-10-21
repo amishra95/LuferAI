@@ -41,7 +41,7 @@ export function RateCalendar({ today, multipliers, blocked, weeks = 8 }: { today
                     key={d}
                     title={isBlocked ? `${d}: blocked` : rule ? `${d}: ${rule.label} ×${multiplier}` : `${d}: standard rate`}
                     className={cn(
-                      "rounded-md px-0.5 py-1.5 align-top text-[12px] tabular-nums",
+                      "rounded-md px-0.5 py-1.5 align-top text-caption tabular-nums",
                       past ? "text-fg-faint" : "text-fg-muted",
                       !past && multiplier > 1 && "bg-warn/10 text-fg",
                       !past && multiplier > 1.3 && "bg-warn/20",
@@ -52,7 +52,7 @@ export function RateCalendar({ today, multipliers, blocked, weeks = 8 }: { today
                     <span className={cn("block", isBlocked && "line-through")}>
                       {day === 1 || d === days[0] ? `${day} ${monthOf(d)}` : day}
                     </span>
-                    <span className="block font-mono text-[10.5px]">{!past && !isBlocked && multiplier !== 1 ? `×${multiplier}` : " "}</span>
+                    <span className="block font-mono text-caption">{!past && !isBlocked && multiplier !== 1 ? `×${multiplier}` : " "}</span>
                   </td>
                 );
               })}

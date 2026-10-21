@@ -18,7 +18,7 @@ const OPTIONS: { value: ChannelFilterValue; label: string }[] = [
  */
 export function ChannelFilter({ value, counts }: { value: ChannelFilterValue; counts: Record<ChannelFilterValue, number> }) {
   return (
-    <nav aria-label="Filter activity by channel" className="bg-surface-raised inline-flex max-w-full overflow-x-auto rounded-[10px] p-0.5">
+    <nav aria-label="Filter activity by channel" className="bg-surface-raised inline-flex max-w-full overflow-x-auto rounded-md p-0.5">
       {OPTIONS.map((o) => {
         const active = o.value === value;
         return (
@@ -28,12 +28,12 @@ export function ChannelFilter({ value, counts }: { value: ChannelFilterValue; co
             scroll={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] whitespace-nowrap transition-colors",
+              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-meta whitespace-nowrap transition-colors",
               active ? "bg-surface text-fg font-medium ring-1 ring-line" : "text-fg-subtle hover:text-fg"
             )}
           >
             {o.label}
-            <span className={cn("font-mono text-[10.5px] tabular-nums", active ? "text-fg-subtle" : "text-fg-faint")}>{counts[o.value]}</span>
+            <span className={cn("font-mono text-caption tabular-nums", active ? "text-fg-subtle" : "text-fg-faint")}>{counts[o.value]}</span>
           </Link>
         );
       })}

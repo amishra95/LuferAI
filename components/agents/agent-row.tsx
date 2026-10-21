@@ -85,27 +85,27 @@ export function AgentRow({ agent: serverAgent, status: serverStatus, now, backen
       <div className={cn("hover:bg-surface-hover flex flex-col gap-3 px-5 py-4 transition-colors", AGENT_GRID)}>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <p className="text-fg min-w-0 truncate text-[13.5px] font-medium">
+            <p className="text-fg min-w-0 truncate text-body font-medium">
               <InspectButton kind="agent" id={agent.id} label={agent.name} className="block truncate">
                 {agent.name}
               </InspectButton>
             </p>
-            <span className="border-line text-fg-subtle shrink-0 rounded border px-1.5 py-px font-mono text-[10.5px]" title={`Model backend: ${agent.model}`}>
+            <span className="border-line text-fg-subtle shrink-0 rounded border px-1.5 py-px font-mono text-caption" title={`Model backend: ${agent.model}`}>
               {MODEL_BACKEND_LABEL[agent.model]}
             </span>
             <span className="lg:hidden">
               <AgentStatusBadge status={status} />
             </span>
           </div>
-          <p className="text-fg-subtle mt-0.5 truncate text-[12.5px]" title={agent.description}>
+          <p className="text-fg-subtle mt-0.5 truncate text-meta" title={agent.description}>
             {agent.description}
           </p>
           {agent.instructions && (
-            <p className="text-fg-faint mt-0.5 truncate font-mono text-[11px]" title={agent.instructions}>
+            <p className="text-fg-faint mt-0.5 truncate font-mono text-caption" title={agent.instructions}>
               + {agent.instructions}
             </p>
           )}
-          {lastError && <p className="text-rose/90 mt-1 truncate font-mono text-[11px]" title={lastError}>{lastError}</p>}
+          {lastError && <p className="text-rose/90 mt-1 truncate font-mono text-caption" title={lastError}>{lastError}</p>}
         </div>
 
         <div className="hidden lg:block">
@@ -114,13 +114,13 @@ export function AgentRow({ agent: serverAgent, status: serverStatus, now, backen
 
         <div className="flex flex-wrap gap-1.5">
           {agent.tools.map((t) => (
-            <span key={t} className="border-line bg-surface text-fg-muted rounded-md border px-1.5 py-0.5 font-mono text-[11px]">
+            <span key={t} className="border-line bg-surface text-fg-muted rounded-md border px-1.5 py-0.5 font-mono text-caption">
               {t}
             </span>
           ))}
         </div>
 
-        <div className="text-fg-muted flex flex-wrap gap-x-5 gap-y-1 font-mono text-[12px] tabular-nums lg:contents">
+        <div className="text-fg-muted flex flex-wrap gap-x-5 gap-y-1 font-mono text-caption tabular-nums lg:contents">
           <Cell label="last">{agent.lastRun ? formatAgo(agent.lastRun.at, now) : <span className="text-fg-subtle">never</span>}</Cell>
           <Cell label="runs" className="lg:text-right">{agent.runCount}</Cell>
           <Cell label="steps" className="lg:text-right">{agent.maxSteps}</Cell>
@@ -135,7 +135,7 @@ export function AgentRow({ agent: serverAgent, status: serverStatus, now, backen
             onClick={startTest}
             disabled={testing || !agent.enabled}
             title={agent.enabled ? "Run each assigned tool once with a sample input" : "Enable the agent to run a test"}
-            className="btn h-7 px-2.5 text-[12px]"
+            className="btn h-7 px-2.5 text-caption"
           >
             {testing ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Play className="size-3" aria-hidden />}
             Test
@@ -184,10 +184,10 @@ export function TestResult({ result, onDismiss }: { result: AgentTestResult; onD
       </div>
       <ul className="space-y-1.5">
         {result.tools.map((t) => (
-          <li key={t.name} className="flex items-center gap-2.5 font-mono text-[12px]">
+          <li key={t.name} className="flex items-center gap-2.5 font-mono text-caption">
             {t.ok ? <Check className="text-sage size-3.5" strokeWidth={2.5} aria-label="passed" /> : <X className="text-rose size-3.5" strokeWidth={2.5} aria-label="failed" />}
             <span className="text-fg">{t.name}</span>
-            <span className="text-fg-subtle truncate font-sans text-[12.5px]">{t.summary}</span>
+            <span className="text-fg-subtle truncate font-sans text-meta">{t.summary}</span>
             <span className="text-fg-subtle ml-auto tabular-nums">{t.durationMs} ms</span>
           </li>
         ))}

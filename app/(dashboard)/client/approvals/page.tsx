@@ -33,7 +33,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
       <PortalShell portal="/client/approvals" title="Approvals" subtitle="Bookings outside company policy">
         <div className="glass mx-auto grid max-w-md justify-items-center gap-3 rounded-lg p-8 text-center">
           <ClipboardCheck className="size-6 text-fg-subtle" aria-hidden />
-          <p className="text-sm text-fg-muted">
+          <p className="text-body text-fg-muted">
             You&apos;re not on {company.legal_name.replace(" Private Limited", "")}&apos;s approval chain. Ask a platform
             admin to add you as an approver.
           </p>
@@ -64,7 +64,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
         {/* Queue */}
         <section aria-label="Pending approvals" className={cn("lg:border-r lg:border-line/60", (detail || orderDetail) && "max-lg:hidden")}>
           {queue.length === 0 ? (
-            <div className="grid min-h-64 place-items-center p-8 text-center text-sm text-fg-subtle">
+            <div className="grid min-h-64 place-items-center p-8 text-center text-body text-fg-subtle">
               <div className="grid justify-items-center gap-2">
                 <CircleCheck className="size-6 text-sage" aria-hidden />
                 Nothing waiting for you.
@@ -85,7 +85,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-fg">{a.booking.venue_name}</div>
-                        <div className="text-sm text-fg-subtle">
+                        <div className="text-body text-fg-subtle">
                           {formatDate(a.booking.event_date)} · {a.booking.party_size} {a.subject === "order" ? "units" : "guests"}
                         </div>
                       </div>
@@ -93,10 +93,10 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
                         {formatINR(a.booking.total_amount_inr)}
                       </div>
                     </div>
-                    <div className="text-xs text-fg-faint">
+                    <div className="text-caption text-fg-faint">
                       Requested by {a.requester_name} · {formatDate(a.created_at.slice(0, 10))}
                     </div>
-                    {a.reason ? <p className="line-clamp-2 text-xs text-rose">{a.reason}</p> : null}
+                    {a.reason ? <p className="line-clamp-2 text-caption text-rose">{a.reason}</p> : null}
                   </Link>
                 </li>
               ))}
@@ -109,7 +109,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
           {orderDetail ? (
             <OrderApprovalPane detail={orderDetail} backHref={`/client/approvals${companyQs ? `?${companyQs}` : ""}`} />
           ) : !detail ? (
-            <div className="grid h-full min-h-64 place-items-center p-8 text-sm text-fg-faint">
+            <div className="grid h-full min-h-64 place-items-center p-8 text-body text-fg-faint">
               Select a request to review its GST and policy breakdown.
             </div>
           ) : (
@@ -146,26 +146,26 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
   return (
     <div className="grid gap-6 p-4 sm:p-6">
       <div>
-        <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-fg-subtle hover:text-fg lg:hidden">
+        <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center gap-1 text-body text-fg-subtle hover:text-fg lg:hidden">
           <ArrowLeft className="size-4" aria-hidden /> All requests
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold text-fg">{b.venue.name}</h2>
+          <h2 className="text-section font-semibold text-fg">{b.venue.name}</h2>
           <PendingApprovalPill />
           {savings > 0 ? <RateCardPill label={`−${formatINR(savings)}`} /> : null}
           <GstTypeBadge type={inv.gst_type} />
         </div>
-        <p className="mt-1 text-sm text-fg-subtle">
+        <p className="mt-1 text-body text-fg-subtle">
           {formatDate(b.event_date)} · {b.party_size} guests · {b.venue.neighborhood} · requested by {approval.requester_name}
         </p>
-        {b.notes ? <p className="mt-2 text-sm text-fg-muted">“{b.notes}”</p> : null}
+        {b.notes ? <p className="mt-2 text-body text-fg-muted">“{b.notes}”</p> : null}
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-fg-muted">GST itemisation</h3>
+        <h3 className="mb-2 text-body font-medium text-fg-muted">GST itemisation</h3>
         <dl className="divide-y divide-line rounded-lg border border-line/60 bg-surface">
           {lines.map((l) => (
-            <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-sm">
+            <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-body">
               <dt className={l.muted ? "text-fg-faint" : l.strong ? "font-medium text-fg" : "text-fg-muted"}>{l.label}</dt>
               <dd className={cn("tabular-nums", l.strong ? "font-semibold text-fg" : l.muted ? "text-fg-subtle" : "text-fg")}>
                 {l.value}
@@ -173,20 +173,20 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
             </div>
           ))}
         </dl>
-        <p className="mt-2 text-xs text-fg-faint">
+        <p className="mt-2 text-caption text-fg-faint">
           Supplier {inv.supplier.gstin} ({inv.supplier.state_name}) → recipient {inv.recipient.gstin} · place of supply{" "}
           {inv.place_of_supply.state_name}
         </p>
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-fg-muted">Policy checks</h3>
+        <h3 className="mb-2 text-body font-medium text-fg-muted">Policy checks</h3>
         <ul className="grid gap-2">
           {checks.map((c) => (
             <li
               key={c.rule}
               className={cn(
-                "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm",
+                "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-body",
                 c.ok ? "border-line/60 bg-surface" : "border-rose/30 bg-rose/10"
               )}
             >
@@ -197,16 +197,16 @@ function ApprovalDetailPane({ detail: { approval, booking: b, checks, department
               )}
               <div>
                 <div className={c.ok ? "text-fg" : "font-medium text-rose"}>{c.label}</div>
-                <div className="text-xs text-fg-subtle tabular-nums">{c.detail}</div>
+                <div className="text-caption text-fg-subtle tabular-nums">{c.detail}</div>
               </div>
             </li>
           ))}
           {department ? (
-            <li className="flex items-start gap-3 rounded-lg border border-line/60 bg-surface px-3 py-2.5 text-sm">
+            <li className="flex items-start gap-3 rounded-lg border border-line/60 bg-surface px-3 py-2.5 text-body">
               <ClipboardCheck className="mt-0.5 size-4 shrink-0 text-fg-subtle" aria-hidden />
               <div>
                 <div className="text-fg">{department.name} budget (for reference)</div>
-                <div className="text-xs text-fg-subtle tabular-nums">
+                <div className="text-caption text-fg-subtle tabular-nums">
                   {formatINR(roundInr(department.fyCommittedInr + inv.taxable_value))} of {formatINR(department.annual_budget_inr)} this FY
                   with this booking
                 </div>
@@ -243,51 +243,51 @@ function OrderApprovalPane({ detail: { approval, order: o, invoice: inv, checks 
   return (
     <div className="grid gap-6 p-4 sm:p-6">
       <div>
-        <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-fg-subtle hover:text-fg lg:hidden">
+        <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center gap-1 text-body text-fg-subtle hover:text-fg lg:hidden">
           <ArrowLeft className="size-4" aria-hidden /> All requests
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold text-fg">{o.item_name}</h2>
+          <h2 className="text-section font-semibold text-fg">{o.item_name}</h2>
           <PendingApprovalPill />
           <GstTypeBadge type={inv.gst_type} />
         </div>
-        <p className="mt-1 text-sm text-fg-subtle">
+        <p className="mt-1 text-body text-fg-subtle">
           {CATEGORY_LABEL[category] ?? o.category} from {o.partner_name} · {o.quantity} {unitNoun(category, o.quantity)} ·{" "}
           {o.event_date ? `event ${formatDate(o.event_date)}` : `needed by ${formatDate(o.needed_by ?? "")}`} · requested by {approval.requester_name}
         </p>
-        {o.notes ? <p className="mt-2 text-sm text-fg-muted">“{o.notes}”</p> : null}
+        {o.notes ? <p className="mt-2 text-body text-fg-muted">“{o.notes}”</p> : null}
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-fg-muted">GST itemisation</h3>
+        <h3 className="mb-2 text-body font-medium text-fg-muted">GST itemisation</h3>
         <dl className="divide-y divide-line rounded-lg border border-line/60 bg-surface">
           {lines.map((l) => (
-            <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-sm">
+            <div key={l.label} className="flex justify-between gap-4 px-4 py-2.5 text-body">
               <dt className={l.muted ? "text-fg-faint" : l.strong ? "font-medium text-fg" : "text-fg-muted"}>{l.label}</dt>
               <dd className={cn("tabular-nums", l.strong ? "font-semibold text-fg" : l.muted ? "text-fg-subtle" : "text-fg")}>{l.value}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-2 text-xs text-fg-faint">
+        <p className="mt-2 text-caption text-fg-faint">
           Supplier {inv.supplier.gstin} ({inv.supplier.state_name}) → recipient {inv.recipient.gstin} · place of supply {inv.place_of_supply.state_name}
         </p>
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-fg-muted">Policy checks</h3>
+        <h3 className="mb-2 text-body font-medium text-fg-muted">Policy checks</h3>
         <ul className="grid gap-2">
           {approval.reason ? (
-            <li className="flex items-start gap-3 rounded-lg border border-rose/30 bg-rose/10 px-3 py-2.5 text-sm">
+            <li className="flex items-start gap-3 rounded-lg border border-rose/30 bg-rose/10 px-3 py-2.5 text-body">
               <CircleX className="mt-0.5 size-4 shrink-0 text-rose" aria-label="Breach" />
               <div className="text-rose">{approval.reason}</div>
             </li>
           ) : null}
           {checks.map((c) => (
-            <li key={c.rule} className={cn("flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm", c.ok ? "border-line/60 bg-surface" : "border-rose/30 bg-rose/10")}>
+            <li key={c.rule} className={cn("flex items-start gap-3 rounded-lg border px-3 py-2.5 text-body", c.ok ? "border-line/60 bg-surface" : "border-rose/30 bg-rose/10")}>
               {c.ok ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-sage" aria-label="Pass" /> : <CircleX className="mt-0.5 size-4 shrink-0 text-rose" aria-label="Breach" />}
               <div>
                 <div className={c.ok ? "text-fg" : "font-medium text-rose"}>{c.label}</div>
-                <div className="text-xs text-fg-subtle tabular-nums">{c.detail}</div>
+                <div className="text-caption text-fg-subtle tabular-nums">{c.detail}</div>
               </div>
             </li>
           ))}

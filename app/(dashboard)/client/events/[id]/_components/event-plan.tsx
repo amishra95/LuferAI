@@ -45,7 +45,7 @@ export function SignOffButton({ bookingId, plan, role, readOnlyReason }: { booki
         <Button type="button" disabled className="pointer-events-none">
           <ShieldCheck aria-hidden /> Approve event plan
         </Button>
-        <span className="text-fg-subtle text-[12px]">{blocked}</span>
+        <span className="text-fg-subtle text-caption">{blocked}</span>
       </span>
     );
   }
@@ -75,7 +75,7 @@ export function EventPlanEditor({ bookingId, plan, packages, readOnly, ready }: 
   const pkg = packages.find((p) => p.id === plan.cateringPackageId) ?? null;
   if (!ready) {
     return (
-      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-[13px]">
+      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-meta">
         Event plans need database migration 0026. Ask an admin to apply it; the schedule and guest list work meanwhile.
       </p>
     );
@@ -85,18 +85,18 @@ export function EventPlanEditor({ bookingId, plan, packages, readOnly, ready }: 
 }
 
 function PlanView({ plan, pkg }: { plan: EventPlan; pkg: PlanPackage | null }) {
-  if (!plan.runOfShow.length && !pkg && !plan.specialRequirements) return <p className="text-fg-subtle text-[13px]">No run of show, catering or requirements yet.</p>;
+  if (!plan.runOfShow.length && !pkg && !plan.specialRequirements) return <p className="text-fg-subtle text-meta">No run of show, catering or requirements yet.</p>;
   return (
     <div className="grid gap-5">
       <RunOfShowList items={plan.runOfShow} />
       <div className="grid gap-1">
         <span className="label-mono">Catering</span>
-        <p className="text-[13px]">{pkg ? `${pkg.name} · ${formatINR(pkg.per_head_inr)} a head` : "Not chosen"}</p>
+        <p className="text-meta">{pkg ? `${pkg.name} · ${formatINR(pkg.per_head_inr)} a head` : "Not chosen"}</p>
       </div>
       {plan.specialRequirements ? (
         <div className="grid gap-1">
           <span className="label-mono">Special requirements</span>
-          <p className="text-[13px] whitespace-pre-wrap">{plan.specialRequirements}</p>
+          <p className="text-meta whitespace-pre-wrap">{plan.specialRequirements}</p>
         </div>
       ) : null}
     </div>
@@ -104,11 +104,11 @@ function PlanView({ plan, pkg }: { plan: EventPlan; pkg: PlanPackage | null }) {
 }
 
 function RunOfShowList({ items }: { items: RunOfShowItem[] }) {
-  if (!items.length) return <p className="text-fg-subtle text-[13px]">No run of show yet.</p>;
+  if (!items.length) return <p className="text-fg-subtle text-meta">No run of show yet.</p>;
   return (
     <ol className="grid gap-2" aria-label="Run of show">
       {items.map((i, n) => (
-        <li key={n} className="flex gap-3 text-[13px]">
+        <li key={n} className="flex gap-3 text-meta">
           <span className="text-fg-subtle w-12 shrink-0 font-mono tabular-nums">{i.time}</span>
           <span className="text-fg">{i.item}</span>
         </li>
@@ -193,9 +193,9 @@ function PlanForm({ bookingId, plan, packages }: { bookingId: string; plan: Even
             ))}
           </NativeSelect>
         ) : (
-          <span className="text-fg-subtle text-[12.5px]">The venue hasn&apos;t listed menu packages; note your catering needs below.</span>
+          <span className="text-fg-subtle text-meta">The venue hasn&apos;t listed menu packages; note your catering needs below.</span>
         )}
-        {chosen?.dietary_tags.length ? <span className="text-fg-subtle text-[12px]">Covers: {chosen.dietary_tags.join(", ").replace(/_/g, " ")}</span> : null}
+        {chosen?.dietary_tags.length ? <span className="text-fg-subtle text-caption">Covers: {chosen.dietary_tags.join(", ").replace(/_/g, " ")}</span> : null}
       </label>
 
       <label className="grid gap-1.5">
@@ -206,17 +206,17 @@ function PlanForm({ bookingId, plan, packages }: { bookingId: string; plan: Even
           rows={4}
           maxLength={MAX_REQUIREMENTS}
           placeholder="AV, stage, accessibility, seating, timings the venue should know…"
-          className="field h-auto resize-y py-2 text-[13px] leading-5"
+          className="field h-auto resize-y py-2 text-meta leading-5"
         />
       </label>
 
       {error && (
-        <p role="alert" className="text-rose text-[12.5px]">
+        <p role="alert" className="text-rose text-meta">
           {error}
         </p>
       )}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {signedOff ? <span className="text-fg-subtle text-[12px]">Saving changes means it needs a fresh sign-off.</span> : null}
+        {signedOff ? <span className="text-fg-subtle text-caption">Saving changes means it needs a fresh sign-off.</span> : null}
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCircle2 aria-hidden />} Save plan
         </Button>
@@ -229,7 +229,7 @@ function PlanForm({ bookingId, plan, packages }: { bookingId: string; plan: Even
 export function SignOffTrail({ plan, approverName }: { plan: EventPlan; approverName: string | null }) {
   const s = planStatus(plan);
   return (
-    <p className={cn("text-[12.5px]", s.stage === "changed" ? "text-warn" : "text-fg-subtle")}>
+    <p className={cn("text-meta", s.stage === "changed" ? "text-warn" : "text-fg-subtle")}>
       {s.stage === "approved"
         ? `Signed off by ${approverName ?? "an Approver"}${plan.approvedAt ? ` on ${STAMP.format(new Date(plan.approvedAt))}` : ""}. ${s.venueAcknowledged ? `The venue confirmed it${plan.venueAckAt ? ` on ${STAMP.format(new Date(plan.venueAckAt))}` : ""}.` : "Waiting for the venue to confirm."}`
         : s.stage === "changed"

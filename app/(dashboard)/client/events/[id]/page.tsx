@@ -91,7 +91,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
     >
       <EventRoom bookingId={booking.id} self={{ userId: member.userId, name: displayName(member.email) }} realtime={dataSource() === "supabase"} activity={activity}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={back} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-[13px]">
+          <Link href={back} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-meta">
             <ArrowLeft className="size-3.5" aria-hidden /> All bookings
           </Link>
           <RoomPresence />
@@ -100,23 +100,23 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
         <dl aria-label="Event overview" className="panel grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
           <Fact label="Date">
             {formatDate(booking.event_date)}
-            <span className="text-fg-subtle block text-[12px]">
+            <span className="text-fg-subtle block text-caption">
               {time(workspace.starts_at)}–{time(workspace.ends_at)} IST
             </span>
           </Fact>
           <Fact label="Venue">
             {booking.venue.name}
-            <span className="text-fg-subtle block text-[12px]">{booking.venue.neighborhood}</span>
+            <span className="text-fg-subtle block text-caption">{booking.venue.neighborhood}</span>
           </Fact>
           <Fact label="Guests">
             <span className="tabular-nums">{booking.party_size} booked</span>
-            <span className="text-fg-subtle block text-[12px] tabular-nums">
+            <span className="text-fg-subtle block text-caption tabular-nums">
               {summary.going} going · {attendees.length} invited
             </span>
           </Fact>
           <Fact label="Cost centre">
             <span className="font-mono">{booking.cost_center ?? "—"}</span>
-            {booking.project_code ? <span className="text-fg-subtle block font-mono text-[12px]">{booking.project_code}</span> : null}
+            {booking.project_code ? <span className="text-fg-subtle block font-mono text-caption">{booking.project_code}</span> : null}
           </Fact>
           <Fact label="Status">
             <span className="flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
           >
             <ClipboardCheck className="text-fg-subtle size-5 shrink-0" aria-hidden />
             <div className="min-w-0 flex-1">
-              <p className="text-fg text-[14px] font-medium">{stage === "changed" ? "The event plan changed after sign-off" : "The event plan needs sign-off"}</p>
+              <p className="text-fg text-body font-medium">{stage === "changed" ? "The event plan changed after sign-off" : "The event plan needs sign-off"}</p>
               <SignOffTrail plan={plan} approverName={plan.approvedBy ? (people[plan.approvedBy] ?? null) : null} />
             </div>
             <SignOffButton bookingId={booking.id} plan={plan} role={role} readOnlyReason={adminReadOnly ?? (isPlannable(booking.status) ? undefined : "This event can no longer be changed.")} />
@@ -141,7 +141,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
         ) : null}
 
         {readOnly && canPlan ? (
-          <p role="status" className="border-line text-fg-muted rounded-md border px-3 py-2 text-[13px]">
+          <p role="status" className="border-line text-fg-muted rounded-md border px-3 py-2 text-meta">
             This event is {booking.status.toLowerCase()}: the schedule and guest list are read-only.
           </p>
         ) : null}
@@ -155,9 +155,9 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
             ...(showCheckIn ? [{ label: "Attended", value: checkins.attended.size, hint: checkInReason ?? `of ${summary.going} going` }] : []),
           ].map((s) => (
             <div key={s.label} className={cn("border-line rounded-md border px-3 py-2.5", s.alert && "border-rose/40")}>
-              <div className="text-fg-subtle text-[12px]">{s.label}</div>
-              <div className="text-xl font-semibold tabular-nums">{s.value}</div>
-              <div className={cn("text-[12px]", s.alert ? "text-rose" : "text-fg-faint")}>{s.hint}</div>
+              <div className="text-fg-subtle text-caption">{s.label}</div>
+              <div className="text-section font-semibold tabular-nums">{s.value}</div>
+              <div className={cn("text-caption", s.alert ? "text-rose" : "text-fg-faint")}>{s.hint}</div>
             </div>
           ))}
         </section>
@@ -187,7 +187,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
             </CardHeader>
             <CardContent className="grid gap-4">
               {dietary.length ? (
-                <div className="border-line flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5 text-[12.5px]" aria-label="Dietary needs">
+                <div className="border-line flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5 text-meta" aria-label="Dietary needs">
                   <Salad className="text-fg-subtle size-4" aria-hidden />
                   <span className="text-fg-subtle">Dietary needs (going or maybe):</span>
                   {dietary.map((d) => (
@@ -216,12 +216,12 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 <CardDescription>From the booking&apos;s tax invoice (SAC 998596). GST is claimable as input tax credit.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <dl className="grid gap-1.5 text-[13px]">
+                <dl className="grid gap-1.5 text-meta">
                   {lines.map((l) => (
                     <div key={l.label} className={cn("flex items-baseline justify-between gap-3", (l.kind === "subtotal" || l.kind === "total") && "border-line border-t pt-1.5")}>
                       <dt className={cn(l.kind === "total" ? "text-fg font-medium" : "text-fg-muted")}>
                         {l.label}
-                        {l.detail ? <span className="text-fg-faint block text-[11.5px]">{l.detail}</span> : null}
+                        {l.detail ? <span className="text-fg-faint block text-caption">{l.detail}</span> : null}
                       </dt>
                       <dd className={cn("font-mono tabular-nums", l.kind === "total" ? "text-fg font-semibold" : l.kind === "discount" ? "text-sage" : "text-fg")}>
                         {l.kind === "discount" ? `−${formatINR(Math.abs(l.amount), true)}` : formatINR(l.amount, true)}
@@ -229,7 +229,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                     </div>
                   ))}
                 </dl>
-                <ul className="grid gap-2 text-[12.5px]">
+                <ul className="grid gap-2 text-meta">
                   <ReadinessRow item={deposit} badge={payment ? <PaymentStatusBadge status={payment.status} /> : null} />
                   <ReadinessRow item={receipt} action={receiptExport ? <a href={`/api/exports/${receiptExport.id}`} download className="text-fg hover:underline">Download</a> : null} />
                 </ul>
@@ -292,7 +292,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div className="min-w-0">
       <dt className="label-mono">{label}</dt>
-      <dd className="text-fg mt-1 text-[13.5px]">{children}</dd>
+      <dd className="text-fg mt-1 text-body">{children}</dd>
     </div>
   );
 }
@@ -305,7 +305,7 @@ function ReadinessRow({ item, badge, action }: { item: Readiness; badge?: React.
       <span aria-hidden className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", READINESS_DOT[item.tone])} />
       <span className="min-w-0 flex-1">
         <span className={cn(item.tone === "problem" ? "text-rose" : "text-fg")}>{item.label}</span>
-        <span className="text-fg-subtle block text-[12px]">{item.hint}</span>
+        <span className="text-fg-subtle block text-caption">{item.hint}</span>
       </span>
       {badge}
       {action}

@@ -107,10 +107,10 @@ export function GuestList({ bookingId, guests, readOnly, checkIn }: { bookingId:
             id="guests"
             rows={3}
             placeholder={"Asha Rao <asha@nimbus.in>\nDev Iyer, dev@nimbus.in"}
-            className="field-sizing-content min-h-20 resize-none rounded-md border border-line bg-surface px-3 py-2 font-mono text-[13px] text-fg placeholder:text-fg-faint focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="field-sizing-content min-h-20 resize-none rounded-md border border-line bg-surface px-3 py-2 font-mono text-meta text-fg placeholder:text-fg-faint focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           />
           <div className="flex items-center justify-between gap-3">
-            <span className="text-fg-subtle text-[12px]">Paste from a spreadsheet or email: names are optional, duplicates are skipped.</span>
+            <span className="text-fg-subtle text-caption">Paste from a spreadsheet or email: names are optional, duplicates are skipped.</span>
             <Button type="submit" disabled={add.pending} className="min-h-11 sm:min-h-9">
               {add.pending ? <Loader2 className="animate-spin" aria-hidden /> : <UserPlus aria-hidden />} Add
             </Button>
@@ -119,7 +119,7 @@ export function GuestList({ bookingId, guests, readOnly, checkIn }: { bookingId:
       ) : null}
 
       {showCheckIn && rows.length > 0 ? (
-        <div className="bg-surface-raised flex flex-wrap items-center gap-3 rounded-md px-3 py-2 text-[12.5px]">
+        <div className="bg-surface-raised flex flex-wrap items-center gap-3 rounded-md px-3 py-2 text-meta">
           <span className="text-fg">
             <span className="font-medium tabular-nums">{Object.keys(attended).length}</span> attended
           </span>
@@ -153,13 +153,13 @@ export function GuestList({ bookingId, guests, readOnly, checkIn }: { bookingId:
               <TableRow key={g.id}>
                 <TableCell>
                   <div className="font-medium">{g.name}</div>
-                  <div className="text-fg-subtle font-mono text-[12px]">{g.email}</div>
+                  <div className="text-fg-subtle font-mono text-caption">{g.email}</div>
                 </TableCell>
                 <TableCell>
                   {readOnly ? (
-                    <span className={cn("text-[13px]", STATUS_TONE[g.status])}>{RSVP_LABEL[g.status]}</span>
+                    <span className={cn("text-meta", STATUS_TONE[g.status])}>{RSVP_LABEL[g.status]}</span>
                   ) : (
-                    <NativeSelect aria-label={`Reply for ${g.name}`} value={g.status} onChange={(e) => void setStatus(g, e.target.value as RsvpStatus)} className={cn("h-8 w-36 text-[13px]", STATUS_TONE[g.status])}>
+                    <NativeSelect aria-label={`Reply for ${g.name}`} value={g.status} onChange={(e) => void setStatus(g, e.target.value as RsvpStatus)} className={cn("h-8 w-36 text-meta", STATUS_TONE[g.status])}>
                       {RSVP_STATUSES.map((s) => (
                         <option key={s} value={s}>
                           {RSVP_LABEL[s]}
@@ -171,19 +171,19 @@ export function GuestList({ bookingId, guests, readOnly, checkIn }: { bookingId:
                 {showCheckIn ? (
                   <TableCell>
                     {checkIn?.canMark ? (
-                      <label className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-meta">
                         <input type="checkbox" checked={Boolean(attended[g.id])} onChange={(e) => void setAttended([g.id], e.target.checked, g.name)} className="accent-fg size-4" aria-label={`${g.name} attended`} />
                         {attended[g.id] ? <span className="text-sage">Attended</span> : <span className="text-fg-faint">—</span>}
                       </label>
                     ) : attended[g.id] ? (
-                      <span className="text-sage text-[13px]">Attended</span>
+                      <span className="text-sage text-meta">Attended</span>
                     ) : (
-                      <span className="text-fg-faint text-[13px]">—</span>
+                      <span className="text-fg-faint text-meta">—</span>
                     )}
                   </TableCell>
                 ) : null}
                 <TableCell className="text-right tabular-nums">{g.plusOnes || <span className="text-fg-faint">—</span>}</TableCell>
-                <TableCell className="max-w-48 truncate text-[13px]" title={g.dietary ?? undefined}>
+                <TableCell className="max-w-48 truncate text-meta" title={g.dietary ?? undefined}>
                   {g.dietary ?? <span className="text-fg-faint">—</span>}
                 </TableCell>
                 <TableCell className="text-right">

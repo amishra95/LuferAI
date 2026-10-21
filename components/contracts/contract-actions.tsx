@@ -45,26 +45,26 @@ export function SignPanel({ contractId, documentSha256, party, defaultName }: { 
   return (
     <div className="panel grid gap-3 p-4">
       <div>
-        <h2 className="text-fg text-[13.5px] font-medium">{party === "client" ? "Sign for your company" : "Countersign for the venue"}</h2>
-        <p className="text-fg-subtle mt-1 text-[12.5px] leading-5">
+        <h2 className="text-fg text-body font-medium">{party === "client" ? "Sign for your company" : "Countersign for the venue"}</h2>
+        <p className="text-fg-subtle mt-1 text-meta leading-5">
           {party === "client"
             ? "The venue countersigns next. The booking is confirmed once both have signed."
             : "Countersigning executes the agreement and confirms the booking: the date is locked and the deposit is captured."}
         </p>
       </div>
-      <label className="grid gap-1 text-[12px]">
+      <label className="grid gap-1 text-caption">
         <span className="text-fg-subtle">Full name</span>
         <input className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" />
       </label>
-      <label className="grid gap-1 text-[12px]">
+      <label className="grid gap-1 text-caption">
         <span className="text-fg-subtle">Title (optional)</span>
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={party === "client" ? "e.g. Head of Finance" : "e.g. General Manager"} />
       </label>
-      <label className="flex items-start gap-2 text-[12.5px] leading-5">
+      <label className="flex items-start gap-2 text-meta leading-5">
         <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         <span className="text-fg-muted">I have read this agreement, I am authorised to sign it, and I agree to sign it electronically.</span>
       </label>
-      <p className="text-fg-faint font-mono text-[11px] break-all">SHA-256 {documentSha256}</p>
+      <p className="text-fg-faint font-mono text-caption break-all">SHA-256 {documentSha256}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -86,7 +86,7 @@ export function SignPanel({ contractId, documentSha256, party, defaultName }: { 
       </div>
       {declining ? (
         <div className="grid gap-2">
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Why are you declining? The other party sees this.</span>
             <input className="field" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="e.g. Guest count is changing" />
           </label>
@@ -109,7 +109,7 @@ export function VoidContractButton({ contractId }: { contractId: string }) {
   return (
     <button
       type="button"
-      className="btn btn-ghost text-[12.5px]"
+      className="btn btn-ghost text-meta"
       disabled={act.pending}
       onClick={() => {
         const reason = prompt("Why are you voiding this contract? Both parties see the reason.");

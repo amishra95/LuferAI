@@ -34,10 +34,10 @@ function Slider({
   return (
     <div className={cn("grid gap-1.5", disabled && "opacity-50")}>
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={`gt-${id}`} className="text-fg text-[13px]">
+        <label htmlFor={`gt-${id}`} className="text-fg text-meta">
           {label}
         </label>
-        <output htmlFor={`gt-${id}`} className="text-fg font-mono text-[13px] tabular-nums">
+        <output htmlFor={`gt-${id}`} className="text-fg font-mono text-meta tabular-nums">
           {format(value)}
         </output>
       </div>
@@ -53,7 +53,7 @@ function Slider({
         className="accent-fg w-full"
         aria-valuetext={format(value)}
       />
-      <span className="text-fg-subtle text-[12px] leading-5">{hint}</span>
+      <span className="text-fg-subtle text-caption leading-5">{hint}</span>
     </div>
   );
 }
@@ -62,8 +62,8 @@ function Switch({ checked, onChange, label, hint }: { checked: boolean; onChange
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4">
       <span>
-        <span className="text-fg block text-[13px]">{label}</span>
-        <span className="text-fg-subtle block text-[12px] leading-5">{hint}</span>
+        <span className="text-fg block text-meta">{label}</span>
+        <span className="text-fg-subtle block text-caption leading-5">{hint}</span>
       </span>
       <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-fg mt-1 size-4 shrink-0" />
     </label>
@@ -94,7 +94,7 @@ export function GuardrailTuning({ settings, ready, updatedAt }: { settings: Plat
 
   if (!ready) {
     return (
-      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-[13px]">
+      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-meta">
         Guardrail tuning needs the Supabase database with migration 0028 (platform_guardrail_settings). The built-in limits apply until then: a {DEFAULT_PLATFORM_GUARDRAILS.maxDiscountPct}% discount
         cap, no escalation, and ±{DEFAULT_PLATFORM_GUARDRAILS.minSpendMaxChangePct}% per AI minimum-spend change.
       </p>
@@ -148,7 +148,7 @@ export function GuardrailTuning({ settings, ready, updatedAt }: { settings: Plat
 
       <fieldset className="grid gap-3">
         <legend className="label-mono mb-2">Escalation thresholds</legend>
-        <p className="text-fg-subtle -mt-1 text-[12px] leading-5">An automatic counter past either threshold isn&apos;t sent: the instant quote stands and the host decides. Shown as Escalated in the activity feed.</p>
+        <p className="text-fg-subtle -mt-1 text-caption leading-5">An automatic counter past either threshold isn&apos;t sent: the instant quote stands and the host decides. Shown as Escalated in the activity feed.</p>
         {optional("escalateDiscountPct", "Escalate deep discounts", "Automatic counters more than this far below the venue's price.", "Escalate beyond", (v) => `${v}% off`)}
         {optional("escalateTotalInr", "Escalate large deals", "Automatic counters whose pre-GST total is above this.", "Escalate above", (v) => formatINR(v))}
       </fieldset>
@@ -170,15 +170,15 @@ export function GuardrailTuning({ settings, ready, updatedAt }: { settings: Plat
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-2">
-        {updatedAt ? <span className="text-fg-faint text-[12px]">Last saved {new Date(updatedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> : null}
+        {updatedAt ? <span className="text-fg-faint text-caption">Last saved {new Date(updatedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span> : null}
         <span className="ml-auto flex gap-2">
-          <button type="button" className="btn h-8 px-3 text-[12.5px]" disabled={isDefault || save.pending} onClick={() => setDraft(DEFAULT_PLATFORM_GUARDRAILS)}>
+          <button type="button" className="btn h-8 px-3 text-meta" disabled={isDefault || save.pending} onClick={() => setDraft(DEFAULT_PLATFORM_GUARDRAILS)}>
             <RotateCcw className="size-3.5" aria-hidden /> Defaults
           </button>
-          <button type="button" className="btn h-8 px-3 text-[12.5px]" disabled={!dirty || save.pending} onClick={() => setDraft(settings)}>
+          <button type="button" className="btn h-8 px-3 text-meta" disabled={!dirty || save.pending} onClick={() => setDraft(settings)}>
             Discard
           </button>
-          <button type="submit" className="btn btn-primary h-8 px-3 text-[12.5px]" disabled={!dirty || save.pending}>
+          <button type="submit" className="btn btn-secondary h-8 px-3 text-meta" disabled={!dirty || save.pending}>
             {save.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Save className="size-3.5" aria-hidden />} Save guardrails
           </button>
         </span>

@@ -57,8 +57,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardDescription>Corporate spend · {a.fyLabel} to date (pre-GST)</CardDescription>
-              <CardTitle className="text-4xl font-semibold tracking-tight tabular-nums">{formatINR(a.fytdSpend)}</CardTitle>
-              <p className="text-fg-subtle text-xs">
+              <CardTitle className="text-hero font-semibold tracking-tight tabular-nums">{formatINR(a.fytdSpend)}</CardTitle>
+              <p className="text-fg-subtle text-caption">
                 {formatINR(a.committedAhead)} more committed for later this year · {a.pendingApprovals} awaiting corporate approval
               </p>
             </CardHeader>
@@ -69,7 +69,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <Card>
             <CardHeader>
               <CardDescription>Rate-card savings · {a.fyLabel} to date</CardDescription>
-              <CardTitle className="text-3xl font-semibold tabular-nums">{formatINR(a.fytdSavings)}</CardTitle>
+              <CardTitle className="text-warn text-hero font-semibold tabular-nums">{formatINR(a.fytdSavings)}</CardTitle>
             </CardHeader>
             <CardContent>
               <SavingsChart months={a.months} />
@@ -115,7 +115,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   <TableRow key={r.id}>
                     <TableCell>
                       <div className="font-medium">{r.venue_name}</div>
-                      <div className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-caption">
                         {r.neighborhood}, {r.city} · {r.capacity_max ?? "—"} pax{r.pdr_available ? " · PDR" : ""}
                       </div>
                     </TableCell>
@@ -163,7 +163,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <TableCell className="tabular-nums">{formatDate(b.event_date)}</TableCell>
                     <TableCell>
                       <div className="font-medium">{b.company.legal_name.replace(" Private Limited", "")}</div>
-                      <div className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-caption">
                         {b.venue.name} · {b.party_size} pax
                       </div>
                     </TableCell>
@@ -206,9 +206,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null } };
                   return (
                     <TableRow key={e.id}>
-                      <TableCell className="font-mono text-[12px] tabular-nums">{e.created_at.slice(0, 16).replace("T", " ")}</TableCell>
+                      <TableCell className="font-mono text-caption tabular-nums">{e.created_at.slice(0, 16).replace("T", " ")}</TableCell>
                       <TableCell>{companyName.get(e.tenant_id) ?? e.tenant_id.slice(0, 8)}</TableCell>
-                      <TableCell className="font-mono text-[12px]">
+                      <TableCell className="font-mono text-caption">
                         {r.expense?.cost_center ?? "—"}
                         {r.expense?.project_code ? ` / ${r.expense.project_code}` : ""}
                       </TableCell>
@@ -217,11 +217,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                           <ExportStatusBadge status={e.status} />
                         </span>
                       </TableCell>
-                      <TableCell className="text-fg-subtle font-mono text-[11.5px]" title={e.payload_sha256}>
+                      <TableCell className="text-fg-subtle font-mono text-caption" title={e.payload_sha256}>
                         {e.payload_sha256.slice(0, 16)}…
                       </TableCell>
                       <TableCell className="text-right">
-                        <a href={`/api/exports/${e.id}`} download className="text-fg text-[12px] hover:underline">
+                        <a href={`/api/exports/${e.id}`} download className="text-fg text-caption hover:underline">
                           receipt.json
                         </a>
                       </TableCell>
@@ -279,19 +279,19 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <TableCell className="tabular-nums">{formatDate(a.created_at.slice(0, 10))}</TableCell>
                     <TableCell>
                       <div className="font-medium">{shortName(a.company.legal_name)}</div>
-                      <div className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-caption">
                         {a.booking.venue_name} · {formatDate(a.booking.event_date)} · {a.booking.party_size} pax
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatINR(a.booking.total_amount_inr)}</TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-body">
                       {a.requester_name}
                       <span className="text-muted-foreground"> → </span>
                       {a.approver_name}
                     </TableCell>
-                    <TableCell className="max-w-xs text-sm whitespace-normal">
+                    <TableCell className="max-w-xs text-body whitespace-normal">
                       {a.reason ?? "—"}
-                      {a.decision_note ? <div className="text-muted-foreground mt-1 text-xs">“{a.decision_note}”</div> : null}
+                      {a.decision_note ? <div className="text-muted-foreground mt-1 text-caption">“{a.decision_note}”</div> : null}
                     </TableCell>
                     <TableCell>
                       <ApprovalStatusBadge status={a.status} />

@@ -84,7 +84,7 @@ function Segmented<T extends string>({
   to: (v: T) => string;
 }) {
   return (
-    <nav aria-label={label} className="bg-surface-raised inline-flex max-w-full overflow-x-auto rounded-[10px] p-0.5">
+    <nav aria-label={label} className="bg-surface-raised inline-flex max-w-full overflow-x-auto rounded-md p-0.5">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -94,12 +94,12 @@ function Segmented<T extends string>({
             scroll={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] whitespace-nowrap transition-colors",
+              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-meta whitespace-nowrap transition-colors",
               active ? "bg-surface text-fg font-medium ring-1 ring-line" : "text-fg-subtle hover:text-fg"
             )}
           >
             {o.label}
-            <span className={cn("font-mono text-[10.5px] tabular-nums", active ? "text-fg-subtle" : "text-fg-faint")}>{counts[o.value]}</span>
+            <span className={cn("font-mono text-caption tabular-nums", active ? "text-fg-subtle" : "text-fg-faint")}>{counts[o.value]}</span>
           </Link>
         );
       })}
@@ -129,12 +129,12 @@ function EventRow({ e, now }: { e: ObservabilityEvent; now: number }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <OutcomeBadge outcome={e.outcome} />
-            <p className="text-fg min-w-0 truncate text-[13px] font-medium" title={e.title}>
+            <p className="text-fg min-w-0 truncate text-meta font-medium" title={e.title}>
               {e.title}
             </p>
           </div>
-          <p className="text-fg-subtle mt-1 text-[12.5px] leading-5">{e.detail}</p>
-          <div className="text-fg-faint mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
+          <p className="text-fg-subtle mt-1 text-meta leading-5">{e.detail}</p>
+          <div className="text-fg-faint mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-caption">
             <span className="text-fg-subtle">
               {label} · {AGENT_NAME[e.agent] ?? e.agent}
             </span>
@@ -148,7 +148,7 @@ function EventRow({ e, now }: { e: ObservabilityEvent; now: number }) {
             {e.traceId && <span title="Trace id (spans and timings on /admin/analytics)">trace {e.traceId.slice(0, 8)}</span>}
           </div>
           {e.fallback && (
-            <p className="border-line text-fg-muted mt-2 flex items-start gap-2 rounded-md border border-dashed px-3 py-2 text-[12px] leading-5">
+            <p className="border-line text-fg-muted mt-2 flex items-start gap-2 rounded-md border border-dashed px-3 py-2 text-caption leading-5">
               <CornerDownRight className="text-fg-subtle mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>
                 <span className="label-mono mr-1.5">manual path</span>
@@ -157,7 +157,7 @@ function EventRow({ e, now }: { e: ObservabilityEvent; now: number }) {
             </p>
           )}
         </div>
-        <div className="shrink-0 text-right font-mono text-[11px] tabular-nums">
+        <div className="shrink-0 text-right font-mono text-caption tabular-nums">
           <time dateTime={e.at} title={`${CLOCK.format(new Date(e.at))} IST`} className="text-fg-subtle block">
             {formatAgo(e.at, now)}
           </time>
@@ -187,10 +187,10 @@ function NoActivity({ kind }: { kind: KindFilter }) {
         description="Rows appear as agents run. Traces live in Upstash Redis when it's configured (otherwise in this server's memory, cleared on restart), so a fresh instance starts empty."
         action={
           <>
-            <Link href="/client" className="btn h-8 px-3 text-[12.5px]">
+            <Link href="/client" className="btn h-8 px-3 text-meta">
               Open /client <ArrowUpRight className="size-3.5" aria-hidden />
             </Link>
-            <Link href="/property" className="btn h-8 px-3 text-[12.5px]">
+            <Link href="/property" className="btn h-8 px-3 text-meta">
               Open /property <ArrowUpRight className="size-3.5" aria-hidden />
             </Link>
           </>
@@ -213,7 +213,7 @@ function NoActivity({ kind }: { kind: KindFilter }) {
           ]}
         />
       </div>
-      <p className="text-fg-subtle mt-3 text-[12px] leading-5">
+      <p className="text-fg-subtle mt-3 text-caption leading-5">
         WhatsApp and Slack messages run the channel concierge, whose bookings pass the createBooking guardrail. The Test button on an agent above logs a tool smoke test without calling the model.
       </p>
     </div>
@@ -226,8 +226,8 @@ function TriggerCard({ surface, steps }: { surface: string; steps: [string, stri
       <p className="label-mono mb-2">triggers on {surface}</p>
       <ol className="space-y-2">
         {steps.map(([title, body], i) => (
-          <li key={title} className="flex gap-2.5 text-[12.5px] leading-5">
-            <span className="text-fg-faint font-mono text-[11px] tabular-nums">{i + 1}</span>
+          <li key={title} className="flex gap-2.5 text-meta leading-5">
+            <span className="text-fg-faint font-mono text-caption tabular-nums">{i + 1}</span>
             <span>
               <span className="text-fg">{title}</span>
               <span className="text-fg-subtle block">{body}</span>
@@ -262,13 +262,13 @@ export function TraceFeed({
     <section id="activity" aria-labelledby="activity-heading" className="scroll-mt-6">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="activity-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+          <h2 id="activity-heading" className="text-fg text-body font-semibold tracking-tight">
             Trace &amp; execution log
           </h2>
-          <p className="text-fg-subtle mt-0.5 text-[12.5px]">Negotiation steps, guardrail decisions and prompt calls, newest first.</p>
+          <p className="text-fg-subtle mt-0.5 text-meta">Negotiation steps, guardrail decisions and prompt calls, newest first.</p>
         </div>
         {errors.length > 0 && (
-          <span className="text-rose font-mono text-[11px]" role="status">
+          <span className="text-rose font-mono text-caption" role="status">
             partial: {errors.join(", ")}
           </span>
         )}
@@ -294,7 +294,7 @@ export function TraceFeed({
                   : `${OUTCOME[outcome as TraceOutcome].hint}. None of the ${byKind.length} recorded ${kind === "all" ? "" : `${KINDS.find((k) => k.value === kind)!.label.toLowerCase()} `}rows match.`
               }
               action={
-                <Link href={href(kind, "all")} scroll={false} className="btn h-8 px-3 text-[12.5px]">
+                <Link href={href(kind, "all")} scroll={false} className="btn h-8 px-3 text-meta">
                   Show any status
                 </Link>
               }
@@ -309,7 +309,7 @@ export function TraceFeed({
         )}
       </div>
       {visible.length > shown.length && (
-        <p className="text-fg-subtle mt-2 font-mono text-[11px]">
+        <p className="text-fg-subtle mt-2 font-mono text-caption">
           Showing the newest {shown.length} of {visible.length}.
         </p>
       )}

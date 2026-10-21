@@ -80,7 +80,7 @@ export function LiveRun({ agentId, disabled }: { agentId: string; disabled?: str
         <h3 id={`${agentId}-live-run`} className="label-mono">
           Live run
         </h3>
-        <span className="text-fg-subtle text-[11.5px]">Uses the saved settings</span>
+        <span className="text-fg-subtle text-caption">Uses the saved settings</span>
       </div>
       <form
         onSubmit={(e) => {
@@ -99,14 +99,14 @@ export function LiveRun({ agentId, disabled }: { agentId: string; disabled?: str
           maxLength={2000}
           disabled={Boolean(disabled)}
           placeholder={disabled ?? "e.g. Venues for 40 in Indiranagar under ₹2,500 a head"}
-          className="field min-w-0 flex-1 text-[12.5px]"
+          className="field min-w-0 flex-1 text-meta"
         />
         {running ? (
-          <button type="button" onClick={() => abort.current?.abort()} className="btn h-9 px-3 text-[12px]">
+          <button type="button" onClick={() => abort.current?.abort()} className="btn h-9 px-3 text-caption">
             <Square className="size-3" aria-hidden /> Stop
           </button>
         ) : (
-          <button type="submit" disabled={Boolean(disabled) || !prompt.trim()} className="btn h-9 px-3 text-[12px]">
+          <button type="submit" disabled={Boolean(disabled) || !prompt.trim()} className="btn h-9 px-3 text-caption">
             <Play className="size-3" aria-hidden /> Run
           </button>
         )}
@@ -118,12 +118,12 @@ export function LiveRun({ agentId, disabled }: { agentId: string; disabled?: str
             <RunStep key={i} event={e} />
           ))}
           {running && (
-            <li className="text-fg-subtle flex items-center gap-2 font-mono text-[11.5px]">
+            <li className="text-fg-subtle flex items-center gap-2 font-mono text-caption">
               <Loader2 className="size-3 animate-spin" aria-hidden /> running…
             </li>
           )}
           {error && (
-            <li role="alert" className="text-rose text-[12.5px]">
+            <li role="alert" className="text-rose text-meta">
               {error}
             </li>
           )}
@@ -153,7 +153,7 @@ function RunStep({ event: e }: { event: RunEvent }) {
 
 function Body({ event: e, className }: { event: RunEvent; className: string }) {
   const pre = (value: unknown) => (
-    <pre className={cn("bg-surface max-h-40 overflow-auto rounded-md px-2.5 py-2 font-mono text-[11px] leading-4 whitespace-pre-wrap", className)}>
+    <pre className={cn("bg-surface max-h-40 overflow-auto rounded-md px-2.5 py-2 font-code text-caption leading-4 whitespace-pre-wrap", className)}>
       {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
     </pre>
   );
@@ -161,28 +161,28 @@ function Body({ event: e, className }: { event: RunEvent; className: string }) {
     case "system_prompt":
       return (
         <details>
-          <summary className="text-fg-subtle cursor-pointer text-[12px]">{e.text.length} characters</summary>
+          <summary className="text-fg-subtle cursor-pointer text-caption">{e.text.length} characters</summary>
           {pre(e.text)}
         </details>
       );
     case "thought":
     case "final_output":
-      return <p className={cn("text-[12.5px] leading-5 whitespace-pre-wrap", className)}>{e.text}</p>;
+      return <p className={cn("text-meta leading-5 whitespace-pre-wrap", className)}>{e.text}</p>;
     case "tool_call":
       return pre(e.input);
     case "tool_response":
       return pre(e.output);
     case "usage":
       return (
-        <p className="text-fg-muted font-mono text-[11.5px] tabular-nums">
+        <p className="text-fg-muted font-mono text-caption tabular-nums">
           {formatTokens(e.promptTokens)} in · {formatTokens(e.completionTokens)} out · {e.cost === null ? "unpriced" : formatUsd(e.cost)}
         </p>
       );
     case "error":
-      return <p className={cn("text-[12.5px]", className)}>{e.message}</p>;
+      return <p className={cn("text-meta", className)}>{e.message}</p>;
     case "done":
       return (
-        <p className="text-fg-subtle font-mono text-[11.5px] tabular-nums">
+        <p className="text-fg-subtle font-mono text-caption tabular-nums">
           {e.steps} step{e.steps === 1 ? "" : "s"} · {(e.durationMs / 1000).toFixed(1)} s
         </p>
       );

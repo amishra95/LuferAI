@@ -55,7 +55,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
       <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4" aria-live="polite">
         {messages.length === 0 ? (
           <div className="grid gap-3">
-            <p className="text-sm text-fg-subtle">
+            <p className="text-body text-fg-subtle">
               I can read your terms and open RFPs, then propose minimum-spend and menu changes. Nothing changes until you
               tap Apply.
             </p>
@@ -65,7 +65,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="min-h-11 rounded-lg border border-line/60 bg-surface px-3 py-2 text-left text-sm text-fg-muted transition hover:border-line-strong hover:text-fg"
+                  className="min-h-11 rounded-lg border border-line/60 bg-surface px-3 py-2 text-left text-body text-fg-muted transition hover:border-line-strong hover:text-fg"
                 >
                   {s}
                 </button>
@@ -76,11 +76,11 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
 
         {messages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className="ml-10 self-end rounded-lg rounded-br-md bg-surface-raised px-3.5 py-2 text-sm text-fg">
+            <div key={m.id} className="ml-10 self-end rounded-lg rounded-br-md bg-surface-raised px-3.5 py-2 text-body text-fg">
               {m.parts.map((part, i) => (part.type === "text" ? <span key={i}>{part.text}</span> : null))}
             </div>
           ) : (
-            <div key={m.id} className="mr-6 grid gap-2 text-sm text-fg">
+            <div key={m.id} className="mr-6 grid gap-2 text-body text-fg">
               {m.parts.map((part, i) => {
                 switch (part.type) {
                   case "text":
@@ -91,7 +91,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
                     );
                   case "tool-getVenueTerms":
                     return (
-                      <p key={i} className="flex items-center gap-1.5 text-xs text-fg-faint">
+                      <p key={i} className="flex items-center gap-1.5 text-caption text-fg-faint">
                         <Sparkles className="size-3 text-sage" aria-hidden />
                         {part.state === "output-available" ? "Checked your current terms and open RFPs" : "Checking your terms…"}
                       </p>
@@ -108,7 +108,7 @@ export function NegotiatorPanel({ chat }: { chat: Chat<NegotiatorUIMessage> }) {
         )}
         {status === "submitted" ? <Loader2 className="size-4 animate-spin text-fg-faint" aria-label="Thinking" /> : null}
         {error ? (
-          <p className="text-sm text-rose">{error.message.includes("429") ? "Too many requests — wait a minute." : "Something went wrong. Try again."}</p>
+          <p className="text-body text-rose">{error.message.includes("429") ? "Too many requests — wait a minute." : "Something went wrong. Try again."}</p>
         ) : null}
       </div>
 
@@ -173,11 +173,11 @@ function ProposedChange({
         {part.state === "output-error" ? <Badge variant="destructive">Failed</Badge> : null}
         {part.state === "approval-responded" ? <Badge variant="secondary">{part.approval.approved ? "Applying…" : "Declined"}</Badge> : null}
       </div>
-      {detail ? <p className="mt-1 text-xs text-fg-subtle">{detail}</p> : null}
-      {part.state === "output-error" ? <p className="text-destructive mt-1 text-xs">{part.errorText}</p> : null}
+      {detail ? <p className="mt-1 text-caption text-fg-subtle">{detail}</p> : null}
+      {part.state === "output-error" ? <p className="text-destructive mt-1 text-caption">{part.errorText}</p> : null}
       {part.state === "approval-requested" && !part.approval.isAutomatic ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button size="sm" onClick={() => onRespond({ id: part.approval.id, approved: true })}>
+          <Button size="sm" variant="secondary" onClick={() => onRespond({ id: part.approval.id, approved: true })}>
             <Check aria-hidden /> Apply
           </Button>
           <Button size="sm" variant="outline" onClick={() => onRespond({ id: part.approval.id, approved: false, reason: "Host declined" })}>

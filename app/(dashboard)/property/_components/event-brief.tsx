@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 
 // react-markdown escapes raw HTML by default, so model output can't inject markup.
 const markdownComponents = {
-  h2: (props: React.ComponentProps<"h2">) => <h2 className="mt-4 mb-1 text-sm font-semibold first:mt-0" {...props} />,
-  h3: (props: React.ComponentProps<"h3">) => <h3 className="mt-3 mb-1 text-sm font-medium" {...props} />,
+  h2: (props: React.ComponentProps<"h2">) => <h2 className="mt-4 mb-1 text-body font-semibold first:mt-0" {...props} />,
+  h3: (props: React.ComponentProps<"h3">) => <h3 className="mt-3 mb-1 text-body font-medium" {...props} />,
   p: (props: React.ComponentProps<"p">) => <p className="my-1.5" {...props} />,
   ul: (props: React.ComponentProps<"ul">) => <ul className="my-1.5 list-disc pl-5" {...props} />,
   ol: (props: React.ComponentProps<"ol">) => <ol className="my-1.5 list-decimal pl-5" {...props} />,
@@ -38,12 +38,12 @@ export function EventBrief({ bookingId, venueId }: { bookingId: string; venueId:
         ) : null}
       </div>
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-destructive text-body" role="alert">
           {briefErrorMessage(error)}
         </p>
       ) : null}
       {completion ? (
-        <article className="bg-muted/40 rounded-lg border p-4 text-sm" aria-live="polite" aria-busy={isLoading}>
+        <article className="bg-muted/40 rounded-lg border p-4 text-body" aria-live="polite" aria-busy={isLoading}>
           <ReactMarkdown components={markdownComponents}>{completion}</ReactMarkdown>
         </article>
       ) : null}

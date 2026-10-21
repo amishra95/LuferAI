@@ -23,11 +23,11 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 data-slot="page-title" className="text-fg flex flex-wrap items-center gap-2.5 text-lg font-semibold tracking-tight">
+        <h1 data-slot="page-title" className="text-fg text-title font-display flex flex-wrap items-center gap-2.5 font-medium">
           {title}
           {badge}
         </h1>
-        <p data-slot="page-description" className="text-fg-subtle mt-1 text-[13px]">{description}</p>
+        <p data-slot="page-description" className="text-fg-subtle text-body mt-1">{description}</p>
       </div>
       {actions}
     </div>
@@ -44,11 +44,11 @@ export function NoticePill({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Section heading inside a page: mono label with an optional trailing element. */
+/** Section heading inside a page, with an optional trailing element. */
 export function SectionLabel({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="label-mono">{children}</h2>
+      <h2 className="text-fg text-section font-semibold">{children}</h2>
       {aside}
     </div>
   );

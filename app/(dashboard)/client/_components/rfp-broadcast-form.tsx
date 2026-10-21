@@ -83,13 +83,13 @@ export function RfpBroadcastForm() {
             placeholder="Describe the event — guests, date, area, budget, dietary needs…"
             rows={2}
             maxLength={4000}
-            className="field-sizing-content text-fg placeholder:text-fg-faint max-h-48 min-h-10 flex-1 resize-none bg-transparent py-2 text-[13.5px] focus:outline-none"
+            className="field-sizing-content text-fg placeholder:text-fg-faint max-h-48 min-h-10 flex-1 resize-none bg-transparent py-2 text-body focus:outline-none"
           />
           <button
             type="submit"
             disabled={pending || brief.trim().length < 20}
             aria-label="Broadcast RFP to matching venues"
-            className="bg-fg text-canvas hover:bg-fg-muted disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
+            className="bg-coral text-on-coral hover:bg-coral-hover disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
           >
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}
           </button>
@@ -105,7 +105,7 @@ export function RfpBroadcastForm() {
                 aria-pressed={on}
                 onClick={() => toggle(r)}
                 className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-xs transition-colors duration-100 pointer-coarse:min-h-11",
+                  "inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-caption transition-colors duration-100 pointer-coarse:min-h-11",
                   on
                     ? "border-fg bg-surface-raised text-fg"
                     : "border-line text-fg-subtle hover:border-line-strong hover:text-fg"
@@ -129,7 +129,7 @@ export function RfpBroadcastForm() {
                 setBrief(ex);
                 textarea.current?.focus();
               }}
-              className="min-h-11 max-w-72 shrink-0 rounded-md border border-line bg-surface px-3 py-2 text-left text-xs text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
+              className="min-h-11 max-w-72 shrink-0 rounded-md border border-line bg-surface px-3 py-2 text-left text-caption text-fg-subtle transition-colors hover:border-line-strong hover:text-fg"
             >
               {ex}
             </button>
@@ -138,11 +138,11 @@ export function RfpBroadcastForm() {
       ) : null}
 
       {pending ? (
-        <p role="status" className="text-sm text-fg-subtle">
+        <p role="status" className="text-body text-fg-subtle">
           Reading your brief and pricing matching venues…
         </p>
       ) : status ? (
-        <p role="status" className={status.ok ? "text-sage text-sm" : "text-rose text-sm"}>
+        <p role="status" className={status.ok ? "text-sage text-body" : "text-rose text-body"}>
           {status.message}
         </p>
       ) : null}

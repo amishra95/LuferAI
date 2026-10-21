@@ -76,22 +76,22 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
         <div className="min-w-0 max-w-2xl">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h2 id="provider-heading" className="text-fg text-[13.5px] font-medium">
+            <h2 id="provider-heading" className="text-fg text-body font-medium">
               AI providers
             </h2>
             <Pill tone={h.tone}>{h.label}</Pill>
             {health.backends.map((b) => (
-              <span key={b.id} className={cn("font-mono text-[11px]", b.configured ? "text-fg-subtle" : "text-fg-faint line-through")} title={b.configured ? `${b.label}: key set` : `${b.label}: no API key`}>
+              <span key={b.id} className={cn("font-mono text-caption", b.configured ? "text-fg-subtle" : "text-fg-faint line-through")} title={b.configured ? `${b.label}: key set` : `${b.label}: no API key`}>
                 {b.label}
               </span>
             ))}
           </div>
-          <p className="text-fg-subtle mt-1.5 text-[12.5px] leading-5" role={h.tone === "error" ? "alert" : undefined}>
+          <p className="text-fg-subtle mt-1.5 text-meta leading-5" role={h.tone === "error" ? "alert" : undefined}>
             {h.body}
           </p>
         </div>
         <div className="text-right">
-        <dl className="text-fg-muted grid grid-cols-4 gap-x-5 gap-y-0.5 font-mono text-[12px] tabular-nums" title={SCOPE[health.store]}>
+        <dl className="text-fg-muted grid grid-cols-4 gap-x-5 gap-y-0.5 font-mono text-caption tabular-nums" title={SCOPE[health.store]}>
           {(
             [
               ["calls", health.stats.calls],
@@ -106,14 +106,14 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
             </div>
           ))}
         </dl>
-          <p className="text-fg-faint mt-1 font-mono text-[11px]">
+          <p className="text-fg-faint mt-1 font-mono text-caption">
             {health.store === "redis" ? `${health.instances} instance${health.instances === 1 ? "" : "s"} · 24 h` : health.store === "memory" ? "this instance · 24 h" : "this instance"}
           </p>
         </div>
       </div>
 
       <div className="border-line overflow-x-auto border-t px-5 py-2.5">
-        <table className="w-full min-w-[32rem] text-left text-[12px]" aria-label="Providers in routing order">
+        <table className="w-full min-w-[32rem] text-left text-caption" aria-label="Providers in routing order">
           <thead>
             <tr className="label-mono">
               <th className="py-1 pr-3 font-normal">Provider</th>
@@ -158,7 +158,7 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
       {health.transitions.length > 0 && (
         <div className="border-line border-t px-5 py-2.5">
           <span className="label-mono">Recent circuit changes</span>
-          <ul className="mt-1.5 space-y-0.5 font-mono text-[11.5px]">
+          <ul className="mt-1.5 space-y-0.5 font-mono text-caption">
             {health.transitions.map((t) => (
               <li key={`${t.provider}:${t.instance}:${t.at}:${t.to}`} className="text-fg-subtle flex flex-wrap gap-x-3">
                 <span className="text-fg">{t.provider}</span>
@@ -179,15 +179,15 @@ export function ProviderHealthPanel({ health, fallbacks, now }: { health: Provid
         <summary className="hover:bg-surface-hover flex cursor-pointer list-none items-center gap-2 px-5 py-2.5">
           <LifeBuoy className="text-fg-subtle size-3.5" aria-hidden />
           <span className="label-mono">Human-in-the-loop fallback</span>
-          <span className="text-fg-faint ml-auto text-[12px] group-open:hidden">What happens when a model call fails</span>
+          <span className="text-fg-faint ml-auto text-caption group-open:hidden">What happens when a model call fails</span>
         </summary>
         <ul className="divide-line divide-y px-5 pb-2">
           {FALLBACK_ROWS.map((r) => (
             <li key={r.agent} className="grid gap-1 py-2.5 sm:grid-cols-[12rem_1fr] sm:gap-4">
-              <span className="text-[12.5px]">
-                <span className="text-fg">{r.name}</span> <span className="text-fg-subtle font-mono text-[11px]">{r.surface}</span>
+              <span className="text-meta">
+                <span className="text-fg">{r.name}</span> <span className="text-fg-subtle font-mono text-caption">{r.surface}</span>
               </span>
-              <span className="text-fg-subtle text-[12.5px] leading-5">{fallbacks[r.agent]}</span>
+              <span className="text-fg-subtle text-meta leading-5">{fallbacks[r.agent]}</span>
             </li>
           ))}
         </ul>

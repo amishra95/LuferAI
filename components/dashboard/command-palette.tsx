@@ -340,7 +340,7 @@ export function CommandPalette({
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Command palette">
-      <div className="animate-in fade-in absolute inset-0 bg-black/60 duration-100" onClick={close} aria-hidden />
+      <div className="animate-in fade-in absolute inset-0 bg-scrim duration-100" onClick={close} aria-hidden />
       <div
         className="bg-elevated border-line animate-in fade-in absolute top-[12vh] left-1/2 flex max-h-[min(32rem,76vh)] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-lg border duration-100"
         onKeyDown={onKeyDown}
@@ -361,17 +361,17 @@ export function CommandPalette({
               setQuery(e.target.value);
               setActive(0);
             }}
-            className="text-fg placeholder:text-fg-faint h-12 min-w-0 flex-1 bg-transparent text-[14px] outline-none"
+            className="text-fg placeholder:text-fg-faint h-12 min-w-0 flex-1 bg-transparent text-body outline-none"
             autoComplete="off"
             spellCheck={false}
           />
-          {searching && <span className="text-fg-faint shrink-0 font-mono text-[11px]">searching…</span>}
-          <kbd className="border-line text-fg-subtle hidden shrink-0 rounded border px-1.5 font-mono text-[10.5px] sm:inline">esc</kbd>
+          {searching && <span className="text-fg-faint shrink-0 font-mono text-caption">searching…</span>}
+          <kbd className="border-line text-fg-subtle hidden shrink-0 rounded border px-1.5 font-code text-caption sm:inline">esc</kbd>
         </div>
 
         <ul ref={list} id={listId} role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto p-2">
           {items.length === 0 ? (
-            <li role="presentation" className="text-fg-subtle px-3 py-8 text-center text-[13px]">
+            <li role="presentation" className="text-fg-subtle px-3 py-8 text-center text-meta">
               {searching ? "Searching…" : `No results for “${query.trim()}”`}
             </li>
           ) : (
@@ -403,8 +403,8 @@ export function CommandPalette({
                         >
                           <Icon className={cn("size-4 shrink-0", selected ? "text-fg" : "text-fg-faint")} strokeWidth={1.75} aria-hidden />
                           <span className="min-w-0 flex-1">
-                            <span className="text-fg block truncate text-[13.5px]">{item.title}</span>
-                            {item.subtitle && <span className="text-fg-subtle block truncate text-[12px]">{item.subtitle}</span>}
+                            <span className="text-fg block truncate text-body">{item.title}</span>
+                            {item.subtitle && <span className="text-fg-subtle block truncate text-caption">{item.subtitle}</span>}
                           </span>
                           {selected && <CornerDownLeft className="text-fg-faint size-3.5 shrink-0" aria-hidden />}
                         </li>
@@ -417,7 +417,7 @@ export function CommandPalette({
           )}
         </ul>
 
-        <div className="border-line text-fg-subtle hidden items-center gap-4 border-t px-4 py-2 font-mono text-[10.5px] sm:flex">
+        <div className="border-line text-fg-subtle hidden items-center gap-4 border-t px-4 py-2 font-mono text-caption sm:flex">
           <span>↑↓ move</span>
           <span>↵ open</span>
           <span>esc close</span>

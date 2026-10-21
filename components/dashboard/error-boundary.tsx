@@ -31,8 +31,8 @@ export function ErrorFallback({ title, message, onRetry }: { title: string; mess
         <TriangleAlert className="text-rose size-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-fg text-[13.5px] font-medium">{title}</p>
-        {message && <p className="text-fg-subtle mt-0.5 font-mono text-[11.5px] break-words">{message}</p>}
+        <p className="text-fg text-body font-medium">{title}</p>
+        {message && <p className="text-fg-subtle mt-0.5 font-mono text-caption break-words">{message}</p>}
       </div>
       <button type="button" onClick={onRetry} className="btn shrink-0">
         <RotateCw className="size-3.5" aria-hidden /> Try again
