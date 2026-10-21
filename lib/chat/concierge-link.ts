@@ -26,3 +26,12 @@ export function draftFromParam(value: string | string[] | undefined): string {
 export function teamEventPrompt(companyName: string): string {
   return `Plan a team event for ${companyName}: [occasion], about [number] guests in [city / area] on [date], budget around ₹[amount] per head. Suggest venues within our policy.`;
 }
+
+/** Pre-filled brief behind a venue's "Request event" / "Request RFP" actions. */
+export function venueEventPrompt(venue: { name: string; neighborhood?: string | null; city?: string | null }, kind: "event" | "rfp" = "event"): string {
+  const where = [venue.neighborhood, venue.city].filter(Boolean).join(", ");
+  const at = `${venue.name}${where ? ` (${where})` : ""}`;
+  return kind === "rfp"
+    ? `I want to send an RFP for a corporate event to ${at}. Please help me structure it with date, guest count, and budget.`
+    : `I want to request a corporate event at ${at}. Please help me structure the request with date, guest count, and budget.`;
+}

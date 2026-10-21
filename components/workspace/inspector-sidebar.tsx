@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Check, Copy, Loader2, Play, RefreshCw, RotateCw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowUpRight, Check, Copy, Loader2, Play, RefreshCw, RotateCw, X } from "lucide-react";
 
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
 import { runAgentTest } from "@/app/(dashboard)/agents/actions";
 import { AgentStatusBadge, displayStatus, TestResult } from "@/components/agents/agent-row";
 import { useAgentMutations } from "@/components/agents/use-agent-mutations";
 import { Switch } from "@/components/dashboard/switch";
+import { Button } from "@/components/ui/button";
+import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { useVenueSync } from "@/components/venues/use-venue-sync";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { VenueProfile } from "@/components/workspace/venue-profile";
@@ -18,6 +20,7 @@ import type { TelemetryEvent } from "@/lib/telemetry/events";
 import { formatMs } from "@/lib/telemetry/format";
 import { latestVenueSync, liveTrace, refreshSeqFor, type LiveTrace, type StreamStatus } from "@/lib/telemetry/stream-state";
 import { isConfiguredAgent, isPromptable } from "@/lib/agents/config";
+import { venueEventPrompt } from "@/lib/chat/concierge-link";
 import { cn } from "@/lib/utils";
 import type { EntityKind, EntityRef } from "@/lib/workspace/state";
 import type { AgentRecord, AgentStatus, AgentTestResult } from "@/types/agents";
@@ -159,7 +162,10 @@ export function InspectorSidebar() {
       </div>
 
       {current?.status === "ok" && (
-        <footer className="border-line flex shrink-0 items-center gap-2 border-t px-4 py-2.5">
+        <footer className="border-line flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-2.5">
+          {current.entity.kind === "venue" && current.entity.viewer.canRequest ? (
+            <RequestVenueEvent venue={current.entity.venue} className="mb-1.5" />
+          ) : null}
           <Link href={pageHref(current.entity).href} className="btn h-7 px-2.5 text-caption">
             {pageHref(current.entity).label}
             <ArrowUpRight className="size-3" aria-hidden />
@@ -400,6 +406,17 @@ function RetryTest({ agentId }: { agentId: string }) {
   );
 }
 
+/** Opens the concierge drawer with an event brief for this venue (organizers and approvers). */
+function RequestVenueEvent({ venue, className }: { venue: VenueDetail["venue"]; className?: string }) {
+  return (
+    <Button asChild size="lg" className={cn("w-full rounded-full font-medium shadow-sm", className)}>
+      <ChatDrawerTrigger prompt={venueEventPrompt(venue)}>
+        <span className="truncate">Request event at {venue.name}</span> <ArrowRight aria-hidden />
+      </ChatDrawerTrigger>
+    </Button>
+  );
+}
+
 function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<TelemetryEvent, { type: "venue-sync" }> | null }) {
   const { venue } = entity;
   return (
@@ -408,6 +425,11 @@ function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<Teleme
         <p className="text-fg text-body font-semibold tracking-[-0.01em]">{venue.name}</p>
         <p className="text-fg-subtle mt-0.5 text-meta">{venue.address || `${venue.neighborhood}, ${venue.city}`}</p>
       </Title>
+      {entity.viewer.canRequest ? (
+        <div className="border-line border-b px-4 py-3">
+          <RequestVenueEvent venue={venue} />
+        </div>
+      ) : null}
       <Section title="Listing">
         <Fields
           rows={[

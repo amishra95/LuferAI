@@ -76,7 +76,7 @@ export interface VenueDetail {
   rates: VenueRateInfo[];
   audit: VenueAuditEntry[];
   /** What the viewer may do here. */
-  viewer: { canBook: boolean; canSyncExpenses: boolean };
+  viewer: { canBook: boolean; canRequest: boolean; canSyncExpenses: boolean };
 }
 
 export interface TraceDetail {
