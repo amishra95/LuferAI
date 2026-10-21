@@ -60,6 +60,9 @@ export type VenueChange = (typeof VENUE_CHANGES)[number];
 
 export const BOOKING_EVENT_STATUSES = ["PENDING_APPROVAL", "PENDING", "CONFIRMED", "COMPLETED", "SETTLED", "CANCELLED"] as const;
 export type BookingEventStatus = (typeof BOOKING_EVENT_STATUSES)[number];
+/** What changed the booking: a new request (any entry point), the booking agent, a sign-off, an expense sync. */
+export const BOOKING_EVENT_ACTORS = ["request", "agent", "approval", "expense"] as const;
+export type BookingEventActor = (typeof BOOKING_EVENT_ACTORS)[number];
 
 export const ORDER_EVENT_STATUSES = ["PENDING_APPROVAL", "PLACED", "CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED", "CANCELLED"] as const;
 export type OrderEventStatus = (typeof ORDER_EVENT_STATUSES)[number];
@@ -79,7 +82,7 @@ export type TelemetryEventBody =
   | { type: "venue-sync"; total: number; partners: PartnerSyncStatus }
   | { type: "agent-config"; agentId: string; enabled: boolean; changed: AgentConfigField[] }
   | { type: "venue-updated"; venueId: string; change: VenueChange }
-  | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: "agent" | "approval" | "expense" }
+  | { type: "booking"; bookingId: string; venueId: string; status: BookingEventStatus; by: BookingEventActor }
   | { type: "approval"; approvalId: string; bookingId: string; decision: "APPROVED" | "REJECTED" }
   | { type: "expense"; bookingId: string; provider: string; status: "delivered" | "mocked" | "failed" | "skipped" }
   | { type: "po"; poId: string; change: PoChange }
@@ -100,13 +103,16 @@ export const SSE_EVENT = "telemetry";
 export interface TelemetryAudience {
   ops: boolean;
   venues: boolean;
-  /** A venue host's venue: they hear its escalations and nothing else operational. */
+  /** A venue host's venue: they hear its escalations and its bookings, nothing else operational. */
   venueId?: string | null;
 }
 
-export function visibleTo(event: Pick<TelemetryEvent, "type"> & { venueId?: string }, audience: TelemetryAudience): boolean {
+export function visibleTo(event: Pick<TelemetryEvent, "type"> & { venueId?: string; status?: string }, audience: TelemetryAudience): boolean {
   if (event.type === "venue-sync" || event.type === "venue-updated") return audience.venues;
   if (event.type === "escalation") return audience.ops || (Boolean(audience.venueId) && event.venueId === audience.venueId);
+  // A host hears their own venue's bookings so the property portal stays live, except
+  // requests still awaiting the company's sign-off: those reach the venue once approved.
+  if (event.type === "booking") return audience.ops || (Boolean(audience.venueId) && event.venueId === audience.venueId && event.status !== "PENDING_APPROVAL");
   return audience.ops;
 }
 
@@ -211,8 +217,8 @@ export function toTelemetryEvent(v: unknown): TelemetryEvent | null {
         ? { ...base, type: "venue-updated", venueId: v.venueId, change: v.change as VenueChange }
         : null;
     case "booking":
-      return str(v.bookingId, 64) && str(v.venueId, 128) && (BOOKING_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (v.by === "agent" || v.by === "approval" || v.by === "expense")
-        ? { ...base, type: "booking", bookingId: v.bookingId, venueId: v.venueId, status: v.status as BookingEventStatus, by: v.by }
+      return str(v.bookingId, 64) && str(v.venueId, 128) && (BOOKING_EVENT_STATUSES as readonly unknown[]).includes(v.status) && (BOOKING_EVENT_ACTORS as readonly unknown[]).includes(v.by)
+        ? { ...base, type: "booking", bookingId: v.bookingId, venueId: v.venueId, status: v.status as BookingEventStatus, by: v.by as BookingEventActor }
         : null;
     case "approval":
       return str(v.approvalId, 64) && str(v.bookingId, 64) && (v.decision === "APPROVED" || v.decision === "REJECTED")

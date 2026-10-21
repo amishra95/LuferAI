@@ -149,8 +149,8 @@ test("escalation events parse, reach admins and only their own venue's host, and
   assert.equal(visibleTo(e, { ops: false, venues: false, venueId: "v1" }), true);
   assert.equal(visibleTo(e, { ops: false, venues: false, venueId: "v2" }), false);
   assert.equal(visibleTo(e, { ops: false, venues: true }), false);
-  // A host's audience hears nothing else operational.
-  assert.equal(visibleTo({ type: "booking", venueId: "v1" }, { ops: false, venues: false, venueId: "v1" }), false);
+  // A host's audience hears nothing else operational (their own venue's bookings: tests/telemetry-events.test.mjs).
+  assert.equal(visibleTo({ type: "run" }, { ops: false, venues: false, venueId: "v1" }), false);
   assert.equal(isStale("/property", [e]), true);
   assert.equal(isStale("/agents", [e]), true);
   assert.equal(isStale("/client", [e]), false);

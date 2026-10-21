@@ -95,6 +95,20 @@ test("visibleTo: operator events need ops; venue syncs need venues", () => {
   assert.deepEqual(Object.values(EVENTS).map((e) => visibleTo(e, booker)), [false, false, false, true]);
 });
 
+test("visibleTo: a venue host hears their own venue's bookings and escalations only", () => {
+  const host = { ops: false, venues: false, venueId: "v1" };
+  const booking = { seq: 5, at: 9, type: "booking", bookingId: "b1", venueId: "v1", status: "PENDING", by: "request" };
+  assert.equal(visibleTo(booking, host), true);
+  assert.equal(visibleTo({ ...booking, venueId: "v2" }, host), false);
+  // Awaiting the company's sign-off: not the venue's business yet.
+  assert.equal(visibleTo({ ...booking, status: "PENDING_APPROVAL" }, host), false);
+  assert.equal(visibleTo({ ...booking, status: "PENDING_APPROVAL" }, { ops: true, venues: false }), true);
+  assert.equal(visibleTo(booking, { ops: false, venues: true }), false);
+  assert.equal(visibleTo(booking, { ops: true, venues: false }), true);
+  assert.deepEqual(parseTelemetryEvent(JSON.stringify(booking)), booking);
+  assert.equal(parseTelemetryEvent(JSON.stringify({ ...booking, by: "someone" })), null);
+});
+
 // ----------------------------------------------------------------------------
 // Event log
 // ----------------------------------------------------------------------------
