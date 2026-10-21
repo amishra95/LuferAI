@@ -14,12 +14,13 @@ import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChatCompanyScope, ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
 import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { requirePortal } from "@/lib/auth/session";
-import { conciergeHref, teamEventPrompt } from "@/lib/chat/concierge-link";
+import { teamEventPrompt } from "@/lib/chat/concierge-link";
 import { costCentreLock, receiptState } from "@/lib/bookings/expense-meta";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
 import { statusCounts } from "@/lib/bookings/live";
@@ -187,15 +188,16 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               </Link>
             </Button>
           ) : null}
-          {/* Always offered, read-only admin view included: /chat is open to every client role and admins. */}
+          {/* Always offered, read-only admin view included: the chat is open to every client role and admins. */}
           <Button asChild variant="outline">
-            <Link href={conciergeHref({ companyId: company.id })}>
+            <ChatDrawerTrigger companyId={company.id}>
               <Sparkles className="text-coral" aria-hidden /> Launch AI Assistant
-            </Link>
+            </ChatDrawerTrigger>
           </Button>
         </div>
       }
     >
+      <ChatCompanyScope company={{ id: company.id, name: company.legal_name }} />
       {companies.length > 1 ? (
         <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2" aria-label="Switch company (admin)">
           <span className="label-mono mr-1">Viewing</span>
@@ -400,9 +402,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             <h2 className="text-section text-fg font-semibold">Bookings</h2>
             {canRequest ? (
               <Button asChild className="rounded-full px-5 font-medium has-[>svg]:px-5">
-                <Link href={conciergeHref({ companyId: company.id, prompt: teamEventPrompt(company.legal_name) })}>
+                <ChatDrawerTrigger companyId={company.id} prompt={teamEventPrompt(company.legal_name)}>
                   <Plus aria-hidden /> Request team event
-                </Link>
+                </ChatDrawerTrigger>
               </Button>
             ) : null}
           </div>

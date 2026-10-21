@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUp, PanelRight, Plus, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -33,6 +33,8 @@ export function PromptBar({
 }) {
   const [value, setValue] = useState(initialValue);
   const ref = useRef<HTMLTextAreaElement>(null);
+  // Unique per composer: the /chat page and the chat drawer can both be mounted.
+  const id = useId();
   // Arriving with a draft: focus it with the caret at the end, ready to edit.
   useEffect(() => {
     const el = ref.current;
@@ -57,11 +59,11 @@ export function PromptBar({
       }}
       className="border-line-strong bg-elevated focus-within:border-focus focus-within:ring-focus/25 rounded-lg border shadow-[var(--shadow-card)] transition-[border-color,box-shadow] focus-within:ring-[3px]"
     >
-      <label htmlFor="prompt" className="sr-only">
+      <label htmlFor={id} className="sr-only">
         Message the agent
       </label>
       <textarea
-        id="prompt"
+        id={id}
         ref={ref}
         value={value}
         onChange={(e) => setValue(e.target.value)}
