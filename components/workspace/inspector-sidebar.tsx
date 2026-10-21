@@ -408,12 +408,12 @@ function RetryTest({ agentId }: { agentId: string }) {
 }
 
 /**
- * The venue's booking actions for organizers and approvers: plan it with the
+ * The venue's booking actions (admins and every client role): plan it with the
  * concierge (drawer, pre-filled brief), or book it by hand (the manual booking
  * modal, venue pre-selected; Lufer.ai venues only, partner listings quote via their network).
  */
 function VenueBookingActions({ entity, className }: { entity: VenueDetail; className?: string }) {
-  const { venue, viewer } = entity;
+  const { venue } = entity;
   return (
     <div className={cn("grid gap-2", className)}>
       <Button asChild size="lg" className="w-full rounded-full font-medium shadow-sm">
@@ -421,7 +421,7 @@ function VenueBookingActions({ entity, className }: { entity: VenueDetail; class
           <span className="truncate">Request event at {venue.name}</span> <ArrowRight aria-hidden />
         </ChatDrawerTrigger>
       </Button>
-      {viewer.canBook ? (
+      {venue.tier === "internal" ? (
         <ManualBookingModal
           venueId={venue.id}
           venueName={venue.name}

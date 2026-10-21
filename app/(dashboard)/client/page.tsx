@@ -401,9 +401,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         <>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-section text-fg font-semibold">Bookings</h2>
-            {canRequest ? (
+            {/* Everyone here: admins file on behalf of an employee, finance viewers get the concierge (see the modal). */}
+            {member.role === "ADMIN" || member.role === "CLIENT" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ManualBookingModal
+                  companyId={company.id}
                   trigger={
                     <Button variant="outline" className="rounded-full px-5 font-medium has-[>svg]:px-5">
                       <NotebookPen aria-hidden /> New manual RFP

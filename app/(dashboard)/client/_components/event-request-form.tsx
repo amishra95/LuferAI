@@ -85,6 +85,7 @@ export function EventRequestForm({
   withEventDetails = false,
   submitLabel = "Send request",
   submitClassName,
+  extraFields,
 }: {
   /** Used for the negotiated-rate preview; the server scopes it to the session's company. */
   companyId: string;
@@ -102,6 +103,8 @@ export function EventRequestForm({
   withEventDetails?: boolean;
   submitLabel?: string;
   submitClassName?: string;
+  /** Hidden fields sent with the request (e.g. on_behalf_of when an admin files it). */
+  extraFields?: Record<string, string>;
 }) {
   const [state, formAction, pending] = useActionState<BookingRequestState, FormData>(submitBookingRequest, { status: "idle" });
   const [values, setValues] = useState<BookingFormInput>({ ...EMPTY, venue_id: defaultVenueId });
@@ -278,6 +281,9 @@ export function EventRequestForm({
     <form ref={form} action={formAction} onSubmit={onSubmit} noValidate className="grid gap-5">
       <input type="hidden" name="company_id" value={companyId} />
       <input type="hidden" name="slot_token" value={slot?.status === "held" ? slot.token : ""} />
+      {Object.entries(extraFields ?? {}).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       {withEventDetails ? (
         <>
           <input type="hidden" name="notes" value={submitted.notes} />

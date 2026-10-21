@@ -79,8 +79,8 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
   const query = parseVenueQuery(await searchParams);
   const [{ venues, partners }, member] = await Promise.all([listDirectory(), getCurrentMember()]);
-  // Organizers and approvers plan events; admins browse the directory.
-  const canRequest = member?.role === "CLIENT" && (member.corporateRole === "ORGANIZER" || member.corporateRole === "APPROVER");
+  // Row booking actions for admins and client users (the modal decides who can file).
+  const canRequest = member?.role === "ADMIN" || member?.role === "CLIENT";
   const { rows, total, page, pageCount } = applyVenueQuery(venues, query);
   const areas = [...new Set(venues.map((v) => v.neighborhood))].sort();
   const source = dataSource();

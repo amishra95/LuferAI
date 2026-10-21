@@ -73,8 +73,9 @@ async function loadVenue(id: string, member: Member): Promise<VenueDetail | null
   const corporateRole = member.corporateRole;
   const viewer = {
     canBook: member.role === "CLIENT" && venue.tier === "internal" && (corporateRole === "ORGANIZER" || corporateRole === "APPROVER"),
-    // Planning an event here with the concierge: any venue, partner listings included.
-    canRequest: member.role === "CLIENT" && (corporateRole === "ORGANIZER" || corporateRole === "APPROVER"),
+    // The venue's "Request event" / "Book manually" actions: every client role and admins.
+    // The booking modal handles who can file (admins on behalf of an employee; finance viewers are read-only).
+    canRequest: member.role === "CLIENT" || admin,
     canSyncExpenses: admin || (member.role === "CLIENT" && corporateRole === "APPROVER"),
   };
   if (venue.tier !== "internal") return { kind: "venue", id, venue, profile: null, rates: [], audit: [], viewer };

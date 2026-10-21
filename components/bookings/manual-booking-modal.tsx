@@ -2,10 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Dialog } from "radix-ui";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 
 import { getManualBookingContext, type ManualBookingContext } from "@/app/(dashboard)/client/actions";
 import { EventRequestForm } from "@/app/(dashboard)/client/_components/event-request-form";
+import { Button } from "@/components/ui/button";
+import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
 
 /*
@@ -17,13 +21,19 @@ import { cn } from "@/lib/utils";
  *
  * The modal loads its data (company, venues, departments) when opened, so it
  * works anywhere: the client portal, the venue inspector, the venues table.
+ * Admins also pick the company and the employee they're filing for; finance
+ * viewers get an explanation (their role is read-only) and the concierge.
  */
 
 // React events bubble through portals: keep clicks in the modal from reaching a
 // clickable parent (a venue table row opens the inspector on click).
 const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-type Load = { status: "loading" } | { status: "ready"; context: ManualBookingContext } | { status: "error"; message: string };
+type Load =
+  | { status: "loading" }
+  | { status: "ready"; context: ManualBookingContext }
+  | { status: "readOnly"; message: string }
+  | { status: "error"; message: string };
 
 // The default button is already coral (ink text: white on coral fails contrast); make it the brand pill.
 const SUBMIT = "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:px-6";
@@ -31,11 +41,14 @@ const SUBMIT = "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:p
 export function ManualBookingModal({
   venueId,
   venueName,
+  companyId,
   trigger,
 }: {
   /** Pre-selects this venue (from the inspector or a table row). */
   venueId?: string;
   venueName?: string;
+  /** Admins: the company to start with (e.g. the one the client portal shows). */
+  companyId?: string;
   /** The button that opens the modal (rendered as Dialog.Trigger asChild). */
   trigger: React.ReactElement;
 }) {
@@ -44,22 +57,32 @@ export function ManualBookingModal({
   const [, startLoading] = useTransition();
   // Bumped per open so the form starts fresh each time.
   const [session, setSession] = useState(0);
+  // Admins: who the request is filed for.
+  const [requesterId, setRequesterId] = useState("");
 
-  function onOpenChange(next: boolean) {
-    setOpen(next);
-    if (!next) return;
-    setSession((n) => n + 1);
-    if (load.status === "ready") return;
+  function fetchContext(forCompany?: string) {
     setLoad({ status: "loading" });
     startLoading(async () => {
       try {
-        const result = await getManualBookingContext();
-        setLoad("error" in result ? { status: "error", message: result.error } : { status: "ready", context: result });
+        const result = await getManualBookingContext(forCompany);
+        if ("readOnly" in result) return setLoad({ status: "readOnly", message: result.readOnly });
+        if ("error" in result) return setLoad({ status: "error", message: result.error });
+        setRequesterId(result.onBehalf?.requesters[0]?.id ?? "");
+        setLoad({ status: "ready", context: result });
       } catch {
         setLoad({ status: "error", message: "Couldn't load the booking form. Try again." });
       }
     });
   }
+
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) return;
+    setSession((n) => n + 1);
+    if (load.status !== "ready" && load.status !== "readOnly") fetchContext(companyId);
+  }
+
+  const onBehalf = load.status === "ready" ? load.context.onBehalf : undefined;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -99,18 +122,65 @@ export function ManualBookingModal({
               <p className="text-rose py-8 text-meta" role="alert">
                 {load.message}
               </p>
+            ) : load.status === "readOnly" ? (
+              <div className="grid justify-items-start gap-4 py-4">
+                <p className="text-fg-muted text-body">{load.message}</p>
+                <Button asChild variant="outline" className="rounded-full">
+                  <ChatDrawerTrigger onClick={() => setOpen(false)}>
+                    <Sparkles className="text-coral" aria-hidden /> Ask the concierge
+                  </ChatDrawerTrigger>
+                </Button>
+              </div>
             ) : (
-              <EventRequestForm
-                key={session}
-                companyId={load.context.companyId}
-                companyGstin={load.context.companyGstin}
-                venues={load.context.venues}
-                departments={load.context.departments}
-                defaultVenueId={venueId && load.context.venues.some((v) => v.id === venueId) ? venueId : ""}
-                withEventDetails
-                submitLabel="Submit direct RFP"
-                submitClassName={SUBMIT}
-              />
+              <div className="grid gap-6">
+                {onBehalf ? (
+                  <fieldset className="bg-surface-raised grid gap-4 rounded-lg p-4 sm:grid-cols-2">
+                    <legend className="sr-only">Filing as a platform admin</legend>
+                    <div className="grid content-start gap-2">
+                      <Label htmlFor="mb-company">Company</Label>
+                      <NativeSelect id="mb-company" value={load.context.companyId} onChange={(e) => fetchContext(e.target.value)}>
+                        {onBehalf.companies.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                    <div className="grid content-start gap-2">
+                      <Label htmlFor="mb-requester">File on behalf of</Label>
+                      {onBehalf.requesters.length ? (
+                        <NativeSelect id="mb-requester" value={requesterId} onChange={(e) => setRequesterId(e.target.value)}>
+                          {onBehalf.requesters.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name} · {u.role}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      ) : (
+                        <p className="text-rose text-meta">No Organizer or Approver at this company to file for.</p>
+                      )}
+                    </div>
+                    <p className="text-fg-subtle text-caption sm:col-span-2">
+                      Policy and approvals run as this person; the venue sees that a Lufer.ai admin filed it.
+                    </p>
+                  </fieldset>
+                ) : null}
+
+                {onBehalf && !onBehalf.requesters.length ? null : (
+                  <EventRequestForm
+                    key={`${session}-${load.context.companyId}`}
+                    extraFields={onBehalf ? { on_behalf_of: requesterId } : undefined}
+                    companyId={load.context.companyId}
+                    companyGstin={load.context.companyGstin}
+                    venues={load.context.venues}
+                    departments={load.context.departments}
+                    defaultVenueId={venueId && load.context.venues.some((v) => v.id === venueId) ? venueId : ""}
+                    withEventDetails
+                    submitLabel="Submit direct RFP"
+                    submitClassName={SUBMIT}
+                  />
+                )}
+              </div>
             )}
           </div>
         </Dialog.Content>
