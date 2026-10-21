@@ -8,7 +8,7 @@ export function SiteHeader() {
     <header className="border-sand border-b pt-[var(--app-safe-top)]">
       <div className="container-public flex items-center justify-between py-4">
         <Link href="/" aria-label="Lufer.ai home" className="rounded-md">
-          <Logo size="sm" taglines={false} />
+          <Logo size="sm" tagline={false} />
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1 text-meta font-medium">
           <Link href="#portals" className="text-plum/80 hover:text-plum hidden rounded-full px-3 py-2 sm:inline-flex">
