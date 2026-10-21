@@ -1,8 +1,9 @@
 "use client";
 
-import { useId } from "react";
-import { AlertTriangle, BadgePercent, Check, DoorClosed, Users } from "lucide-react";
+import { useId, useState } from "react";
+import { AlertTriangle, BadgePercent, Check, DoorClosed, Search, Users } from "lucide-react";
 
+import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
 
 export interface VenuePickerOption {
@@ -127,6 +128,7 @@ export function VenuePicker({
   name = "venue_id",
   partySize,
   error,
+  searchable = false,
 }: {
   venues: VenuePickerOption[];
   value: string;
@@ -135,9 +137,13 @@ export function VenuePicker({
   /** Guests entered so far, for the fit hint (0 or NaN hides it). */
   partySize?: number;
   error?: string;
+  /** A search box over name and area (the manual booking modal); the chosen venue always stays listed. */
+  searchable?: boolean;
 }) {
   const id = useId();
   const guests = partySize && partySize > 0 ? partySize : 0;
+  const [query, setQuery] = useState("");
+  const shown = searchable && query.trim() ? venues.filter((v) => v.id === value || matchScore(query, v.name, `${v.neighborhood} ${v.city}`) !== null) : venues;
 
   return (
     <fieldset aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-3">
@@ -148,8 +154,24 @@ export function VenuePicker({
         </span>
       </legend>
 
+      {searchable ? (
+        <div className="relative">
+          <Search className="text-fg-faint pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search venues by name or area"
+            aria-label="Search venues"
+            className="field pl-9"
+          />
+        </div>
+      ) : null}
+
+      {shown.length === 0 ? <p className="text-fg-subtle text-meta">No venues match “{query.trim()}”.</p> : null}
+
       <div className="grid gap-2 sm:grid-cols-2">
-        {venues.map((v) => {
+        {shown.map((v) => {
           const selected = v.id === value;
           const metaId = `${id}-${v.id}-meta`;
           return (

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, MessageSquarePlus, Search, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, MessageSquarePlus, NotebookPen, Search, SearchX } from "lucide-react";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
+import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { getCurrentMember } from "@/lib/auth/session";
@@ -38,6 +39,22 @@ function RequestRfp({ venue, className }: { venue: { name: string; neighborhood:
       <MessageSquarePlus className="size-3.5" aria-hidden />
       <span className="hidden lg:inline">Request RFP</span>
     </ChatDrawerTrigger>
+  );
+}
+
+/** Row action for Lufer.ai venues: the manual booking modal with the venue pre-selected. */
+function BookManually({ venue, className }: { venue: { id: string; name: string }; className?: string }) {
+  return (
+    <ManualBookingModal
+      venueId={venue.id}
+      venueName={venue.name}
+      trigger={
+        <button type="button" aria-label={`Book ${venue.name} manually`} title="Book manually" className={cn("btn btn-ghost h-7 gap-1 px-2 text-caption", className)}>
+          <NotebookPen className="size-3.5" aria-hidden />
+          <span className="hidden lg:inline">Book manually</span>
+        </button>
+      }
+    />
   );
 }
 
@@ -177,7 +194,12 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
                     {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
                   </p>
-                  {canRequest ? <RequestRfp venue={v} className="-ml-2 mt-1.5" /> : null}
+                  {canRequest ? (
+                    <div className="-ml-2 mt-1.5 flex gap-1">
+                      <RequestRfp venue={v} />
+                      {v.tier === "internal" ? <BookManually venue={v} /> : null}
+                    </div>
+                  ) : null}
                 </InspectableRow>
               ))}
             </ul>
@@ -238,6 +260,9 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                         <td className="pr-5 text-right whitespace-nowrap">
                           {/* Shown on row hover; always reachable by keyboard (and on touch). */}
                           <RequestRfp venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
+                          {v.tier === "internal" ? (
+                            <BookManually venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100" />
+                          ) : null}
                         </td>
                       ) : null}
                     </InspectableRow>

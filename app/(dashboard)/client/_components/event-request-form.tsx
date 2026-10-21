@@ -17,6 +17,18 @@ import {
   type BookingFormInput,
   type BookingSchemaContext,
 } from "@/lib/bookings/request-schema";
+import {
+  budgetCapError,
+  composeEventNotes,
+  EMPTY_EVENT_DETAILS,
+  eventDetailsErrors,
+  FOOD,
+  OCCASIONS,
+  SEATING,
+  type EventDetails,
+  type Food,
+  type Seating,
+} from "@/lib/bookings/event-details";
 import { calculateGst, normalizeGstin, validateGstin } from "@/lib/gst-engine";
 import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
 import { cn, formatDate, formatINR } from "@/lib/utils";
@@ -70,6 +82,9 @@ export function EventRequestForm({
   departments = [],
   defaultVenueId = "",
   prefill,
+  withEventDetails = false,
+  submitLabel = "Send request",
+  submitClassName,
 }: {
   /** Used for the negotiated-rate preview; the server scopes it to the session's company. */
   companyId: string;
@@ -79,6 +94,14 @@ export function EventRequestForm({
   defaultVenueId?: string;
   /** Each new object overwrites venue, guests and budget and returns to the first step. */
   prefill?: VenuePrefill;
+  /**
+   * Manual booking: also ask for occasion, timings, a budget cap, seating, food
+   * and dietary needs (lib/bookings/event-details.ts). They reach the venue in
+   * the request's notes; the cap is enforced here and by submitBookingRequest.
+   */
+  withEventDetails?: boolean;
+  submitLabel?: string;
+  submitClassName?: string;
 }) {
   const [state, formAction, pending] = useActionState<BookingRequestState, FormData>(submitBookingRequest, { status: "idle" });
   const [values, setValues] = useState<BookingFormInput>({ ...EMPTY, venue_id: defaultVenueId });
@@ -90,6 +113,13 @@ export function EventRequestForm({
     setClientErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
   };
   const { venue_id: venueId, event_date: eventDate, party_size: partySize, budget_per_head_inr: perHead } = values;
+
+  const [details, setDetails] = useState<EventDetails>(EMPTY_EVENT_DETAILS);
+  const setDetail = <K extends keyof EventDetails>(field: K, value: EventDetails[K]) => setDetails((d) => ({ ...d, [field]: value }));
+  // What's validated and sent as `notes`: the details' lines, then the user's own notes.
+  const submitted: BookingFormInput = withEventDetails ? { ...values, notes: composeEventNotes(details, values.notes) } : values;
+  const detailErrors = withEventDetails ? eventDetailsErrors(details, values.notes) : {};
+  const capError = withEventDetails ? budgetCapError({ partySize: Number(partySize), perHead: Number(perHead), cap: Number(details.budgetCap) || null }) : null;
 
   // Apply a new prefill while rendering rather than in an effect (React's
   // "adjusting state when a prop changes" pattern), so there's no flash of old values.
@@ -189,7 +219,7 @@ export function EventRequestForm({
 
   // Things the schema can't know that also stop the Event step.
   const belowMinimum = pricing !== null && !pricing.meetsMinimumSpend;
-  const eventBlocked = dateUnavailable || slotBusy || belowMinimum;
+  const eventBlocked = dateUnavailable || slotBusy || belowMinimum || Boolean(capError || detailErrors.startTime || detailErrors.endTime || detailErrors.budgetCap);
 
   const form = useRef<HTMLFormElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -202,7 +232,7 @@ export function EventRequestForm({
 
   /** Checks the current step; on errors shows them and focuses the first invalid field. */
   function checkStep(index: number): boolean {
-    const errors = validateBookingStep(values, schemaCtx, BOOKING_STEPS[index].id);
+    const errors = validateBookingStep(submitted, schemaCtx, BOOKING_STEPS[index].id);
     setClientErrors(errors);
     const first = Object.keys(errors)[0];
     if (first) {
@@ -223,7 +253,7 @@ export function EventRequestForm({
       next();
       return;
     }
-    const result = validateBookingForm(values, schemaCtx);
+    const result = validateBookingForm(submitted, schemaCtx);
     if (!result.ok || eventBlocked) {
       e.preventDefault();
       if (!result.ok) {
@@ -235,6 +265,7 @@ export function EventRequestForm({
 
   function startOver() {
     setValues({ ...EMPTY, venue_id: venueId });
+    setDetails(EMPTY_EVENT_DETAILS);
     setClientErrors({});
     setStep(0);
   }
@@ -247,6 +278,12 @@ export function EventRequestForm({
     <form ref={form} action={formAction} onSubmit={onSubmit} noValidate className="grid gap-5">
       <input type="hidden" name="company_id" value={companyId} />
       <input type="hidden" name="slot_token" value={slot?.status === "held" ? slot.token : ""} />
+      {withEventDetails ? (
+        <>
+          <input type="hidden" name="notes" value={submitted.notes} />
+          <input type="hidden" name="budget_cap_inr" value={details.budgetCap} />
+        </>
+      ) : null}
 
       {/* Progress: earlier steps can be revisited; later ones are reached with Next. */}
       <ol className="grid grid-cols-3 gap-2" aria-label="Booking request steps">
@@ -288,7 +325,7 @@ export function EventRequestForm({
 
       {/* ── Step 1 · Event ─────────────────────────────────────────────── */}
       <div hidden={current.id !== "event"} className="grid gap-4">
-        <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} />
+        <VenuePicker venues={venues} value={venueId} onChange={(id) => set("venue_id", id)} partySize={Number(partySize)} error={err("venue_id")} searchable={withEventDetails} />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="grid content-start gap-2">
@@ -360,11 +397,99 @@ export function EventRequestForm({
           </p>
         ) : null}
 
+        {withEventDetails ? (
+          <fieldset className="grid gap-4">
+            <legend className="label-mono mb-3">Event details</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid content-start gap-2">
+                <Label htmlFor="occasion">Event name / occasion</Label>
+                <Input id="occasion" list="occasions" value={details.occasion} onChange={(e) => setDetail("occasion", e.target.value)} placeholder="Team dinner" maxLength={80} />
+                <datalist id="occasions">
+                  {OCCASIONS.map((o) => (
+                    <option key={o} value={o} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="grid content-start gap-2">
+                <Label htmlFor="budget_cap">Maximum total budget (₹)</Label>
+                <Input
+                  id="budget_cap"
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  value={details.budgetCap}
+                  onChange={(e) => setDetail("budgetCap", e.target.value)}
+                  placeholder="Optional"
+                  aria-invalid={Boolean(detailErrors.budgetCap || capError)}
+                  aria-describedby="budget-cap-help"
+                />
+                {detailErrors.budgetCap || capError ? (
+                  <p className="text-destructive text-caption" role="alert">
+                    {detailErrors.budgetCap ?? capError}
+                  </p>
+                ) : (
+                  <p id="budget-cap-help" className="text-muted-foreground text-caption">
+                    Pre-tax ceiling: guests × budget per head must fit.
+                  </p>
+                )}
+              </div>
+              <div className="grid content-start gap-2">
+                <Label htmlFor="start_time">Start time</Label>
+                <Input id="start_time" type="time" value={details.startTime} onChange={(e) => setDetail("startTime", e.target.value)} aria-invalid={Boolean(detailErrors.startTime)} />
+                <FieldError message={detailErrors.startTime} />
+              </div>
+              <div className="grid content-start gap-2">
+                <Label htmlFor="end_time">End time</Label>
+                <Input id="end_time" type="time" value={details.endTime} onChange={(e) => setDetail("endTime", e.target.value)} aria-invalid={Boolean(detailErrors.endTime)} />
+                <FieldError message={detailErrors.endTime} />
+              </div>
+            </div>
+          </fieldset>
+        ) : null}
+
         {pricing ? <PricingPanel pricing={pricing} /> : null}
       </div>
 
       {/* ── Step 2 · Billing ───────────────────────────────────────────── */}
       <div hidden={current.id !== "billing"} className="grid gap-4">
+        {withEventDetails ? (
+          <fieldset className="border-line grid gap-4 border-b pb-5">
+            <legend className="label-mono mb-3">Requirements</legend>
+            <div className="grid gap-2">
+              <span className="text-meta font-medium">Seating</span>
+              <div className="flex flex-wrap gap-x-5 gap-y-2" role="radiogroup" aria-label="Seating">
+                {(Object.keys(SEATING) as Seating[]).map((k) => (
+                  <label key={k} className="text-fg flex items-center gap-2 text-meta pointer-coarse:min-h-11">
+                    <input type="radio" name="seating_choice" checked={details.seating === k} onChange={() => setDetail("seating", k)} className="accent-fg size-4" />
+                    {SEATING[k]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <span className="text-meta font-medium">Food &amp; drink</span>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {(Object.keys(FOOD) as Food[]).map((k) => (
+                  <label key={k} className="text-fg flex items-center gap-2 text-meta pointer-coarse:min-h-11">
+                    <input
+                      type="checkbox"
+                      checked={details.food.includes(k)}
+                      onChange={(e) => setDetail("food", e.target.checked ? [...details.food, k] : details.food.filter((f) => f !== k))}
+                      className="accent-fg size-4"
+                    />
+                    {FOOD[k]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="grid content-start gap-2">
+              <Label htmlFor="dietary">Dietary requirements</Label>
+              <Input id="dietary" value={details.dietary} onChange={(e) => setDetail("dietary", e.target.value)} placeholder="e.g. 4 Jain, 2 gluten-free, 1 nut allergy" maxLength={160} />
+            </div>
+          </fieldset>
+        ) : null}
+
         {departments.length > 0 ? (
           <div className="grid content-start gap-2">
             <Label htmlFor="department_id">Charge to department</Label>
@@ -444,7 +569,8 @@ export function EventRequestForm({
           </Label>
           <textarea
             id="notes"
-            name="notes"
+            // With event details the composed notes go in a hidden field instead.
+            name={withEventDetails ? undefined : "notes"}
             value={values.notes}
             onChange={(e) => set("notes", e.target.value)}
             placeholder="Dietary needs, AV, seating, timings…"
@@ -457,7 +583,7 @@ export function EventRequestForm({
           <p id="notes-count" className="text-fg-subtle text-right font-mono text-caption tabular-nums">
             {values.notes.length}/{NOTES_MAX}
           </p>
-          <FieldError message={err("notes")} />
+          <FieldError message={detailErrors.notes ?? err("notes")} />
         </div>
       </div>
 
@@ -487,9 +613,9 @@ export function EventRequestForm({
             </span>
             {departmentName ? ` · ${departmentName}` : ""} · GSTIN <span className="figure">{billedGstin}</span>
           </ReviewRow>
-          {values.notes ? (
-            <ReviewRow label="Notes" onEdit={() => setStep(1)}>
-              <span className="whitespace-pre-wrap">{values.notes}</span>
+          {submitted.notes ? (
+            <ReviewRow label={withEventDetails ? "Details & notes" : "Notes"} onEdit={() => setStep(withEventDetails ? 0 : 1)}>
+              <span className="whitespace-pre-wrap">{submitted.notes}</span>
             </ReviewRow>
           ) : null}
         </dl>
@@ -545,9 +671,9 @@ export function EventRequestForm({
             Request another event
           </Button>
         ) : (
-          <Button type="submit" disabled={pending || eventBlocked}>
+          <Button type="submit" disabled={pending || eventBlocked || Boolean(detailErrors.notes)} className={submitClassName}>
             {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-            Send request
+            {submitLabel}
           </Button>
         )}
         {state.status === "error" && state.message && state === handledState ? (

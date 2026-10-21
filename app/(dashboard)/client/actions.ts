@@ -4,7 +4,9 @@ import { refresh, revalidatePath } from "next/cache";
 
 import { requirePortal, type Member } from "@/lib/auth/session";
 import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
+import { budgetCapError } from "@/lib/bookings/event-details";
 import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
+import { getVenueCatalog } from "@/lib/catalog";
 import { runBookingAgent, type AgentBookingOutcome } from "@/lib/bookings/booking-agent";
 import type { OrderEventStatus } from "@/lib/telemetry/events";
 import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingStatus } from "@/lib/data";
@@ -20,6 +22,8 @@ import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { CHECKOUT_LOCK_TTL_MS, getSlotLocks, ownerOf } from "@/lib/locks";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
+import type { VenueOption } from "./_components/event-request-form";
+import { toVenueOption } from "./_components/venue-options";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -89,6 +93,9 @@ export async function submitBookingRequest(
   const parsed = validateBookingForm(bookingFormInput(formData), { today: new Date().toISOString().slice(0, 10) });
   if (!parsed.ok) return { status: "error", fieldErrors: parsed.errors, message: "Please fix the highlighted fields." };
   const v = parsed.value;
+  // Optional ceiling from the manual booking form, on the figure the user asked for.
+  const overCap = budgetCapError({ partySize: v.party_size, perHead: v.budget_per_head_inr, cap: Number(formData.get("budget_cap_inr")) || null });
+  if (overCap) return { status: "error", fieldErrors: { budget_per_head_inr: overCap }, message: "Please fix the highlighted fields." };
 
   const result = await placeBookingRequest({
     companyId,
@@ -108,6 +115,34 @@ export async function submitBookingRequest(
     revalidatePath("/admin");
   }
   return result;
+}
+
+export interface ManualBookingContext {
+  companyId: string;
+  companyGstin: string;
+  venues: VenueOption[];
+  departments: { id: string; name: string }[];
+}
+
+/**
+ * What the manual booking modal needs, loaded when it opens: the caller's
+ * company, its bookable venues (with negotiated terms) and departments. Only
+ * Organizers and Approvers request bookings (placeBookingRequest checks again).
+ */
+export async function getManualBookingContext(): Promise<ManualBookingContext | { error: string }> {
+  const member = await requirePortal("/client");
+  if (member.role !== "CLIENT" || !member.companyId || (member.corporateRole !== "ORGANIZER" && member.corporateRole !== "APPROVER")) {
+    return { error: "Only Organizers and Approvers can request bookings." };
+  }
+  const company = (await listCompanies()).find((c) => c.id === member.companyId);
+  if (!company) return { error: "Your company wasn't found." };
+  const { venues, departments } = await getVenueCatalog(company.id);
+  return {
+    companyId: company.id,
+    companyGstin: company.gstin,
+    venues: venues.map(toVenueOption),
+    departments: departments.map((d) => ({ id: d.id, name: d.name })),
+  };
 }
 
 /**

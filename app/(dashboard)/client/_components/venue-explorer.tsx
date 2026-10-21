@@ -13,24 +13,10 @@ import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
 import { AiVenueSearch } from "./ai-venue-search";
-import { EventRequestForm, type VenueOption, type VenuePrefill } from "./event-request-form";
+import { EventRequestForm, type VenuePrefill } from "./event-request-form";
 import { VenueCardBody } from "./venue-picker";
+import { toVenueOption } from "./venue-options";
 
-const fromPrice = (v: CatalogVenue) => (v.packages.length ? Math.min(...v.packages.map((p) => p.per_head_inr)) : null);
-/** One card's data, shared by the list here and the wizard's VenuePicker. */
-const toOption = (v: CatalogVenue): VenueOption => ({
-  id: v.id,
-  name: v.name,
-  neighborhood: v.neighborhood,
-  city: v.city,
-  gstin: v.gstin,
-  capacity_max: v.capacity_max,
-  min_spend_inr: v.rate_card?.minSpendOverride ?? v.min_spend_inr,
-  pdr_available: v.pdr_available,
-  from_per_head_inr: fromPrice(v),
-  rate_card_label: v.rate_card?.label ?? null,
-  dietary: [...new Set(v.packages.flatMap((p) => p.dietary_tags))].map(dietaryLabel),
-});
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
 
 /**
@@ -53,7 +39,7 @@ export function VenueExplorer({
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const [prefill, setPrefill] = useState<VenuePrefill>();
   const selected = venues.find((v) => v.id === selectedId) ?? null;
-  const options = venues.map(toOption);
+  const options = venues.map(toVenueOption);
 
   const pick = (id: string) => {
     setSelectedId(id);
