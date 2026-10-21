@@ -86,7 +86,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         {stats.map((s) => (
           <div key={s.label} className="panel px-4 py-3">
             <dt className="label-mono">{s.label}</dt>
-            <dd className={cn("figure text-fg mt-1 text-xl", s.warn && "text-warn")}>{s.value}</dd>
+            <dd className={cn("figure text-fg mt-1 text-section", s.warn && "text-warn")}>{s.value}</dd>
           </div>
         ))}
       </dl>

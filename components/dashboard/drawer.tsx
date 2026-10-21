@@ -45,7 +45,7 @@ export function Drawer({
   if (!open) return null;
   return (
     <div className={cn("fixed inset-0 z-50", className)} role="dialog" aria-modal="true" aria-label={label}>
-      <div className="animate-in fade-in absolute inset-0 bg-black/60 duration-200" onClick={onClose} aria-hidden />
+      <div className="animate-in fade-in absolute inset-0 bg-scrim duration-200" onClick={onClose} aria-hidden />
       <div
         ref={panel}
         tabIndex={-1}

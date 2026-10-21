@@ -40,7 +40,7 @@ function describe(e: EscalationEvent): string {
 
 function Trail({ events }: { events: EscalationEvent[] }) {
   return (
-    <ol className="border-line grid gap-1 border-l pl-3 text-[12px]" aria-label="Audit trail">
+    <ol className="border-line grid gap-1 border-l pl-3 text-caption" aria-label="Audit trail">
       {events.map((e) => (
         <li key={e.id} className={cn("text-fg-subtle", e.action === "notify_failed" && "text-rose")}>
           <time className="text-fg-faint mr-2 font-mono tabular-nums" dateTime={e.at}>
@@ -58,8 +58,8 @@ function Header({ e, showVenue }: { e: Escalation; showVenue: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span className="text-fg font-medium">{e.companyName}</span>
-      {showVenue ? <span className="text-fg-subtle text-[12.5px]">at {e.venueName}</span> : null}
-      <span className="text-fg-subtle text-[12.5px]">
+      {showVenue ? <span className="text-fg-subtle text-meta">at {e.venueName}</span> : null}
+      <span className="text-fg-subtle text-meta">
         {e.partySize} guests{e.rfp.eventDate ? ` · ${formatDate(e.rfp.eventDate)}` : ""}
         {e.rfp.budgetPerHead !== null ? ` · budget ${formatINR(e.rfp.budgetPerHead)}/head` : ""}
       </span>
@@ -89,7 +89,7 @@ function OpenItem({ e, showVenue }: { e: Escalation; showVenue: boolean }) {
   return (
     <li className="grid gap-3 py-4 first:pt-0">
       <Header e={e} showVenue={showVenue} />
-      <dl className="grid grid-cols-3 gap-3 text-[12.5px]">
+      <dl className="grid grid-cols-3 gap-3 text-meta">
         <div>
           <dt className="label-mono">Venue price</dt>
           <dd className="font-mono tabular-nums">{e.standardPerHead !== null ? `${formatINR(e.standardPerHead)}/head` : "—"}</dd>
@@ -105,33 +105,33 @@ function OpenItem({ e, showVenue }: { e: Escalation; showVenue: boolean }) {
           </dd>
         </div>
       </dl>
-      <p className="text-fg-subtle text-[12.5px] leading-5">{e.reason}</p>
+      <p className="text-fg-subtle text-meta leading-5">{e.reason}</p>
       <div className="grid gap-2 sm:grid-cols-[9rem_1fr_auto] sm:items-end">
-        <label className="grid gap-1 text-[12px]">
+        <label className="grid gap-1 text-caption">
           <span className="text-fg-subtle">Per head to send</span>
           <input value={price} onChange={(ev) => setPrice(ev.target.value)} inputMode="decimal" className="field font-mono" aria-label="Per-head price to send" />
         </label>
-        <label className="grid gap-1 text-[12px]">
+        <label className="grid gap-1 text-caption">
           <span className="text-fg-subtle">Note to client (optional)</span>
           <input value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={280} className="field" placeholder="e.g. Includes welcome drinks" />
         </label>
         <div className="flex flex-wrap gap-2">
           {modified ? (
-            <button type="button" className="btn btn-primary h-8 px-3 text-[12.5px]" disabled={act.pending} onClick={() => decide("modify")}>
+            <button type="button" className="btn btn-secondary h-8 px-3 text-meta" disabled={act.pending} onClick={() => decide("modify")}>
               {act.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Send className="size-3.5" aria-hidden />} Send at {price ? formatINR(Number(price) || 0) : "…"}
             </button>
           ) : (
-            <button type="button" className="btn btn-primary h-8 px-3 text-[12.5px]" disabled={act.pending} onClick={() => decide("approve")}>
+            <button type="button" className="btn btn-secondary h-8 px-3 text-meta" disabled={act.pending} onClick={() => decide("approve")}>
               {act.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Check className="size-3.5" aria-hidden />} Approve
             </button>
           )}
-          <button type="button" className="btn h-8 px-3 text-[12.5px]" disabled={act.pending} onClick={() => decide("reject")} title="Don't counter; the instant quote stands">
+          <button type="button" className="btn h-8 px-3 text-meta" disabled={act.pending} onClick={() => decide("reject")} title="Don't counter; the instant quote stands">
             <X className="size-3.5" aria-hidden /> Reject
           </button>
         </div>
       </div>
-      <p className="text-fg-faint text-[11.5px]">Counters are checked against the venue&apos;s guardrails and the platform&apos;s caps before they&apos;re sent.</p>
-      <button type="button" className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 justify-self-start text-[12px]" onClick={() => setShowTrail((v) => !v)} aria-expanded={showTrail}>
+      <p className="text-fg-faint text-caption">Counters are checked against the venue&apos;s guardrails and the platform&apos;s caps before they&apos;re sent.</p>
+      <button type="button" className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 justify-self-start text-caption" onClick={() => setShowTrail((v) => !v)} aria-expanded={showTrail}>
         <History className="size-3.5" aria-hidden /> Audit trail ({e.events.length})
         <ChevronDown className={cn("size-3.5 transition-transform", showTrail && "rotate-180")} aria-hidden />
       </button>
@@ -145,7 +145,7 @@ function AlertNumber({ venueId, number }: { venueId: string; number: string | nu
   const save = useAction<{ phone: string | null }>();
   return (
     <form
-      className="flex flex-wrap items-center gap-2 text-[12px]"
+      className="flex flex-wrap items-center gap-2 text-caption"
       onSubmit={(ev) => {
         ev.preventDefault();
         void save.run(() => saveAlertNumberAction(venueId, value), {
@@ -158,8 +158,8 @@ function AlertNumber({ venueId, number }: { venueId: string; number: string | nu
       <label htmlFor={`alert-${venueId}`} className="text-fg-subtle">
         WhatsApp alerts to
       </label>
-      <input id={`alert-${venueId}`} value={value} onChange={(ev) => setValue(ev.target.value)} placeholder="+91 98450 12345" className="field h-7 w-40 py-0 font-mono text-[12px]" />
-      <button type="submit" className="btn h-7 px-2.5 text-[12px]" disabled={save.pending || value === (number ?? "")}>
+      <input id={`alert-${venueId}`} value={value} onChange={(ev) => setValue(ev.target.value)} placeholder="+91 98450 12345" className="field h-7 w-40 py-0 font-mono text-caption" />
+      <button type="submit" className="btn h-7 px-2.5 text-caption" disabled={save.pending || value === (number ?? "")}>
         Save
       </button>
     </form>
@@ -187,7 +187,7 @@ export function EscalationQueue({
   const [trailFor, setTrailFor] = useState<string | null>(null);
   if (!ready) {
     return (
-      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-[13px]">
+      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-meta">
         The escalation queue needs the Supabase database with migration 0029 (negotiation_escalations). Until then, held-back counters only show in the RFP inbox notes and the activity feed.
       </p>
     );
@@ -196,7 +196,7 @@ export function EscalationQueue({
     <div className="grid gap-4">
       {alert ? <AlertNumber venueId={alert.venueId} number={alert.number} /> : null}
       {open.length === 0 ? (
-        <p className="text-fg-subtle text-[13px]">Nothing waiting. Automatic counters past the escalation thresholds land here for review.</p>
+        <p className="text-fg-subtle text-meta">Nothing waiting. Automatic counters past the escalation thresholds land here for review.</p>
       ) : (
         <ul className="divide-line divide-y">
           {open.map((e) => (
@@ -206,7 +206,7 @@ export function EscalationQueue({
       )}
       {recent.length > 0 ? (
         <details className="border-line group rounded-lg border">
-          <summary className="hover:bg-surface-hover flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[12.5px]">
+          <summary className="hover:bg-surface-hover flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-meta">
             <History className="text-fg-subtle size-3.5" aria-hidden />
             <span className="label-mono">Recent decisions · {recent.length}</span>
             <ChevronDown className="text-fg-subtle ml-auto size-3.5 transition-transform group-open:rotate-180" aria-hidden />
@@ -215,14 +215,14 @@ export function EscalationQueue({
             {recent.map((e) => (
               <li key={e.id} className="grid gap-2 py-3">
                 <Header e={e} showVenue={showVenue} />
-                <p className="text-fg-subtle text-[12.5px]">
+                <p className="text-fg-subtle text-meta">
                   Proposed {formatINR(e.proposedPerHead)}/head
                   {e.decidedPerHead !== null ? ` · sent ${formatINR(e.decidedPerHead)}/head` : ""}
                   {e.status === "open" ? " · RFP closed before review" : ""}
                   {e.decisionNote ? ` · ${e.decisionNote}` : ""}
                   {e.decidedAt ? ` · ${when(e.decidedAt)}` : ""}
                 </p>
-                <button type="button" className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 justify-self-start text-[12px]" onClick={() => setTrailFor((v) => (v === e.id ? null : e.id))} aria-expanded={trailFor === e.id}>
+                <button type="button" className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 justify-self-start text-caption" onClick={() => setTrailFor((v) => (v === e.id ? null : e.id))} aria-expanded={trailFor === e.id}>
                   <History className="size-3.5" aria-hidden /> Audit trail ({e.events.length})
                 </button>
                 {trailFor === e.id ? <Trail events={e.events} /> : null}

@@ -188,7 +188,8 @@ test("presence: one entry per person (tabs merged), you first, then by arrival",
     ["u2", false, 1, "guests", "DI"],
   ]);
   assert.equal(colorFor("u1"), colorFor("u1"));
-  assert.match(colorFor("anything"), /^#[0-9a-f]{6}$/);
+  // A Velvet Night palette token (app/globals.css), never a raw hex value.
+  assert.match(colorFor("anything"), /^var\(--color-[a-z-]+\)$/);
   assert.equal(displayName("asha.rao@nimbus.in"), "Asha Rao");
   assert.equal(displayName(null), "Teammate");
 });

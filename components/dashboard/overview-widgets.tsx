@@ -11,7 +11,7 @@ function Widget({ title, href, children }: { title: string; href: string; childr
     <section className="panel" aria-label={title}>
       <header className="border-line flex items-center justify-between border-b px-5 py-3.5">
         <h2 className="label-mono">{title}</h2>
-        <Link href={href} className="text-fg-subtle hover:text-fg inline-flex items-center gap-0.5 text-[12px] transition-colors">
+        <Link href={href} className="text-fg-subtle hover:text-fg inline-flex items-center gap-0.5 text-caption transition-colors">
           Manage <ArrowUpRight className="size-3" aria-hidden />
         </Link>
       </header>
@@ -48,8 +48,8 @@ export function ChannelsWidget({ channels }: { channels: ChannelSummary[] }) {
           <li key={c.id} className="border-line flex items-center gap-3 border-b px-5 py-3.5 last:border-b-0">
             <ChannelTile channel={c.id} />
             <div className="min-w-0 flex-1">
-              <p className="text-fg text-[13px] font-medium">{c.label}</p>
-              <p className="text-fg-subtle mt-0.5 font-mono text-[11px] tabular-nums">
+              <p className="text-fg text-meta font-medium">{c.label}</p>
+              <p className="text-fg-subtle mt-0.5 font-mono text-caption tabular-nums">
                 {c.messages} msg · {c.bookings} booked
               </p>
             </div>
@@ -75,8 +75,8 @@ export function AgentsWidget({ agents }: { agents: { id: string; name: string; s
         {agents.map((a) => (
           <li key={a.id} className="flex items-center gap-3 px-5 py-2">
             <span className={cn("shrink-0", AGENT_DOT[a.status])} aria-hidden />
-            <span className="text-fg-muted min-w-0 flex-1 truncate text-[13px]">{a.name}</span>
-            <span className="text-fg-subtle font-mono text-[11px] tabular-nums">
+            <span className="text-fg-muted min-w-0 flex-1 truncate text-meta">{a.name}</span>
+            <span className="text-fg-subtle font-mono text-caption tabular-nums">
               {a.status === "disabled" ? "off" : a.status} · {a.runs}
             </span>
           </li>

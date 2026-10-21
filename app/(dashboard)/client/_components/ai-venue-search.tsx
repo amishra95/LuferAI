@@ -69,14 +69,14 @@ export function AiVenueSearch({
       </form>
 
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-destructive text-body" role="alert">
           {error}
         </p>
       ) : null}
 
       {result ? (
         <div className="grid gap-3" aria-live="polite">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 text-caption">
             <span className="text-muted-foreground">Understood as:</span>
             <Badge variant="outline">{result.filters.location || "Any location"}</Badge>
             <Badge variant="outline">{result.filters.minCapacity}+ guests</Badge>
@@ -91,11 +91,11 @@ export function AiVenueSearch({
           </div>
 
           {result.options.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No venues match. Try a larger area, fewer guests or a higher budget.</p>
+            <p className="text-muted-foreground text-body">No venues match. Try a larger area, fewer guests or a higher budget.</p>
           ) : (
             <ul className="grid gap-2">
               {result.options.map((o) => (
-                <li key={o.venue.id} className="rounded-lg border p-3 text-sm">
+                <li key={o.venue.id} className="rounded-lg border p-3 text-body">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{o.venue.name}</span>
                     <span className="text-muted-foreground">{o.venue.neighborhood}</span>
@@ -108,9 +108,9 @@ export function AiVenueSearch({
                     {o.venue.pdr_available ? " · private dining room" : ""} · est. {formatINR(o.estimatedPerHead)}/head,{" "}
                     {formatINR(o.estimatedTotal)} total
                   </div>
-                  {o.policyReason ? <p className="mt-1 text-xs">{o.policyReason}</p> : null}
+                  {o.policyReason ? <p className="mt-1 text-caption">{o.policyReason}</p> : null}
                   {o.unverifiedFeatures.length > 0 ? (
-                    <p className="text-muted-foreground mt-1 text-xs">
+                    <p className="text-muted-foreground mt-1 text-caption">
                       Not listed in venue details, confirm with the venue: {o.unverifiedFeatures.join(", ")}
                     </p>
                   ) : null}

@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#09090b">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#2A1B3D">
 <title>LuferAI</title>
 <style>
+  /* Velvet Night (app/globals.css), inlined: this page ships without the app's CSS. */
   :root {
+    --plum: #2A1B3D; --plum-light: #3A2A50; --gold: #F2C14E; --coral: #FF6B4A; --coral-hover: #E85A3A;
+    --ink: #1A1523; --linen: #FAF6F0; --on-plum-muted: #C9BEDA;
     --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
     --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
@@ -16,23 +19,23 @@
   body {
     display: grid; place-items: center;
     padding: calc(24px + var(--safe-top)) 24px calc(24px + var(--safe-bottom));
-    background: #09090b; color: #fafafa;
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--plum); color: var(--linen);
+    font: 15px/1.5 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   main { max-width: 22rem; text-align: center; }
   .mark {
-    display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 12px;
-    background: #fafafa; color: #09090b; font-weight: 700; margin-bottom: 20px;
-    box-shadow: 0 0 28px -6px rgb(52 211 153 / .7);
+    display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px;
+    background: var(--plum-light); color: var(--gold); font-weight: 600; margin-bottom: 20px;
   }
-  h1 { font-size: 20px; margin: 0 0 8px; }
-  p { color: #a1a1aa; margin: 0 0 24px; }
+  h1 { font-size: 22px; line-height: 1.2; font-weight: 600; margin: 0 0 8px; }
+  p { color: var(--on-plum-muted); margin: 0 0 24px; }
   button {
-    min-height: 44px; padding: 0 20px; border: 0; border-radius: 10px;
-    background: #fafafa; color: #09090b; font: inherit; font-weight: 600; cursor: pointer;
+    min-height: 44px; padding: 0 20px; border: 0; border-radius: 12px;
+    background: var(--coral); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
   }
-  button:focus-visible { outline: 2px solid #34d399; outline-offset: 3px; }
+  button:hover { background: var(--coral-hover); }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 </style>
 </head>
 <body>

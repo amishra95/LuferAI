@@ -135,7 +135,7 @@ export function CatalogShop({
     });
 
   const browse = marketplaceHref ? (
-    <Link href={marketplaceHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+    <Link href={marketplaceHref} className="btn btn-primary h-8 px-3 text-meta">
       <Store className="size-3.5" aria-hidden /> Browse marketplace <ArrowRight className="size-3.5" aria-hidden />
     </Link>
   ) : null;
@@ -167,10 +167,10 @@ export function CatalogShop({
               type="button"
               onClick={() => setCategory(c)}
               aria-pressed={active === c}
-              className={cn("border-line h-7 rounded-md border px-2.5 text-[12.5px]", active === c ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
+              className={cn("border-line h-7 rounded-md border px-2.5 text-meta", active === c ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
             >
               {c === "all" ? "All" : CATEGORY_LABEL[c]}
-              {c !== "all" && <span className="text-fg-faint ml-1.5 font-mono text-[11px]">{counts[c]}</span>}
+              {c !== "all" && <span className="text-fg-faint ml-1.5 font-mono text-caption">{counts[c]}</span>}
             </button>
           ))}
         </nav>
@@ -185,21 +185,21 @@ export function CatalogShop({
               <li key={item.id} className="px-5 py-3.5">
                 <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
                   <div className="min-w-0 flex-1">
-                    <p className="text-fg text-[13.5px] font-medium">{item.name}</p>
-                    <p className="text-fg-subtle mt-0.5 text-[12.5px]">
+                    <p className="text-fg text-body font-medium">{item.name}</p>
+                    <p className="text-fg-subtle mt-0.5 text-meta">
                       {item.partner_name} · {CATEGORY_LABEL[item.category as Category] ?? item.category} · {describe(item)}
                     </p>
                   </div>
-                  <p className="text-fg shrink-0 font-mono text-[12.5px] tabular-nums">
+                  <p className="text-fg shrink-0 font-mono text-meta tabular-nums">
                     {formatINR(item.unit_price_inr)}
                     <span className="text-fg-subtle"> /{unitNoun(item.category as Category, 1)} · GST {item.gst_rate_percent}%</span>
                   </p>
                   {canOrder ? (
-                    <button type="button" onClick={() => setOrdering(ordering === item.id ? null : item.id)} className="btn h-7 px-2.5 text-[12px]">
+                    <button type="button" onClick={() => setOrdering(ordering === item.id ? null : item.id)} className="btn h-7 px-2.5 text-caption">
                       <ShoppingBag className="size-3" aria-hidden /> {ordering === item.id ? "Close" : "Order"}
                     </button>
                   ) : (
-                    <DisabledAction reason={readOnlyReason} className="h-7 px-2.5 text-[12px]">
+                    <DisabledAction reason={readOnlyReason} className="h-7 px-2.5 text-caption">
                       <ShoppingBag className="size-3" aria-hidden /> Order
                     </DisabledAction>
                   )}
@@ -280,7 +280,7 @@ function OrderForm({ item, today, onPlace }: { item: ShopItem; today: string; on
   }
 
   return (
-    <form onSubmit={submit} className="border-line mt-3 grid gap-2 rounded-md border p-3 text-[12px] sm:grid-cols-2">
+    <form onSubmit={submit} className="border-line mt-3 grid gap-2 rounded-md border p-3 text-caption sm:grid-cols-2">
       {category === "tickets" && tickets?.ok ? (
         <label className="grid gap-1">
           <span className="text-fg-subtle">Tier</span>
@@ -307,7 +307,7 @@ function OrderForm({ item, today, onPlace }: { item: ShopItem; today: string; on
       {goods && (
         <label className="grid gap-1 sm:col-span-2">
           <span className="text-fg-subtle">Recipients, one per line: name | full address{sizes.length ? ` | size (${sizes.join(", ")})` : ""}</span>
-          <textarea name="recipients" rows={4} required className="field h-auto py-2 font-mono text-[11.5px] leading-5" placeholder={`Asha Rao | 12 Lavelle Rd, Bengaluru 560001${sizes.length ? ` | ${sizes[0]}` : ""}`} />
+          <textarea name="recipients" rows={4} required className="field h-auto py-2 font-mono text-caption leading-5" placeholder={`Asha Rao | 12 Lavelle Rd, Bengaluru 560001${sizes.length ? ` | ${sizes[0]}` : ""}`} />
           <span className="text-fg-faint">Addresses go only to {item.partner_name} for delivery.</span>
         </label>
       )}
@@ -320,12 +320,12 @@ function OrderForm({ item, today, onPlace }: { item: ShopItem; today: string; on
         <input name="project_code" maxLength={32} placeholder="Optional" className="field h-8 font-mono uppercase" />
       </label>
       {error && (
-        <p role="alert" className="text-rose text-[12px] sm:col-span-2">
+        <p role="alert" className="text-rose text-caption sm:col-span-2">
           {error}
         </p>
       )}
       <div className="sm:col-span-2">
-        <button type="submit" disabled={busy} className="btn btn-primary h-8 px-3 text-[12px]">
+        <button type="submit" disabled={busy} className="btn btn-primary h-8 px-3 text-caption">
           {busy && <Loader2 className="size-3 animate-spin" aria-hidden />} Place order
         </button>
       </div>
@@ -341,11 +341,11 @@ function OrderRow({ order: o, canOrder, canSync, canPay, onCancel }: { order: Sh
   const payable = canPay && canOrder && !o.pending && PAYABLE.has(o.status) && o.payment?.stage === "unpaid" && o.invoice_total !== null;
   return (
     <li className={cn("px-5 py-3", o.pending && "opacity-70")}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
         <span className="text-fg min-w-0 flex-1 truncate">
           {o.item_name} <span className="text-fg-subtle">· {o.partner_name}</span>
         </span>
-        <span className="text-fg-subtle font-mono text-[11.5px] tabular-nums">
+        <span className="text-fg-subtle font-mono text-caption tabular-nums">
           {o.quantity} {unitNoun(o.category as Category, o.quantity)} · {formatINR(o.total_amount_inr)}
           {o.invoice_total ? ` (${formatINR(o.invoice_total)} incl. GST)` : ""}
         </span>
@@ -365,24 +365,24 @@ function OrderRow({ order: o, canOrder, canSync, canPay, onCancel }: { order: Sh
                 success: (r) => ({ tone: r.export === "failed" ? "error" : "success", title: r.settled ? "Order settled" : `Expense ${r.export}` }),
               })
             }
-            className="btn h-6 px-2 text-[11.5px]"
+            className="btn h-6 px-2 text-caption"
           >
             {sync.pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Receipt className="size-3" aria-hidden />}
             {status === "DELIVERED" ? "Settle" : "Sync expense"}
           </button>
         )}
         {cancellable && (
-          <button type="button" onClick={onCancel} className="btn btn-ghost h-6 px-2 text-[11.5px]">
+          <button type="button" onClick={onCancel} className="btn btn-ghost h-6 px-2 text-caption">
             Cancel
           </button>
         )}
       </div>
       {o.payment?.issues.length ? (
-        <p role="status" className="text-warn mt-1 text-[11.5px]">
+        <p role="status" className="text-warn mt-1 text-caption">
           {o.payment.issues.join(" ")}
         </p>
       ) : null}
-      <p className="text-fg-faint mt-0.5 font-mono text-[11px]">
+      <p className="text-fg-faint mt-0.5 font-mono text-caption">
         {o.event_date ? `event ${fmtDay(o.event_date)}` : `needed by ${fmtDay(o.needed_by)}`}
         {o.tracking?.reference && (
           <>
@@ -449,7 +449,7 @@ function AgentPick({ today }: { today: string }) {
       <h3 className="label-mono mb-2.5 flex items-center gap-1.5">
         <Bot className="size-3.5" aria-hidden /> Let the agent pick
       </h3>
-      <form onSubmit={submit} className="grid gap-2 text-[12px] sm:grid-cols-3">
+      <form onSubmit={submit} className="grid gap-2 text-caption sm:grid-cols-3">
         <label className="grid gap-1">
           <span className="text-fg-subtle">Category</span>
           <select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="field h-8">
@@ -485,26 +485,26 @@ function AgentPick({ today }: { today: string }) {
         {goods && (
           <label className="grid gap-1 sm:col-span-3">
             <span className="text-fg-subtle">Recipients, one per line: name | full address{category === "merch" ? " | size" : ""}</span>
-            <textarea name="recipients" rows={3} required className="field h-auto py-2 font-mono text-[11.5px] leading-5" />
+            <textarea name="recipients" rows={3} required className="field h-auto py-2 font-mono text-caption leading-5" />
           </label>
         )}
         {error && (
-          <p role="alert" className="text-rose text-[12px] sm:col-span-3">
+          <p role="alert" className="text-rose text-caption sm:col-span-3">
             {error}
           </p>
         )}
         <div className="sm:col-span-3">
-          <button type="submit" disabled={agent.pending} className="btn btn-primary h-8 px-3 text-[12px]">
+          <button type="submit" disabled={agent.pending} className="btn btn-primary h-8 px-3 text-caption">
             {agent.pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Bot className="size-3.5" aria-hidden />} Dispatch booking agent
           </button>
         </div>
       </form>
       {outcome && (
         <div className="border-line mt-3 rounded-md border px-3 py-2" aria-live="polite">
-          <p className="text-fg text-[12.5px]">
+          <p className="text-fg text-meta">
             {OUTCOME[outcome.status]}: {outcome.message}
           </p>
-          <ol className="text-fg-subtle mt-1 space-y-0.5 font-mono text-[11px]">
+          <ol className="text-fg-subtle mt-1 space-y-0.5 font-mono text-caption">
             {outcome.steps.map((s, i) => (
               <li key={i} className={cn(!s.ok && "text-rose")}>
                 {s.ok ? "✓" : "✗"} {s.step}: {s.detail}

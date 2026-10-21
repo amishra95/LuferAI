@@ -27,7 +27,7 @@ const axis = { stroke: "var(--color-line-strong)", tick: { fill: "var(--color-fg
 
 export function DataTable({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
   return (
-    <details className="mt-3 text-sm">
+    <details className="mt-3 text-body">
       <summary className="inline-flex min-h-11 cursor-pointer items-center text-fg-subtle hover:text-fg md:min-h-0">View as table</summary>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-left">
@@ -114,7 +114,7 @@ const deptConfig = { pct: { label: "Budget used", color: "var(--chart-1)" } } sa
 
 export function DepartmentBudgetChart({ departments }: { departments: DepartmentUsage[] }) {
   if (departments.length === 0) {
-    return <p className="py-10 text-center text-sm text-fg-faint">No department budgets set yet.</p>;
+    return <p className="py-10 text-center text-body text-fg-faint">No department budgets set yet.</p>;
   }
   const data = departments.slice(0, 8).map((d) => ({
     ...d,
@@ -131,7 +131,7 @@ export function DepartmentBudgetChart({ departments }: { departments: Department
   return (
     <div>
       {over > 0 ? (
-        <p className="mb-2 inline-flex items-center gap-1.5 text-xs text-rose">
+        <p className="mb-2 inline-flex items-center gap-1.5 text-caption text-rose">
           <AlertTriangle className="size-3.5" aria-hidden /> {over} department{over === 1 ? "" : "s"} over budget
         </p>
       ) : null}
@@ -182,7 +182,7 @@ const savingsConfig = { savings: { label: "Rate-card savings", color: "var(--cha
 export function SavingsChart({ months }: { months: MonthPoint[] }) {
   const total = months.reduce((s, m) => s + m.savings, 0);
   if (total === 0) {
-    return <p className="py-10 text-center text-sm text-fg-faint">No rate-card discounts applied yet this year.</p>;
+    return <p className="py-10 text-center text-body text-fg-faint">No rate-card discounts applied yet this year.</p>;
   }
   return (
     <div>

@@ -16,7 +16,7 @@ export function PlanAck({ plan, bookingId, venueId, cateringPackage }: { plan: E
   if (status.stage === "empty") return null;
   if (status.stage !== "approved") {
     return (
-      <p className="text-fg-subtle flex items-center gap-2 text-[12.5px]">
+      <p className="text-fg-subtle flex items-center gap-2 text-meta">
         <ClipboardCheck className="size-3.5" aria-hidden /> The client is preparing their event plan; you&apos;ll see it here once an Approver signs it off.
       </p>
     );
@@ -29,7 +29,7 @@ export function PlanAck({ plan, bookingId, venueId, cateringPackage }: { plan: E
         <Badge variant={status.venueAcknowledged ? "success" : "warning"}>{status.venueAcknowledged ? "Confirmed by you" : "Signed off · awaiting your confirmation"}</Badge>
       </div>
       {plan.runOfShow.length ? (
-        <ol className="grid gap-1 text-[13px]" aria-label="Run of show">
+        <ol className="grid gap-1 text-meta" aria-label="Run of show">
           {plan.runOfShow.map((i, n) => (
             <li key={n} className="flex gap-3">
               <span className="text-fg-subtle w-12 shrink-0 font-mono tabular-nums">{i.time}</span>
@@ -38,11 +38,11 @@ export function PlanAck({ plan, bookingId, venueId, cateringPackage }: { plan: E
           ))}
         </ol>
       ) : null}
-      <p className="text-[13px]">
+      <p className="text-meta">
         <span className="text-fg-subtle">Catering: </span>
         {cateringPackage ? `${cateringPackage.name} · ${formatINR(cateringPackage.per_head_inr)} a head` : "no package chosen"}
       </p>
-      {plan.specialRequirements ? <p className="text-[13px] whitespace-pre-wrap">{plan.specialRequirements}</p> : null}
+      {plan.specialRequirements ? <p className="text-meta whitespace-pre-wrap">{plan.specialRequirements}</p> : null}
       {blocked === null ? (
         <form action={acknowledgePlanAction}>
           <input type="hidden" name="booking_id" value={bookingId} />

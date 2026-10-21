@@ -28,9 +28,9 @@ export function ItcCalculator({
   return (
     <div className="grid gap-5">
       <div>
-        <p className="text-muted-foreground text-sm">Total tax credits reclaimed</p>
-        <p className="text-fg font-mono text-[30px] leading-tight font-medium tracking-[-0.03em] tabular-nums">{formatINR(reclaimed, true)}</p>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="text-muted-foreground text-body">Total tax credits reclaimed</p>
+        <p className="text-fg font-mono text-hero leading-tight font-medium tracking-[-0.03em] tabular-nums">{formatINR(reclaimed, true)}</p>
+        <p className="text-muted-foreground mt-1 text-caption">
           {formatINR(pipeline)} more becomes claimable once upcoming events are invoiced.
         </p>
       </div>
@@ -48,7 +48,7 @@ export function ItcCalculator({
         />
       </div>
 
-      <dl className="grid grid-cols-2 gap-y-1.5 text-sm">
+      <dl className="grid grid-cols-2 gap-y-1.5 text-body">
         <dt className="text-muted-foreground">GST @ {GST_RATE_PERCENT}%</dt>
         <dd className="text-right tabular-nums">{formatINR(plannedItc, true)}</dd>
         <dt className="text-muted-foreground">Gross outlay</dt>
@@ -59,7 +59,7 @@ export function ItcCalculator({
         <dd className="text-right tabular-nums">{formatINR(committedSpend)}</dd>
       </dl>
 
-      <p className="text-muted-foreground text-xs leading-relaxed">
+      <p className="text-muted-foreground text-caption leading-relaxed">
         ITC is available only on valid tax invoices issued to your GSTIN and subject to Sections 16–17 of
         the CGST Act — credit on food & beverage supplies can be restricted. Confirm eligibility with your tax team.
       </p>

@@ -4,19 +4,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-/** Status pill in the Lufer style: mono, rounded, tinted. Always carries a text label. */
+/** Badge: soft tinted background with dark text of the same colour family. Always carries a text label. */
 const badgeVariants = cva(
-  // Flat label; status variants lead with a solid dot (the text always names the state).
-  "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-[4px] border px-1.5 font-mono text-[10.5px] whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
+  // Flat label; status variants use the soft palette (mint / gold / error) and lead with a dot.
+  "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border px-2 text-caption font-medium tabular-nums whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
         default: "border-line text-fg",
         secondary: "border-transparent bg-surface-raised text-fg-muted",
-        destructive: "border-line text-fg-muted before:status-dot before:bg-rose before:content-['']",
+        destructive: "badge-danger before:status-dot before:bg-rose before:content-['']",
         outline: "border-line text-fg-subtle",
-        success: "border-line text-fg-muted before:status-dot before:bg-sage before:content-['']",
-        warning: "border-line text-fg-muted before:status-dot before:bg-warn before:content-['']",
+        success: "badge-success before:status-dot before:bg-sage before:content-['']",
+        warning: "badge-warn before:status-dot before:bg-warn before:content-['']",
       },
     },
     defaultVariants: {

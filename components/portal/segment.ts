@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  */
 export function segmentClass(active: boolean) {
   return cn(
-    "inline-flex h-7 items-center rounded-md border px-2.5 text-[12.5px] transition-colors duration-100 pointer-coarse:min-h-11 pointer-coarse:px-3.5",
+    "inline-flex h-7 items-center rounded-md border px-2.5 text-meta transition-colors duration-100 pointer-coarse:min-h-11 pointer-coarse:px-3.5",
     active ? "border-line-strong bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg border-transparent"
   );
 }

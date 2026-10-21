@@ -52,7 +52,7 @@ export function HoldCountdown({ createdAt, expiresAt, className }: { createdAt: 
 
   return (
     <div className={cn("grid min-w-36 gap-1", className)}>
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-caption">
         <span
           className={cn(
             "inline-flex items-center gap-1 font-medium",

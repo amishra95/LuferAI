@@ -24,7 +24,7 @@ export function BudgetMeter({ balance, size = "md", showLegend = false, classNam
         className={cn("bg-surface-raised border-line relative overflow-hidden rounded-sm border", size === "sm" ? "h-1.5" : "h-2.5", tone === "over" && "border-rose/40")}
       >
         <span
-          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-rose" : tone === "critical" ? "bg-warn" : "bg-fg")}
+          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-gold" : "bg-chart-1")}
           style={{ width: `${seg.consumed}%` }}
         />
         <span
@@ -34,9 +34,9 @@ export function BudgetMeter({ balance, size = "md", showLegend = false, classNam
         <span aria-hidden className="bg-fg-faint absolute inset-y-0 w-px" style={{ left: `${CRITICAL_PCT}%` }} />
       </div>
       {showLegend ? (
-        <div className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]">
+        <div className="text-fg-subtle flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-caption">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="bg-fg size-2 rounded-[2px]" /> consumed
+            <span aria-hidden className="bg-chart-1 size-2 rounded-[2px]" /> consumed
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span aria-hidden className="size-2 rounded-[2px] bg-[repeating-linear-gradient(135deg,var(--color-fg-subtle)_0_2px,transparent_2px_4px)]" /> committed

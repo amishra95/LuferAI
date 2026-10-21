@@ -69,8 +69,8 @@ export function BudgetManager({
             return (
               <li key={b.id} className={cn("panel grid gap-3 p-4", past && "opacity-70")}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-fg text-[13.5px] font-medium">{b.departmentName}</span>
-                  <span className="text-fg-subtle text-[12px]">{periodLabel(b.period, b.period_start)}</span>
+                  <span className="text-fg text-body font-medium">{b.departmentName}</span>
+                  <span className="text-fg-subtle text-caption">{periodLabel(b.period, b.period_start)}</span>
                   <Pill tone={b.enforcement === "block" ? "error" : "neutral"} className="ml-auto" title={b.enforcement === "block" ? "Spend past the limit is refused" : "Spend past the limit needs sign-off"}>
                     {b.enforcement === "block" ? "Hard cap" : "Sign-off past limit"}
                   </Pill>
@@ -81,7 +81,7 @@ export function BudgetManager({
                   ) : null}
                 </div>
                 <BudgetMeter balance={meter} showLegend />
-                <dl className="grid grid-cols-4 gap-2 text-[12px]">
+                <dl className="grid grid-cols-4 gap-2 text-caption">
                   {[
                     ["Limit", b.balance.limit],
                     ["Held", b.balance.held],
@@ -102,7 +102,7 @@ export function BudgetManager({
 
       {canManage && departments.length ? (
         <form onSubmit={submit} className="panel mt-3 grid gap-3 p-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr_auto] sm:items-end" aria-label="Set a team budget">
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Team</span>
             <NativeSelect value={form.departmentId} onChange={set("departmentId")}>
               {departments.map((d) => (
@@ -112,35 +112,35 @@ export function BudgetManager({
               ))}
             </NativeSelect>
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Period</span>
             <NativeSelect value={form.period} onChange={set("period")}>
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly (FY)</option>
             </NativeSelect>
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">{form.period === "monthly" ? "Month" : "Quarter containing"}</span>
             <input type="month" className="field font-mono" value={form.month} onChange={set("month")} required />
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Limit (₹, pre-GST)</span>
             <input className="field font-mono" inputMode="decimal" value={form.limit} onChange={set("limit")} required placeholder="500000" />
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Past the limit</span>
             <NativeSelect value={form.enforcement} onChange={set("enforcement")}>
               <option value="approval">Needs sign-off</option>
               <option value="block">Refuse (hard cap)</option>
             </NativeSelect>
           </label>
-          <button type="submit" className="btn btn-primary" disabled={save.pending}>
+          <button type="submit" className="btn btn-secondary" disabled={save.pending}>
             {save.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
             Save
           </button>
         </form>
       ) : null}
-      <p className="text-fg-faint mt-2 text-[12px] leading-5">
+      <p className="text-fg-faint mt-2 text-caption leading-5">
         Saving a team&apos;s budget for a period it already has replaces the limit. A budget can only be deleted before anything draws from it.
       </p>
     </section>

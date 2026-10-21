@@ -126,7 +126,7 @@ export function InspectorSidebar() {
     >
       <header className="border-line flex h-14 shrink-0 items-center gap-2 border-b px-4">
         <span className="label-mono">{KIND_TITLE[ref.kind]}</span>
-        <span className="text-fg-muted min-w-0 truncate font-mono text-[11.5px]" title={ref.id}>
+        <span className="text-fg-muted min-w-0 truncate font-mono text-caption" title={ref.id}>
           {ref.id}
         </span>
         <CopyId id={ref.id} />
@@ -140,16 +140,16 @@ export function InspectorSidebar() {
         {running && running.spans.length > 0 ? (
           <LiveTraceBody trace={running} />
         ) : !current ? (
-          <p className="text-fg-subtle flex items-center gap-2 px-4 py-6 font-mono text-[11.5px]">
+          <p className="text-fg-subtle flex items-center gap-2 px-4 py-6 font-mono text-caption">
             <Loader2 className="size-3.5 animate-spin" aria-hidden /> loading…
           </p>
         ) : current.status === "error" ? (
           <div className="px-4 py-6">
-            <p className="text-fg-muted flex items-start gap-2 text-[13px]">
+            <p className="text-fg-muted flex items-start gap-2 text-meta">
               <AlertTriangle className="text-rose mt-0.5 size-3.5 shrink-0" aria-hidden />
               {current.message}
             </p>
-            <button type="button" onClick={() => setReload((n) => n + 1)} className="btn mt-4 h-7 px-2.5 text-[12px]">
+            <button type="button" onClick={() => setReload((n) => n + 1)} className="btn mt-4 h-7 px-2.5 text-caption">
               Retry
             </button>
           </div>
@@ -160,11 +160,11 @@ export function InspectorSidebar() {
 
       {current?.status === "ok" && (
         <footer className="border-line flex shrink-0 items-center gap-2 border-t px-4 py-2.5">
-          <Link href={pageHref(current.entity).href} className="btn h-7 px-2.5 text-[12px]">
+          <Link href={pageHref(current.entity).href} className="btn h-7 px-2.5 text-caption">
             {pageHref(current.entity).label}
             <ArrowUpRight className="size-3" aria-hidden />
           </Link>
-          <button type="button" onClick={() => setReload((n) => n + 1)} className="btn btn-ghost h-7 px-2.5 text-[12px]">
+          <button type="button" onClick={() => setReload((n) => n + 1)} className="btn btn-ghost h-7 px-2.5 text-caption">
             Refresh
           </button>
         </footer>
@@ -204,7 +204,7 @@ const STREAM_LABEL: Record<StreamStatus, string> = {
 function StreamBadge({ status }: { status: StreamStatus }) {
   return (
     <span
-      className="text-fg-subtle ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[10.5px]"
+      className="text-fg-subtle ml-auto flex shrink-0 items-center gap-1.5 font-mono text-caption"
       title={status === "live" ? "Receiving live telemetry" : status === "unavailable" ? "The live stream isn't available for this account" : undefined}
     >
       <span
@@ -241,11 +241,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /** Dense key/value grid: mono values, labels in the faint column. */
 function Fields({ rows }: { rows: [string, React.ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[12.5px]">
+    <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-meta">
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-fg-subtle">{k}</dt>
-          <dd className="text-fg min-w-0 font-mono text-[12px] break-words tabular-nums">{v ?? <span className="text-fg-faint">—</span>}</dd>
+          <dd className="text-fg min-w-0 font-mono text-caption break-words tabular-nums">{v ?? <span className="text-fg-faint">—</span>}</dd>
         </div>
       ))}
     </dl>
@@ -274,16 +274,16 @@ function RunStatus({ ok }: { ok: boolean }) {
 }
 
 function RunList({ runs }: { runs: RunDetail[] }) {
-  if (runs.length === 0) return <p className="text-fg-subtle text-[12.5px]">No runs in the recent log.</p>;
+  if (runs.length === 0) return <p className="text-fg-subtle text-meta">No runs in the recent log.</p>;
   return (
     <ul className="divide-line -mx-1 divide-y">
       {runs.map((r) => (
-        <li key={r.id} className="flex items-center gap-2.5 px-1 py-2 text-[12.5px]">
+        <li key={r.id} className="flex items-center gap-2.5 px-1 py-2 text-meta">
           {r.ok ? <Check className="text-sage size-3 shrink-0" strokeWidth={2.5} aria-label="ok" /> : <X className="text-rose size-3 shrink-0" strokeWidth={2.5} aria-label="failed" />}
           <InspectButton kind="run" id={r.id} label={r.task} className="text-fg-muted min-w-0 flex-1 truncate">
             {r.task}
           </InspectButton>
-          <span className="text-fg-subtle shrink-0 font-mono text-[11px] tabular-nums">{formatMs(r.durationMs)}</span>
+          <span className="text-fg-subtle shrink-0 font-mono text-caption tabular-nums">{formatMs(r.durationMs)}</span>
         </li>
       ))}
     </ul>
@@ -298,8 +298,8 @@ function AgentBody({ entity }: { entity: AgentDetail }) {
         <AgentControls config={config} serverStatus={entity.status} />
       ) : (
         <Title>
-          <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{entity.id}</p>
-          <p className="text-fg-subtle mt-0.5 text-[12.5px]">Single-purpose AI route. No settings; runs only.</p>
+          <p className="text-fg text-body font-semibold tracking-[-0.01em]">{entity.id}</p>
+          <p className="text-fg-subtle mt-0.5 text-meta">Single-purpose AI route. No settings; runs only.</p>
         </Title>
       )}
       <Section title="Activity">
@@ -328,13 +328,13 @@ function AgentControls({ config, serverStatus }: { config: AgentRecord; serverSt
   return (
     <>
       <Title aside={<AgentStatusBadge status={displayStatus(agent, serverStatus)} />}>
-        <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{agent.name}</p>
-        <p className="text-fg-subtle mt-0.5 text-[12.5px]">{agent.description}</p>
+        <p className="text-fg text-body font-semibold tracking-[-0.01em]">{agent.name}</p>
+        <p className="text-fg-subtle mt-0.5 text-meta">{agent.description}</p>
       </Title>
       <Section title="Actions">
         <div className="flex items-center gap-2">
           <Switch on={agent.enabled} label={`${agent.enabled ? "Disable" : "Enable"} ${agent.name}`} pending={saving} onToggle={() => void setEnabled(!agent.enabled)} />
-          <span className="text-fg-muted text-[12.5px]">{agent.enabled ? "Enabled" : "Disabled"}</span>
+          <span className="text-fg-muted text-meta">{agent.enabled ? "Enabled" : "Disabled"}</span>
           <button
             type="button"
             onClick={async () => {
@@ -343,7 +343,7 @@ function AgentControls({ config, serverStatus }: { config: AgentRecord; serverSt
             }}
             disabled={testing || !agent.enabled}
             title={agent.enabled ? "Run each assigned tool once with a sample input" : "Enable the agent to run a test"}
-            className="btn ml-auto h-7 px-2.5 text-[12px]"
+            className="btn ml-auto h-7 px-2.5 text-caption"
           >
             {testing ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Play className="size-3" aria-hidden />}
             Run test
@@ -372,7 +372,7 @@ function AgentControls({ config, serverStatus }: { config: AgentRecord; serverSt
 function VenueSyncButton() {
   const { sync, syncing } = useVenueSync();
   return (
-    <button type="button" onClick={() => void sync()} disabled={syncing} className="btn h-7 px-2.5 text-[12px]">
+    <button type="button" onClick={() => void sync()} disabled={syncing} className="btn h-7 px-2.5 text-caption">
       {syncing ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <RefreshCw className="size-3" aria-hidden />}
       Sync directory
     </button>
@@ -392,7 +392,7 @@ function RetryTest({ agentId }: { agentId: string }) {
           success: (r) => (r.ok ? { tone: "success", title: "Retry passed" } : { tone: "error", title: "Retry failed", description: r.tools.filter((t) => !t.ok).map((t) => `${t.name}: ${t.summary}`).join("; ") }),
         })
       }
-      className="btn h-7 px-2.5 text-[12px]"
+      className="btn h-7 px-2.5 text-caption"
     >
       {pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <RotateCw className="size-3" aria-hidden />}
       Retry test
@@ -405,8 +405,8 @@ function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<Teleme
   return (
     <>
       <Title aside={<span className="pill">{venue.tier === "internal" ? "Lufer.ai" : "partner"}</span>}>
-        <p className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{venue.name}</p>
-        <p className="text-fg-subtle mt-0.5 text-[12.5px]">{venue.address || `${venue.neighborhood}, ${venue.city}`}</p>
+        <p className="text-fg text-body font-semibold tracking-[-0.01em]">{venue.name}</p>
+        <p className="text-fg-subtle mt-0.5 text-meta">{venue.address || `${venue.neighborhood}, ${venue.city}`}</p>
       </Title>
       <Section title="Listing">
         <Fields
@@ -456,15 +456,15 @@ function LiveTraceBody({ trace }: { trace: LiveTrace }) {
           )
         }
       >
-        <p className="text-fg font-mono text-[13px] font-medium">{trace.name ?? "trace"}</p>
-        <p className="text-fg-subtle mt-0.5 font-mono text-[11.5px] tabular-nums">
+        <p className="text-fg font-mono text-meta font-medium">{trace.name ?? "trace"}</p>
+        <p className="text-fg-subtle mt-0.5 font-mono text-caption tabular-nums">
           {when.format(new Date(start))} · {trace.spans.length} span{trace.spans.length === 1 ? "" : "s"} so far ·{" "}
           {trace.ended ? (trace.storedSeq ? "stored, loading…" : "ended") : "streaming"}
         </p>
       </Title>
       {failed?.error && (
         <Section title="Error">
-          <p className="text-rose font-mono text-[12px] break-words">
+          <p className="text-rose font-mono text-caption break-words">
             {failed.name}: {failed.error.name}: {failed.error.message}
           </p>
         </Section>
@@ -491,15 +491,15 @@ function TraceBody({ entity: { trace } }: { entity: TraceDetail }) {
   return (
     <>
       <Title aside={<RunStatus ok={trace.status === "ok"} />}>
-        <p className="text-fg font-mono text-[13px] font-medium">{trace.name}</p>
-        <p className="text-fg-subtle mt-0.5 font-mono text-[11.5px] tabular-nums">
+        <p className="text-fg font-mono text-meta font-medium">{trace.name}</p>
+        <p className="text-fg-subtle mt-0.5 font-mono text-caption tabular-nums">
           {when.format(new Date(trace.start))} · {formatMs(trace.durationMs)} · {trace.spans.length} span{trace.spans.length === 1 ? "" : "s"}
           {trace.droppedSpans > 0 && ` (+${trace.droppedSpans} dropped)`}
         </p>
       </Title>
       {failed?.error && (
         <Section title="Root cause">
-          <p className="text-rose font-mono text-[12px] break-words">
+          <p className="text-rose font-mono text-caption break-words">
             {failed.name}: {failed.error.name}: {failed.error.message}
           </p>
         </Section>
@@ -515,12 +515,12 @@ function RunBody({ run }: { run: RunDetail }) {
   return (
     <>
       <Title aside={<RunStatus ok={run.ok} />}>
-        <p className="text-fg text-[14px] font-medium">{run.task}</p>
-        <p className="text-fg-subtle mt-0.5 font-mono text-[11.5px] tabular-nums">{when.format(new Date(run.at))}</p>
+        <p className="text-fg text-body font-medium">{run.task}</p>
+        <p className="text-fg-subtle mt-0.5 font-mono text-caption tabular-nums">{when.format(new Date(run.at))}</p>
       </Title>
       {run.error && (
         <Section title="Error">
-          <p className="text-rose font-mono text-[12px] break-words">{run.error}</p>
+          <p className="text-rose font-mono text-caption break-words">{run.error}</p>
         </Section>
       )}
       {run.source === "test" && isConfiguredAgent(run.agent) && (

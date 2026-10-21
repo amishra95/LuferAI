@@ -58,7 +58,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     return (
       <PortalShell portal="/partner" title="Partner extranet" subtitle="Supplier listings and rate cards">
         <Card>
-          <CardContent className="text-fg-subtle py-8 text-center text-[13px]">
+          <CardContent className="text-fg-subtle py-8 text-center text-meta">
             {isAdmin
               ? "No partners yet. Create a row in the partners table, then invite its first Owner from the Team tab."
               : "Your partner account isn't set up yet. Ask your Lufer.ai contact to finish onboarding."}
@@ -111,7 +111,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
       subtitle={`Partner extranet · ${roleLabel}${partner.status === "suspended" ? " · suspended: listings are hidden from search" : ""}`}
       actions={
         canAddListing ? (
-          <Link href={`${href("listings")}#add-listing`} className="btn btn-primary h-8 px-3 text-[13px]">
+          <Link href={`${href("listings")}#add-listing`} className="btn btn-secondary h-8 px-3 text-meta">
             <Plus className="size-3.5" aria-hidden /> Add listing
           </Link>
         ) : null
@@ -141,12 +141,12 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             href={href(t.key)}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
-              "relative -mb-px inline-flex h-10 items-center px-3 text-[13px] transition-colors",
+              "relative -mb-px inline-flex h-10 items-center px-3 text-meta transition-colors",
               activeTab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg"
             )}
           >
             {t.label}
-            {activeTab === t.key && <span aria-hidden className="bg-fg absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
+            {activeTab === t.key && <span aria-hidden className="bg-link absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
           </Link>
         ))}
       </nav>
@@ -167,7 +167,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   description={canAddListing ? "Add your first venue, then publish a rate card so Lufer.ai search can price it for corporate buyers." : "An Owner or Manager adds this partner's venues."}
                   action={
                     canAddListing ? (
-                      <Link href="#add-listing" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                      <Link href="#add-listing" className="btn btn-secondary h-8 px-3 text-meta">
                         <Plus className="size-3.5" aria-hidden /> Add listing
                       </Link>
                     ) : null
@@ -199,13 +199,13 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                             {l.name}
                             <span className="sr-only">: open its rate cards</span>
                           </Link>
-                          <div className="text-fg-subtle text-xs">
+                          <div className="text-fg-subtle text-caption">
                             <span className="font-mono">{l.ref}</span> · {l.area}, {l.city}
                             {l.private_dining ? " · private dining" : ""}
                           </div>
                           {can.has("listing.edit") ? (
                             <details className="relative z-10 mt-2">
-                              <summary className="text-fg cursor-pointer text-[12px] hover:underline">Edit details</summary>
+                              <summary className="text-fg cursor-pointer text-caption hover:underline">Edit details</summary>
                               <div className="mt-3">
                                 <ListingForm
                                   partnerId={formPartnerId}
@@ -254,18 +254,18 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         <div className="space-y-6">
           {selected ? (
             <>
-              <Link href={href("rates")} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-[13px]">
+              <Link href={href("rates")} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1.5 text-meta">
                 <ArrowLeft className="size-3.5" aria-hidden /> All rate cards
               </Link>
               {justCreated ? (
                 <section role="status" aria-label="Listing added" className="border-sage/30 bg-sage/[0.06] flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border px-5 py-4">
                   <CheckCircle2 className="text-sage size-5 shrink-0" aria-hidden />
                   <div className="min-w-0 flex-1">
-                    <p className="text-fg text-[14px] font-medium">{selected.name} is live</p>
-                    <p className="text-fg-subtle text-[12.5px]">Publish its first rate card so Lufer.ai search can price it for corporate buyers.</p>
+                    <p className="text-fg text-body font-medium">{selected.name} is live</p>
+                    <p className="text-fg-subtle text-meta">Publish its first rate card so Lufer.ai search can price it for corporate buyers.</p>
                   </div>
                   {can.has("rates.edit") ? (
-                    <Link href="#rate-form" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                    <Link href="#rate-form" className="btn btn-secondary h-8 px-3 text-meta">
                       <Tag className="size-3.5" aria-hidden /> Create rate card
                     </Link>
                   ) : null}
@@ -290,7 +290,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                 {can.has("listing.edit") ? (
                   <CardContent>
                     <details>
-                      <summary className="text-fg cursor-pointer text-[12.5px] hover:underline">Edit details</summary>
+                      <summary className="text-fg cursor-pointer text-meta hover:underline">Edit details</summary>
                       <div className="mt-3">
                         <ListingForm partnerId={formPartnerId} listing={{ ...selected, min_spend_inr: Number(selected.min_spend_inr) }} />
                       </div>
@@ -322,12 +322,12 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   action={
                     listings.length === 0 ? (
                       canAddListing ? (
-                        <Link href={`${href("listings")}#add-listing`} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                        <Link href={`${href("listings")}#add-listing`} className="btn btn-secondary h-8 px-3 text-meta">
                           <Plus className="size-3.5" aria-hidden /> Add listing
                         </Link>
                       ) : null
                     ) : can.has("rates.edit") ? (
-                      <Link href="#rate-form" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                      <Link href="#rate-form" className="btn btn-secondary h-8 px-3 text-meta">
                         <Tag className="size-3.5" aria-hidden /> Publish a rate
                       </Link>
                     ) : null
@@ -362,7 +362,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                           <TableCell className="text-right tabular-nums">{r.min_guests}+</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[12.5px] tabular-nums">
+                              <span className="text-meta tabular-nums">
                                 {formatDate(r.valid_from)} – {r.valid_to ? formatDate(r.valid_to) : "open-ended"}
                               </span>
                               <Badge variant={state === "in effect" ? "success" : state === "upcoming" ? "warning" : "outline"}>{state}</Badge>
@@ -473,7 +473,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   title="No team members yet"
                   description="Invite this partner's first Owner. Owners then invite Managers to edit listings and rates, and Staff to pause listings."
                   action={
-                    <Link href="#invite" className="btn btn-primary h-8 px-3 text-[12.5px]">
+                    <Link href="#invite" className="btn btn-secondary h-8 px-3 text-meta">
                       <Plus className="size-3.5" aria-hidden /> Invite the first Owner
                     </Link>
                   }
@@ -492,7 +492,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                     <TableRow key={m.userId}>
                       <TableCell>
                         {m.email}
-                        {m.userId === member.userId ? <span className="text-fg-subtle ml-1.5 text-xs">(you)</span> : null}
+                        {m.userId === member.userId ? <span className="text-fg-subtle ml-1.5 text-caption">(you)</span> : null}
                       </TableCell>
                       <TableCell className="tabular-nums">{formatDate(m.joinedAt.slice(0, 10))}</TableCell>
                       <TableCell>
@@ -531,7 +531,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                 title="No changes yet"
                 description="Every change to listings, rates and the team is recorded here with who made it."
                 action={
-                  <Link href={href("listings")} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                  <Link href={href("listings")} className="btn btn-secondary h-8 px-3 text-meta">
                     <Store className="size-3.5" aria-hidden /> Go to Listings
                   </Link>
                 }
@@ -539,11 +539,11 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             ) : (
               <ol className="divide-line divide-y">
                 {audit.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 text-[13px]">
-                    <time className="text-fg-subtle w-28 shrink-0 font-mono text-[11.5px]">{CLOCK.format(new Date(a.created_at))}</time>
-                    <span className="text-fg font-mono text-[12px]">{a.action}</span>
+                  <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 text-meta">
+                    <time className="text-fg-subtle w-28 shrink-0 font-mono text-caption">{CLOCK.format(new Date(a.created_at))}</time>
+                    <span className="text-fg font-mono text-caption">{a.action}</span>
                     <span className="text-fg-muted min-w-0 flex-1 truncate">{describe(a.detail)}</span>
-                    <span className="text-fg-subtle text-[12px]">{a.actor}</span>
+                    <span className="text-fg-subtle text-caption">{a.actor}</span>
                   </li>
                 ))}
               </ol>

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
-      <table data-slot="table" className={cn("w-full caption-bottom text-[13px]", className)} {...props} />
+      <table data-slot="table" className={cn("w-full caption-bottom text-meta", className)} {...props} />
     </div>
   );
 }
@@ -65,7 +65,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {
   return (
-    <caption data-slot="table-caption" className={cn("text-fg-subtle mt-4 text-[12.5px]", className)} {...props} />
+    <caption data-slot="table-caption" className={cn("text-fg-subtle mt-4 text-meta", className)} {...props} />
   );
 }
 

@@ -92,11 +92,11 @@ export function PoLedger({
 
   const raise = (primary: boolean) =>
     canManage ? (
-      <button type="button" onClick={() => setRaising(true)} className={cn("btn h-8 px-3 text-[12.5px]", primary && "btn-primary")}>
+      <button type="button" onClick={() => setRaising(true)} className={cn("btn h-8 px-3 text-meta", primary && "btn-primary")}>
         <Plus className="size-3.5" aria-hidden /> Raise a purchase order
       </button>
     ) : (
-      <DisabledAction reason={readOnlyReason} className="h-8 px-3 text-[12.5px]">
+      <DisabledAction reason={readOnlyReason} className="h-8 px-3 text-meta">
         <Plus className="size-3.5" aria-hidden /> Raise a purchase order
       </DisabledAction>
     );
@@ -105,8 +105,8 @@ export function PoLedger({
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-fg text-[15px] font-semibold tracking-tight">Purchase orders</h2>
-          <p className="text-fg-subtle text-[12.5px]">Blanket POs that bookings and catalogue orders draw down.</p>
+          <h2 className="text-fg text-body font-semibold tracking-tight">Purchase orders</h2>
+          <p className="text-fg-subtle text-meta">Blanket POs that bookings and catalogue orders draw down.</p>
         </div>
         {!raising && raise(false)}
       </header>
@@ -145,9 +145,9 @@ export function PoLedger({
           <h3 className="label-mono mb-2">Not on a PO</h3>
           <ul className="divide-line divide-y">
             {unallocated.map((b) => (
-              <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 text-[12.5px]">
+              <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 text-meta">
                 <span className="text-fg min-w-0 flex-1 truncate">{b.label}</span>
-                <span className="text-fg-subtle font-mono text-[11.5px]">{b.statusLabel}</span>
+                <span className="text-fg-subtle font-mono text-caption">{b.statusLabel}</span>
                 <PoSelect booking={b} state={state} onPick={(poId) => void reallocate(b.id, poId)} placeholder="Allocate to…" />
               </li>
             ))}
@@ -168,16 +168,16 @@ function BudgetOverview({ pos, state }: { pos: PurchaseOrder[]; state: State }) 
     <section className="panel px-5 py-4" aria-label="Budget overview">
       <header className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h3 className="label-mono">Budget overview</h3>
-        <span className="text-fg-subtle font-mono text-[12px] tabular-nums">
+        <span className="text-fg-subtle font-mono text-caption tabular-nums">
           {formatINR(total.remaining)} left of {formatINR(total.amount)} across {rows.length} open PO{rows.length === 1 ? "" : "s"}
         </span>
-        {atRisk ? <span className="text-warn ml-auto text-[12px]">{atRisk} need attention</span> : null}
+        {atRisk ? <span className="text-warn ml-auto text-caption">{atRisk} need attention</span> : null}
       </header>
       <ul className="grid gap-3">
         {rows.map(({ po, balance }) => {
           const tone = budgetTone(balance);
           return (
-            <li key={po.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-[12px] sm:grid-cols-[9rem_1fr_9rem]">
+            <li key={po.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-caption sm:grid-cols-[9rem_1fr_9rem]">
               <a href={`#po-${po.id}`} className="text-fg truncate font-mono hover:underline">
                 {po.po_number}
               </a>
@@ -218,18 +218,18 @@ function PoPanel({
     <section id={`po-${po.id}`} className={cn("panel scroll-mt-20 overflow-hidden", closed && "opacity-70")} aria-label={`Purchase order ${po.po_number}`}>
       <header className="border-line flex flex-wrap items-start gap-x-4 gap-y-1 border-b px-5 py-3.5">
         <div className="min-w-0 flex-1">
-          <p className="text-fg flex items-center gap-2 font-mono text-[13.5px] font-medium">
+          <p className="text-fg flex items-center gap-2 font-mono text-body font-medium">
             {po.po_number}
-            <span className="pill font-sans text-[11px]">{closed ? "closed" : "open"}</span>
-            {balance.overrun && <span className="pill border-rose/25 bg-rose/[0.06] text-rose font-sans text-[11px]">overrun</span>}
+            <span className="pill font-sans text-caption">{closed ? "closed" : "open"}</span>
+            {balance.overrun && <span className="pill border-rose/25 bg-rose/[0.06] text-rose font-sans text-caption">overrun</span>}
           </p>
-          <p className="text-fg-subtle mt-0.5 text-[12.5px]">
+          <p className="text-fg-subtle mt-0.5 text-meta">
             {po.description ? `${po.description} · ` : ""}
             {scope} · {fmtDay(po.valid_from)} – {fmtDay(po.valid_to)}
           </p>
         </div>
         {canManage && (
-          <button type="button" onClick={() => onStatus(closed ? "open" : "closed")} className="btn btn-ghost h-7 px-2.5 text-[12px]">
+          <button type="button" onClick={() => onStatus(closed ? "open" : "closed")} className="btn btn-ghost h-7 px-2.5 text-caption">
             {closed ? "Reopen" : "Close"}
           </button>
         )}
@@ -237,7 +237,7 @@ function PoPanel({
 
       <div className="px-5 py-3.5">
         <BudgetMeter balance={balance} showLegend />
-        <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[12px] tabular-nums sm:grid-cols-4">
+        <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-caption tabular-nums sm:grid-cols-4">
           {(
             [
               ["value", formatINR(balance.amount)],
@@ -256,7 +256,7 @@ function PoPanel({
 
       {rows.length > 0 && (
         <div className="border-line overflow-x-auto border-t">
-          <table className="w-full min-w-[34rem] text-[12.5px]">
+          <table className="w-full min-w-[34rem] text-meta">
             <thead>
               <tr className="border-line border-b">
                 {["Booking", "Status", "Amount", "Balance after", ""].map((h, i) => (
@@ -272,12 +272,12 @@ function PoPanel({
                 return (
                   <tr key={a.id} className={cn("border-line border-b last:border-b-0", a.status === "released" && "text-fg-faint")}>
                     <td className="text-fg max-w-64 truncate py-2 pr-3 pl-5">{b?.label ?? subjectOf(a).slice(0, 8)}</td>
-                    <td className="text-fg-subtle px-3 font-mono text-[11.5px]">
+                    <td className="text-fg-subtle px-3 font-mono text-caption">
                       {a.status}
                       {a.over_balance && <span className="text-rose"> · signed-off overrun</span>}
-                      {b?.reconciliation ? <div className="font-sans text-[11px]">{b.reconciliation.label}</div> : null}
+                      {b?.reconciliation ? <div className="font-sans text-caption">{b.reconciliation.label}</div> : null}
                       {b?.reconciliation?.issues.length ? (
-                        <div className="text-warn max-w-72 font-sans text-[11px] whitespace-normal" title={b.reconciliation.issues.join(" ")}>
+                        <div className="text-warn max-w-72 font-sans text-caption whitespace-normal" title={b.reconciliation.issues.join(" ")}>
                           {b.reconciliation.issues[0]}
                           {b.reconciliation.issues.length > 1 ? ` (+${b.reconciliation.issues.length - 1} more)` : ""}
                         </div>
@@ -319,7 +319,7 @@ function PoSelect({ booking, state, exclude, onPick, placeholder }: { booking: L
       <select
         value=""
         onChange={(e) => e.target.value && onPick(e.target.value)}
-        className="border-line bg-surface text-fg-muted h-7 rounded-md border px-2 font-mono text-[11.5px]"
+        className="border-line bg-surface text-fg-muted h-7 rounded-md border px-2 font-mono text-caption"
       >
         <option value="">{placeholder}</option>
         {options.map((p) => (
@@ -391,7 +391,7 @@ function NewPoForm({
   }
 
   return (
-    <form onSubmit={submit} className="panel grid gap-3 px-5 py-4 text-[12.5px] sm:grid-cols-2">
+    <form onSubmit={submit} className="panel grid gap-3 px-5 py-4 text-meta sm:grid-cols-2">
       <h3 className="label-mono sm:col-span-2">Raise a purchase order</h3>
       <label className="grid gap-1">
         <span className="text-fg-subtle">PO number</span>
@@ -425,7 +425,7 @@ function NewPoForm({
         <input name="description" maxLength={200} placeholder="Optional" className="field h-8" />
       </label>
       {error && (
-        <p role="alert" className="text-rose text-[12px] sm:col-span-2">
+        <p role="alert" className="text-rose text-caption sm:col-span-2">
           {error}
         </p>
       )}

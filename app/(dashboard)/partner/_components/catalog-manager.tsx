@@ -62,7 +62,7 @@ export function PartnerCatalog({
             description="List gifting, tickets, merch, team building or dining packages, each with its HSN/SAC code and GST rate, and companies can order them directly."
             action={
               canEdit && !adding ? (
-                <button type="button" onClick={() => setAdding(true)} className="btn btn-primary h-8 px-3 text-[12.5px]">
+                <button type="button" onClick={() => setAdding(true)} className="btn btn-secondary h-8 px-3 text-meta">
                   <Plus className="size-3.5" aria-hidden /> Add a catalogue item
                 </button>
               ) : null
@@ -70,7 +70,7 @@ export function PartnerCatalog({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-[12.5px]">
+            <table className="w-full min-w-[40rem] text-meta">
               <thead>
                 <tr className="border-line border-b">
                   {["Item", "Category", "Price", "Tax", "Quantity", "Stock", "Status", ""].map((h, i) => (
@@ -85,11 +85,11 @@ export function PartnerCatalog({
                   <tr key={i.id} className={cn("border-line border-b last:border-b-0", i.status === "paused" && "text-fg-faint")}>
                     <td className="py-2.5 pr-3 pl-5">
                       <p className="text-fg font-medium">{i.name}</p>
-                      <p className="text-fg-subtle font-mono text-[11px]">{i.ref}</p>
+                      <p className="text-fg-subtle font-mono text-caption">{i.ref}</p>
                     </td>
                     <td className="px-3">{CATEGORY_LABEL[i.category as Category] ?? i.category}</td>
                     <td className="px-3 text-right font-mono tabular-nums">{formatINR(Number(i.unit_price_inr))}</td>
-                    <td className="px-3 font-mono text-[11.5px]">
+                    <td className="px-3 font-mono text-caption">
                       {i.tax_kind} {i.tax_code} · {i.gst_rate_percent}%
                     </td>
                     <td className="px-3 text-right font-mono tabular-nums">
@@ -99,10 +99,10 @@ export function PartnerCatalog({
                     <td className="px-3 text-right">
                       <StockCell partnerId={partnerId} item={i} canEdit={canEdit} />
                     </td>
-                    <td className="px-3 font-mono text-[11.5px]">{i.status}</td>
+                    <td className="px-3 font-mono text-caption">{i.status}</td>
                     <td className="py-2 pr-5 pl-3 text-right">
                       {canStatus && (
-                        <button type="button" onClick={() => void setStatus(i, i.status === "active" ? "paused" : "active")} className="btn btn-ghost h-7 px-2.5 text-[12px]">
+                        <button type="button" onClick={() => void setStatus(i, i.status === "active" ? "paused" : "active")} className="btn btn-ghost h-7 px-2.5 text-caption">
                           {i.status === "active" ? "Pause" : "Resume"}
                         </button>
                       )}
@@ -120,7 +120,7 @@ export function PartnerCatalog({
           // The save refreshes the page, so the new item arrives with the server data.
           <ItemForm partnerId={partnerId} onDone={() => setAdding(false)} />
         ) : list.length === 0 ? null : (
-          <button type="button" onClick={() => setAdding(true)} className="btn h-8 px-3 text-[12.5px]">
+          <button type="button" onClick={() => setAdding(true)} className="btn h-8 px-3 text-meta">
             <Plus className="size-3.5" aria-hidden /> Add a catalogue item
           </button>
         ))}
@@ -133,7 +133,7 @@ function StockCell({ partnerId, item, canEdit }: { partnerId: string | null; ite
   const save = useAction<CatalogItem>();
   const [editing, setEditing] = useState(false);
   const stock = item.stock_quantity;
-  if (item.category === "tickets") return <span className="text-fg-faint font-mono text-[11.5px]">per tier</span>;
+  if (item.category === "tickets") return <span className="text-fg-faint font-mono text-caption">per tier</span>;
   if (editing) {
     return (
       <form
@@ -149,7 +149,7 @@ function StockCell({ partnerId, item, canEdit }: { partnerId: string | null; ite
         }}
       >
         <input name="stock" type="number" min={0} defaultValue={stock ?? ""} placeholder="—" aria-label={`Stock for ${item.name}`} className="field h-7 w-20 font-mono" autoFocus />
-        <button type="submit" disabled={save.pending} className="btn btn-primary h-7 px-2 text-[12px]">
+        <button type="submit" disabled={save.pending} className="btn btn-secondary h-7 px-2 text-caption">
           {save.pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : "Save"}
         </button>
       </form>
@@ -158,7 +158,7 @@ function StockCell({ partnerId, item, canEdit }: { partnerId: string | null; ite
   const label = stock === null ? "—" : stock === 0 ? "Out" : String(stock);
   const tone = stock === 0 ? "text-rose" : stock !== null && stock < Math.max(item.min_quantity, 5) ? "text-warn" : "";
   return canEdit ? (
-    <button type="button" onClick={() => setEditing(true)} className={cn("btn btn-ghost h-7 px-2 font-mono text-[12px] tabular-nums", tone)} title="Restock">
+    <button type="button" onClick={() => setEditing(true)} className={cn("btn btn-ghost h-7 px-2 font-mono text-caption tabular-nums", tone)} title="Restock">
       {label}
     </button>
   ) : (
@@ -170,7 +170,7 @@ function GstinBanner({ partnerId, canSet }: { partnerId: string | null; canSet: 
   const save = useAction<{ gstin: string }>();
   const [value, setValue] = useState("");
   return (
-    <div role="status" className="border-warn/30 bg-warn/[0.05] rounded-lg border px-4 py-3 text-[12.5px]">
+    <div role="status" className="border-warn/30 bg-warn/[0.05] rounded-lg border px-4 py-3 text-meta">
       <p className="text-fg">Add your GSTIN: catalogue orders are invoiced under it, and companies can&apos;t order until it&apos;s set.</p>
       {canSet ? (
         <form
@@ -181,7 +181,7 @@ function GstinBanner({ partnerId, canSet }: { partnerId: string | null; canSet: 
           className="mt-2 flex gap-2"
         >
           <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={15} placeholder="29ABCDE1234F1Z5" className="field h-8 max-w-56 font-mono uppercase" aria-label="GSTIN" />
-          <button type="submit" disabled={save.pending} className="btn btn-primary h-8 px-3 text-[12px]">
+          <button type="submit" disabled={save.pending} className="btn btn-secondary h-8 px-3 text-caption">
             {save.pending && <Loader2 className="size-3 animate-spin" aria-hidden />} Save
           </button>
         </form>
@@ -254,7 +254,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
   );
 
   return (
-    <form onSubmit={submit} className="panel grid gap-2.5 px-5 py-4 text-[12px] sm:grid-cols-3">
+    <form onSubmit={submit} className="panel grid gap-2.5 px-5 py-4 text-caption sm:grid-cols-3">
       <h3 className="label-mono sm:col-span-3">New catalogue item</h3>
       <label className="grid gap-1">
         <span className="text-fg-subtle">Category</span>
@@ -297,7 +297,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
           {field("event_state_code", "Event state code (place of supply)", { required: true, pattern: "[0-9]{2}", placeholder: "29" })}
           <label className="grid gap-1 sm:col-span-3">
             <span className="text-fg-subtle">Tiers, one per line: name | price ₹ | seats available</span>
-            <textarea name="tiers" rows={3} required className="field h-auto py-2 font-mono text-[11.5px]" placeholder={"General | 1500 | 200\nPavilion | 4500 | 40"} />
+            <textarea name="tiers" rows={3} required className="field h-auto py-2 font-mono text-caption" placeholder={"General | 1500 | 200\nPavilion | 4500 | 40"} />
           </label>
         </>
       )}
@@ -334,7 +334,7 @@ function ItemForm({ partnerId, onDone }: { partnerId: string | null; onDone: () 
       )}
 
       {error && (
-        <p role="alert" className="text-rose text-[12px] sm:col-span-3">
+        <p role="alert" className="text-rose text-caption sm:col-span-3">
           {error}
         </p>
       )}
@@ -437,7 +437,7 @@ export function PartnerOrders({
         description="When a company orders from your catalogue, it lands in To confirm. Confirm it to take their payment."
         action={
           catalogHref ? (
-            <Link href={catalogHref} className="btn btn-primary h-8 px-3 text-[12.5px]">
+            <Link href={catalogHref} className="btn btn-primary h-8 px-3 text-meta">
               <Package className="size-3.5" aria-hidden /> Go to Catalogue
             </Link>
           ) : null
@@ -483,7 +483,7 @@ export function PartnerOrders({
                 {overdue ? <span className="text-rose ml-auto normal-case">{overdue} overdue</span> : null}
               </h3>
               {inLane.length === 0 ? (
-                <p className="text-fg-faint border-line rounded-md border border-dashed px-3 py-6 text-center text-[12px]">{lane.empty}</p>
+                <p className="text-fg-faint border-line rounded-md border border-dashed px-3 py-6 text-center text-caption">{lane.empty}</p>
               ) : (
                 <ul className="grid gap-2">
                   {inLane.map((o) => (
@@ -531,9 +531,9 @@ export function LowStock({ partnerId, items, canEdit }: { partnerId: string | nu
       <h3 className="label-mono text-warn mb-2">Low stock · {low.length}</h3>
       <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {low.map((i) => (
-          <li key={i.id} className="flex items-center gap-2 text-[12.5px]">
+          <li key={i.id} className="flex items-center gap-2 text-meta">
             <span className="text-fg min-w-0 flex-1 truncate">{i.name}</span>
-            <span className="text-fg-faint font-mono text-[11px]">min {i.min_quantity}</span>
+            <span className="text-fg-faint font-mono text-caption">min {i.min_quantity}</span>
             <StockCell partnerId={partnerId} item={i} canEdit={canEdit} />
           </li>
         ))}
@@ -578,12 +578,12 @@ function OrderCard({
       onDragEnd={onDragEnd}
       className={cn("panel animate-in fade-in px-3.5 py-3 duration-200", draggable && "cursor-grab active:cursor-grabbing", overdue && "border-rose/30")}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
         <span className="text-fg font-medium">{o.company_name.replace(/ Private Limited$/, "")}</span>
         <span className="text-fg-muted">
           {o.quantity} × {o.item_name}
         </span>
-        <span className="text-fg-subtle font-mono text-[11.5px] tabular-nums">{formatINR(o.total_amount_inr)} pre-GST</span>
+        <span className="text-fg-subtle font-mono text-caption tabular-nums">{formatINR(o.total_amount_inr)} pre-GST</span>
         {o.settlement ? (
           <span className={cn("pill ml-auto", o.settlement.stage === "unpaid" && "text-fg-faint", o.settlement.issues.length > 0 && "text-warn")} title={o.settlement.issues.join(" ") || undefined}>
             {STAGE_LABEL[o.settlement.stage]}
@@ -592,7 +592,7 @@ function OrderCard({
         ) : null}
         <span className={cn("pill", !o.settlement && "ml-auto")}>{status ? ORDER_STAGE_LABEL[status] : o.status}</span>
       </div>
-      <p className={cn("mt-0.5 font-mono text-[11px]", overdue ? "text-rose" : "text-fg-faint")}>
+      <p className={cn("mt-0.5 font-mono text-caption", overdue ? "text-rose" : "text-fg-faint")}>
         {overdue ? "overdue · " : ""}
         {o.event_date ? `event ${fmtDay(o.event_date)}` : `needed by ${fmtDay(o.needed_by)}`}
         {typeof o.selections.tier === "string" && ` · ${o.selections.tier}`}
@@ -601,10 +601,10 @@ function OrderCard({
       </p>
       {o.recipients.length > 0 && (
         <details className="mt-2">
-          <summary className="text-fg-subtle cursor-pointer text-[12px]">
+          <summary className="text-fg-subtle cursor-pointer text-caption">
             {o.recipients.length} recipient{o.recipients.length === 1 ? "" : "s"}
           </summary>
-          <ul className="text-fg-muted mt-1.5 space-y-1 font-mono text-[11.5px]">
+          <ul className="text-fg-muted mt-1.5 space-y-1 font-mono text-caption">
             {o.recipients.map((r, i) => (
               <li key={i}>
                 {r.name}
@@ -622,7 +622,7 @@ function OrderCard({
               key={a}
               type="button"
               onClick={() => (a === "SHIPPED" ? setShipping(true) : onMove(a))}
-              className={cn("btn h-7 px-2.5 text-[12px]", a === "CANCELLED" ? "btn-ghost" : a === actions[0] && "btn-primary")}
+              className={cn("btn h-7 px-2.5 text-caption", a === "CANCELLED" ? "btn-ghost" : a === actions[0] && "btn-secondary")}
             >
               {a === "SHIPPED" && <Truck className="size-3" aria-hidden />}
               {ACTION_LABEL[a]}
@@ -641,13 +641,13 @@ function OrderCard({
             setShipping(false);
             onMove("SHIPPED", t.value);
           }}
-          className="mt-2.5 grid gap-2 text-[12px]"
+          className="mt-2.5 grid gap-2 text-caption"
         >
           <input name="carrier" required placeholder="Carrier" aria-label="Carrier" className="field h-8" />
           <input name="reference" required placeholder="Tracking number" aria-label="Tracking number" className="field h-8 font-mono" />
           <input name="url" type="url" placeholder="https://… (optional)" aria-label="Tracking link" className="field h-8" />
           <div className="flex gap-1.5">
-            <button type="submit" className="btn btn-primary h-8 px-3">
+            <button type="submit" className="btn btn-secondary h-8 px-3">
               Ship
             </button>
             <button type="button" onClick={() => setShipping(false)} className="btn btn-ghost h-8 px-2">

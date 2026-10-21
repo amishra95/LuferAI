@@ -96,12 +96,12 @@ export function RuleManager({
           {sorted.map((r) => (
             <li key={r.id} className={cn("grid gap-1 px-3 py-2.5", !r.is_active && "opacity-60")}>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="text-fg text-[13px] font-medium">{r.name}</span>
-                <span className="text-fg-subtle text-[12px]">{team(r.department_id)}</span>
+                <span className="text-fg text-meta font-medium">{r.name}</span>
+                <span className="text-fg-subtle text-caption">{team(r.department_id)}</span>
                 {!r.is_active ? <Pill tone="neutral">Paused</Pill> : null}
                 {canManage ? (
                   <span className="ml-auto flex gap-1">
-                    <button type="button" className="btn btn-ghost h-7 px-2 text-[12px]" disabled={row.pending} onClick={() =>
+                    <button type="button" className="btn btn-ghost h-7 px-2 text-caption" disabled={row.pending} onClick={() =>
                       row.run(() => approvalCommandAction(companyId, { action: "setRuleActive", id: r.id, active: !r.is_active }), {
                         failure: r.is_active ? "Couldn't pause the rule" : "Couldn't resume the rule",
                       })
@@ -120,7 +120,7 @@ export function RuleManager({
                   </span>
                 ) : null}
               </div>
-              <div className="figure text-fg-muted text-[12px]">
+              <div className="figure text-fg-muted text-caption">
                 {bandLabel(r)} · {r.approval_levels} level{r.approval_levels === 1 ? "" : "s"}, in order · {hours(r.sla_hours)} per step
               </div>
             </li>
@@ -130,11 +130,11 @@ export function RuleManager({
 
       {canManage ? (
         <form onSubmit={submit} className="panel mt-3 grid gap-3 p-3 sm:grid-cols-6" aria-label={draft.id ? "Edit rule" : "Add rule"}>
-          <label className="grid gap-1 text-[12px] sm:col-span-3">
+          <label className="grid gap-1 text-caption sm:col-span-3">
             <span className="text-fg-subtle">Name</span>
             <input className="field" value={draft.name} onChange={set("name")} maxLength={80} required placeholder="e.g. Large events" />
           </label>
-          <label className="grid gap-1 text-[12px] sm:col-span-3">
+          <label className="grid gap-1 text-caption sm:col-span-3">
             <span className="text-fg-subtle">Applies to</span>
             <NativeSelect value={draft.departmentId} onChange={set("departmentId")}>
               <option value="">All teams</option>
@@ -145,15 +145,15 @@ export function RuleManager({
               ))}
             </NativeSelect>
           </label>
-          <label className="grid gap-1 text-[12px] sm:col-span-2">
+          <label className="grid gap-1 text-caption sm:col-span-2">
             <span className="text-fg-subtle">Above (₹, pre-GST)</span>
             <input className="field font-mono" inputMode="decimal" value={draft.minAmount} onChange={set("minAmount")} placeholder="0" />
           </label>
-          <label className="grid gap-1 text-[12px] sm:col-span-2">
+          <label className="grid gap-1 text-caption sm:col-span-2">
             <span className="text-fg-subtle">Up to (₹, blank = no limit)</span>
             <input className="field font-mono" inputMode="decimal" value={draft.maxAmount} onChange={set("maxAmount")} placeholder="No limit" />
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Levels</span>
             <NativeSelect value={draft.levels} onChange={set("levels")}>
               {Array.from({ length: MAX_LEVELS }, (_, i) => (
@@ -163,7 +163,7 @@ export function RuleManager({
               ))}
             </NativeSelect>
           </label>
-          <label className="grid gap-1 text-[12px]">
+          <label className="grid gap-1 text-caption">
             <span className="text-fg-subtle">Hours per step</span>
             <input className="field font-mono" inputMode="numeric" value={draft.slaHours} onChange={set("slaHours")} />
           </label>
@@ -173,14 +173,14 @@ export function RuleManager({
                 Cancel
               </button>
             ) : null}
-            <button type="submit" className="btn btn-primary" disabled={save.pending}>
+            <button type="submit" className="btn btn-secondary" disabled={save.pending}>
               {save.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
               {draft.id ? "Save rule" : "Add rule"}
             </button>
           </div>
         </form>
       ) : null}
-      <p className="text-fg-faint mt-2 text-[12px] leading-5">
+      <p className="text-fg-faint mt-2 text-caption leading-5">
         A team&apos;s own band wins over an all-teams one. When policy, a budget or a PO also asks for sign-off, the strictest number of levels applies. A step left past its deadline escalates to the next tier up.
       </p>
     </section>

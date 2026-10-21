@@ -41,7 +41,7 @@ export function TraceWaterfall({ trace }: { trace: TraceRecord }) {
         const attrs = attrText(span.attributes);
         return (
           <li key={span.spanId} className="grid grid-cols-[minmax(0,1fr)] gap-1 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_4.5rem] sm:items-center sm:gap-3">
-            <span className="flex min-w-0 items-center gap-1.5 font-mono text-[12px]" style={{ paddingLeft: `${depth * 12}px` }}>
+            <span className="flex min-w-0 items-center gap-1.5 font-mono text-caption" style={{ paddingLeft: `${depth * 12}px` }}>
               {failed && <AlertTriangle className="size-3 shrink-0 text-rose" aria-label="Failed" />}
               <span className={cn("truncate", failed ? "text-rose" : "text-fg")} title={span.name}>
                 {span.name}
@@ -53,9 +53,9 @@ export function TraceWaterfall({ trace }: { trace: TraceRecord }) {
                 style={{ left: `${left}%`, width: `${width}%`, background: failed ? "var(--chart-critical)" : "var(--chart-1)" }}
               />
             </span>
-            <span className="text-fg-muted text-right font-mono text-[12px] tabular-nums">{formatMs(span.durationMs)}</span>
+            <span className="text-fg-muted text-right font-mono text-caption tabular-nums">{formatMs(span.durationMs)}</span>
             {(span.error || attrs) && (
-              <span className="text-fg-subtle col-span-full -mt-0.5 font-mono text-[11px] break-all" style={{ paddingLeft: `${depth * 12 + (failed ? 18 : 0)}px` }}>
+              <span className="text-fg-subtle col-span-full -mt-0.5 font-mono text-caption break-all" style={{ paddingLeft: `${depth * 12 + (failed ? 18 : 0)}px` }}>
                 {span.error && <span className="text-rose">{span.error.name}: {span.error.message}</span>}
                 {span.error && attrs && " · "}
                 {attrs}

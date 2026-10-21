@@ -30,7 +30,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
 
 function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="card-title" className={cn("text-fg text-[13.5px] leading-snug font-semibold tracking-tight", className)} {...props} />
+    <div data-slot="card-title" className={cn("text-fg text-card-title font-semibold tracking-tight", className)} {...props} />
   );
 }
 
@@ -38,7 +38,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-fg-subtle text-[12.5px] leading-5", className)}
+      className={cn("text-fg-subtle text-meta", className)}
       {...props}
     />
   );

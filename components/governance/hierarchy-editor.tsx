@@ -52,7 +52,7 @@ export function HierarchyEditor({
       <SectionLabel>
         <span id="hierarchy-heading">Approval hierarchy</span>
       </SectionLabel>
-      {warning ? <p className="text-warn mb-3 text-[12.5px] leading-5">{warning}</p> : null}
+      {warning ? <p className="text-warn mb-3 text-meta leading-5">{warning}</p> : null}
       {order.length === 0 ? (
         <EmptyState
           icon={Network}
@@ -64,8 +64,8 @@ export function HierarchyEditor({
         <ol className="panel divide-line divide-y">
           {order.map((o, i) => (
             <li key={o.id} className="flex min-h-12 items-center gap-3 px-3 py-2">
-              <span className="figure text-fg-subtle w-12 shrink-0 text-[12px]">Tier {i + 1}</span>
-              <span className="text-fg min-w-0 flex-1 truncate text-[13px]">{o.name}</span>
+              <span className="figure text-fg-subtle w-12 shrink-0 text-caption">Tier {i + 1}</span>
+              <span className="text-fg min-w-0 flex-1 truncate text-meta">{o.name}</span>
               {canManage ? (
                 <span className="flex shrink-0 gap-1">
                   <button type="button" className="btn btn-ghost btn-icon" aria-label={`Move ${o.name} up`} disabled={i === 0} onClick={() => move(i, -1)}>
@@ -106,13 +106,13 @@ export function HierarchyEditor({
           >
             <Plus className="size-3.5" aria-hidden /> Add
           </button>
-          <button type="button" className="btn btn-primary" disabled={!dirty || act.pending} onClick={save}>
+          <button type="button" className="btn btn-secondary" disabled={!dirty || act.pending} onClick={save}>
             {act.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
             Save order
           </button>
         </div>
       ) : null}
-      <p className="text-fg-faint mt-2 text-[12px] leading-5">
+      <p className="text-fg-faint mt-2 text-caption leading-5">
         Only people with the Approver role can be added. Nobody approves their own request: the next tier steps up.
       </p>
     </section>

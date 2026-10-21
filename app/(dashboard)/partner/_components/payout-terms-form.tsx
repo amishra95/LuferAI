@@ -19,7 +19,7 @@ export function PayoutTermsForm({ partnerId, accountId, commissionRate }: { part
           success: (r) => ({ tone: "success", title: "Payout terms saved", description: r.accountStatus ? `Linked account is ${r.accountStatus}. Paid orders are being settled.` : "No linked account: payouts wait until one is connected." }),
         });
       }}
-      className="grid gap-2.5 text-[12px] sm:grid-cols-[1fr_8rem_auto] sm:items-end"
+      className="grid gap-2.5 text-caption sm:grid-cols-[1fr_8rem_auto] sm:items-end"
     >
       <label className="grid gap-1">
         <span className="text-fg-subtle">Razorpay Route linked account</span>

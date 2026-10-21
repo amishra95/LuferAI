@@ -28,7 +28,7 @@ export function MetricStrip({ metrics }: { metrics: TelemetryMetric[] }) {
             <div className="flex items-center justify-between gap-2">
               <p className="label-mono truncate">{m.label}</p>
               <span
-                className={cn("inline-flex shrink-0 items-center gap-0.5 font-mono text-[11px] tabular-nums", good ? "text-sage" : "text-rose")}
+                className={cn("inline-flex shrink-0 items-center gap-0.5 font-mono text-caption tabular-nums", good ? "text-sage" : "text-rose")}
                 title={`${good ? "Better" : "Worse"} than the previous 2 hours`}
               >
                 <Trend className="size-3" strokeWidth={2} aria-hidden />
@@ -36,10 +36,10 @@ export function MetricStrip({ metrics }: { metrics: TelemetryMetric[] }) {
               </span>
             </div>
             <p className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-fg font-mono text-[22px] leading-none font-medium tracking-[-0.03em] tabular-nums sm:text-[26px]">{m.value}</span>
-              {m.unit && <span className="text-fg-subtle font-mono text-[11px]">{m.unit}</span>}
+              <span className="text-fg font-mono text-title leading-none font-medium tracking-[-0.03em] tabular-nums sm:text-title">{m.value}</span>
+              {m.unit && <span className="text-fg-subtle font-mono text-caption">{m.unit}</span>}
             </p>
-            <p className="text-fg-subtle mt-1.5 truncate font-mono text-[11px]">{m.detail}</p>
+            <p className="text-fg-subtle mt-1.5 truncate font-mono text-caption">{m.detail}</p>
             <div className="mt-3">
               <Sparkline data={m.series} format={m.format} label={`${m.label}, last 2 hours`} className="h-8" />
             </div>

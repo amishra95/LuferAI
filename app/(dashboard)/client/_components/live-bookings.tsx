@@ -98,7 +98,7 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
 
   return (
     <div className="grid justify-items-end gap-1.5 text-right">
-      <div className="text-fg-subtle flex items-center gap-2 font-mono text-[11px] tabular-nums">
+      <div className="text-fg-subtle flex items-center gap-2 font-mono text-caption tabular-nums">
         {status === "signed-out" ? (
           <span>Session ended · reload to sign in</span>
         ) : (
@@ -121,7 +121,7 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
           </>
         )}
       </div>
-      <ul aria-live="polite" className="grid gap-0.5 text-[12.5px]">
+      <ul aria-live="polite" className="grid gap-0.5 text-meta">
         {changes.map((c) => (
           <li key={`${c.id}-${c.kind}`} className="bg-fg/10 text-fg rounded-md px-2 py-0.5">
             {c.message}

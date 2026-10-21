@@ -11,7 +11,7 @@ export function LiveBadge({ asOf, partial = false, className }: { asOf: Date; pa
   return (
     <span
       title={partial ? "Some sources couldn't be loaded; figures may be incomplete. Reload for newer data." : "Built from the run log when this page loaded. Reload for newer data."}
-      className={cn("text-fg-subtle inline-flex h-7 items-center gap-2 font-mono text-[11px] tabular-nums", className)}
+      className={cn("text-fg-subtle inline-flex h-7 items-center gap-2 font-mono text-caption tabular-nums", className)}
     >
       <span aria-hidden className={cn("status-dot", partial ? "bg-warn" : "bg-sage")} />
       <span className="text-fg-muted">{partial ? "Partial" : "Live"}</span>

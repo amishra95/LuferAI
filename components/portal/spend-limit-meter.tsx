@@ -18,7 +18,7 @@ export function SpendLimitMeter({ committed, limit, month, className }: { commit
     <section aria-label="Monthly spend limit" className={cn("panel px-5 py-4", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="label-mono">Committed for events in {month}</h2>
-        <p className="font-mono text-[13px] tabular-nums">
+        <p className="font-mono text-meta tabular-nums">
           <span className="text-fg">{formatINR(committed)}</span>
           <span className="text-fg-subtle"> / {formatINR(limit)} monthly limit</span>
         </p>
@@ -32,12 +32,12 @@ export function SpendLimitMeter({ committed, limit, month, className }: { commit
         className={cn("bg-surface-raised border-line relative mt-3 h-2.5 overflow-hidden rounded-sm border", tone === "over" && "border-rose/40")}
       >
         <span
-          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-rose" : tone === "critical" ? "bg-warn" : "bg-fg")}
+          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-gold" : "bg-chart-1")}
           style={{ width: `${Math.min(100, pct)}%` }}
         />
         <span aria-hidden className="bg-fg-faint absolute inset-y-0 w-px" style={{ left: `${CRITICAL_PCT}%` }} />
       </div>
-      <p className={cn("mt-2 font-mono text-[11.5px] tabular-nums", TONE_TEXT[tone])}>
+      <p className={cn("mt-2 font-mono text-caption tabular-nums", TONE_TEXT[tone])}>
         {Math.round(pct)}% used · {committed > limit ? `${formatINR(committed - limit)} over` : `${formatINR(limit - committed)} left`}
         {note ? ` · ${note}` : ""}
       </p>

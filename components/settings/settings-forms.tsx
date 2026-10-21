@@ -23,7 +23,7 @@ const UNREACHABLE: FormState = { status: "error", message: "Couldn't reach the s
 export function Feedback({ state, pending, pendingText }: { state: FormState; pending?: boolean; pendingText?: string }) {
   if (pending && pendingText) {
     return (
-      <p role="status" className="text-fg-subtle flex items-center gap-1.5 text-[12.5px]">
+      <p role="status" className="text-fg-subtle flex items-center gap-1.5 text-meta">
         <Loader2 className="size-3.5 animate-spin" aria-hidden />
         {pendingText}
       </p>
@@ -32,7 +32,7 @@ export function Feedback({ state, pending, pendingText }: { state: FormState; pe
   if (state.status === "idle" || !state.message) return null;
   const ok = state.status === "success";
   return (
-    <p role={ok ? "status" : "alert"} className={cn("animate-in fade-in flex items-center gap-1.5 text-[12.5px] duration-200", ok ? "text-sage" : "text-rose")}>
+    <p role={ok ? "status" : "alert"} className={cn("animate-in fade-in flex items-center gap-1.5 text-meta duration-200", ok ? "text-sage" : "text-rose")}>
       {ok ? <Check className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden /> : <X className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />}
       {state.message}
     </p>
@@ -82,10 +82,10 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
     // method="post": if JS hasn't loaded, a native submit must never put the key in the URL.
     <form method="post" onSubmit={save} className="space-y-5">
       {!editable && (
-        <p className="border-line bg-surface-hover text-fg-subtle flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-[12.5px] leading-5">
+        <p className="border-line bg-surface-hover text-fg-subtle flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-meta leading-5">
           <Lock className="text-fg-faint mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
-            Read-only here. Keys can only be changed from <code className="text-fg-muted font-mono">next dev</code> on localhost, because
+            Read-only here. Keys can only be changed from <code className="text-fg-muted font-code">next dev</code> on localhost, because
             this app has no sign-in. In production, set OPENAI_API_KEY in your host&apos;s environment.
           </span>
         </p>
@@ -95,7 +95,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
         <label className="block">
           <span className="mb-2 flex items-center justify-between">
             <span className="label-mono">API key</span>
-            {status.maskedKey && <span className="text-fg-subtle font-mono text-[11px]">{status.maskedKey}</span>}
+            {status.maskedKey && <span className="text-fg-subtle font-mono text-caption">{status.maskedKey}</span>}
           </span>
           <span className="relative block">
             <KeyRound className="text-fg-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" aria-hidden />
@@ -113,7 +113,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
         <label className="block">
           <span className="mb-2 flex items-center justify-between">
             <span className="label-mono">Model</span>
-            {status.modelIsDefault && <span className="text-fg-subtle font-mono text-[11px]">default</span>}
+            {status.modelIsDefault && <span className="text-fg-subtle font-mono text-caption">default</span>}
           </span>
           <input
             name="model"
@@ -127,7 +127,7 @@ export function OpenAIForm({ status, editable }: { status: OpenAIStatus; editabl
       </div>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
-        <button type="submit" disabled={!editable || busy} className="btn btn-primary">
+        <button type="submit" disabled={!editable || busy} className="btn btn-secondary">
           Save
         </button>
         <button type="button" onClick={() => run("Contacting OpenAI…", testOpenAIConnection)} disabled={!status.configured || busy} className="btn">
@@ -201,14 +201,14 @@ export function PreferencesForm({ workspaceName, inspectorOpen }: { workspaceNam
       <label className="block max-w-sm">
         <span className="label-mono mb-2 block">Workspace name</span>
         <input name="workspaceName" defaultValue={workspaceName} maxLength={40} required className="field" />
-        <span className="text-fg-subtle mt-2 block text-[12.5px]">Shown in the sidebar and breadcrumb.</span>
+        <span className="text-fg-subtle mt-2 block text-meta">Shown in the sidebar and breadcrumb.</span>
       </label>
-      <label className="flex cursor-pointer items-center gap-3 text-[13px]">
+      <label className="flex cursor-pointer items-center gap-3 text-meta">
         <input type="checkbox" name="inspectorOpen" defaultChecked={inspectorOpen} className="accent-fg size-3.5" />
         <span className="text-fg-muted">Open the Chat inspector by default</span>
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending} className="btn btn-primary">
+        <button type="submit" disabled={pending} className="btn btn-secondary">
           {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
           Save preferences
         </button>

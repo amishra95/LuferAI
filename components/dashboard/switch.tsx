@@ -14,13 +14,13 @@ export function Switch({ on, label, pending, onToggle }: { on: boolean; label: s
       onClick={onToggle}
       className={cn(
         "relative h-[18px] w-8 shrink-0 rounded-full border transition-colors disabled:opacity-50",
-        on ? "border-fg bg-fg" : "border-line-strong bg-surface-raised"
+        on ? "border-selected bg-selected" : "border-line-strong bg-surface-raised"
       )}
     >
       <span
         className={cn(
           "absolute top-[2px] left-[2px] size-3 rounded-full transition-transform duration-100",
-          on ? "translate-x-[14px] bg-canvas" : "bg-fg-subtle"
+          on ? "bg-on-selected translate-x-[14px]" : "bg-fg-subtle"
         )}
       />
     </button>

@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </CardHeader>
         <CardContent>
           {errorMessage ? (
-            <p role="alert" className="text-destructive mb-4 text-sm">
+            <p role="alert" className="text-destructive mb-4 text-body">
               {errorMessage}
             </p>
           ) : null}

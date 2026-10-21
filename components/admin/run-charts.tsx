@@ -36,7 +36,7 @@ export function RunsChart({ buckets, bucketMs }: { buckets: RunBucket[]; bucketM
   return (
     <div>
       {/* Two series: a legend always, with the failure count called out in text. */}
-      <ul className="text-fg-muted mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" aria-label="Legend">
+      <ul className="text-fg-muted mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption" aria-label="Legend">
         <li className="inline-flex items-center gap-1.5">
           <span aria-hidden className="size-2.5 rounded-[3px]" style={{ background: "var(--chart-1)" }} />
           Succeeded
@@ -98,7 +98,7 @@ const latencyConfig = { p50Ms: { label: "Median latency", color: "var(--chart-1)
 export function LatencyChart({ buckets, bucketMs }: { buckets: RunBucket[]; bucketMs: number }) {
   const data = rowsOf(buckets, bucketMs);
   if (buckets.every((b) => b.p50Ms === null)) {
-    return <p className="text-fg-faint py-10 text-center text-sm">No runs to measure in this period.</p>;
+    return <p className="text-fg-faint py-10 text-center text-body">No runs to measure in this period.</p>;
   }
   return (
     <div>

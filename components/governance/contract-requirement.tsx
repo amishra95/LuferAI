@@ -32,8 +32,8 @@ export function ContractRequirement({ companyId, required, canManage }: { compan
       <div className="panel flex flex-wrap items-center gap-4 p-4">
         <FileSignature className="text-fg-subtle size-5 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-fg text-[13px] font-medium">{on ? "Bookings are confirmed by signed contract" : "Venues confirm bookings directly"}</p>
-          <p className="text-fg-subtle mt-0.5 text-[12.5px] leading-5">
+          <p className="text-fg text-meta font-medium">{on ? "Bookings are confirmed by signed contract" : "Venues confirm bookings directly"}</p>
+          <p className="text-fg-subtle mt-0.5 text-meta leading-5">
             When on, a booking with the venue gets a Venue Services Agreement. An Approver signs, the venue countersigns, and that confirms the booking and issues the deposit and balance invoices.
           </p>
         </div>

@@ -63,8 +63,8 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
     return (
       <div className="panel px-6 py-16 text-center">
         {emptyChannel && <ChannelTile channel={emptyChannel} className="mx-auto" />}
-        <p className="text-fg mt-4 text-[13.5px] font-medium">No {emptyChannel ? CHANNEL[emptyChannel].label : ""} activity yet</p>
-        <p className="text-fg-subtle mt-1 text-[12.5px]">
+        <p className="text-fg mt-4 text-body font-medium">No {emptyChannel ? CHANNEL[emptyChannel].label : ""} activity yet</p>
+        <p className="text-fg-subtle mt-1 text-meta">
           {emptyChannel && emptyChannel !== "web" ? (
             <>
               Messages appear here once the channel is connected.{" "}
@@ -88,11 +88,11 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
-              <p className="text-fg min-w-0 flex-1 truncate text-[13.5px] font-medium">{e.task}</p>
+              <p className="text-fg min-w-0 flex-1 truncate text-body font-medium">{e.task}</p>
               <StatusPill status={e.status} />
             </div>
-            <p className={cn("mt-1 truncate text-[12.5px]", e.status === "failed" ? "text-rose" : "text-fg-subtle")}>{e.log}</p>
-            <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[11px] tabular-nums">
+            <p className={cn("mt-1 truncate text-meta", e.status === "failed" ? "text-rose" : "text-fg-subtle")}>{e.log}</p>
+            <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-caption tabular-nums">
               <span className="text-fg-muted">{e.agent}</span>
               <span className="sm:hidden">{CLOCK.format(new Date(e.startedAt))}</span>
               <span>
@@ -104,8 +104,8 @@ export function ActivityFeed({ events, now, emptyChannel }: { events: AgentTaskE
           </div>
 
           <time dateTime={e.startedAt} className="hidden w-[5.5rem] shrink-0 text-right font-mono tabular-nums sm:block">
-            <span className="text-fg-muted block text-[12px]">{CLOCK.format(new Date(e.startedAt))}</span>
-            <span className="text-fg-faint mt-1 block text-[11px]">{formatAgo(e.startedAt, now)}</span>
+            <span className="text-fg-muted block text-caption">{CLOCK.format(new Date(e.startedAt))}</span>
+            <span className="text-fg-faint mt-1 block text-caption">{formatAgo(e.startedAt, now)}</span>
           </time>
         </li>
       ))}

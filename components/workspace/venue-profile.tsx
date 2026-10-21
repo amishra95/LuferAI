@@ -41,11 +41,11 @@ function Section({ title, aside, children }: { title: string; aside?: React.Reac
 
 function Fields({ rows }: { rows: [string, React.ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[12.5px]">
+    <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-meta">
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-fg-subtle">{k}</dt>
-          <dd className="text-fg min-w-0 font-mono text-[12px] break-words tabular-nums">{v ?? <span className="text-fg-faint">—</span>}</dd>
+          <dd className="text-fg min-w-0 font-mono text-caption break-words tabular-nums">{v ?? <span className="text-fg-faint">—</span>}</dd>
         </div>
       ))}
     </dl>
@@ -55,9 +55,9 @@ function Fields({ rows }: { rows: [string, React.ReactNode][] }) {
 /** A row in a dense mono table. */
 function Row({ cells, muted }: { cells: React.ReactNode[]; muted?: boolean }) {
   return (
-    <div className={cn("border-line grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3 border-b py-1.5 font-mono text-[12px] tabular-nums last:border-b-0", muted && "text-fg-subtle")}>
+    <div className={cn("border-line grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3 border-b py-1.5 font-mono text-caption tabular-nums last:border-b-0", muted && "text-fg-subtle")}>
       {cells.map((c, i) => (
-        <span key={i} className={cn(i === 0 ? "text-fg min-w-0 truncate font-sans text-[12.5px]" : "text-right", muted && i === 0 && "text-fg-subtle")}>
+        <span key={i} className={cn(i === 0 ? "text-fg min-w-0 truncate font-sans text-meta" : "text-right", muted && i === 0 && "text-fg-subtle")}>
           {c}
         </span>
       ))}
@@ -73,7 +73,7 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
   if (!profile) {
     return (
       <Section title="Profile">
-        <p className="text-fg-subtle text-[12.5px]">Partner listing from {venue.supplier ?? "a supplier network"}. Seating, rates and terms are agreed with the supplier.</p>
+        <p className="text-fg-subtle text-meta">Partner listing from {venue.supplier ?? "a supplier network"}. Seating, rates and terms are agreed with the supplier.</p>
       </Section>
     );
   }
@@ -94,7 +94,7 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
 
       <Section title="Seating & private dining">
         {profile.layouts.length === 0 && profile.suites.length === 0 ? (
-          <p className="text-fg-subtle text-[12.5px]">No seating plans on file.</p>
+          <p className="text-fg-subtle text-meta">No seating plans on file.</p>
         ) : (
           <div>
             {profile.layouts.map((l) => (
@@ -109,7 +109,7 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
 
       <Section title="Corporate rates">
         {rates.length === 0 ? (
-          <p className="text-fg-subtle text-[12.5px]">No negotiated rate{viewer.canBook ? " for your company" : ""}: list pricing applies.</p>
+          <p className="text-fg-subtle text-meta">No negotiated rate{viewer.canBook ? " for your company" : ""}: list pricing applies.</p>
         ) : (
           <div>
             {rates.map((r) => (
@@ -124,21 +124,21 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
               />
             ))}
             {rates.some((r) => r.customPerHead == null && !r.enterpriseBand) && (
-              <p className="text-fg-faint mt-2 text-[11.5px]">· outside the 10–15% enterprise band</p>
+              <p className="text-fg-faint mt-2 text-caption">· outside the 10–15% enterprise band</p>
             )}
           </div>
         )}
       </Section>
 
       <Section title="Cancellation">
-        <p className="text-fg-muted text-[12.5px] leading-5">{profile.cancellationText}</p>
+        <p className="text-fg-muted text-meta leading-5">{profile.cancellationText}</p>
       </Section>
 
       {viewer.canBook && <AgentBooking entity={entity} minPerHead={profile.minSpendPerHead} />}
 
       <Section title="Audit trail" aside={<span className="text-fg-faint normal-case">{audit.length ? `latest ${audit.length}` : ""}</span>}>
         {audit.length === 0 ? (
-          <p className="text-fg-subtle text-[12.5px]">No bookings here yet{viewer.canBook ? " for your company" : ""}.</p>
+          <p className="text-fg-subtle text-meta">No bookings here yet{viewer.canBook ? " for your company" : ""}.</p>
         ) : (
           <ol className="divide-line -mx-1 divide-y">
             {audit.map((a) => (
@@ -154,7 +154,7 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
 const STATUS_DOT: Record<LifecycleStatus, string> = {
   PENDING_APPROVAL: "border border-warn",
   PENDING: "bg-warn",
-  CONFIRMED: "bg-fg",
+  CONFIRMED: "bg-mint",
   COMPLETED: "bg-sage",
   SETTLED: "border border-sage",
   CANCELLED: "bg-rose",
@@ -185,20 +185,20 @@ function AuditRow({ entry: server, canSync }: { entry: VenueAuditEntry; canSync:
 
   return (
     <li className="px-1 py-2">
-      <div className="flex items-center gap-2 text-[12.5px]">
+      <div className="flex items-center gap-2 text-meta">
         <span className={cn("status-dot", STATUS_DOT[entry.status])} aria-hidden />
         <span className="text-fg">{STAGE_LABEL[entry.status]}</span>
-        <span className="text-fg-subtle font-mono text-[11.5px] tabular-nums">
+        <span className="text-fg-subtle font-mono text-caption tabular-nums">
           {fmtDay(entry.eventDate)} · {entry.partySize} pax · {formatINR(entry.total)}
         </span>
         {(syncable || settleOnly) && (
-          <button type="button" onClick={() => void sync()} disabled={pending} className="btn ml-auto h-6 px-2 text-[11.5px]" title="Export to the company's expense system">
+          <button type="button" onClick={() => void sync()} disabled={pending} className="btn ml-auto h-6 px-2 text-caption" title="Export to the company's expense system">
             {pending ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <Receipt className="size-3" aria-hidden />}
             {settleOnly ? "Settle" : entry.expense?.status === "failed" ? "Retry sync" : "Sync expense"}
           </button>
         )}
       </div>
-      <p className="text-fg-faint mt-0.5 pl-3.5 font-mono text-[11px]">
+      <p className="text-fg-faint mt-0.5 pl-3.5 font-mono text-caption">
         {entry.company && `${entry.company} · `}
         {[entry.alcohol && "alcohol", ...entry.entertainment.map(label)].filter(Boolean).join(", ") || "no extras"}
         {entry.expense && ` · ${entry.expense.provider} ${entry.expense.status}${entry.expense.attempts > 1 ? ` ×${entry.expense.attempts}` : ""}`}
@@ -280,7 +280,7 @@ function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead:
 
   return (
     <Section title="Book with agent">
-      <form onSubmit={submit} className="grid grid-cols-2 gap-2 text-[12px]">
+      <form onSubmit={submit} className="grid grid-cols-2 gap-2 text-caption">
         <label className="col-span-2 grid gap-1">
           <span className="text-fg-subtle">Date</span>
           <input name="date" type="date" min={tomorrow} required className="field h-8 font-mono" />
@@ -316,14 +316,14 @@ function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead:
           ))}
         </fieldset>
         {error && (
-          <p role="alert" className="text-rose col-span-2 text-[12px]">
+          <p role="alert" className="text-rose col-span-2 text-caption">
             {error}
           </p>
         )}
-        <button type="submit" className="btn btn-primary col-span-2 h-8 text-[12px]">
+        <button type="submit" className="btn btn-primary col-span-2 h-8 text-caption">
           <Bot className="size-3.5" aria-hidden /> Dispatch booking agent
         </button>
-        <p className="text-fg-faint col-span-2 text-[11.5px] leading-4">
+        <p className="text-fg-faint col-span-2 text-caption leading-4">
           Checks availability, applies your company&apos;s rate, raises the offer up to your ceiling only to meet the venue&apos;s minimum, and follows your
           spend policy. It confirms on its own only in-policy bookings on pre-agreed corporate terms.
         </p>
@@ -333,7 +333,7 @@ function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead:
         <ol className="mt-3 space-y-2" aria-live="polite">
           {runs.map((r) => (
             <li key={r.key} className="border-line rounded-md border px-3 py-2">
-              <p className="flex items-center gap-2 text-[12.5px]">
+              <p className="flex items-center gap-2 text-meta">
                 {r.outcome === null ? (
                   <Loader2 className="text-fg-subtle size-3 animate-spin" aria-hidden />
                 ) : r.outcome.status === "failed" ? (
@@ -342,16 +342,16 @@ function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead:
                   <Check className="text-sage size-3" strokeWidth={2.5} aria-hidden />
                 )}
                 <span className="text-fg">{r.outcome ? OUTCOME[r.outcome.status] : "Agent working…"}</span>
-                <span className="text-fg-subtle ml-auto font-mono text-[11px] tabular-nums">
+                <span className="text-fg-subtle ml-auto font-mono text-caption tabular-nums">
                   {r.request.partySize} pax · {fmtDay(r.request.eventDate)}
                 </span>
               </p>
               {r.outcome === null && !compliance(r.request.partySize, r.request.perHead).ok && (
-                <p className="text-fg-faint mt-1 font-mono text-[11px]">below the venue minimum at ₹{r.request.perHead}/head; the agent will try to raise it</p>
+                <p className="text-fg-faint mt-1 font-mono text-caption">below the venue minimum at ₹{r.request.perHead}/head; the agent will try to raise it</p>
               )}
               {r.outcome && (
                 <>
-                  <ol className="text-fg-subtle mt-1.5 space-y-0.5 font-mono text-[11px]">
+                  <ol className="text-fg-subtle mt-1.5 space-y-0.5 font-mono text-caption">
                     {r.outcome.steps.map((s, i) => (
                       <li key={i} className={cn(!s.ok && "text-rose")}>
                         {s.ok ? "✓" : "✗"} {s.step}: {s.detail}
@@ -359,7 +359,7 @@ function AgentBooking({ entity, minPerHead }: { entity: VenueDetail; minPerHead:
                     ))}
                   </ol>
                   {r.outcome.traceId && (
-                    <InspectButton kind="trace" id={r.outcome.traceId} className="text-fg-faint mt-1 font-mono text-[10.5px]">
+                    <InspectButton kind="trace" id={r.outcome.traceId} className="text-fg-faint mt-1 font-mono text-caption">
                       trace {r.outcome.traceId.slice(0, 12)}
                     </InspectButton>
                   )}

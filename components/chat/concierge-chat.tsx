@@ -60,8 +60,8 @@ export function ConciergeChat() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-3xl flex-col">
       <header className="border-line border-b px-4 py-3">
-        <h1 className="text-fg text-base font-medium">LuferAI Concierge · test</h1>
-        <p className="text-fg-subtle text-xs">{model ?? "Gemini"} · up to 5 steps · team availability is mocked</p>
+        <h1 className="text-fg text-body font-medium">LuferAI Concierge · test</h1>
+        <p className="text-fg-subtle text-caption">{model ?? "Gemini"} · up to 5 steps · team availability is mocked</p>
       </header>
 
       <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4" aria-live="polite">
@@ -72,7 +72,7 @@ export function ConciergeChat() {
                 key={s}
                 type="button"
                 onClick={() => send(s)}
-                className="border-line/60 bg-surface text-fg-muted hover:border-line-strong hover:text-fg min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition"
+                className="border-line/60 bg-surface text-fg-muted hover:border-line-strong hover:text-fg min-h-11 rounded-lg border px-3 py-2 text-left text-body transition"
               >
                 {s}
               </button>
@@ -82,11 +82,11 @@ export function ConciergeChat() {
 
         {messages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className="bg-surface-raised text-fg ml-10 self-end rounded-lg rounded-br-md px-3.5 py-2 text-sm whitespace-pre-wrap">
+            <div key={m.id} className="bg-surface-raised text-fg ml-10 self-end rounded-lg rounded-br-md px-3.5 py-2 text-body whitespace-pre-wrap">
               {m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")}
             </div>
           ) : (
-            <div key={m.id} className="text-fg-muted grid gap-2 text-sm leading-6">
+            <div key={m.id} className="text-fg-muted grid gap-2 text-body leading-6">
               {m.parts.map((part, i) => {
                 if (part.type === "text") return <Markdown key={i} text={part.text} />;
                 if (part.type === "step-start") return i > 0 ? <hr key={i} className="border-line/50" /> : null;
@@ -97,7 +97,7 @@ export function ConciergeChat() {
           )
         )}
         {status === "submitted" ? <Loader2 className="text-fg-faint size-4 animate-spin" aria-label="Thinking" /> : null}
-        {error ? <p className="text-rose text-sm">{error.message.includes("429") ? "Too many requests — wait a minute." : error.message || "Something went wrong."}</p> : null}
+        {error ? <p className="text-rose text-body">{error.message.includes("429") ? "Too many requests — wait a minute." : error.message || "Something went wrong."}</p> : null}
       </div>
 
       <form
@@ -136,27 +136,27 @@ function ToolCall({ part, onRespond }: { part: ToolPart; onRespond: ChatAddToolA
     <div className="border-line bg-surface rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
         {running ? <Loader2 className="text-fg-subtle size-3.5 animate-spin" aria-hidden /> : <Wrench className="text-fg-subtle size-3.5" aria-hidden />}
-        <span className="text-fg font-mono text-xs">{name}</span>
+        <span className="text-fg font-mono text-caption">{name}</span>
         <Badge variant={part.state === "output-error" ? "destructive" : part.state === "output-available" ? "success" : "outline"}>{STATE_LABEL[part.state]}</Badge>
       </div>
 
       {part.input !== undefined ? (
         <details className="mt-2">
-          <summary className="text-fg-subtle cursor-pointer text-xs">Input</summary>
-          <pre className="bg-surface-raised mt-1 overflow-x-auto rounded p-2 text-[11px] leading-4">{JSON.stringify(part.input, null, 2)}</pre>
+          <summary className="text-fg-subtle cursor-pointer text-caption">Input</summary>
+          <pre className="bg-surface-raised mt-1 overflow-x-auto rounded p-2 text-caption leading-4">{JSON.stringify(part.input, null, 2)}</pre>
         </details>
       ) : null}
       {part.state === "output-available" ? (
         <details className="mt-1">
-          <summary className="text-fg-subtle cursor-pointer text-xs">Output</summary>
-          <pre className="bg-surface-raised mt-1 max-h-72 overflow-auto rounded p-2 text-[11px] leading-4">{JSON.stringify(part.output, null, 2)}</pre>
+          <summary className="text-fg-subtle cursor-pointer text-caption">Output</summary>
+          <pre className="bg-surface-raised mt-1 max-h-72 overflow-auto rounded p-2 text-caption leading-4">{JSON.stringify(part.output, null, 2)}</pre>
         </details>
       ) : null}
-      {part.state === "output-error" ? <p className="text-destructive mt-1 text-xs">{part.errorText}</p> : null}
+      {part.state === "output-error" ? <p className="text-destructive mt-1 text-caption">{part.errorText}</p> : null}
 
       {part.state === "approval-requested" && !part.approval.isAutomatic ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button size="sm" onClick={() => onRespond({ id: part.approval.id, approved: true })}>
+          <Button size="sm" variant="secondary" onClick={() => onRespond({ id: part.approval.id, approved: true })}>
             <Check aria-hidden /> Approve
           </Button>
           <Button size="sm" variant="outline" onClick={() => onRespond({ id: part.approval.id, approved: false, reason: "User declined" })}>
@@ -173,7 +173,7 @@ function ToolCall({ part, onRespond }: { part: ToolPart; onRespond: ChatAddToolA
 function PayAction({ output }: { output: Extract<ToolPart, { type: "tool-createInvoiceAndPayment"; state: "output-available" }>["output"] }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  if (!output.ok) return <p className="text-destructive mt-2 text-xs">{output.error}</p>;
+  if (!output.ok) return <p className="text-destructive mt-2 text-caption">{output.error}</p>;
 
   const pay = async () => {
     setPending(true);
@@ -196,11 +196,11 @@ function PayAction({ output }: { output: Extract<ToolPart, { type: "tool-createI
 
   return (
     <div className="mt-3 grid justify-items-start gap-1">
-      <Button size="sm" onClick={pay} disabled={pending}>
+      <Button size="sm" variant="secondary" onClick={pay} disabled={pending}>
         {pending ? <Loader2 className="animate-spin" aria-hidden /> : <CreditCard aria-hidden />}
         {output.amountInr != null ? `Pay ${formatINR(output.amountInr)}` : "Pay now"}
       </Button>
-      {message ? <p className="text-fg-subtle text-xs">{message}</p> : null}
+      {message ? <p className="text-fg-subtle text-caption">{message}</p> : null}
     </div>
   );
 }

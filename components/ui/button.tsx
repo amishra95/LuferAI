@@ -11,18 +11,18 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "btn-primary",
-        destructive: "border-rose bg-rose text-canvas hover:border-rose hover:bg-rose/90",
+        destructive: "border-error-ink bg-error-ink text-white hover:border-error-ink hover:bg-error-ink/90 hover:text-white",
         outline: "",
-        secondary: "bg-surface-raised border-transparent hover:border-transparent hover:bg-line",
+        secondary: "btn-secondary",
         ghost: "btn-ghost",
-        link: "text-fg h-auto border-transparent bg-transparent px-0 underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
+        link: "text-link h-auto border-transparent bg-transparent px-0 underline-offset-4 hover:border-transparent hover:bg-transparent hover:underline",
       },
       size: {
         // pointer-coarse: 44px minimum touch targets on touch screens (WCAG 2.5.5).
-        default: "h-8 px-3 text-[13px] has-[>svg]:px-2.5 pointer-coarse:min-h-11",
+        default: "h-9 px-4 text-meta has-[>svg]:px-3 pointer-coarse:min-h-11",
         sm: "h-7 px-2.5 has-[>svg]:px-2 pointer-coarse:min-h-11",
-        lg: "h-9 px-4 text-[13.5px] pointer-coarse:min-h-11",
-        icon: "size-8 px-0 pointer-coarse:size-11",
+        lg: "h-11 px-5 text-body pointer-coarse:min-h-11",
+        icon: "size-9 px-0 pointer-coarse:size-11",
       },
     },
     defaultVariants: {

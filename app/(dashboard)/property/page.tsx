@@ -149,7 +149,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             key={t.key}
             href={href(t.key)}
             aria-current={tab === t.key ? "page" : undefined}
-            className={cn("relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 px-3 text-[13px] transition-colors", tab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
+            className={cn("relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 px-3 text-meta transition-colors", tab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
           >
             {t.label}
             {t.key === "requests" && escalations.open.length > 0 ? (
@@ -169,7 +169,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               </Badge>
             ) : null}
             {t.key === "briefs" && incoming.length + upcoming.length > 0 ? <Badge variant="secondary">{incoming.length + upcoming.length}</Badge> : null}
-            {tab === t.key && <span aria-hidden className="bg-fg absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
+            {tab === t.key && <span aria-hidden className="bg-link absolute inset-x-2 bottom-0 h-[2px] rounded-full" />}
           </Link>
         ))}
       </nav>
@@ -212,7 +212,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                 </CardHeader>
                 <CardContent>
                   {incoming.length === 0 ? (
-                    <p className="text-fg-subtle flex items-center gap-2 text-[13px]">
+                    <p className="text-fg-subtle flex items-center gap-2 text-meta">
                       <Inbox className="text-fg-faint size-4" aria-hidden /> No requests waiting. New ones from clients appear here.
                     </p>
                   ) : (
@@ -221,10 +221,10 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                         <li key={b.id} className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:gap-5">
                           <div className="flex-1">
                             <div className="font-medium">{b.company.legal_name}</div>
-                            <div className="text-fg-subtle text-sm">
+                            <div className="text-fg-subtle text-body">
                               {formatDate(b.event_date)} · {b.party_size} guests · {formatINR(b.budget_per_head_inr)}/head · {formatINR(b.total_amount_inr)} taxable
                             </div>
-                            {b.notes ? <p className="mt-1 text-sm">“{b.notes}”</p> : null}
+                            {b.notes ? <p className="mt-1 text-body">“{b.notes}”</p> : null}
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <GstTypeBadge type={b.invoice.gst_type} />
                               {b.rate_card_id ? <RateCardPill label={`${formatINR(b.budget_per_head_inr)}/head`} /> : null}
@@ -236,13 +236,13 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                             <input type="hidden" name="booking_id" value={b.id} />
                             <input type="hidden" name="venue_id" value={venue.id} />
                             {contracts.get(b.id) ? (
-                              <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="btn btn-primary">
+                              <Link href={`/contracts/${contracts.get(b.id)!.id}`} className="btn btn-secondary">
                                 <FileSignature className="size-3.5" aria-hidden /> {contracts.get(b.id)!.status === "awaiting_venue" ? "Countersign" : "Contract"}
                               </Link>
                             ) : contractCompanies.has(b.company.id) ? (
-                              <IssueContractButton bookingId={b.id} className="btn-primary" />
+                              <IssueContractButton bookingId={b.id} className="btn-secondary" />
                             ) : (
-                              <Button type="submit" name="intent" value="approve" size="sm">
+                              <Button type="submit" name="intent" value="approve" size="sm" variant="secondary">
                                 <Check aria-hidden /> Approve
                               </Button>
                             )}
@@ -271,7 +271,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   </CardHeader>
                   <CardContent>
                     {rfpInbox.length === 0 ? (
-                      <p className="text-fg-subtle flex items-center gap-2 text-[13px]">
+                      <p className="text-fg-subtle flex items-center gap-2 text-meta">
                         <ClipboardList className="text-fg-faint size-4" aria-hidden /> No open RFPs. Multi-venue requests from clients land here.
                       </p>
                     ) : (
@@ -290,19 +290,19 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                                     {{ quoted: "Instant quote sent", countered: rfp.origin === "venue" ? "Sent" : "Countered", declined: "Declined", no_fit: "Not a fit" }[r.status]}
                                   </Badge>
                                 </div>
-                                <p className="text-fg-subtle text-sm">
+                                <p className="text-fg-subtle text-body">
                                   {requirements?.summary ?? rfp.brief} · {rfp.party_size} guests
                                   {rfp.event_date ? ` · ${formatDate(rfp.event_date)}` : ""}
                                   {rfp.budget_per_head_inr != null ? ` · budget ${formatINR(Number(rfp.budget_per_head_inr))}/head` : ""}
                                   {rfp.dietary_tags.length ? ` · ${rfp.dietary_tags.map(dietaryLabel).join(", ")}` : ""}
                                 </p>
                                 {r.per_head_inr != null ? (
-                                  <p className="mt-1 text-sm">
+                                  <p className="mt-1 text-body">
                                     Current offer {formatINR(Number(r.per_head_inr))}/head · {formatINR(Number(r.list_amount_inr))} before discount
                                     {r.notes ? ` · ${r.notes}` : ""}
                                   </p>
                                 ) : r.notes ? (
-                                  <p className="mt-1 text-sm">{r.notes}</p>
+                                  <p className="mt-1 text-body">{r.notes}</p>
                                 ) : null}
                               </div>
                               {rfp.origin === "venue" ? null : (
@@ -336,7 +336,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <CardContent className="grid gap-5">
                 {blockDates()}
                 {holdsByDate.length === 0 && blocks.length === 0 ? (
-                  <p className="text-fg-subtle flex items-center gap-2 text-[13px]">
+                  <p className="text-fg-subtle flex items-center gap-2 text-meta">
                     <CalendarClock className="text-fg-faint size-4" aria-hidden /> No dates on hold or blocked.
                   </p>
                 ) : null}
@@ -348,11 +348,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                       return (
                         <li key={h.id} className="grid gap-3 py-4 first:pt-0">
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <span className="text-fg inline-flex items-center gap-1.5 text-sm tabular-nums">
+                            <span className="text-fg inline-flex items-center gap-1.5 text-body tabular-nums">
                               <Lock className="text-fg-faint size-3.5" aria-hidden />
                               {formatDate(h.event_date)}
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-sm">
+                            <span className="min-w-0 flex-1 truncate text-body">
                               {booking ? (
                                 <>
                                   <span className="text-fg font-medium">{booking.company.legal_name.replace(" Private Limited", "")}</span>
@@ -372,7 +372,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                               <form action={convertVenueHold}>
                                 <input type="hidden" name="booking_id" value={booking.id} />
                                 <input type="hidden" name="venue_id" value={venue.id} />
-                                <Button type="submit" size="sm">
+                                <Button type="submit" size="sm" variant="secondary">
                                   <Check aria-hidden /> Convert
                                 </Button>
                               </form>
@@ -395,7 +395,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                     <h3 className="label-mono mb-2">Blocked · {blocks.length}</h3>
                     <ul className="divide-line divide-y">
                       {blocks.map((b) => (
-                        <li key={b.id} className="flex items-center gap-3 py-2 text-sm">
+                        <li key={b.id} className="flex items-center gap-3 py-2 text-body">
                           <CalendarX2 className="text-fg-faint size-3.5 shrink-0" aria-hidden />
                           <span className="text-fg tabular-nums">{formatDate(b.blocked_date)}</span>
                           <span className="text-fg-subtle min-w-0 flex-1 truncate">{b.reason ?? "Unavailable"}</span>
@@ -422,7 +422,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             title="No upcoming events to brief"
             description="Briefs are drafted for requests you're considering and confirmed events: run of show, catering and the client's budget limits."
             action={
-              <Link href={href("requests")} className="btn h-8 px-3 text-[12.5px]">
+              <Link href={href("requests")} className="btn h-8 px-3 text-meta">
                 Go to Requests &amp; Holds
               </Link>
             }
@@ -442,7 +442,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   <li key={b.id} className="grid gap-3 py-4 first:pt-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-fg font-medium">{b.company.legal_name}</span>
-                      <span className="text-fg-subtle text-sm">
+                      <span className="text-fg-subtle text-body">
                         {formatDate(b.event_date)} · {b.party_size} guests
                       </span>
                       <BookingStatusBadge status={b.status} />
@@ -526,11 +526,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   {pricing.multipliers.length > 0 ? (
                     <ul className="divide-line divide-y" aria-label="Rates">
                       {pricing.multipliers.map((m) => (
-                        <li key={m.id} className="flex items-center gap-3 py-2 text-sm">
+                        <li key={m.id} className="flex items-center gap-3 py-2 text-body">
                           <span className="min-w-0 flex-1">
                             <span className="text-fg">{m.label}</span>
                             <span className="text-fg-subtle"> · {MULTIPLIER_KIND_LABEL[m.kind]} · </span>
-                            <span className="font-mono text-[12.5px]">{describeMultiplier(m)}</span>
+                            <span className="font-mono text-meta">{describeMultiplier(m)}</span>
                           </span>
                           <form action={removeRateMultiplierAction}>
                             <input type="hidden" name="multiplier_id" value={m.id} />
@@ -582,7 +582,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           title="No payouts or bookings yet"
           description="Confirmed and completed events show here by month, with commission and your payout, alongside the full booking history."
           action={
-            <Link href={href("requests")} className="btn h-8 px-3 text-[12.5px]">
+            <Link href={href("requests")} className="btn h-8 px-3 text-meta">
               Go to Requests &amp; Holds
             </Link>
           }
@@ -596,7 +596,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             </CardHeader>
             <CardContent>
               {payouts.length === 0 ? (
-                <p className="text-fg-subtle text-[13px]">No payouts yet: they start once an event is confirmed.</p>
+                <p className="text-fg-subtle text-meta">No payouts yet: they start once an event is confirmed.</p>
               ) : (
                 <Table>
                   <TableHeader>

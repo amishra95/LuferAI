@@ -76,10 +76,10 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
       <section id="escalations" aria-labelledby="escalations-heading" className="mt-8">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="escalations-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+            <h2 id="escalations-heading" className="text-fg text-body font-semibold tracking-tight">
               Escalation queue{escalations.open.length > 0 ? <span className="text-warn"> · {escalations.open.length} waiting</span> : null}
             </h2>
-            <p className="text-fg-subtle mt-1 text-[12.5px]">
+            <p className="text-fg-subtle mt-1 text-meta">
               Counter-offers held back by the escalation thresholds below, across every venue. Hosts see their own on /property; either can decide. Every step is in the
               audit trail.
             </p>
@@ -92,18 +92,18 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
 
       <section aria-labelledby="negotiation-heading" className="mt-8">
         <div className="mb-3">
-          <h2 id="negotiation-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+          <h2 id="negotiation-heading" className="text-fg text-body font-semibold tracking-tight">
             Negotiation controls
           </h2>
-          <p className="text-fg-subtle mt-1 text-[12.5px]">
+          <p className="text-fg-subtle mt-1 text-meta">
             The negotiator&apos;s prompt and the platform&apos;s guardrails, live. Both are stored in the database and picked up by every server within about 15 seconds.
           </p>
         </div>
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] 2xl:items-start">
           <div className="panel px-5 py-4">
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <h3 className="text-fg text-[13.5px] font-medium">Prompt registry · {PROMPT_LABEL["property-negotiator"]}</h3>
-              <span className="text-fg-subtle font-mono text-[11.5px]">live: {negotiatorPrompt.version === null ? "built-in" : `v${negotiatorPrompt.version}`}</span>
+              <h3 className="text-fg text-body font-medium">Prompt registry · {PROMPT_LABEL["property-negotiator"]}</h3>
+              <span className="text-fg-subtle font-mono text-caption">live: {negotiatorPrompt.version === null ? "built-in" : `v${negotiatorPrompt.version}`}</span>
             </div>
             <PromptRegistry
               promptKey="property-negotiator"
@@ -114,7 +114,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
             />
           </div>
           <div className="panel px-5 py-4">
-            <h3 className="text-fg mb-4 text-[13.5px] font-medium">Guardrail tuning · platform ceilings</h3>
+            <h3 className="text-fg mb-4 text-body font-medium">Guardrail tuning · platform ceilings</h3>
             <GuardrailTuning key={platform.updatedAt ?? "default"} settings={platform.settings} ready={platform.ready} updatedAt={platform.updatedAt} />
           </div>
         </div>
@@ -126,10 +126,10 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
 
       <section aria-labelledby="agents-heading" className="mt-8">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <h2 id="agents-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+          <h2 id="agents-heading" className="text-fg text-body font-semibold tracking-tight">
             Configured agents
           </h2>
-          <p className="text-fg-subtle font-mono text-[11.5px]">
+          <p className="text-fg-subtle font-mono text-caption">
             {(["active", "idle", "error", "disabled"] as const)
               .filter((s) => counts[s])
               .map((s) => `${counts[s]} ${s}`)
@@ -150,7 +150,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
             ))}
           </ul>
         </div>
-        <p className="text-fg-subtle mt-3 text-[12.5px] leading-5">
+        <p className="text-fg-subtle mt-3 text-meta leading-5">
           Test runs call each assigned tool once with a sample input and don&apos;t call the model; live runs (in an agent&apos;s settings) do, and count as
           test runs. Chat messages count as workspace-agent runs.{" "}
           {store === "supabase"

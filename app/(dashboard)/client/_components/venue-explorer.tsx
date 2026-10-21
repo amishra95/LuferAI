@@ -72,10 +72,10 @@ export function VenueExplorer({
     <section aria-labelledby="venues-heading" className="relative">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 id="venues-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+          <h2 id="venues-heading" className="text-fg text-body font-semibold tracking-tight">
             Venues
           </h2>
-          <p className="text-fg-subtle mt-0.5 text-[13px]">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
+          <p className="text-fg-subtle mt-0.5 text-meta">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
         </div>
       </div>
 
@@ -150,8 +150,8 @@ export function VenueExplorer({
                   aria-pressed={mobileView === view}
                   onClick={() => setMobileView(view)}
                   className={cn(
-                    "inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm capitalize transition",
-                    mobileView === view ? "bg-fg text-canvas" : "text-fg-muted"
+                    "inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-body capitalize transition",
+                    mobileView === view ? "bg-selected text-on-selected" : "text-fg-muted"
                   )}
                 >
                   {view === "list" ? <List className="size-4" aria-hidden /> : <MapIcon className="size-4" aria-hidden />}
@@ -169,11 +169,11 @@ export function VenueExplorer({
           {selected ? (
             <div className="grid gap-5 overflow-y-auto p-4 sm:p-5">
               <SheetHeader className="p-0 pr-10">
-                <SheetTitle className="text-fg text-lg font-semibold tracking-tight">{selected.name}</SheetTitle>
+                <SheetTitle className="text-fg text-section font-semibold tracking-tight">{selected.name}</SheetTitle>
                 <SheetDescription>{selected.address}</SheetDescription>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selected.rate_card ? <RateCardPill label={selected.rate_card.label} /> : null}
-                  <span className="text-xs text-fg-subtle">
+                  <span className="text-caption text-fg-subtle">
                     Up to {selected.capacity_max} guests · min spend {formatINR(selected.rate_card?.minSpendOverride ?? selected.min_spend_inr)}
                     {selected.pdr_available ? " · private dining room" : ""}
                   </span>
@@ -186,13 +186,13 @@ export function VenueExplorer({
                   <ul className="grid gap-2">
                     {selected.packages.map((p) => (
                       <li key={p.id} className="panel px-3 py-2.5">
-                        <div className="flex justify-between gap-3 text-sm">
+                        <div className="flex justify-between gap-3 text-body">
                           <span className="font-medium text-fg">{p.name}</span>
                           <span className="figure text-fg">{formatINR(p.per_head_inr)}<span className="text-fg-subtle">/head</span></span>
                         </div>
-                        {p.description ? <p className="mt-0.5 text-xs text-fg-subtle">{p.description}</p> : null}
+                        {p.description ? <p className="mt-0.5 text-caption text-fg-subtle">{p.description}</p> : null}
                         {p.dietary_tags.length ? (
-                          <p className="mt-1 text-xs text-fg-faint">{p.dietary_tags.map(dietaryLabel).join(" · ")}</p>
+                          <p className="mt-1 text-caption text-fg-faint">{p.dietary_tags.map(dietaryLabel).join(" · ")}</p>
                         ) : null}
                       </li>
                     ))}

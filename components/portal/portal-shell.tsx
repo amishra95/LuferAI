@@ -23,7 +23,7 @@ function PortalSwitcher({ current }: { current: PortalKey }) {
           key={href}
           href={href}
           aria-current={current === href ? "page" : undefined}
-          className={cn("inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-[12.5px] transition-colors", current === href ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
+          className={cn("inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-meta transition-colors", current === href ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
         >
           <Icon className="size-3.5" aria-hidden /> {label}
         </Link>

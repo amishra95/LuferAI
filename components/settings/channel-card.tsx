@@ -86,7 +86,7 @@ function CopyField({ value }: { value: string }) {
   const toast = useToast();
   return (
     <div className="flex gap-2">
-      <input readOnly value={value} aria-label="Webhook URL" className="field text-fg-muted font-mono text-[12px]" onFocus={(e) => e.currentTarget.select()} />
+      <input readOnly value={value} aria-label="Webhook URL" className="field text-fg-muted font-mono text-caption" onFocus={(e) => e.currentTarget.select()} />
       <button
         type="button"
         className="btn h-9 shrink-0"
@@ -147,24 +147,24 @@ export function ChannelCard(props: ChannelCardProps) {
   return (
     <article className="panel overflow-hidden">
       <header className="flex items-start gap-3.5 p-5 sm:p-6">
-        <span className="border-line bg-canvas grid size-9 shrink-0 place-items-center rounded-[10px] border" aria-hidden>
+        <span className="border-line bg-canvas grid size-9 shrink-0 place-items-center rounded-md border" aria-hidden>
           <Icon className="text-fg-muted size-[18px]" strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{meta.title}</h3>
+            <h3 className="text-fg text-body font-semibold tracking-[-0.01em]">{meta.title}</h3>
             {status}
           </div>
-          <p className="text-fg-subtle mt-1 text-[12.5px] leading-5">{meta.blurb}</p>
+          <p className="text-fg-subtle mt-1 text-meta leading-5">{meta.blurb}</p>
         </div>
         <Switch on={enabled} label={`${enabled ? "Pause" : "Enable"} ${meta.title}`} pending={toggling || Boolean(loadError)} onToggle={toggle} />
       </header>
 
       {loadError && (
-        <p role="alert" className="border-rose/20 bg-rose/[0.04] text-rose mx-5 mb-4 flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-[12.5px] sm:mx-6">
+        <p role="alert" className="border-rose/20 bg-rose/[0.04] text-rose mx-5 mb-4 flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-meta sm:mx-6">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
-            Couldn&apos;t load this channel&apos;s state: <span className="font-mono text-[11.5px]">{loadError}</span>. Webhooks answer with 503 (so Meta and
+            Couldn&apos;t load this channel&apos;s state: <span className="font-mono text-caption">{loadError}</span>. Webhooks answer with 503 (so Meta and
             Slack retry) until storage is back.
           </span>
         </p>
@@ -178,10 +178,10 @@ export function ChannelCard(props: ChannelCardProps) {
             role="tab"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={cn("relative h-10 px-2.5 text-[12.5px] capitalize transition-colors", tab === t ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
+            className={cn("relative h-10 px-2.5 text-meta capitalize transition-colors", tab === t ? "text-fg font-medium" : "text-fg-subtle hover:text-fg")}
           >
             {t === "senders" ? `Senders · ${props.links.length}` : t}
-            {tab === t && <span aria-hidden className="bg-fg absolute inset-x-2 -bottom-px h-[2px] rounded-full" />}
+            {tab === t && <span aria-hidden className="bg-link absolute inset-x-2 -bottom-px h-[2px] rounded-full" />}
           </button>
         ))}
       </div>
@@ -204,7 +204,7 @@ function SetupTab({ channel, editable, webhookUrl, localUrl, envRows }: ChannelC
       <div>
         <p className="label-mono mb-2">Webhook URL</p>
         <CopyField value={webhookUrl} />
-        <p className="text-fg-subtle mt-2 text-[12.5px] leading-5">
+        <p className="text-fg-subtle mt-2 text-meta leading-5">
           {META[channel].setup}
           {localUrl && " Meta and Slack can't reach localhost: start a tunnel (ngrok http 3000) and set PUBLIC_BASE_URL to its https URL — see docs/channels.md."}
         </p>
@@ -217,8 +217,8 @@ function SetupTab({ channel, editable, webhookUrl, localUrl, envRows }: ChannelC
           {envRows.map((r) => (
             <label key={r.key} className="block min-w-0">
               <span className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="text-fg text-[12.5px] font-medium">{r.label}</span>
-                <span className={cn("font-mono text-[10.5px]", r.set ? "text-sage" : "text-fg-subtle")}>{r.set ? "● set" : "○ not set"}</span>
+                <span className="text-fg text-meta font-medium">{r.label}</span>
+                <span className={cn("font-mono text-caption", r.set ? "text-sage" : "text-fg-subtle")}>{r.set ? "● set" : "○ not set"}</span>
               </span>
               <span className="relative block">
                 <KeyRound className="text-fg-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" aria-hidden />
@@ -229,19 +229,19 @@ function SetupTab({ channel, editable, webhookUrl, localUrl, envRows }: ChannelC
                   spellCheck={false}
                   disabled={!editable}
                   placeholder={r.set ? "Leave blank to keep" : r.key}
-                  className="field pl-9 font-mono text-[12px]"
+                  className="field pl-9 font-mono text-caption"
                 />
               </span>
-              <span className="text-fg-subtle mt-1.5 block text-[11.5px] leading-4">{r.hint}</span>
+              <span className="text-fg-subtle mt-1.5 block text-caption leading-4">{r.hint}</span>
             </label>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={!editable || pending} className="btn btn-primary">
+          <button type="submit" disabled={!editable || pending} className="btn btn-secondary">
             {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
             Save credentials
           </button>
-          {!editable && <span className="text-fg-subtle text-[12.5px]">Read-only outside localhost dev.</span>}
+          {!editable && <span className="text-fg-subtle text-meta">Read-only outside localhost dev.</span>}
           {state.status === "error" && <Feedback state={state} />}
         </div>
       </form>
@@ -275,21 +275,21 @@ function SendersTab({
 
   return (
     <div className="space-y-5">
-      <p className="text-fg-subtle text-[12.5px] leading-5">
+      <p className="text-fg-subtle text-meta leading-5">
         Linked senders can file booking requests; they&apos;re booked as the chosen client user, under that user&apos;s company and its policy.
-        Anyone else can only search. <span className="font-mono text-[11px]">{backend === "supabase" ? "Stored in Supabase." : "Stored in memory."}</span>
+        Anyone else can only search. <span className="font-mono text-caption">{backend === "supabase" ? "Stored in Supabase." : "Stored in memory."}</span>
       </p>
 
       {links.length > 0 ? (
         <ul className="border-line divide-line divide-y rounded-lg border">
           {links.map((l) => (
             <li key={l.senderId} className="flex items-center gap-3 px-3.5 py-2.5">
-              <span className="text-fg font-mono text-[12px]">{channel === "whatsapp" ? `+${l.senderId}` : l.senderId}</span>
+              <span className="text-fg font-mono text-caption">{channel === "whatsapp" ? `+${l.senderId}` : l.senderId}</span>
               <span className="text-fg-faint" aria-hidden>
                 →
               </span>
-              <span className="text-fg-muted min-w-0 truncate text-[12.5px]">{l.userName}</span>
-              {l.defaultCostCenter && <span className="text-fg-subtle font-mono text-[11px]">cc {l.defaultCostCenter}</span>}
+              <span className="text-fg-muted min-w-0 truncate text-meta">{l.userName}</span>
+              {l.defaultCostCenter && <span className="text-fg-subtle font-mono text-caption">cc {l.defaultCostCenter}</span>}
               <button
                 type="button"
                 disabled={!editable || removing}
@@ -303,7 +303,7 @@ function SendersTab({
           ))}
         </ul>
       ) : (
-        <p className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-5 text-center text-[12.5px]">No linked senders yet.</p>
+        <p className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-5 text-center text-meta">No linked senders yet.</p>
       )}
 
       <form onSubmit={submitWithoutReset(action)} className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem_auto] sm:items-end">
@@ -329,7 +329,7 @@ function SendersTab({
           <span className="label-mono mb-2 block">Cost centre</span>
           <input name="costCenter" required disabled={!editable} placeholder="ENG-BLR" maxLength={32} className="field font-mono uppercase" />
         </label>
-        <button type="submit" disabled={!editable || pending} className="btn btn-primary h-9">
+        <button type="submit" disabled={!editable || pending} className="btn btn-secondary h-9">
           {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
           Link sender
         </button>
@@ -380,7 +380,7 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
 
   return (
     <div className="space-y-5">
-      <p className="text-fg-subtle text-[12.5px] leading-5">
+      <p className="text-fg-subtle text-meta leading-5">
         Runs a message through the live agent exactly as a webhook would, without sending anything to {channel === "whatsapp" ? "WhatsApp" : "Slack"}.
         Follow-up messages from the same sender continue the conversation. Messages from a linked sender can file real booking requests.
       </p>
@@ -403,7 +403,7 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
             <input name="text" required minLength={2} maxLength={1000} disabled={!editable} defaultValue={example} className="field" />
           </label>
         </div>
-        <button type="submit" disabled={!editable || pending} className="btn btn-primary">
+        <button type="submit" disabled={!editable || pending} className="btn btn-secondary">
           {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Send className="size-3.5" aria-hidden />}
           {pending ? "Agent is working…" : "Send test message"}
         </button>
@@ -417,11 +417,11 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
         </div>
       ) : failed && state.status === "error" ? (
         <div role="alert" className="border-rose/25 bg-rose/[0.04] rounded-lg border p-4">
-          <p className="text-rose flex items-center gap-2 text-[13px] font-medium">
+          <p className="text-rose flex items-center gap-2 text-meta font-medium">
             <TriangleAlert className="size-4" aria-hidden /> {state.message ?? "The run failed."}
           </p>
-          {state.reply && <p className="text-fg-muted mt-2 text-[12.5px]">The sender would have received: “{state.reply}”</p>}
-          {state.error && <p className="text-fg-subtle mt-2 font-mono text-[11.5px] break-words">{state.error}</p>}
+          {state.reply && <p className="text-fg-muted mt-2 text-meta">The sender would have received: “{state.reply}”</p>}
+          {state.error && <p className="text-fg-subtle mt-2 font-mono text-caption break-words">{state.error}</p>}
         </div>
       ) : state.reply ? (
         <div className="border-line rounded-lg border bg-surface-hover p-4" aria-live="polite">
@@ -430,10 +430,10 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
             <span className={cn("pill normal-case", state.outcome === "booked" && "")}>{OUTCOME_LABEL[state.outcome ?? "replied"]}</span>
             {state.tools?.length ? <span className="text-fg-subtle font-normal tracking-normal normal-case">{state.tools.join(" → ")}</span> : null}
           </p>
-          <p className="text-fg text-[13px] leading-6 whitespace-pre-wrap">
+          <p className="text-fg text-meta leading-6 whitespace-pre-wrap">
             <ChatText text={state.reply} />
           </p>
-          {state.error && <p className="text-rose mt-2 font-mono text-[11.5px] break-words">Tool error: {state.error}</p>}
+          {state.error && <p className="text-rose mt-2 font-mono text-caption break-words">Tool error: {state.error}</p>}
         </div>
       ) : state.status === "error" ? (
         <Feedback state={state} />
@@ -444,10 +444,10 @@ function TestTab({ channel, editable, links, recent }: ChannelCardProps) {
           <p className="label-mono mb-2">Recent</p>
           <ul className="space-y-1.5">
             {recent.map((e) => (
-              <li key={e.id} className="flex items-baseline gap-3 text-[12.5px]">
-                <time className="text-fg-subtle shrink-0 font-mono text-[11px] tabular-nums">{e.at}</time>
+              <li key={e.id} className="flex items-baseline gap-3 text-meta">
+                <time className="text-fg-subtle shrink-0 font-mono text-caption tabular-nums">{e.at}</time>
                 <span className="text-fg-muted min-w-0 flex-1 truncate">“{e.text}”</span>
-                <span className={cn("shrink-0 font-mono text-[11px]", e.status === "failed" || e.delivery === "failed" ? "text-rose" : "text-fg-subtle")}>
+                <span className={cn("shrink-0 font-mono text-caption", e.status === "failed" || e.delivery === "failed" ? "text-rose" : "text-fg-subtle")}>
                   {OUTCOME_LABEL[e.status] ?? e.status} · {DELIVERY_LABEL[e.delivery]}
                 </span>
               </li>

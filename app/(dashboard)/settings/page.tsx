@@ -33,8 +33,8 @@ function Section({
   return (
     <section className="border-line grid gap-5 border-t py-9 first:border-t-0 first:pt-0 md:grid-cols-[15rem_1fr] md:gap-10">
       <div>
-        <h2 className="text-fg text-[14px] font-semibold tracking-[-0.01em]">{title}</h2>
-        <p className="text-fg-subtle mt-1.5 text-[12.5px] leading-5">{description}</p>
+        <h2 className="text-fg text-body font-semibold tracking-[-0.01em]">{title}</h2>
+        <p className="text-fg-subtle mt-1.5 text-meta leading-5">{description}</p>
         {status && <div className="mt-3">{status}</div>}
       </div>
       {bare ? <div className="min-w-0 space-y-4">{children}</div> : <div className="panel min-w-0 p-5 sm:p-6">{children}</div>}
@@ -61,8 +61,8 @@ function EnvRow({ name, ok, detail }: { name: string; ok: boolean; detail: strin
   return (
     <li className="flex items-center gap-3 py-2.5">
       <span className={cn("size-1.5 shrink-0 rounded-full", ok ? "bg-sage" : "border-fg-faint border")} aria-hidden />
-      <span className="text-fg-muted min-w-0 truncate font-mono text-[12px]">{name}</span>
-      <span className={cn("ml-auto shrink-0 font-mono text-[11.5px]", ok ? "text-fg-muted" : "text-fg-subtle")}>{detail}</span>
+      <span className="text-fg-muted min-w-0 truncate font-mono text-caption">{name}</span>
+      <span className={cn("ml-auto shrink-0 font-mono text-caption", ok ? "text-fg-muted" : "text-fg-subtle")}>{detail}</span>
       <span className="sr-only">{ok ? "set" : "not set"}</span>
     </li>
   );
@@ -138,7 +138,7 @@ export default async function SettingsPage() {
         >
           <OpenAIForm status={openai} editable={editable} />
           {openai.source === "environment" && (
-            <p className="text-fg-subtle mt-4 text-[12.5px]">This key comes from the process environment, not .env.local, so it can&apos;t be removed here.</p>
+            <p className="text-fg-subtle mt-4 text-meta">This key comes from the process environment, not .env.local, so it can&apos;t be removed here.</p>
           )}
         </Section>
 
@@ -148,7 +148,7 @@ export default async function SettingsPage() {
             <>
               Venue, booking and policy data. Without it the app uses Upstash Redis (seeded from the demo data) when configured,
               otherwise an in-memory mock store. Set these in{" "}
-              <code className="text-fg-muted font-mono">.env.local</code> and restart the dev server.
+              <code className="text-fg-muted font-code">.env.local</code> and restart the dev server.
             </>
           }
           status={
@@ -166,7 +166,7 @@ export default async function SettingsPage() {
             <EnvRow name="NEXT_PUBLIC_SUPABASE_ANON_KEY" ok={supabase.anonKey} detail={supabase.anonKey ? "set" : "not set"} />
             <EnvRow name="SUPABASE_SERVICE_ROLE_KEY" ok={supabase.serviceRoleKey} detail={supabase.serviceRoleKey ? "set · server only" : "not set"} />
           </ul>
-          {supabase.ping && !supabase.ping.ok && <p className="text-rose mb-4 font-mono text-[11.5px]">{supabase.ping.error}</p>}
+          {supabase.ping && !supabase.ping.ok && <p className="text-rose mb-4 font-mono text-caption">{supabase.ping.error}</p>}
           <SupabaseTest configured={supabase.configured} />
         </Section>
 

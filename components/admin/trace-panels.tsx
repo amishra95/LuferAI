@@ -47,7 +47,7 @@ function StatsTable({ rows, label, caption }: { rows: SpanStats[]; label: string
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.name}>
-              <TableCell className="max-w-[16rem] truncate font-mono text-[12.5px]" title={r.name}>
+              <TableCell className="max-w-[16rem] truncate font-mono text-meta" title={r.name}>
                 {r.name}
               </TableCell>
               <TableCell className="text-right tabular-nums">{int(r.count)}</TableCell>
@@ -70,10 +70,10 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
   return (
     <section aria-labelledby="traces-heading" className="mb-6">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <h2 id="traces-heading" className="text-fg text-[15px] font-semibold tracking-tight">
+        <h2 id="traces-heading" className="text-fg text-body font-semibold tracking-tight">
           Traces
         </h2>
-        <p className="text-fg-subtle font-mono text-[11px] tabular-nums">
+        <p className="text-fg-subtle font-mono text-caption tabular-nums">
           {int(summary.traces)} traces · last {rangeLabel}
           {summary.trimmedBefore && ` · since ${when.format(new Date(summary.trimmedBefore))}`}
         </p>
@@ -112,7 +112,7 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
                 {operations.length ? (
                   <StatsTable rows={operations.slice(0, 10)} label="Operation" caption="Slowest operations by 95th-percentile latency" />
                 ) : (
-                  <p className="text-fg-subtle py-4 text-[13px]">No child spans recorded yet.</p>
+                  <p className="text-fg-subtle py-4 text-meta">No child spans recorded yet.</p>
                 )}
               </CardContent>
             </Card>
@@ -125,7 +125,7 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
             </CardHeader>
             <CardContent>
               {failures.length === 0 ? (
-                <p className="text-fg-subtle py-4 text-[13px]">No failed traces in the last {rangeLabel}.</p>
+                <p className="text-fg-subtle py-4 text-meta">No failed traces in the last {rangeLabel}.</p>
               ) : (
                 <ul className="divide-line divide-y">
                   {failures.map((t, i) => {
@@ -135,22 +135,22 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
                       <li key={t.traceId} className="py-3 first:pt-0 last:pb-0">
                         <details open={i === 0} className="group">
                           <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-0.5 [&::-webkit-details-marker]:hidden">
-                            <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] text-rose">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-meta text-rose">
                               <AlertTriangle className="size-3.5" aria-hidden />
                               {t.name}
                             </span>
-                            <span className="text-fg-subtle text-[12px]">
+                            <span className="text-fg-subtle text-caption">
                               {when.format(new Date(t.start))} · {formatMs(t.durationMs)} · {t.spans.length} span{t.spans.length === 1 ? "" : "s"}
                               {t.droppedSpans > 0 && ` (+${t.droppedSpans} dropped)`}
                             </span>
-                            {failedSpan?.error && <span className="text-fg-muted w-full truncate text-[12px]">{failedSpan.name}: {failedSpan.error.message}</span>}
+                            {failedSpan?.error && <span className="text-fg-muted w-full truncate text-caption">{failedSpan.name}: {failedSpan.error.message}</span>}
                           </summary>
                           <div className="mt-3">
                             <TraceWaterfall trace={t} />
                           </div>
                         </details>
                         {/* Outside <summary>, so clicking it doesn't also toggle the waterfall. */}
-                        <InspectButton kind="trace" id={t.traceId} label={t.name} className="text-fg-faint mt-1 font-mono text-[10.5px]">
+                        <InspectButton kind="trace" id={t.traceId} label={t.name} className="text-fg-faint mt-1 font-mono text-caption">
                           trace {t.traceId.slice(0, 12)}
                         </InspectButton>
                       </li>

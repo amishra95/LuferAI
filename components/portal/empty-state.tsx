@@ -29,9 +29,11 @@ export function EmptyState({
   const Heading = headingLevel === 2 ? "h2" : "h3";
   return (
     <div className={cn("border-line-strong flex flex-col items-center rounded-lg border border-dashed px-6 text-center", compact ? "py-8" : "py-12", className)}>
-      <Icon className="text-fg-faint mb-3 size-5" strokeWidth={1.5} aria-hidden />
-      <Heading className="text-fg text-[13.5px] font-medium">{title}</Heading>
-      <p className="text-fg-subtle mt-1 max-w-md text-[12.5px] leading-5 text-pretty">{description}</p>
+      <span className="bg-surface-raised text-link mb-3 grid size-10 place-items-center rounded-full" aria-hidden>
+        <Icon className="size-5" strokeWidth={1.5} />
+      </span>
+      <Heading className="text-fg text-card-title font-semibold">{title}</Heading>
+      <p className="text-fg-subtle mt-1 max-w-md text-meta leading-5 text-pretty">{description}</p>
       {/* Actions are often plain `btn` links; give them 44px touch targets like Button. */}
       {action ? <div className="mt-4 flex flex-wrap items-center justify-center gap-2 pointer-coarse:[&_.btn]:min-h-11 pointer-coarse:[&_.btn]:px-4">{action}</div> : null}
     </div>

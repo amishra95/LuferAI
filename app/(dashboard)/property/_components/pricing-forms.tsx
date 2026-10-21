@@ -28,19 +28,19 @@ function Money({ name, label, hint, defaultValue }: { name: string; label: strin
     <label className="grid gap-1.5">
       <span className="label-mono">{label}</span>
       <span className="relative">
-        <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-[13px]" aria-hidden>
+        <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-meta" aria-hidden>
           ₹
         </span>
         <Input name={name} inputMode="numeric" defaultValue={defaultValue || ""} placeholder="0" className="pl-7 font-mono" />
       </span>
-      <span className="text-fg-subtle text-[12px]">{hint}</span>
+      <span className="text-fg-subtle text-caption">{hint}</span>
     </label>
   );
 }
 
 function LockToggle({ name, defaultChecked, disabled, children }: { name: string; defaultChecked: boolean; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <label className={cn("flex items-start gap-2.5 text-[12.5px]", disabled ? "text-fg-faint" : "cursor-pointer")}>
+    <label className={cn("flex items-start gap-2.5 text-meta", disabled ? "text-fg-faint" : "cursor-pointer")}>
       <input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled} className="accent-fg mt-0.5 size-3.5" />
       <span>
         <Lock className="mr-1 inline size-3 align-[-1px]" aria-hidden />
@@ -99,13 +99,13 @@ export function MinimumSpendForm({
 
       <fieldset className="grid gap-2" disabled={!ready}>
         <legend className="label-mono mb-1">Guest-count tiers</legend>
-        <p className="text-fg-subtle text-[12.5px] leading-5">
+        <p className="text-fg-subtle text-meta leading-5">
           Adjust every package&apos;s per-head price by party size: −5 is 5% off for that band, 10 is 10% more. Party sizes outside every band pay the package price.
           {ready ? null : ` ${MIGRATION_NOTE}`}
         </p>
         {tierRows.rows.length > 0 ? (
           <div className="grid gap-2">
-            <div className="text-fg-subtle hidden grid-cols-[1fr_1fr_1fr_2rem] gap-2 text-[11.5px] sm:grid" aria-hidden>
+            <div className="text-fg-subtle hidden grid-cols-[1fr_1fr_1fr_2rem] gap-2 text-caption sm:grid" aria-hidden>
               <span>From guests</span>
               <span>To guests (blank = no limit)</span>
               <span>Per-head adjustment %</span>
@@ -184,10 +184,10 @@ export function PackageEditor({ venueId, pkg, locked, ready }: { venueId: string
       <div className="grid gap-1 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className={cn("font-medium", !pkg.is_active && "text-fg-subtle")}>{pkg.name}</span>
-          <span className="font-mono text-[12.5px] tabular-nums">{formatINR(pkg.per_head_inr)}/head</span>
-          {!pkg.is_active ? <span className="text-fg-faint text-[12px]">inactive</span> : null}
+          <span className="font-mono text-meta tabular-nums">{formatINR(pkg.per_head_inr)}/head</span>
+          {!pkg.is_active ? <span className="text-fg-faint text-caption">inactive</span> : null}
           {locked ? (
-            <span className="text-fg-subtle inline-flex items-center gap-1 text-[12px]" title="The AI negotiator can't change this package">
+            <span className="text-fg-subtle inline-flex items-center gap-1 text-caption" title="The AI negotiator can't change this package">
               <Lock className="size-3" aria-hidden /> locked
             </span>
           ) : null}
@@ -195,7 +195,7 @@ export function PackageEditor({ venueId, pkg, locked, ready }: { venueId: string
             <Pencil aria-hidden /> Edit
           </Button>
         </div>
-        <p className="text-fg-subtle text-[12.5px]">
+        <p className="text-fg-subtle text-meta">
           {pkg.dietary_tags.length ? `Covers ${pkg.dietary_tags.map(dietaryLabel).join(", ")}` : "No dietary coverage listed"}
           {pkg.description ? ` · ${pkg.description}` : ""}
         </p>
@@ -208,31 +208,31 @@ export function PackageEditor({ venueId, pkg, locked, ready }: { venueId: string
     <form action={action} className="border-line bg-surface my-3 grid gap-3 rounded-lg border p-4 sm:grid-cols-[2fr_1fr]">
       <input type="hidden" name="venue_id" value={venueId} />
       {pkg ? <input type="hidden" name="package_id" value={pkg.id} /> : null}
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Name</span>
         <Input name="name" required maxLength={80} defaultValue={pkg?.name} placeholder="e.g. Coastal set menu" autoFocus />
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Per head (₹, pre-GST)</span>
         <Input name="per_head_inr" type="number" required min={100} max={50000} step="any" defaultValue={pkg?.per_head_inr} />
       </label>
       <fieldset className="grid gap-1.5 sm:col-span-2">
-        <legend className="text-fg-subtle mb-1 text-[12.5px]">Covers every guest who is…</legend>
+        <legend className="text-fg-subtle mb-1 text-meta">Covers every guest who is…</legend>
         <div className="flex flex-wrap gap-2">
           {DIETARY_TAGS.map((tag) => (
-            <label key={tag} className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[12.5px]">
+            <label key={tag} className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-meta">
               <input type="checkbox" name="dietary_tags" value={tag} defaultChecked={pkg?.dietary_tags.includes(tag)} className="accent-fg size-3" />
               {dietaryLabel(tag)}
             </label>
           ))}
         </div>
       </fieldset>
-      <label className="grid gap-1 text-[12.5px] sm:col-span-2">
+      <label className="grid gap-1 text-meta sm:col-span-2">
         <span className="text-fg-subtle">Description (optional)</span>
         <Input name="description" maxLength={280} defaultValue={pkg?.description ?? ""} placeholder="Courses, drinks, what's included" />
       </label>
       <div className="grid gap-2 sm:col-span-2">
-        <label className="flex cursor-pointer items-center gap-2.5 text-[12.5px]">
+        <label className="flex cursor-pointer items-center gap-2.5 text-meta">
           <input type="checkbox" name="is_active" defaultChecked={pkg?.is_active ?? true} className="accent-fg size-3.5" />
           Active: offered in new quotes
         </label>
@@ -279,11 +279,11 @@ export function TermsForm({
         <span className="label-mono">Deposit</span>
         <span className="relative max-w-40">
           <Input name="deposit_pct" inputMode="decimal" defaultValue={depositPct ?? ""} placeholder={String(defaultDepositPct)} disabled={!ready} className="pr-7 font-mono" />
-          <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px]" aria-hidden>
+          <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-meta" aria-hidden>
             %
           </span>
         </span>
-        <span className="text-fg-subtle text-[12px]">
+        <span className="text-fg-subtle text-caption">
           Of the GST-inclusive total, authorised when the client books and captured when you confirm. Blank for the platform&apos;s {defaultDepositPct}%.
           {ready ? "" : ` ${MIGRATION_NOTE}`}
         </span>
@@ -291,20 +291,20 @@ export function TermsForm({
 
       <fieldset className="grid gap-2">
         <legend className="label-mono mb-1">Cancellation refunds</legend>
-        <p className="text-fg-subtle text-[12.5px] leading-5">
+        <p className="text-fg-subtle text-meta leading-5">
           Cancelling at least this many days before the event refunds this share. More notice may not refund less. No rules: clients see &ldquo;terms on request&rdquo;.
         </p>
         {cancelRows.rows.map(({ key, values }, i) => (
           <div key={key} className="grid grid-cols-[1fr_1fr_2rem] items-center gap-2">
             <label className="relative">
               <Input name="cancel_days" type="number" min={0} max={365} step={1} value={values.days} onChange={(e) => cancelRows.set(key, "days", e.target.value)} aria-label={`Rule ${i + 1}: days before the event`} placeholder="14" className="pr-24" />
-              <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px]" aria-hidden>
+              <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption" aria-hidden>
                 days before
               </span>
             </label>
             <label className="relative">
               <Input name="cancel_pct" type="number" min={0} max={100} step="any" value={values.pct} onChange={(e) => cancelRows.set(key, "pct", e.target.value)} aria-label={`Rule ${i + 1}: refund percent`} placeholder="100" className="pr-20" />
-              <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px]" aria-hidden>
+              <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption" aria-hidden>
                 % refund
               </span>
             </label>
@@ -343,14 +343,14 @@ export function AddRateForm({ venueId, today, disabledReason }: { venueId: strin
         <Button type="button" onClick={() => setOpen(true)} disabled={Boolean(disabledReason)} title={disabledReason}>
           <CalendarPlus aria-hidden /> Add rate
         </Button>
-        {disabledReason ? <span className="text-fg-subtle text-[12px]">{disabledReason}</span> : <Feedback state={state} />}
+        {disabledReason ? <span className="text-fg-subtle text-caption">{disabledReason}</span> : <Feedback state={state} />}
       </div>
     );
   }
   return (
     <form action={action} className="border-line bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2">
       <input type="hidden" name="venue_id" value={venueId} />
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Kind</span>
         <NativeSelect name="kind" value={kind} onChange={(e) => setKind(e.target.value as MultiplierKind)}>
           {MULTIPLIER_KINDS.map((k) => (
@@ -360,16 +360,16 @@ export function AddRateForm({ venueId, today, disabledReason }: { venueId: strin
           ))}
         </NativeSelect>
       </label>
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Label (optional)</span>
         <Input name="label" maxLength={60} placeholder={kind === "weekend" ? "Weekend surcharge" : kind === "peak_season" ? "Wedding season" : "New Year's Eve"} />
       </label>
       {kind === "weekend" ? (
         <fieldset className="grid gap-1.5 sm:col-span-2">
-          <legend className="text-fg-subtle mb-1 text-[12.5px]">Applies on</legend>
+          <legend className="text-fg-subtle mb-1 text-meta">Applies on</legend>
           <div className="flex flex-wrap gap-2">
             {WEEKDAY_LABEL.map((label, day) => (
-              <label key={label} className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[12.5px]">
+              <label key={label} className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-meta">
                 <input type="checkbox" name="weekdays" value={day} defaultChecked={day === 5 || day === 6} className="accent-fg size-3" />
                 {label}
               </label>
@@ -378,20 +378,20 @@ export function AddRateForm({ venueId, today, disabledReason }: { venueId: strin
         </fieldset>
       ) : (
         <>
-          <label className="grid gap-1 text-[12.5px]">
+          <label className="grid gap-1 text-meta">
             <span className="text-fg-subtle">From</span>
             <Input name="starts_on" type="date" min={today} required />
           </label>
-          <label className="grid gap-1 text-[12.5px]">
+          <label className="grid gap-1 text-meta">
             <span className="text-fg-subtle">To (blank = one day)</span>
             <Input name="ends_on" type="date" min={today} />
           </label>
         </>
       )}
-      <label className="grid gap-1 text-[12.5px]">
+      <label className="grid gap-1 text-meta">
         <span className="text-fg-subtle">Multiplier</span>
         <span className="relative max-w-40">
-          <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-[13px]" aria-hidden>
+          <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-meta" aria-hidden>
             ×
           </span>
           <Input
@@ -406,7 +406,7 @@ export function AddRateForm({ venueId, today, disabledReason }: { venueId: strin
           />
         </span>
       </label>
-      <p className="text-fg-subtle self-end text-[12px]">×1.2 is 20% more on every package that day. When several apply, the largest wins; they don&apos;t stack.</p>
+      <p className="text-fg-subtle self-end text-caption">×1.2 is 20% more on every package that day. When several apply, the largest wins; they don&apos;t stack.</p>
       <div className="sm:col-span-2">
         <Feedback state={state} />
       </div>

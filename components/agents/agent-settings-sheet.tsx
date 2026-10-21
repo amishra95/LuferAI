@@ -42,8 +42,8 @@ export function AgentSettingsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="bg-elevated text-fg border-line w-full gap-0 overflow-y-auto sm:max-w-lg">
         <SheetHeader className="border-line border-b px-6 pt-5 pb-4">
-          <SheetTitle className="text-[15px] font-semibold tracking-[-0.01em]">{agent.name}</SheetTitle>
-          <SheetDescription className="text-fg-subtle font-mono text-[11px]">{agent.id}</SheetDescription>
+          <SheetTitle className="text-body font-semibold tracking-[-0.01em]">{agent.name}</SheetTitle>
+          <SheetDescription className="text-fg-subtle font-mono text-caption">{agent.id}</SheetDescription>
         </SheetHeader>
         {/* key resets the form to the saved values whenever they change. */}
         <SettingsForm
@@ -104,10 +104,10 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
               >
                 <span className="flex items-center gap-2.5">
                   <input type="radio" name="model" value={b.id} checked={model === b.id} onChange={() => setModel(b.id)} className="accent-fg size-3.5" />
-                  <span className="text-fg text-[13px] font-medium">{MODEL_BACKEND_LABEL[b.id]}</span>
+                  <span className="text-fg text-meta font-medium">{MODEL_BACKEND_LABEL[b.id]}</span>
                 </span>
-                <span className="text-fg-subtle pl-6 font-mono text-[11px]">{b.id}</span>
-                {!b.configured && <span className="text-warn pl-6 text-[11.5px]">API key not set here</span>}
+                <span className="text-fg-subtle pl-6 font-mono text-caption">{b.id}</span>
+                {!b.configured && <span className="text-warn pl-6 text-caption">API key not set here</span>}
               </label>
             ))}
           </div>
@@ -116,7 +116,7 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
         <fieldset disabled={!tunable}>
           <legend className="label-mono mb-2.5 flex w-full items-baseline justify-between">
             <span>Temperature</span>
-            <output htmlFor={`${agent.id}-temperature`} className="text-fg font-mono text-[12px] normal-case tabular-nums">
+            <output htmlFor={`${agent.id}-temperature`} className="text-fg font-mono text-caption normal-case tabular-nums">
               {!tunable || useDefault ? "model default" : temperature.toFixed(2)}
             </output>
           </legend>
@@ -132,17 +132,17 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
             aria-label="Temperature"
             className="accent-fg w-full disabled:opacity-40"
           />
-          <div className="text-fg-faint mt-1 flex justify-between font-mono text-[10.5px]" aria-hidden>
+          <div className="text-fg-faint mt-1 flex justify-between font-mono text-caption" aria-hidden>
             <span>0 · precise</span>
             <span>2 · varied</span>
           </div>
           {tunable ? (
-            <label className="text-fg-muted mt-2 flex items-center gap-2 text-[12.5px]">
+            <label className="text-fg-muted mt-2 flex items-center gap-2 text-meta">
               <input type="checkbox" checked={useDefault} onChange={(e) => setUseDefault(e.target.checked)} className="accent-fg size-3.5" />
               Use the model&apos;s default
             </label>
           ) : (
-            <p className="text-fg-subtle mt-2 text-[12.5px]">Claude Sonnet 5.5 runs at its default temperature; the API doesn&apos;t accept other values.</p>
+            <p className="text-fg-subtle mt-2 text-meta">Claude Sonnet 5.5 runs at its default temperature; the API doesn&apos;t accept other values.</p>
           )}
         </fieldset>
 
@@ -155,16 +155,16 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
               maxLength={MAX_INSTRUCTIONS}
               defaultValue={agent.instructions}
               placeholder="Optional. Added after the built-in prompt, e.g. “Prefer venues in Indiranagar.”"
-              className="field h-auto resize-y py-2 text-[12.5px] leading-5"
+              className="field h-auto resize-y py-2 text-meta leading-5"
             />
-            <span className="text-fg-subtle mt-1.5 block text-[12px]">
+            <span className="text-fg-subtle mt-1.5 block text-caption">
               Appended to the agent&apos;s built-in prompt, which keeps its guardrails (no invented figures, data scope). Up to {MAX_INSTRUCTIONS} characters.
             </span>
           </label>
         ) : (
           <div>
             <span className="label-mono mb-2 block">System prompt</span>
-            <p className="text-fg-subtle text-[12.5px]">This agent&apos;s prompt is built for each request, so it doesn&apos;t take custom instructions.</p>
+            <p className="text-fg-subtle text-meta">This agent&apos;s prompt is built for each request, so it doesn&apos;t take custom instructions.</p>
           </div>
         )}
 
@@ -178,8 +178,8 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
               >
                 <input type="checkbox" name="tools" value={t} defaultChecked={agent.tools.includes(t)} className="accent-fg mt-0.5 size-3.5" />
                 <span>
-                  <span className="text-fg block font-mono text-[12px]">{t}</span>
-                  <span className="text-fg-subtle mt-0.5 block text-[12.5px]">{TOOL_META[t].summary}</span>
+                  <span className="text-fg block font-mono text-caption">{t}</span>
+                  <span className="text-fg-subtle mt-0.5 block text-meta">{TOOL_META[t].summary}</span>
                 </span>
               </label>
             ))}
@@ -191,9 +191,9 @@ function SettingsForm({ agent, backends, onSave, onCancel }: { agent: AgentRecor
           <input name="maxSteps" type="number" min={1} max={10} step={1} required defaultValue={agent.maxSteps} className="field font-mono" />
         </label>
 
-        {agent.id === "workspace-agent" && <p className="text-fg-subtle text-[12.5px]">Applies to the next message sent in Chat and the concierge on /client.</p>}
+        {agent.id === "workspace-agent" && <p className="text-fg-subtle text-meta">Applies to the next message sent in Chat and the concierge on /client.</p>}
         {error && (
-          <p role="alert" className="text-rose text-[12.5px]">
+          <p role="alert" className="text-rose text-meta">
             {error}
           </p>
         )}

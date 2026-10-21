@@ -48,16 +48,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role={t.tone === "error" ? "alert" : "status"}
             className={cn(
-              "animate-in fade-in slide-in-from-bottom-2 border-line bg-elevated pointer-events-auto flex w-full items-start gap-3 rounded-lg border px-4 py-3 duration-200 sm:w-[22rem]",
-              t.tone === "error" && "border-rose/25"
+              "animate-in fade-in slide-in-from-bottom-2 border-line bg-elevated shadow-card pointer-events-auto flex w-full items-start gap-3 rounded-lg border px-4 py-3 duration-200 sm:w-[22rem]",
+              t.tone === "error" && "border-rose/30"
             )}
           >
-            <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full", t.tone === "success" ? "bg-sage/10" : t.tone === "error" ? "bg-rose/10" : "bg-surface-raised")}>
+            <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full", t.tone === "success" ? "bg-success-soft" : t.tone === "error" ? "bg-danger-soft" : "bg-surface-raised")}>
               {ICON[t.tone]}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-fg text-[13px] leading-5 font-medium">{t.title}</p>
-              {t.description && <p className="text-fg-subtle mt-0.5 text-[12.5px] leading-5 break-words">{t.description}</p>}
+              <p className="text-fg text-meta leading-5 font-medium">{t.title}</p>
+              {t.description && <p className="text-fg-subtle mt-0.5 text-meta leading-5 break-words">{t.description}</p>}
             </div>
             <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss" className="btn btn-ghost btn-icon -mr-1.5 size-6 shrink-0">
               <X className="size-3" aria-hidden />

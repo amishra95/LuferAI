@@ -92,7 +92,7 @@ export function PromptRegistry({
 
   if (!ready) {
     return (
-      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-[13px]">
+      <p role="status" className="border-line text-fg-subtle rounded-lg border border-dashed px-4 py-4 text-meta">
         The prompt registry needs the Supabase database with migration 0028 (agent_prompt_versions). The {label.toLowerCase()} runs on its built-in prompt until then.
       </p>
     );
@@ -114,14 +114,14 @@ export function PromptRegistry({
             }}
             aria-current={e.id === selected.id ? "true" : undefined}
             className={cn(
-              "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px]",
+              "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-meta",
               e.id === selected.id ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-hover hover:text-fg"
             )}
           >
             <span className="min-w-0">
               <span className="font-mono">{e.label}</span>
               {edits[e.id] && (edits[e.id].body !== e.body || edits[e.id].note !== (e.note ?? "")) ? <span className="text-warn"> •</span> : null}
-              {e.note ? <span className="text-fg-faint block truncate text-[11.5px]">{e.note}</span> : null}
+              {e.note ? <span className="text-fg-faint block truncate text-caption">{e.note}</span> : null}
             </span>
             {e.status !== "archived" ? <Pill tone={STATUS[e.status].tone}>{e.id === live.id && e.status === "built-in" ? "Live" : STATUS[e.status].label}</Pill> : null}
           </button>
@@ -130,13 +130,13 @@ export function PromptRegistry({
 
       <div className="grid min-w-0 content-start gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-fg font-mono text-[13px]">{selected.label}</h3>
+          <h3 className="text-fg font-mono text-meta">{selected.label}</h3>
           <Pill tone={STATUS[selected.status].tone}>{selected.id === live.id ? "Live" : STATUS[selected.status].label}</Pill>
-          {selected.at ? <span className="text-fg-faint text-[12px]">{selected.status === "draft" ? "edited" : selected.status === "active" ? "live since" : "last live"} {when(selected.at)}</span> : null}
-          <label className="text-fg-subtle ml-auto flex items-center gap-1.5 text-[12px]">
+          {selected.at ? <span className="text-fg-faint text-caption">{selected.status === "draft" ? "edited" : selected.status === "active" ? "live since" : "last live"} {when(selected.at)}</span> : null}
+          <label className="text-fg-subtle ml-auto flex items-center gap-1.5 text-caption">
             <GitCompare className="size-3.5" aria-hidden /> Compare with
             <select
-              className="field h-7 py-0 text-[12px]"
+              className="field h-7 py-0 text-caption"
               value={compareTo?.id ?? ""}
               onChange={(e) => setCompareId(e.target.value || "none")}
             >
@@ -155,13 +155,13 @@ export function PromptRegistry({
 
         {diff && compareTo ? (
           <div className="border-line overflow-hidden rounded-lg border">
-            <div className="border-line text-fg-subtle flex items-center gap-3 border-b px-3 py-1.5 font-mono text-[11.5px]">
+            <div className="border-line text-fg-subtle flex items-center gap-3 border-b px-3 py-1.5 font-mono text-caption">
               {compareTo.label} → {selected.label}
               <span className="text-sage">+{stats!.added}</span>
               <span className="text-rose">−{stats!.removed}</span>
               {stats!.added + stats!.removed === 0 ? <span>identical</span> : null}
             </div>
-            <pre className="max-h-72 overflow-auto py-1 font-mono text-[11.5px] leading-5" aria-label={`Changes from ${compareTo.label} to ${selected.label}`}>
+            <pre className="max-h-72 overflow-auto py-1 font-code text-caption leading-5" aria-label={`Changes from ${compareTo.label} to ${selected.label}`}>
               {diff.map((d, i) => (
                 <div key={i} className={cn("px-3 whitespace-pre-wrap", d.type === "add" && "bg-sage/10 text-fg", d.type === "del" && "bg-rose/10 text-fg-subtle line-through decoration-rose/40")}>
                   <span className="text-fg-faint mr-2 inline-block w-3 select-none" aria-hidden>
@@ -183,15 +183,15 @@ export function PromptRegistry({
             readOnly={!editable}
             rows={12}
             maxLength={PROMPT_BODY_LIMITS.max}
-            className={cn("field h-auto resize-y py-2 font-mono text-[12px] leading-5", !editable && "text-fg-muted")}
+            className={cn("field h-auto resize-y py-2 font-mono text-caption leading-5", !editable && "text-fg-muted")}
           />
-          <span className="text-fg-faint text-right font-mono text-[11px] tabular-nums">
+          <span className="text-fg-faint text-right font-mono text-caption tabular-nums">
             {body.length.toLocaleString("en-IN")} / {PROMPT_BODY_LIMITS.max.toLocaleString("en-IN")}
           </span>
         </label>
 
         {editable ? (
-          <label className="grid gap-1 text-[12.5px]">
+          <label className="grid gap-1 text-meta">
             <span className="text-fg-subtle">Change note</span>
             <input value={note} onChange={(e) => edit({ note: e.target.value })} maxLength={PROMPT_NOTE_MAX} placeholder="What changed and why" className="field" />
           </label>
@@ -200,12 +200,12 @@ export function PromptRegistry({
         <div className="flex flex-wrap items-center gap-2">
           {editable ? (
             <>
-              <button type="button" className="btn h-8 px-3 text-[12.5px]" disabled={busy || !dirty} onClick={() => saveDraft(body, note, selected.id)}>
+              <button type="button" className="btn h-8 px-3 text-meta" disabled={busy || !dirty} onClick={() => saveDraft(body, note, selected.id)}>
                 {save.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Save className="size-3.5" aria-hidden />} Save draft
               </button>
               <button
                 type="button"
-                className="btn h-8 px-3 text-[12.5px]"
+                className="btn h-8 px-3 text-meta"
                 disabled={busy}
                 onClick={() =>
                   act.run(() => deletePromptDraftAction(selected.id), { failure: "Couldn't delete the draft", success: () => ({ tone: "success", title: `Deleted ${selected.label}` }) }).then((o) => {
@@ -217,7 +217,7 @@ export function PromptRegistry({
               </button>
             </>
           ) : (
-            <button type="button" className="btn h-8 px-3 text-[12.5px]" disabled={busy} onClick={() => saveDraft(selected.body, `From ${selected.label}`)}>
+            <button type="button" className="btn h-8 px-3 text-meta" disabled={busy} onClick={() => saveDraft(selected.body, `From ${selected.label}`)}>
               <Plus className="size-3.5" aria-hidden /> New draft from {selected.label}
             </button>
           )}
@@ -225,7 +225,7 @@ export function PromptRegistry({
             {selected.id === live.id && selected.status === "active" ? (
               <button
                 type="button"
-                className="btn h-8 px-3 text-[12.5px]"
+                className="btn h-8 px-3 text-meta"
                 disabled={busy}
                 onClick={() =>
                   act.run(() => revertPromptAction(promptKey), {
@@ -238,14 +238,14 @@ export function PromptRegistry({
               </button>
             ) : null}
             {selected.status === "draft" || selected.status === "archived" ? (
-              <button type="button" className="btn btn-primary h-8 px-3 text-[12.5px]" disabled={busy || dirty} title={dirty ? "Save the draft first" : undefined} onClick={activate}>
+              <button type="button" className="btn btn-primary h-8 px-3 text-meta" disabled={busy || dirty} title={dirty ? "Save the draft first" : undefined} onClick={activate}>
                 {act.pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Rocket className="size-3.5" aria-hidden />}
                 {selected.status === "archived" ? `Roll back to ${selected.label}` : `Activate ${selected.label}`}
               </button>
             ) : null}
           </span>
         </div>
-        <p className="text-fg-subtle text-[12px] leading-5">
+        <p className="text-fg-subtle text-caption leading-5">
           The prompt steers the model; it can&apos;t loosen limits. Discount caps, floors, host locks and the host&apos;s approval of every change are enforced in code whatever the
           prompt says. A new version reaches every server within about 15 seconds.
         </p>

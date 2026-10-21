@@ -72,13 +72,13 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
         }
       />
 
-      {payment === "success" ? <p className="text-sage mb-4 text-[13px]">Payment received. The invoice updates as soon as the payment provider confirms it.</p> : null}
+      {payment === "success" ? <p className="text-sage mb-4 text-meta">Payment received. The invoice updates as soon as the payment provider confirms it.</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-label="Agreement">
           {/* Our own static HTML, sandboxed with scripts off. */}
           <iframe srcDoc={contract.document_html} sandbox="" title={`Venue Services Agreement ${terms.contractNumber}`} className="border-line h-[75vh] w-full rounded-lg border bg-white" />
-          <p className="text-fg-faint mt-2 font-mono text-[11px] break-all">
+          <p className="text-fg-faint mt-2 font-mono text-caption break-all">
             Revision {contract.revision} · template {contract.template_key} v{contract.template_version} · SHA-256 {contract.document_sha256}
           </p>
         </section>
@@ -87,7 +87,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
           {signer?.ok ? (
             <SignPanel contractId={contract.id} documentSha256={contract.document_sha256} party={signer.party} defaultName="" />
           ) : awaited ? (
-            <p className="panel text-fg-muted p-4 text-[12.5px] leading-5">
+            <p className="panel text-fg-muted p-4 text-meta leading-5">
               {contract.provider === "dropbox_sign"
                 ? `Waiting for the ${awaited === "client" ? "client's" : "venue's"} signature on Dropbox Sign (sent by email).`
                 : signer && !signer.ok
@@ -95,10 +95,10 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
                   : `Waiting for the ${awaited === "client" ? "client's Approver to sign" : "venue to countersign"}.`}
             </p>
           ) : status === "executed" ? (
-            <p className="panel text-fg-muted p-4 text-[12.5px] leading-5">Executed {contract.executed_at ? when(contract.executed_at) : ""}. The booking is confirmed.</p>
+            <p className="panel text-fg-muted p-4 text-meta leading-5">Executed {contract.executed_at ? when(contract.executed_at) : ""}. The booking is confirmed.</p>
           ) : (
             <div className="panel grid gap-3 p-4">
-              <p className="text-fg-muted text-[12.5px] leading-5">
+              <p className="text-fg-muted text-meta leading-5">
                 {STATUS_LABEL[status]}
                 {contract.close_reason ? `: ${contract.close_reason}` : ""}.
               </p>
@@ -115,7 +115,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
               {(["client", "venue"] as const).map((party) => {
                 const s = signatures.find((x) => x.party === party);
                 return (
-                  <li key={party} className="grid gap-0.5 px-3 py-2.5 text-[12.5px]">
+                  <li key={party} className="grid gap-0.5 px-3 py-2.5 text-meta">
                     <span className="label-mono">{party === "client" ? terms.client.legalName : terms.venue.name}</span>
                     {s ? (
                       <span className="text-fg">
@@ -138,7 +138,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
             {invoices.length === 0 ? (
               <ul className="panel divide-line divide-y">
                 {terms.payment.instalments.map((i) => (
-                  <li key={i.kind} className="flex justify-between gap-3 px-3 py-2.5 text-[12.5px]">
+                  <li key={i.kind} className="flex justify-between gap-3 px-3 py-2.5 text-meta">
                     <span className="text-fg-muted">{i.kind === "deposit" ? "Deposit, on execution" : `Balance, due ${formatDate(i.due)}`}</span>
                     <span className="figure text-fg">{formatINR(i.total, true)}</span>
                   </li>
@@ -149,7 +149,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
                 {invoices.map((inv) => {
                   const pay = payability(inv);
                   return (
-                    <li key={inv.id} className="grid gap-2 px-3 py-2.5 text-[12.5px]">
+                    <li key={inv.id} className="grid gap-2 px-3 py-2.5 text-meta">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="text-fg font-medium capitalize">{inv.kind}</span>
                         {inv.invoice_number ? <span className="figure text-fg-subtle">{inv.invoice_number}</span> : null}
@@ -175,7 +175,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
             <SectionLabel>
               <span id="trail-heading">Audit trail</span>
             </SectionLabel>
-            <ol className="border-line grid gap-1 border-l pl-3 text-[12px]">
+            <ol className="border-line grid gap-1 border-l pl-3 text-caption">
               {events.map((e) => (
                 <li key={e.id} className={e.action === "post_execution_failed" ? "text-rose" : "text-fg-subtle"}>
                   <time className="text-fg-faint mr-2 font-mono tabular-nums" dateTime={e.at}>
@@ -188,7 +188,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
             </ol>
           </section>
 
-          <Link href={member.role === "PROPERTY" ? "/property" : "/client"} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 text-[12.5px]">
+          <Link href={member.role === "PROPERTY" ? "/property" : "/client"} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 text-meta">
             <ExternalLink className="size-3.5" aria-hidden /> Back to bookings
           </Link>
         </aside>

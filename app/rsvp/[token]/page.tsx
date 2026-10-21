@@ -29,12 +29,12 @@ export default async function RsvpPage({ params }: PageProps<"/rsvp/[token]">) {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 px-4 pt-[calc(3rem+var(--app-safe-top))] pb-[calc(3rem+var(--app-safe-bottom))]">
       <Card>
         <CardHeader>
-          <p className="text-fg-subtle text-[12px] tracking-wide uppercase">{booking.company.legal_name} invites you</p>
-          <CardTitle className="text-lg">{eventTitle(invite)}</CardTitle>
+          <p className="text-fg-subtle text-caption font-medium">{booking.company.legal_name} invites you</p>
+          <CardTitle className="text-section">{eventTitle(invite)}</CardTitle>
           <CardDescription>Hi {attendee.name.split(" ")[0]}, let the hosts know if you can make it.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5">
-          <dl className="grid gap-2 text-sm">
+          <dl className="grid gap-2 text-body">
             <div className="flex items-start gap-2">
               <Clock className="text-fg-subtle mt-0.5 size-4 shrink-0" aria-hidden />
               <dt className="sr-only">When</dt>
@@ -52,20 +52,20 @@ export default async function RsvpPage({ params }: PageProps<"/rsvp/[token]">) {
           {window.open ? (
             <RsvpForm token={token} status={status} plusOnes={attendee.plus_ones} dietary={attendee.dietary ?? ""} deadline={workspace.rsvp_deadline} />
           ) : (
-            <p role="status" className="border-line text-fg-muted rounded-md border px-3 py-2 text-sm">
+            <p role="status" className="border-line text-fg-muted rounded-md border px-3 py-2 text-body">
               {window.reason}
               {status !== "INVITED" ? ` Your reply: ${RSVP_LABEL[status].toLowerCase()}.` : ""}
             </p>
           )}
 
           {booking.status !== "CANCELLED" ? (
-            <a href={`/rsvp/${token}/calendar`} download className="btn btn-ghost justify-self-start text-[13px]">
+            <a href={`/rsvp/${token}/calendar`} download className="btn btn-ghost justify-self-start text-meta">
               <CalendarPlus className="size-4" aria-hidden /> Add to calendar (.ics)
             </a>
           ) : null}
         </CardContent>
       </Card>
-      <p className="text-fg-faint text-center text-[12px]">This link is personal to {attendee.email}. Don&apos;t forward it.</p>
+      <p className="text-fg-faint text-center text-caption">This link is personal to {attendee.email}. Don&apos;t forward it.</p>
     </main>
   );
 }

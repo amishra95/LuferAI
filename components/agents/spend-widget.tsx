@@ -22,11 +22,11 @@ export function SpendWidget({ summary, store, agentNames }: { summary: SpendSumm
   return (
     <section aria-labelledby="spend-heading" className="panel mb-6 overflow-hidden">
       <header className="border-line flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b px-5 py-3">
-        <h2 id="spend-heading" className="text-fg text-[13.5px] font-medium">
+        <h2 id="spend-heading" className="text-fg text-body font-medium">
           Token usage &amp; spend
         </h2>
-        <span className="text-fg-subtle text-[12px]">List prices, USD · {store === "supabase" ? "all instances" : "this instance only"}</span>
-        <span className={cn("ml-auto inline-flex items-center gap-1.5 font-mono text-[11px]", live ? "text-fg-subtle" : "text-fg-faint")}>
+        <span className="text-fg-subtle text-caption">List prices, USD · {store === "supabase" ? "all instances" : "this instance only"}</span>
+        <span className={cn("ml-auto inline-flex items-center gap-1.5 font-mono text-caption", live ? "text-fg-subtle" : "text-fg-faint")}>
           <span aria-hidden className={live ? "status-dot bg-sage" : "size-1.5 rounded-full bg-current"} />
           {live ? "live" : "paused"}
         </span>
@@ -47,7 +47,7 @@ export function SpendWidget({ summary, store, agentNames }: { summary: SpendSumm
       </div>
 
       {unpriced > 0 && (
-        <p className="text-fg-subtle border-line border-t px-5 py-2.5 text-[12px]">
+        <p className="text-fg-subtle border-line border-t px-5 py-2.5 text-caption">
           {unpriced} call{unpriced === 1 ? "" : "s"} used a model without a listed price and {unpriced === 1 ? "isn't" : "aren't"} in the cost.
         </p>
       )}
@@ -59,8 +59,8 @@ function Tile({ label, totals }: { label: string; totals: SpendTotals }) {
   return (
     <div className="px-5 py-4">
       <dt className="label-mono">{label}</dt>
-      <dd className="text-fg mt-2 font-mono text-[24px] leading-none tabular-nums">{formatUsd(totals.cost)}</dd>
-      <dd className="text-fg-subtle mt-2 font-mono text-[11.5px] tabular-nums">
+      <dd className="text-fg mt-2 font-mono text-title leading-none tabular-nums">{formatUsd(totals.cost)}</dd>
+      <dd className="text-fg-subtle mt-2 font-mono text-caption tabular-nums">
         {formatTokens(totals.promptTokens)} in · {formatTokens(totals.completionTokens)} out · {totals.calls} call{totals.calls === 1 ? "" : "s"}
       </dd>
     </div>
@@ -78,12 +78,12 @@ function DailyCost({ days }: { days: SpendSummary["daily"] }) {
     <figure className="min-w-0">
       <figcaption className="mb-3 flex items-baseline justify-between gap-3">
         <span className="label-mono">Daily cost · 14 days</span>
-        <span className="text-fg-subtle font-mono text-[11.5px] tabular-nums" aria-live="polite">
+        <span className="text-fg-subtle font-mono text-caption tabular-nums" aria-live="polite">
           {shown ? `${dayLabel(shown.day)}: ${formatUsd(shown.cost)} · ${formatTokens(shown.tokens)} tokens` : `${formatUsd(total)} total`}
         </span>
       </figcaption>
       {max === 0 ? (
-        <p className="text-fg-faint border-line flex h-24 items-center justify-center rounded-md border border-dashed text-[12px]">No model calls in the last 14 days.</p>
+        <p className="text-fg-faint border-line flex h-24 items-center justify-center rounded-md border border-dashed text-caption">No model calls in the last 14 days.</p>
       ) : (
         <div className="border-line flex h-24 items-end gap-[2px] border-b" role="list" aria-label="Cost per day">
           {days.map((d, i) => (
@@ -102,7 +102,7 @@ function DailyCost({ days }: { days: SpendSummary["daily"] }) {
               <span
                 className={cn(
                   "w-full max-w-6 rounded-t-[4px] transition-colors",
-                  d.cost > 0 ? (active === i ? "bg-fg" : "bg-fg/55 group-focus-visible:bg-fg") : "bg-line h-px"
+                  d.cost > 0 ? (active === i ? "bg-chart-1" : "bg-chart-1/55 group-focus-visible:bg-chart-1") : "bg-line h-px"
                 )}
                 style={d.cost > 0 ? { height: `${Math.max(3, (d.cost / max) * 100)}%` } : undefined}
               />
@@ -110,7 +110,7 @@ function DailyCost({ days }: { days: SpendSummary["daily"] }) {
           ))}
         </div>
       )}
-      <div className="text-fg-faint mt-1.5 flex justify-between font-mono text-[10.5px]" aria-hidden>
+      <div className="text-fg-faint mt-1.5 flex justify-between font-mono text-caption" aria-hidden>
         <span>{dayLabel(days[0].day)}</span>
         <span>today</span>
       </div>
@@ -124,9 +124,9 @@ function Breakdown({ title, rows }: { title: string; rows: ({ key: string; label
     <div className="min-w-0">
       <h3 className="label-mono mb-2">{title} · 30 days</h3>
       {rows.length === 0 ? (
-        <p className="text-fg-faint text-[12px]">Nothing yet.</p>
+        <p className="text-fg-faint text-caption">Nothing yet.</p>
       ) : (
-        <table className="w-full table-fixed text-[12.5px]">
+        <table className="w-full table-fixed text-meta">
           <colgroup>
             <col />
             <col className="w-20" />
@@ -143,13 +143,13 @@ function Breakdown({ title, rows }: { title: string; rows: ({ key: string; label
             {rows.map((r) => (
               <tr key={r.key} className="align-baseline">
                 <td className="py-1 pr-3">
-                  <span className={cn("text-fg block truncate", r.mono && "font-mono text-[11.5px]")}>{r.label}</span>
+                  <span className={cn("text-fg block truncate", r.mono && "font-mono text-caption")}>{r.label}</span>
                   <span aria-hidden className="bg-surface-raised mt-1 block h-1 overflow-hidden rounded-full">
                     <span className="bg-fg/55 block h-full rounded-full" style={{ width: `${max ? (r.cost / max) * 100 : 0}%` }} />
                   </span>
                 </td>
                 <td className="text-fg py-1 text-right font-mono tabular-nums">{formatUsd(r.cost)}</td>
-                <td className="text-fg-subtle py-1 pl-3 text-right font-mono text-[11.5px] tabular-nums">{formatTokens(r.promptTokens + r.completionTokens)}</td>
+                <td className="text-fg-subtle py-1 pl-3 text-right font-mono text-caption tabular-nums">{formatTokens(r.promptTokens + r.completionTokens)}</td>
               </tr>
             ))}
           </tbody>

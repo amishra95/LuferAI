@@ -20,14 +20,14 @@ export function LoginForm({ next }: { next: string }) {
         </Button>
       </form>
 
-      <div className="text-muted-foreground flex items-center gap-3 text-xs">
+      <div className="text-muted-foreground flex items-center gap-3 text-caption">
         <span className="bg-border h-px flex-1" />
         or
         <span className="bg-border h-px flex-1" />
       </div>
 
       {state.status === "sent" ? (
-        <p role="status" className="flex items-start gap-2 text-sm">
+        <p role="status" className="flex items-start gap-2 text-body">
           <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
           {state.message}
         </p>
@@ -44,7 +44,7 @@ export function LoginForm({ next }: { next: string }) {
               required
               aria-invalid={state.status === "error"}
             />
-            {state.status === "error" ? <p className="text-destructive text-xs">{state.message}</p> : null}
+            {state.status === "error" ? <p className="text-destructive text-caption">{state.message}</p> : null}
           </div>
           <Button type="submit" disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}

@@ -64,7 +64,7 @@ export function PayDepositButton({
         {pending ? <Loader2 className="animate-spin" aria-hidden /> : <CreditCard aria-hidden />}
         {label}
       </Button>
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
+      {error ? <p className="text-destructive text-caption">{error}</p> : null}
     </div>
   );
 }

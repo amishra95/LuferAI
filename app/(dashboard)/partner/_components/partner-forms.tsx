@@ -31,7 +31,7 @@ function Feedback({ state }: { state: PartnerFormState }) {
   if (state.status === "idle" || !state.message) return null;
   const ok = state.status === "success";
   return (
-    <p role={ok ? "status" : "alert"} className={cn("flex items-center gap-1.5 text-[12.5px]", ok ? "text-sage" : "text-rose")}>
+    <p role={ok ? "status" : "alert"} className={cn("flex items-center gap-1.5 text-meta", ok ? "text-sage" : "text-rose")}>
       {ok ? <Check className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden /> : <X className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />}
       {state.message}
     </p>
@@ -51,7 +51,7 @@ function Field({
     <div className={cn("grid gap-1.5", className)}>
       <Label htmlFor={id}>{label}</Label>
       <Input {...props} id={id} name={name} aria-invalid={Boolean(error)} />
-      {error ? <p className="text-rose text-xs">{error}</p> : hint ? <p className="text-fg-subtle text-xs">{hint}</p> : null}
+      {error ? <p className="text-rose text-caption">{error}</p> : hint ? <p className="text-fg-subtle text-caption">{hint}</p> : null}
     </div>
   );
 }
@@ -108,7 +108,7 @@ export function ListingForm({ partnerId, listing, ratesHref }: { partnerId: stri
         <Field id={key} label="Address" name="address" defaultValue={listing?.address} maxLength={200} className="sm:col-span-2" error={err.address} />
         <Field id={key} label="Capacity (guests)" name="capacity" type="number" min={1} max={5000} defaultValue={listing?.capacity} required error={err.capacity} />
         <Field id={key} label="Minimum spend (₹, pre-GST)" name="min_spend_inr" type="number" min={0} step="1" defaultValue={listing?.min_spend_inr ?? 0} error={err.min_spend_inr} />
-        <label className="text-fg flex items-center gap-2 self-end pb-2 text-[13px]">
+        <label className="text-fg flex items-center gap-2 self-end pb-2 text-meta">
           <input type="checkbox" name="private_dining" defaultChecked={listing?.private_dining} className="accent-fg size-4" />
           Private dining room
         </label>
@@ -152,7 +152,7 @@ function ActionButton({
         {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
         {children}
       </Button>
-      {state.status === "error" ? <span role="alert" className="text-rose max-w-56 text-right text-[11.5px]">{state.message}</span> : null}
+      {state.status === "error" ? <span role="alert" className="text-rose max-w-56 text-right text-caption">{state.message}</span> : null}
     </form>
   );
 }
@@ -210,7 +210,7 @@ export function RateCardForm({
               </option>
             ))}
           </NativeSelect>
-          {err.partner_venue_id ? <p className="text-rose text-xs">{err.partner_venue_id}</p> : null}
+          {err.partner_venue_id ? <p className="text-rose text-caption">{err.partner_venue_id}</p> : null}
         </div>
         <Field id="rate" label="Label" name="label" required maxLength={80} placeholder="Weekday dinner" autoFocus={autoFocus} error={err.label} />
         <Field id="rate" label="Per head (₹, pre-GST)" name="per_head_inr" type="number" min={1} step="1" required error={err.per_head_inr} />
@@ -291,7 +291,7 @@ export function MemberRoleForm({ partnerId, userId, role, email }: { partnerId: 
         Update
       </Button>
       {state.status !== "idle" ? (
-        <span role={state.status === "error" ? "alert" : "status"} className={cn("w-full text-right text-[11.5px]", state.status === "error" ? "text-rose" : "text-sage")}>
+        <span role={state.status === "error" ? "alert" : "status"} className={cn("w-full text-right text-caption", state.status === "error" ? "text-rose" : "text-sage")}>
           {state.message}
         </span>
       ) : null}
