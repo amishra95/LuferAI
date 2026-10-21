@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { after } from "next/server";
 
 import { getCurrentMember } from "@/lib/auth/session";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/access";
-import { ContractError, declineContract, issueContract, setContractsRequired, signContract, voidContract } from "@/lib/services/contracts/contractStore";
+import { ContractError, declineContract, getContractBundle, issueContract, setContractsRequired, signContract, voidContract } from "@/lib/services/contracts/contractStore";
+import { notifyVenueAccepted } from "@/lib/services/notifications";
+import { publishBooking } from "@/lib/telemetry/live";
 import type { ContractStatus } from "@/lib/services/contracts/lifecycle";
 
 /**
@@ -50,7 +53,16 @@ export async function signContractAction(
   return serverDispatch("contracts/sign", async () => {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip");
-    const status = await signContract(contractId, await member(), { ...input, ip: ip ?? null, userAgent: h.get("user-agent") }).catch(asAction);
+    const signer = await member();
+    const status = await signContract(contractId, signer, { ...input, ip: ip ?? null, userAgent: h.get("user-agent") }).catch(asAction);
+    // The venue's countersignature confirms the booking: tell the customer, live and by email.
+    if (status === "executed") {
+      const booking = (await getContractBundle(contractId, signer))?.booking;
+      if (booking?.status === "CONFIRMED") {
+        await publishBooking(booking.id, booking.venue_id, "CONFIRMED", "venue", booking.company_id);
+        after(() => notifyVenueAccepted(booking.id, booking.venue_id));
+      }
+    }
     revalidateContracts(contractId);
     return { status };
   });

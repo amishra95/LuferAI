@@ -211,13 +211,14 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           rate_card_id: pricing.rateCardId,
           alcohol_included: alcoholIncluded,
           entertainment,
+          requested_by: userId || null,
           ...(expense.ok ? expense.value : { cost_center: "" }),
         },
         { approvals, hold, allocation, budgetHolds: governance.spend.kind === "ok" || governance.spend.kind === "over" ? governance.spend.holds : [] }
       );
       // Live update for every entry point: open client, admin and property portals refresh
       // (the venue's host hears it too; PENDING_APPROVAL stays off their inbox until signed off).
-      void publishBooking(booking.id, venue!.id, initialStatus(approvals.length), "request");
+      void publishBooking(booking.id, venue!.id, initialStatus(approvals.length), "request", company.id);
       if (approvals.length) {
         return {
           status: "success",

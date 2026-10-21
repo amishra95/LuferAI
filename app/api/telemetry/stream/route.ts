@@ -35,14 +35,17 @@ const NO_BUFFER = {
 };
 
 export async function GET(request: NextRequest) {
-  // Venue hosts connect too, for their own venue's escalations (visibleTo filters the rest out).
+  // Venue hosts connect too, for their own venue's escalations and bookings, and client users
+  // for their company's bookings (visibleTo filters everything else out).
   const isHost = (m: { role: string; venueId: string | null }) => m.role === "PROPERTY" && Boolean(m.venueId);
-  const auth = await authorize((m) => canInspect(m, "agent") || canInspect(m, "venue") || isHost(m));
+  const isClient = (m: { role: string; companyId: string | null }) => m.role === "CLIENT" && Boolean(m.companyId);
+  const auth = await authorize((m) => canInspect(m, "agent") || canInspect(m, "venue") || isHost(m) || isClient(m));
   if ("response" in auth) return auth.response;
   const audience: TelemetryAudience = {
     ops: canInspect(auth.member, "agent"),
     venues: canInspect(auth.member, "venue"),
     venueId: isHost(auth.member) ? auth.member.venueId : null,
+    companyId: isClient(auth.member) ? auth.member.companyId : null,
   };
 
   const log = appEventLog();

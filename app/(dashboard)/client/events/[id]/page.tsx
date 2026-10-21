@@ -120,9 +120,14 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
           </Fact>
           <Fact label="Status">
             <span className="flex flex-wrap gap-1.5">
-              <BookingStatusBadge status={booking.status} />
+              <BookingStatusBadge status={booking.status} audience="client" />
               {planReady ? <PlanStatusBadge plan={plan} /> : null}
             </span>
+            {booking.venue_accepted_at ? (
+              <span className="text-fg-subtle block text-caption">
+                Accepted {new Date(booking.venue_accepted_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })}
+              </span>
+            ) : null}
           </Fact>
         </dl>
 

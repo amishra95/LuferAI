@@ -233,17 +233,17 @@ export async function approveEventSpend(approvalId: string, decision: "APPROVED"
       refresh();
       if (approval?.catalog_order_id) {
         const [order] = await listCatalogOrders({ tenantId: scope.tenantId, ids: [approval.catalog_order_id] });
-        return { approvalId, subject: "order" as const, bookingId: approval.catalog_order_id, decision, bookingStatus: order?.status ?? null, venueId: order?.partner_id ?? "" };
+        return { approvalId, subject: "order" as const, bookingId: approval.catalog_order_id, decision, bookingStatus: order?.status ?? null, venueId: order?.partner_id ?? "", companyId: scope.tenantId };
       }
       const booking = approval ? (await listBookings({ companyId: scope.tenantId })).find((b) => b.id === approval.booking_id) : undefined;
-      return { approvalId, subject: "booking" as const, bookingId: approval?.booking_id ?? "", decision, bookingStatus: booking?.status ?? null, venueId: booking?.venue_id ?? "" };
+      return { approvalId, subject: "booking" as const, bookingId: approval?.booking_id ?? "", decision, bookingStatus: booking?.status ?? null, venueId: booking?.venue_id ?? "", companyId: scope.tenantId };
     },
     {
-      emit: async ({ approvalId: id, subject, bookingId, decision: d, bookingStatus, venueId }) => {
+      emit: async ({ approvalId: id, subject, bookingId, decision: d, bookingStatus, venueId, companyId }) => {
         await publishApproval(id, bookingId, d);
         if (!bookingStatus || bookingStatus === "PENDING_APPROVAL") return;
         if (subject === "order") await publishOrder(bookingId, venueId, bookingStatus as OrderEventStatus, "approval");
-        else await publishBooking(bookingId, venueId, bookingStatus as BookingStatus, "approval");
+        else await publishBooking(bookingId, venueId, bookingStatus as BookingStatus, "approval", companyId);
       },
     }
   );
@@ -398,12 +398,12 @@ export async function syncExpenseManagement(bookingId: string): Promise<ActionRe
       }
       revalidateBookingViews();
       refresh();
-      return { bookingId, provider, export: result.status, settled, venueId: booking.venue_id, ...(result.status === "failed" && { error: result.error }) };
+      return { bookingId, provider, export: result.status, settled, venueId: booking.venue_id, companyId: booking.company_id, ...(result.status === "failed" && { error: result.error }) };
     },
     {
-      emit: async ({ bookingId: id, provider, export: status, settled, venueId }) => {
+      emit: async ({ bookingId: id, provider, export: status, settled, venueId, companyId }) => {
         await publishExpense(id, provider, status);
-        if (settled) await publishBooking(id, venueId, "SETTLED", "expense");
+        if (settled) await publishBooking(id, venueId, "SETTLED", "expense", companyId);
       },
     }
   );

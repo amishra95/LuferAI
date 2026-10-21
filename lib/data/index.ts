@@ -243,6 +243,9 @@ export function computeMonthlyPayouts(bookings: BookingDetail[]): MonthlyPayout[
 // Writes
 // ----------------------------------------------------------------------------
 
+/** PostgREST / Postgres "no such column": a migration hasn't been applied yet. */
+const isMissingColumnError = (error: { code?: string } | null | undefined) => error?.code === "42703" || error?.code === "PGRST204";
+
 export interface NewBookingInput {
   company_id: string;
   venue_id: string;
@@ -262,6 +265,8 @@ export interface NewBookingInput {
   /** What the event includes, for policy compliance (alcohol, entertainment types). */
   alcohol_included?: boolean;
   entertainment?: string[];
+  /** The employee filing the request (migration 20261027120000), told when the venue accepts. */
+  requested_by?: string | null;
 }
 
 export interface NewApprovalRequest {
@@ -358,6 +363,7 @@ export async function createBookingRequest(
     rate_card_id: input.rate_card_id ?? null,
     alcohol_included: input.alcohol_included ?? false,
     entertainment: input.entertainment ?? [],
+    requested_by: input.requested_by ?? null,
   };
 
   if (local()) return mutateDb((db) => {
@@ -380,6 +386,7 @@ export async function createBookingRequest(
       commission_rate: v.commission_rate,
       status,
       settled_at: null,
+      venue_accepted_at: null,
       expense_reference: null,
       created_at: now,
       updated_at: now,
@@ -410,12 +417,13 @@ export async function createBookingRequest(
 
   // commission_rate is snapshotted from the venue by the bookings_snapshot_commission_rate trigger.
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("bookings")
-    .insert({ ...row, total_amount_inr: total, status })
-    .select("id")
-    .single();
-  if (error) throw error;
+  const insertBooking = (values: typeof row | Omit<typeof row, "requested_by">) =>
+    supabase.from("bookings").insert({ ...values, total_amount_inr: total, status }).select("id").single();
+  let { data, error } = await insertBooking(row);
+  // Before migration 20261027120000 there's no requested_by column: book without it.
+  const { requested_by: requestedBy, ...withoutRequester } = row;
+  if (isMissingColumnError(error) && requestedBy !== undefined) ({ data, error } = await insertBooking(withoutRequester));
+  if (error || !data) throw error ?? new Error("Could not create the booking.");
 
   // No multi-statement transactions over PostgREST: if a dependent row fails,
   // delete the booking (approvals and holds cascade) so nothing is left half-made.
@@ -649,7 +657,9 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
       if (!canTransition(b.status, next)) {
         throw new Error(`Cannot move a ${b.status} booking to ${next}`);
       }
-      Object.assign(b, { status: next, updated_at: new Date().toISOString() }, settled);
+      // Local equivalent of the bookings_stamp_venue_accepted trigger.
+      const accepted = next === "CONFIRMED" && b.status !== "CONFIRMED" && !b.venue_accepted_at ? { venue_accepted_at: new Date().toISOString() } : {};
+      Object.assign(b, { status: next, updated_at: new Date().toISOString() }, settled, accepted);
       syncLocalHolds(db, b.id, next);
       syncLocalAllocations(db, b.id, next);
     });

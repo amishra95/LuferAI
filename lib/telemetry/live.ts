@@ -83,8 +83,9 @@ export function publishVenueUpdated(venueId: string, change: VenueChange): Promi
   return publish({ type: "venue-updated", at: Date.now(), venueId, change });
 }
 
-export function publishBooking(bookingId: string, venueId: string, status: BookingEventStatus, by: BookingEventActor): Promise<void> {
-  return publish({ type: "booking", at: Date.now(), bookingId, venueId, status, by });
+/** `companyId` lets the booking's client users hear it (the venue's host and admins always do). */
+export function publishBooking(bookingId: string, venueId: string, status: BookingEventStatus, by: BookingEventActor, companyId?: string): Promise<void> {
+  return publish({ type: "booking", at: Date.now(), bookingId, venueId, status, by, ...(companyId && { companyId }) });
 }
 
 export function publishApproval(approvalId: string, bookingId: string, decision: "APPROVED" | "REJECTED"): Promise<void> {

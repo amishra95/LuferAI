@@ -15,6 +15,9 @@ export interface BookingChange {
   id: string;
   kind: "status" | "added" | "removed";
   message: string;
+  /** Status changes: the new status and the venue, e.g. for "the venue accepted". */
+  to?: string;
+  venue?: string;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -37,10 +40,15 @@ export function diffBookings(before: BookingSnapshot[], after: BookingSnapshot[]
   for (const b of after) {
     const old = prev.get(b.id);
     if (!old) changes.push({ id: b.id, kind: "added", message: `New booking: ${label(b)} (${statusText(b.status)})` });
-    else if (old.status !== b.status) changes.push({ id: b.id, kind: "status", message: `${label(b)} is now ${statusText(b.status)}` });
+    else if (old.status !== b.status) changes.push({ id: b.id, kind: "status", message: `${label(b)} is now ${statusText(b.status)}`, to: b.status, venue: b.venue });
   }
   for (const b of before) if (!next.has(b.id)) changes.push({ id: b.id, kind: "removed", message: `${label(b)} is no longer listed` });
   return changes;
+}
+
+/** Bookings a venue has just accepted (moved to CONFIRMED), for the client's celebration toast. */
+export function venueAcceptances(changes: readonly BookingChange[]): { id: string; title: string }[] {
+  return changes.filter((c) => c.kind === "status" && c.to === "CONFIRMED").map((c) => ({ id: c.id, title: `${c.venue ?? "The venue"} confirmed your booking!` }));
 }
 
 /** Counts for the status summary, in workflow order. */

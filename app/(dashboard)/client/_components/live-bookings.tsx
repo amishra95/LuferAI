@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
-import { diffBookings, type BookingChange, type BookingSnapshot } from "@/lib/bookings/live";
+import { useToast } from "@/components/dashboard/toast";
+import { useTelemetry } from "@/components/workspace/workspace-provider";
+import { diffBookings, venueAcceptances, type BookingChange, type BookingSnapshot } from "@/lib/bookings/live";
+import { eventsAfter } from "@/lib/telemetry/refresh";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 20_000;
@@ -22,6 +25,8 @@ const snapshotOf = (b: ApiBooking): BookingSnapshot => ({ id: b.id, status: b.st
  * state. Changes are announced to screen readers and listed briefly.
  *
  * A 401 (session expired) stops polling; other failures back off to 60 s.
+ * A live booking event (the venue accepting, a sign-off) checks at once instead
+ * of waiting for the next poll, and a venue's acceptance gets a toast.
  */
 export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[]; companyId?: string }) {
   const router = useRouter();
@@ -32,6 +37,9 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
   const [changes, setChanges] = useState<BookingChange[]>([]);
   const [checking, setChecking] = useState(false);
   const failures = useRef(0);
+  const toast = useToast();
+  const { events, lastSeq } = useTelemetry();
+  const seen = useRef(lastSeq);
 
   const check = useCallback(async () => {
     setChecking(true);
@@ -54,6 +62,7 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
       setCheckedAt(Date.now());
       if (diff.length) {
         setChanges(diff.slice(0, 4));
+        for (const a of venueAcceptances(diff)) toast({ tone: "success", title: a.title, description: "Accepted by the venue. Your booking voucher and invoice are ready." });
         startTransition(() => router.refresh());
       }
     } catch {
@@ -62,7 +71,14 @@ export function LiveBookings({ initial, companyId }: { initial: BookingSnapshot[
     } finally {
       setChecking(false);
     }
-  }, [companyId, router]);
+  }, [companyId, router, toast]);
+
+  // The stream says a booking changed: check now rather than at the next poll.
+  useEffect(() => {
+    const fresh = eventsAfter(events, seen.current);
+    seen.current = lastSeq;
+    if (status !== "signed-out" && fresh.some((e) => e.type === "booking")) void check();
+  }, [events, lastSeq, check, status]);
 
   useEffect(() => {
     if (status === "signed-out") return;
