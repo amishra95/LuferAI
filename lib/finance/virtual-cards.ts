@@ -4,6 +4,7 @@ import { randomInt, randomUUID } from "node:crypto";
 
 import type { Member } from "@/lib/auth/session";
 import { dataSource, listBookings } from "@/lib/data";
+import { enqueueCardSync } from "@/lib/expense/card-sync";
 import { markCardReceipts } from "@/lib/finance/card-receipts";
 import { exportBookingExpense } from "@/lib/finance/export-dispatcher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -121,6 +122,9 @@ export async function issueVirtualCard(bookingId: string, member: Member, opts: 
     if (error.code === "42P01") throw new VirtualCardError("Virtual cards need database migration 0033. Ask an admin to apply it.", 503);
     throw error;
   }
+
+  // The new card goes to the company's expense / ERP system after the response (card.issued).
+  enqueueCardSync(data, "card.issued");
 
   // Confirmed bookings sync their itemised receipt now; others when the venue confirms.
   if (RECEIPT_READY.has(booking.status)) {
