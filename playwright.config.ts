@@ -1,4 +1,8 @@
+import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
+
+// The app's own env (.env.local etc.): e2e/auth.setup.ts mints sessions for the same Supabase project.
+loadEnvConfig(process.cwd());
 
 /**
  * End-to-end tests (e2e/*.spec.ts) in Chromium and WebKit.
@@ -9,7 +13,10 @@ import { defineConfig, devices } from "@playwright/test";
  * Sign-in: the workspace pages need a Supabase session. Tests load saved
  * sessions from playwright/.auth/<role>.json (git-ignored; E2E_AUTH_DIR to
  * point elsewhere) and skip when the file is missing. Sessions are bound to
- * the origin they were saved on, so a preview URL needs its own.
+ * the origin they were saved on, so a preview URL needs its own. The "setup"
+ * project (e2e/auth.setup.ts) saves them first when PROPERTY_MANAGER_EMAIL /
+ * ORGANIZER_EMAIL are set, and skips otherwise. Specs pick their session
+ * (signInAs, or a context per role), so there's no project-wide storageState.
  *
  * The model is never called: specs stream scripted responses in place of
  * /api/chat and /api/agents/stream (e2e/support/stream.ts).
@@ -30,8 +37,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, dependencies: ["setup"] },
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
