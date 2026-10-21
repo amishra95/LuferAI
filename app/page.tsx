@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Building2, ConciergeBell, ShieldCheck } from "lucide-react";
 
+import { HowItWorks } from "@/components/landing/how-it-works";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const portals = [
@@ -56,6 +57,8 @@ export default function Home() {
           </Link>
         ))}
       </div>
+
+      <HowItWorks />
     </main>
   );
 }
