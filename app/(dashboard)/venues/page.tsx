@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, Search, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, MessageSquarePlus, Search, SearchX } from "lucide-react";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
+import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
+import { getCurrentMember } from "@/lib/auth/session";
+import { venueEventPrompt } from "@/lib/chat/concierge-link";
 import { dataSource } from "@/lib/data";
 import { listDirectory } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
@@ -22,6 +25,21 @@ const COLUMNS: { key: VenueSortKey | null; label: string; align?: "right"; class
   { key: "commission_rate", label: "Comm.", align: "right" },
   { key: null, label: "GSTIN", className: "hidden xl:table-cell" },
 ];
+
+/** Hover action on a venue row: opens the concierge drawer with an RFP brief for the venue. */
+function RequestRfp({ venue, className }: { venue: { name: string; neighborhood: string; city: string }; className?: string }) {
+  return (
+    <ChatDrawerTrigger
+      prompt={venueEventPrompt(venue, "rfp")}
+      aria-label={`Request RFP at ${venue.name}`}
+      title="Request RFP"
+      className={cn("btn btn-ghost h-7 gap-1 px-2 text-caption", className)}
+    >
+      <MessageSquarePlus className="size-3.5" aria-hidden />
+      <span className="hidden lg:inline">Request RFP</span>
+    </ChatDrawerTrigger>
+  );
+}
 
 function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query: VenueQuery }) {
   if (!column.key) return <>{column.label}</>;
@@ -43,7 +61,9 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
 
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
   const query = parseVenueQuery(await searchParams);
-  const { venues, partners } = await listDirectory();
+  const [{ venues, partners }, member] = await Promise.all([listDirectory(), getCurrentMember()]);
+  // Organizers and approvers plan events; admins browse the directory.
+  const canRequest = member?.role === "CLIENT" && (member.corporateRole === "ORGANIZER" || member.corporateRole === "APPROVER");
   const { rows, total, page, pageCount } = applyVenueQuery(venues, query);
   const areas = [...new Set(venues.map((v) => v.neighborhood))].sort();
   const source = dataSource();
@@ -157,6 +177,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
                     {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
                   </p>
+                  {canRequest ? <RequestRfp venue={v} className="-ml-2 mt-1.5" /> : null}
                 </InspectableRow>
               ))}
             </ul>
@@ -175,11 +196,16 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                         <SortHeader column={c} query={query} />
                       </th>
                     ))}
+                    {canRequest ? (
+                      <th scope="col" className="w-0 pr-5">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((v) => (
-                    <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
+                    <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="group border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
                       <td className="max-w-80 py-3 pr-4 pl-5">
                         <p className="text-fg truncate font-medium">
                           <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
@@ -208,6 +234,12 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                         {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
                       </td>
                       <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
+                      {canRequest ? (
+                        <td className="pr-5 text-right whitespace-nowrap">
+                          {/* Shown on row hover; always reachable by keyboard (and on touch). */}
+                          <RequestRfp venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
+                        </td>
+                      ) : null}
                     </InspectableRow>
                   ))}
                 </tbody>

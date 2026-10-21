@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { conciergeHref, draftFromParam, MAX_DRAFT_LENGTH, teamEventPrompt } from "../lib/chat/concierge-link.ts";
+import { conciergeHref, draftFromParam, MAX_DRAFT_LENGTH, teamEventPrompt, venueEventPrompt } from "../lib/chat/concierge-link.ts";
 
 test("conciergeHref: plain /chat without context", () => {
   assert.equal(conciergeHref(), "/chat");
@@ -28,4 +28,14 @@ test("draftFromParam: first value of a repeated param, trimmed; empty when absen
 
 test("teamEventPrompt names the company", () => {
   assert.match(teamEventPrompt("Nimbus Analytics Private Limited"), /for Nimbus Analytics Private Limited:/);
+});
+
+test("venueEventPrompt names the venue and its area", () => {
+  const venue = { name: "Mosaic Kitchen & Bar", neighborhood: "Koramangala", city: "Bengaluru" };
+  assert.equal(
+    venueEventPrompt(venue),
+    "I want to request a corporate event at Mosaic Kitchen & Bar (Koramangala, Bengaluru). Please help me structure the request with date, guest count, and budget."
+  );
+  assert.match(venueEventPrompt(venue, "rfp"), /^I want to send an RFP for a corporate event to Mosaic Kitchen & Bar \(Koramangala, Bengaluru\)\./);
+  assert.match(venueEventPrompt({ name: "Solo", neighborhood: null, city: "" }), /at Solo\. /);
 });
