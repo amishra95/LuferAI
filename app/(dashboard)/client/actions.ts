@@ -124,6 +124,8 @@ export async function submitBookingRequest(
     revalidatePath("/client");
     revalidatePath("/property");
     revalidatePath("/admin");
+    // The venue inspector's booking trail (fetched live) and the directory.
+    revalidatePath("/venues");
   }
   return result;
 }
