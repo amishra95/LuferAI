@@ -462,7 +462,16 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 company={{ id: company.id, gstin: company.gstin }}
                 departments={catalog.departments}
                 defaultPhone={requesterPhone ?? undefined}
-                policy={policy && { max_budget_per_head: policy.max_budget_per_head, requires_approval_above: policy.requires_approval_above }}
+                policy={
+                  policy && {
+                    max_budget_per_head: policy.max_budget_per_head,
+                    requires_approval_above: policy.requires_approval_above,
+                    high_value_threshold: policy.high_value_threshold,
+                    auto_approval_limit_per_head: policy.auto_approval_limit_per_head,
+                    manager_approval_limit_per_head: policy.manager_approval_limit_per_head,
+                    max_office_distance_km: policy.max_office_distance_km,
+                  }
+                }
                 office={office}
                 officeDistances={officeDistances}
               />

@@ -12,8 +12,7 @@ import { Sheet, SheetDescription, SheetHeader, SheetTitle } from "@/components/u
 import type { CatalogVenue } from "@/lib/catalog";
 import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
-import type { BookingPolicyRules } from "@/lib/policies/evaluate-booking-policy";
-import { formatOfficeDistance, officeDistanceLabel, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
+import { distanceKm, formatOfficeDistance, officeDistanceLabel, POLICY_TONE, venuePolicyStatus, type OfficeLocation, type VenueCardRules } from "@/lib/venues/discovery";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
 import { AiVenueSearch } from "./ai-venue-search";
 import { EventRequestForm, type VenuePrefill } from "./event-request-form";
@@ -44,7 +43,7 @@ export function VenueExplorer({
   /** The requester's saved mobile, prefilled in the request form. */
   defaultPhone?: string;
   /** The company's corporate_policies limits; null = no policy (every venue in policy). */
-  policy?: Pick<BookingPolicyRules, "max_budget_per_head" | "requires_approval_above"> | null;
+  policy?: VenueCardRules | null;
   /** The company's office, for distance badges and the map's office pin. */
   office?: OfficeLocation | null;
   /**
@@ -59,7 +58,14 @@ export function VenueExplorer({
   const [prefill, setPrefill] = useState<VenuePrefill>();
   const selected = venues.find((v) => v.id === selectedId) ?? null;
   const options = venues.map(toVenueOption);
-  const fit = new Map(options.map((o) => [o.id, venuePolicyStatus(policy, o)]));
+  // Km from the office per venue, for the distance rule: PostGIS when it has the
+  // venue (within its search radius), otherwise computed here.
+  const officeKm = (venue: CatalogVenue): number | null => {
+    const meters = officeDistances?.[venue.id];
+    if (meters != null) return meters / 1000;
+    return office && venue.latitude != null && venue.longitude != null ? distanceKm(office, { latitude: venue.latitude, longitude: venue.longitude }) : null;
+  };
+  const fit = new Map(options.map((o, i) => [o.id, venuePolicyStatus(policy, o, officeKm(venues[i]))]));
   const distanceLabel = (venue: CatalogVenue) => {
     if (!officeDistances) return officeDistanceLabel(office, venue);
     const meters = officeDistances[venue.id];
@@ -160,7 +166,7 @@ export function VenueExplorer({
                   latitude: v.latitude,
                   longitude: v.longitude,
                   label: compact(v.rate_card?.minSpendOverride ?? v.min_spend_inr),
-                  tone: policy ? (fit.get(v.id)?.status === "requires_approval" ? "warn" : "ok") : undefined,
+                  tone: policy ? POLICY_TONE[fit.get(v.id)?.status ?? "in_policy"] : undefined,
                 }))}
                 selectedId={selectedId}
                 onSelect={pick}

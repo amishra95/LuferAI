@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp, Loader2, Plus, Sparkles, X } from "lucide-react";
 
+import { PolicyBanner } from "@/components/policy/policy-badge";
+import type { RfpPolicy } from "@/lib/rfp/service";
 import { cn } from "@/lib/utils";
 
 const EXAMPLES = [
@@ -27,6 +29,8 @@ export function RfpBroadcastForm() {
   const [brief, setBrief] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  // The last brief's spend-policy outcome, sent or refused.
+  const [policy, setPolicy] = useState<RfpPolicy | null>(null);
 
   const toggle = (phrase: string) => {
     setBrief((b) =>
@@ -42,6 +46,7 @@ export function RfpBroadcastForm() {
     if (brief.trim().length < 20 || pending) return;
     setPending(true);
     setStatus(null);
+    setPolicy(null);
     try {
       const res = await fetch("/api/ai/rfp-broadcast", {
         method: "POST",
@@ -49,6 +54,7 @@ export function RfpBroadcastForm() {
         body: JSON.stringify({ brief }),
       });
       const json = await res.json();
+      if (json.policy) setPolicy(json.policy);
       if (res.status === 429) throw new Error(`Too many requests — try again in ${json.retryAfter ?? 60}s.`);
       if (!res.ok) throw new Error(json.error ?? "Broadcast failed");
       setStatus({ ok: true, message: `Sent to ${json.venuesContacted} venue${json.venuesContacted === 1 ? "" : "s"} — quotes are in the comparison below.` });
@@ -146,6 +152,7 @@ export function RfpBroadcastForm() {
           {status.message}
         </p>
       ) : null}
+      {policy && !pending ? <PolicyBanner status={policy.status} reason={policy.reason} checks={policy.checks} context="rfp" /> : null}
     </form>
   );
 }

@@ -4,7 +4,7 @@
  * tests/venue-discovery.test.mjs can test them directly.
  */
 
-import type { BookingPolicyRules } from "../policies/evaluate-booking-policy.ts";
+import { perHeadTier, type BookingPolicyRules } from "../policies/evaluate-booking-policy.ts";
 
 export interface LatLng {
   latitude: number;
@@ -30,33 +30,72 @@ export function officeOf(company: {
   return { latitude: Number(company.office_latitude), longitude: Number(company.office_longitude), label: company.office_label?.trim() || "office" };
 }
 
+/** The company rules a venue card can be checked against before an event is specified. */
+export type VenueCardRules = Pick<
+  BookingPolicyRules,
+  "max_budget_per_head" | "requires_approval_above" | "high_value_threshold" | "auto_approval_limit_per_head" | "manager_approval_limit_per_head" | "max_office_distance_km"
+>;
+
 export type VenuePolicyStatus =
   | { status: "in_policy" }
-  /** Booking it at its own minimums already needs sign-off (evaluateBookingPolicy's per-head and threshold rules). */
-  | { status: "requires_approval"; reason: string };
+  /**
+   * Booking it at its own minimums already needs sign-off: manager (tier 1) or
+   * CFO (tier 2). range: the per-head tier band, when that's what decides it.
+   */
+  | { status: "requires_manager" | "requires_cfo"; reason: string; range?: string };
 
 const inr = (n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 /**
  * Whether a venue fits the company's policy at its cheapest: the lowest package
- * per head against the per-head cap, and the minimum spend against the approval
- * threshold. Price breaches route to sign-off, never block (only alcohol does,
- * per booking), so there's no "out of policy" venue. No policy row = in policy.
+ * per head against the per-head cap and approval tiers, the minimum spend
+ * against the approval and high-value thresholds, and (given distanceKm) its
+ * distance from the office. Price breaches route to sign-off, never block
+ * (only alcohol does, per booking), so there's no "out of policy" venue.
+ * No policy row = in policy.
  */
 export function venuePolicyStatus(
-  rules: Pick<BookingPolicyRules, "max_budget_per_head" | "requires_approval_above"> | null,
-  venue: { from_per_head_inr: number | null; min_spend_inr: number }
+  rules: VenueCardRules | null,
+  venue: { from_per_head_inr: number | null; min_spend_inr: number },
+  distanceKm: number | null = null
 ): VenuePolicyStatus {
   if (!rules) return { status: "in_policy" };
   const reasons: string[] = [];
-  if (rules.max_budget_per_head !== null && venue.from_per_head_inr !== null && venue.from_per_head_inr > Number(rules.max_budget_per_head)) {
-    reasons.push(`packages start at ${inr(venue.from_per_head_inr)}/head, over the ${inr(Number(rules.max_budget_per_head))} cap`);
+  let cfo = false;
+  let range: string | undefined;
+  const perHead = venue.from_per_head_inr;
+  if (rules.max_budget_per_head != null && perHead !== null && perHead > Number(rules.max_budget_per_head)) {
+    reasons.push(`packages start at ${inr(perHead)}/head, over the ${inr(Number(rules.max_budget_per_head))} cap`);
   }
-  if (rules.requires_approval_above !== null && venue.min_spend_inr > Number(rules.requires_approval_above)) {
+  if (perHead !== null) {
+    const tier = perHeadTier(rules, perHead);
+    const auto = rules.auto_approval_limit_per_head;
+    const manager = rules.manager_approval_limit_per_head;
+    if (tier.status === "requires_cfo") {
+      cfo = true;
+      range = `>${inr(Number(manager))}/head`;
+      reasons.push(`packages start at ${inr(perHead)}/head, above the ${inr(Number(manager))} manager limit`);
+    } else if (tier.status === "requires_manager") {
+      range = manager != null ? `${inr(Number(auto))}–${inr(Number(manager))}/head` : `>${inr(Number(auto))}/head`;
+      reasons.push(`packages start at ${inr(perHead)}/head, above the ${inr(Number(auto))} auto-approval limit`);
+    }
+  }
+  if (rules.requires_approval_above != null && venue.min_spend_inr > Number(rules.requires_approval_above)) {
     reasons.push(`the ${inr(venue.min_spend_inr)} minimum spend is above the ${inr(Number(rules.requires_approval_above))} approval threshold`);
   }
-  return reasons.length ? { status: "requires_approval", reason: reasons.join("; ") } : { status: "in_policy" };
+  if (rules.high_value_threshold != null && venue.min_spend_inr > Number(rules.high_value_threshold)) {
+    cfo = true;
+    reasons.push(`the ${inr(venue.min_spend_inr)} minimum spend is above the ${inr(Number(rules.high_value_threshold))} high-value threshold`);
+  }
+  if (rules.max_office_distance_km != null && distanceKm !== null && distanceKm > Number(rules.max_office_distance_km)) {
+    reasons.push(`it is ${distanceKm.toFixed(1)} km from the office, beyond the ${Number(rules.max_office_distance_km)} km limit`);
+  }
+  if (!reasons.length) return { status: "in_policy" };
+  return { status: cfo ? "requires_cfo" : "requires_manager", reason: reasons.join("; "), ...(range ? { range } : {}) };
 }
+
+/** Map-marker colour per venue status: green, amber, red. */
+export const POLICY_TONE = { in_policy: "ok", requires_manager: "warn", requires_cfo: "error" } as const satisfies Record<VenuePolicyStatus["status"], string>;
 
 /** Great-circle distance in km (haversine). */
 export function distanceKm(a: LatLng, b: LatLng): number {

@@ -184,6 +184,9 @@ const venues: Venue[] = [
   }),
 ];
 
+/** Bookings and RFPs from before migration 20261031120000: no event context or policy outcome recorded. */
+export const BOOKING_POLICY_DEFAULTS = { event_type: null, event_start_time: null, policy_status: null, policy_violation_reasons: [] } satisfies Partial<Booking>;
+
 const bookings: Booking[] = [
   {
     id: "bbbbbbbb-0001-4000-8000-000000000001",
@@ -208,6 +211,7 @@ const bookings: Booking[] = [
     requested_by_phone: null,
     venue_accepted_at: null,
     expense_reference: null,
+    ...BOOKING_POLICY_DEFAULTS,
     status: "CONFIRMED",
     event_date: "2026-10-16",
     notes: "Q3 engineering offsite dinner, PDR required",
@@ -237,6 +241,7 @@ const bookings: Booking[] = [
     requested_by_phone: null,
     venue_accepted_at: null,
     expense_reference: null,
+    ...BOOKING_POLICY_DEFAULTS,
     status: "COMPLETED",
     event_date: "2026-09-18",
     notes: "Bengaluru LP roadshow cocktail evening",
@@ -266,6 +271,7 @@ const bookings: Booking[] = [
     requested_by_phone: null,
     venue_accepted_at: null,
     expense_reference: null,
+    ...BOOKING_POLICY_DEFAULTS,
     status: "PENDING",
     event_date: "2026-11-06",
     notes: "Annual sales kickoff, live music preferred",
@@ -358,12 +364,25 @@ const users: MockPortalUser[] = [
   portalUser("dddddddd-0008-4000-8000-000000000008", VERTEX, "Sameer Das (Accounts)", "FINANCE_VIEWER"),
 ];
 
+/** Migration 20261031120000's columns, all unset (the rule is off). */
+const POLICY_TIER_DEFAULTS = {
+  auto_approval_limit_per_head: null,
+  manager_approval_limit_per_head: null,
+  max_office_distance_km: null,
+  event_hours_start: null,
+  event_hours_end: null,
+  weekday_open_bar_policy: "allowed",
+  restricted_event_types: [],
+} satisfies Partial<CorporatePolicy>;
+
 const policies: CorporatePolicy[] = [
   { id: "eeeeeeee-0001-4000-8000-000000000001", tenant_id: NIMBUS, max_budget_per_head: 3000, currency: "INR",
     requires_approval_above: 150000, high_value_threshold: 300000, alcohol_policy: "approval", restricted_entertainment: ["dj", "karaoke"],
+    ...POLICY_TIER_DEFAULTS, auto_approval_limit_per_head: 1500, manager_approval_limit_per_head: 3000,
     created_at: ts, updated_at: ts },
   { id: "eeeeeeee-0002-4000-8000-000000000002", tenant_id: VERTEX, max_budget_per_head: 6000, currency: "INR",
     requires_approval_above: 400000, high_value_threshold: 800000, alcohol_policy: "allowed", restricted_entertainment: [],
+    ...POLICY_TIER_DEFAULTS, auto_approval_limit_per_head: 1500, manager_approval_limit_per_head: 3000,
     created_at: ts, updated_at: ts },
 ];
 
@@ -590,12 +609,14 @@ export function backfillDefaults(db: MockDb): MockDb {
   for (const p of db.policies) {
     p.alcohol_policy ??= "allowed";
     p.restricted_entertainment ??= [];
+    for (const [k, d] of Object.entries(POLICY_TIER_DEFAULTS)) (p as Record<string, unknown>)[k] ??= structuredClone(d);
   }
   for (const b of db.bookings) {
     b.alcohol_included ??= false;
     b.entertainment ??= [];
     b.settled_at ??= null;
     b.expense_reference ??= null;
+    for (const [k, d] of Object.entries(BOOKING_POLICY_DEFAULTS)) (b as Record<string, unknown>)[k] ??= structuredClone(d);
   }
   for (const e of db.expenseExports) {
     e.provider ??= "webhook";

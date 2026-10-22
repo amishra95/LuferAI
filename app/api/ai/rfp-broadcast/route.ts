@@ -7,7 +7,7 @@ import { rfpExtractionInstructions } from "@/lib/ai/prompts";
 import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
-import { broadcastRfp, RfpRequirements } from "@/lib/rfp/service";
+import { broadcastRfp, PolicyBlockedError, RfpRequirements, type BroadcastResult } from "@/lib/rfp/service";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
 import { tracer } from "@/lib/tracer";
 
@@ -75,23 +75,31 @@ async function handleRfpBroadcast(request: NextRequest) {
     return NextResponse.json({ error: "The AI service is unavailable. Try again shortly." }, { status: 502 });
   }
 
-  const result = await tracer.trace("rfp.broadcast", async (span) => {
-    const r = await broadcastRfp({
-      companyId,
-      createdBy: member.userId,
-      brief: parsed.data.brief,
-      requirements,
-      today,
+  let result: BroadcastResult;
+  try {
+    result = await tracer.trace("rfp.broadcast", async (span) => {
+      const r = await broadcastRfp({
+        companyId,
+        createdBy: member.userId,
+        brief: parsed.data.brief,
+        requirements,
+        today,
+      });
+      span.setAttribute("venuesContacted", r.columns.length);
+      return r;
     });
-    span.setAttribute("venuesContacted", r.columns.length);
-    return r;
-  });
+  } catch (err) {
+    // Out of policy: nothing was sent; say why, with the breakdown.
+    if (err instanceof PolicyBlockedError) return NextResponse.json({ error: err.message, policy: err.policy }, { status: 422 });
+    throw err;
+  }
 
   return NextResponse.json({
     rfpId: result.rfp.id,
     requirements,
     venuesContacted: result.columns.length,
     matrix: result.markdown,
+    policy: result.policy,
   });
 }
 

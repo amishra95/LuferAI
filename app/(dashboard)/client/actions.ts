@@ -23,6 +23,8 @@ import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { CHECKOUT_LOCK_TTL_MS, getSlotLocks, ownerOf } from "@/lib/locks";
 import { getNegotiatedRate, type NegotiatedPricing } from "@/lib/rates/getNegotiatedRate";
+import { evaluateEventPolicy } from "@/lib/policies/checkBookingPolicy";
+import { isEventType, type PolicyCheck, type PolicyStatus } from "@/lib/policies/evaluate-booking-policy";
 import type { VenueOption } from "./_components/event-request-form";
 import { toVenueOption } from "./_components/venue-options";
 
@@ -80,6 +82,50 @@ export async function previewNegotiatedRate(input: {
   return getNegotiatedRate({ tenant_id: companyId, venue_id: venueId, event_date: eventDate, party_size: partySize, per_head_amount: perHead });
 }
 
+export interface PolicyPreview {
+  status: PolicyStatus;
+  /** Why sign-off is needed or the booking is blocked; absent when in policy. */
+  reason?: string;
+  checks: PolicyCheck[];
+}
+
+/**
+ * The spend-policy outcome the request would get if sent now, for the booking
+ * form's banner: priced like placeBookingRequest (rate card, minimum spend) and
+ * evaluated with the same rules, so the banner matches the routing.
+ */
+export async function previewBookingPolicy(input: {
+  companyId: string;
+  venueId: string;
+  eventDate: string;
+  partySize: number;
+  perHead: number;
+  eventType?: string | null;
+  startTime?: string | null;
+  alcoholIncluded?: boolean;
+  departmentId?: string | null;
+}): Promise<PolicyPreview | null> {
+  const member = await requirePortal("/client");
+  const companyId = tenantFor(member, input.companyId);
+  const { venueId, eventDate, partySize, perHead } = input;
+  if (!ISO_DATE.test(eventDate) || !Number.isInteger(partySize) || partySize < 1 || !(perHead > 0)) return null;
+  const [companies, venues] = await Promise.all([listCompanies(), listVenues()]);
+  const venue = venues.find((v) => v.id === venueId);
+  if (!companies.some((c) => c.id === companyId) || !venue) return null;
+  const pricing = await getNegotiatedRate({ tenant_id: companyId, venue_id: venueId, event_date: eventDate, party_size: partySize, per_head_amount: perHead });
+  const { result, status, checks } = await evaluateEventPolicy(companyId, pricing.negotiatedPerHead, {
+    headcount: partySize,
+    totalAmount: pricing.taxableTotal,
+    eventDate,
+    eventType: isEventType(input.eventType) ? input.eventType : null,
+    startTime: input.startTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(input.startTime) ? input.startTime : null,
+    alcoholIncluded: Boolean(input.alcoholIncluded),
+    departmentId: input.departmentId || null,
+    venue,
+  });
+  return { status, reason: "reason" in result ? result.reason : undefined, checks };
+}
+
 export async function submitBookingRequest(
   _prev: BookingRequestState,
   formData: FormData
@@ -121,6 +167,9 @@ export async function submitBookingRequest(
     departmentId: v.department_id,
     expense: { costCenter: v.cost_center, projectCode: v.project_code, taxId: v.billing_gstin },
     checkoutToken: String(formData.get("slot_token") ?? "") || null,
+    eventType: v.event_type,
+    eventStartTime: v.event_start_time,
+    alcoholIncluded: v.alcohol_included,
   });
   if (result.status === "success") {
     // Remembered for their next request (not when an admin files on someone's behalf).

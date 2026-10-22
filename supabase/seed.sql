@@ -106,6 +106,9 @@ update public.companies set office_latitude = 28.630400, office_longitude = 77.2
 insert into public.corporate_policies (tenant_id, max_budget_per_head, requires_approval_above) values
   ('11111111-1111-4111-8111-111111111111', 2500.00, 150000.00),
   ('22222222-2222-4222-8222-222222222222', 4500.00, null);
+-- Per-head approval tiers (migration 20261031120000): auto-approved up to ₹1,500,
+-- manager sign-off up to ₹3,000, CFO above.
+update public.corporate_policies set auto_approval_limit_per_head = 1500.00, manager_approval_limit_per_head = 3000.00;
 
 -- Departments (FY budgets, pre-GST) ---------------------------------------------------------
 insert into public.departments (id, company_id, name, annual_budget_inr) values

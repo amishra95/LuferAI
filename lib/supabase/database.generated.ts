@@ -596,12 +596,16 @@ export type Database = {
           department_id: string | null
           entertainment: string[]
           event_date: string
+          event_start_time: string | null
+          event_type: string | null
           expense_reference: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id: string
           list_budget_per_head_inr: number | null
           notes: string | null
           party_size: number
+          policy_status: string | null
+          policy_violation_reasons: string[]
           project_code: string | null
           rate_card_id: string | null
           requested_by: string | null
@@ -625,12 +629,16 @@ export type Database = {
           department_id?: string | null
           entertainment?: string[]
           event_date: string
+          event_start_time?: string | null
+          event_type?: string | null
           expense_reference?: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id?: string
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size: number
+          policy_status?: string | null
+          policy_violation_reasons?: string[]
           project_code?: string | null
           rate_card_id?: string | null
           requested_by?: string | null
@@ -654,12 +662,16 @@ export type Database = {
           department_id?: string | null
           entertainment?: string[]
           event_date?: string
+          event_start_time?: string | null
+          event_type?: string | null
           expense_reference?: string | null
           gst_type?: Database["public"]["Enums"]["gst_type"]
           id?: string
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size?: number
+          policy_status?: string | null
+          policy_violation_reasons?: string[]
           project_code?: string | null
           rate_card_id?: string | null
           requested_by?: string | null
@@ -1381,39 +1393,60 @@ export type Database = {
       corporate_policies: {
         Row: {
           alcohol_policy: string
+          auto_approval_limit_per_head: number | null
           created_at: string
           currency: string
+          event_hours_end: string | null
+          event_hours_start: string | null
           high_value_threshold: number | null
           id: string
+          manager_approval_limit_per_head: number | null
           max_budget_per_head: number | null
+          max_office_distance_km: number | null
           requires_approval_above: number | null
           restricted_entertainment: string[]
+          restricted_event_types: string[]
           tenant_id: string
           updated_at: string
+          weekday_open_bar_policy: string
         }
         Insert: {
           alcohol_policy?: string
+          auto_approval_limit_per_head?: number | null
           created_at?: string
           currency?: string
+          event_hours_end?: string | null
+          event_hours_start?: string | null
           high_value_threshold?: number | null
           id?: string
+          manager_approval_limit_per_head?: number | null
           max_budget_per_head?: number | null
+          max_office_distance_km?: number | null
           requires_approval_above?: number | null
           restricted_entertainment?: string[]
+          restricted_event_types?: string[]
           tenant_id: string
           updated_at?: string
+          weekday_open_bar_policy?: string
         }
         Update: {
           alcohol_policy?: string
+          auto_approval_limit_per_head?: number | null
           created_at?: string
           currency?: string
+          event_hours_end?: string | null
+          event_hours_start?: string | null
           high_value_threshold?: number | null
           id?: string
+          manager_approval_limit_per_head?: number | null
           max_budget_per_head?: number | null
+          max_office_distance_km?: number | null
           requires_approval_above?: number | null
           restricted_entertainment?: string[]
+          restricted_event_types?: string[]
           tenant_id?: string
           updated_at?: string
+          weekday_open_bar_policy?: string
         }
         Relationships: [
           {
@@ -2763,9 +2796,13 @@ export type Database = {
           created_by: string | null
           dietary_tags: string[]
           event_date: string | null
+          event_start_time: string | null
+          event_type: string | null
           id: string
           origin: string
           party_size: number
+          policy_status: string | null
+          policy_violation_reasons: string[]
           requirements: Json
           status: Database["public"]["Enums"]["rfp_status"]
           updated_at: string
@@ -2780,9 +2817,13 @@ export type Database = {
           created_by?: string | null
           dietary_tags?: string[]
           event_date?: string | null
+          event_start_time?: string | null
+          event_type?: string | null
           id?: string
           origin?: string
           party_size: number
+          policy_status?: string | null
+          policy_violation_reasons?: string[]
           requirements: Json
           status?: Database["public"]["Enums"]["rfp_status"]
           updated_at?: string
@@ -2797,9 +2838,13 @@ export type Database = {
           created_by?: string | null
           dietary_tags?: string[]
           event_date?: string | null
+          event_start_time?: string | null
+          event_type?: string | null
           id?: string
           origin?: string
           party_size?: number
+          policy_status?: string | null
+          policy_violation_reasons?: string[]
           requirements?: Json
           status?: Database["public"]["Enums"]["rfp_status"]
           updated_at?: string

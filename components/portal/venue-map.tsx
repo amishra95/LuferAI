@@ -14,11 +14,11 @@ export interface MapVenue {
   longitude: number | null;
   /** Short marker label, e.g. the min spend. */
   label: string;
-  /** Policy fit, shown as the marker's colour: ok = in policy, warn = needs sign-off. */
-  tone?: "ok" | "warn";
+  /** Policy fit, shown as the marker's colour: ok = in policy, warn = manager sign-off, error = CFO sign-off. */
+  tone?: "ok" | "warn" | "error";
 }
 
-const TONE_TEXT = { ok: "in policy", warn: "needs approval" } as const;
+const TONE_TEXT = { ok: "in policy", warn: "needs manager approval", error: "needs CFO approval" } as const;
 
 const KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 const STYLE = process.env.NEXT_PUBLIC_MAPTILER_STYLE ?? "dataviz-dark";
@@ -148,7 +148,10 @@ export function VenueMap({
             <span aria-hidden className="status-dot bg-sage" /> In policy
           </li>
           <li className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="status-dot bg-warn" /> Needs approval
+            <span aria-hidden className="status-dot bg-warn" /> Manager
+          </li>
+          <li className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="status-dot bg-rose" /> CFO
           </li>
         </ul>
       ) : null}

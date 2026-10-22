@@ -17,7 +17,7 @@ import {
 import { financialYear } from "@/lib/fiscal-year";
 import { sumInr } from "@/lib/gst-engine";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
-import { describePolicyChecks, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
+import { describePolicyChecks, isEventType, type PolicyCheck } from "@/lib/policies/evaluate-booking-policy";
 import { isActionable } from "@/lib/services/enterprise/approvalEngine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Department } from "@/lib/supabase/database.types";
@@ -124,6 +124,9 @@ export async function approvalItemisation(
       per_head_amount: booking.budget_per_head_inr,
       alcohol_included: booking.alcohol_included,
       entertainment: booking.entertainment,
+      event_date: booking.event_date,
+      event_type: isEventType(booking.event_type) ? booking.event_type : null,
+      event_start_time: booking.event_start_time,
     },
     await spendLimitFor(companyId, booking.event_date, booking.id)
   );
