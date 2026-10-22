@@ -119,22 +119,13 @@ export function verifySignature(rawBody: string, header: string | null, secret: 
 
 // --- Delivery -----------------------------------------------------------------------------
 
-/**
- * Env var names for a provider's endpoint and API token, the same ones receipt
- * exports use. The plain webhook authenticates by signature only.
- */
-export function cardSyncEnv(provider: CardSyncProvider): { url: string; token: string | null } {
-  if (provider === "webhook") return { url: "EXPENSE_WEBHOOK_URL", token: null };
-  const p = provider.toUpperCase();
-  return { url: `${p}_EXPENSE_URL`, token: `${p}_API_TOKEN` };
-}
 
 export interface DeliveryTarget {
   provider: CardSyncProvider;
   /** Empty: nothing is sent and the outcome is "mocked". */
   url: string;
-  /** Sent as a bearer token when set. */
-  token?: string;
+  /** The provider's auth headers (providerConnection in lib/finance/expense-adapters.ts). */
+  headers?: Record<string, string>;
   /** Signs the body (X-Lufer-Signature) when set. */
   signingSecret?: string;
 }
@@ -179,7 +170,7 @@ export async function deliverCardTransaction(target: DeliveryTarget, t: CardTran
     "X-Lufer-Payload-SHA256": base.payloadSha256,
     "Idempotency-Key": t.transactionId,
     ...(target.signingSecret && { "X-Lufer-Signature": signPayload(body, target.signingSecret) }),
-    ...(target.token && { Authorization: `Bearer ${target.token}` }),
+    ...target.headers,
   };
 
   let last: Pick<CardSyncOutcome, "responseCode" | "error"> = {};

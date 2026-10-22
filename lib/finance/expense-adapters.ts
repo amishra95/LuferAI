@@ -11,9 +11,9 @@
  *
  * The provider shapes are a mapping layer, not a vendor SDK: each adapter turns
  * the receipt into a JSON body with amounts in minor units (paise) where the
- * provider expects them, and the endpoint and token come from env
- * (`<PROVIDER>_EXPENSE_URL`, `<PROVIDER>_API_TOKEN`). Check the field names
- * against the provider's current API before enabling one in production.
+ * provider expects them; endpoints and credentials come from env
+ * (providerConnection). Check the field names against the provider's current
+ * API before enabling one in production.
  *
  * Pure: tests import it directly (tests/corporate-venue-os.test.mjs).
  */
@@ -114,31 +114,24 @@ export function buildExpenseRequest(provider: ExpenseProvider, r: ExpenseReceipt
         },
       };
     case "zoho":
+      // One itemised expense, for POST /api/v1/expenses (it can then be added to a report in Zoho).
       return {
         provider,
         idempotencyKey,
         summary,
         body: {
-          report_name: `${r.supplier.name} · ${r.booking.event_date}`,
+          date: r.booking.event_date,
+          merchant_name: r.supplier.name,
+          currency_code: "INR",
+          amount: total,
+          reference_number: r.booking.id,
           description: memo(r),
-          start_date: r.booking.event_date,
-          end_date: r.booking.event_date,
-          expenses: [
-            {
-              date: r.booking.event_date,
-              merchant_name: r.supplier.name,
-              currency_code: "INR",
-              amount: total,
-              reference_number: r.booking.id,
-              description: memo(r),
-              is_reimbursable: false,
-              gst_no: r.supplier.gstin,
-              source_of_supply: r.supplier.gstin.slice(0, 2),
-              destination_of_supply: r.buyer.billed_gstin.slice(0, 2),
-              line_items: taxLines(r).map((l) => ({ description: l.description, amount: l.amount, ...(l.sac && { hsn_or_sac: l.sac }) })),
-              custom_fields: coding(r).map((c) => ({ label: c.field, value: c.value })).concat([{ label: "itc_status", value: r.tax.itc_status }]),
-            },
-          ],
+          is_reimbursable: false,
+          gst_no: r.supplier.gstin,
+          source_of_supply: r.supplier.gstin.slice(0, 2),
+          destination_of_supply: r.buyer.billed_gstin.slice(0, 2),
+          line_items: taxLines(r).map((l) => ({ description: l.description, amount: l.amount, ...(l.sac && { hsn_or_sac: l.sac }) })),
+          custom_fields: coding(r).map((c) => ({ label: c.field, value: c.value })).concat([{ label: "itc_status", value: r.tax.itc_status }]),
         },
       };
     case "erpnext": {
@@ -195,9 +188,45 @@ export function taxLines(r: ExpenseReceipt): { description: string; amount: numb
   return lines;
 }
 
-/** Env var names for a provider's endpoint and credential. */
-export function providerEnv(provider: ExpenseProvider): { url: string; token: string } {
-  if (provider === "webhook") return { url: "EXPENSE_WEBHOOK_URL", token: "EXPENSE_WEBHOOK_SECRET" };
-  const p = provider.toUpperCase();
-  return { url: `${p}_EXPENSE_URL`, token: `${p}_API_TOKEN` };
+/** The env vars each provider reads (first set name wins; later ones are older names). */
+export const PROVIDER_ENV = {
+  webhook: { url: ["EXPENSE_WEBHOOK_URL"], secret: ["EXPENSE_WEBHOOK_SECRET"] },
+  ramp: { url: ["RAMP_EXPENSE_URL"], token: ["RAMP_API_TOKEN"] },
+  brex: { url: ["BREX_EXPENSE_URL"], token: ["BREX_API_TOKEN"] },
+  concur: { url: ["CONCUR_EXPENSE_URL"], token: ["CONCUR_API_TOKEN"] },
+  zoho: { url: ["ZOHO_EXPENSE_URL"], token: ["ZOHO_EXPENSE_AUTH_TOKEN", "ZOHO_API_TOKEN"], organization: ["ZOHO_EXPENSE_ORGANIZATION_ID"] },
+  erpnext: { url: ["ERPNEXT_URL", "ERPNEXT_EXPENSE_URL"], key: ["ERPNEXT_API_KEY"], secret: ["ERPNEXT_API_SECRET"] },
+} as const satisfies Record<ExpenseProvider, Record<string, readonly string[]>>;
+
+/**
+ * Where a provider's exports go and how they authenticate, from env:
+ *   ramp / brex / concur   Authorization: Bearer <token>
+ *   zoho                   Authorization: Zoho-oauthtoken <token>, plus
+ *                          X-com-zoho-expense-organizationid when set
+ *   erpnext                Authorization: token <api key>:<api secret>
+ *   webhook                no header; the caller signs the body (X-Lufer-Signature)
+ * An empty url means nothing is sent (the export is recorded as mocked).
+ * Spaces in the URL (ERPNext's "/api/resource/Purchase Invoice") are encoded.
+ */
+export function providerConnection(provider: ExpenseProvider, env: (name: string) => string): { url: string; headers: Record<string, string> } {
+  const names: Record<string, readonly string[]> = PROVIDER_ENV[provider];
+  const read = (k: string) => (names[k] ?? []).map((n) => env(n).trim()).find(Boolean) ?? "";
+  const url = read("url").replace(/ /g, "%20");
+  switch (provider) {
+    case "webhook":
+      return { url, headers: {} };
+    case "zoho": {
+      const token = read("token");
+      const organization = read("organization");
+      return { url, headers: { ...(token && { Authorization: `Zoho-oauthtoken ${token}` }), ...(organization && { "X-com-zoho-expense-organizationid": organization }) } };
+    }
+    case "erpnext": {
+      const [key, secret] = [read("key"), read("secret")];
+      return { url, headers: key && secret ? { Authorization: `token ${key}:${secret}` } : {} };
+    }
+    default: {
+      const token = read("token");
+      return { url, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+    }
+  }
 }

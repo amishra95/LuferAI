@@ -5,7 +5,6 @@ import { createHash, createHmac } from "node:crypto";
 
 import {
   buildCardPayload,
-  cardSyncEnv,
   deliverCardTransaction,
   ERP_SCHEMA,
   isCardSyncProvider,
@@ -72,8 +71,6 @@ test("providers and env names", () => {
   assert.ok(["ramp", "brex", "concur", "zoho", "webhook"].every(isCardSyncProvider));
   assert.equal(isCardSyncProvider("quickbooks"), false);
   assert.equal(isCardSyncProvider(undefined), false);
-  assert.deepEqual(cardSyncEnv("zoho"), { url: "ZOHO_EXPENSE_URL", token: "ZOHO_API_TOKEN" });
-  assert.deepEqual(cardSyncEnv("webhook"), { url: "EXPENSE_WEBHOOK_URL", token: null });
 });
 
 test("HMAC-SHA256 signatures verify, and tampering or a wrong secret fails", () => {
@@ -106,7 +103,7 @@ const noSleep = async () => {};
 
 test("delivery: signed, authenticated, idempotent request", async () => {
   const { fetch, calls } = stubFetch([200]);
-  const out = await deliverCardTransaction({ provider: "ramp", url: "https://erp.example/hook", token: "tok", signingSecret: "s3cret" }, txn, { fetch, sleep: noSleep });
+  const out = await deliverCardTransaction({ provider: "ramp", url: "https://erp.example/hook", headers: { Authorization: "Bearer tok" }, signingSecret: "s3cret" }, txn, { fetch, sleep: noSleep });
   assert.equal(out.status, "delivered");
   assert.equal(out.attempts, 1);
   const { init } = calls[0];
