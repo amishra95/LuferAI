@@ -55,7 +55,8 @@ import { STATUS_LABEL as CONTRACT_STATUS_LABEL } from "@/lib/services/contracts/
 import { IssueContractButton } from "@/components/contracts/contract-actions";
 import { DEPOSIT_RATE, depositFor } from "@/lib/quotes";
 import { depositRatesForVenues } from "@/lib/venues/pricing-store";
-import { officeOf } from "@/lib/venues/discovery";
+import { MAX_BADGE_KM, officeOf } from "@/lib/venues/discovery";
+import { searchVenuesSpatial } from "@/lib/actions/venue-search";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { listRfps } from "@/lib/rfp/service";
 import type { CorporateRole } from "@/lib/supabase/database.types";
@@ -137,6 +138,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const user = member.role === "CLIENT" ? users.find((u) => u.id === member.userId) : undefined;
   const role = user?.role ?? null;
   const canRequest = role === "ORGANIZER" || role === "APPROVER";
+  // Office distances for the venue cards, from PostGIS (null: computed in the explorer).
+  const office = officeOf(company);
+  const nearby = canRequest && office ? await searchVenuesSpatial({ ...office, radiusMeters: MAX_BADGE_KM * 1000 }) : null;
+  const officeDistances = nearby && Object.fromEntries(nearby.venues.map((v) => [v.id, v.distanceMeters]));
   // Prefills the request form's mobile with the one they gave last time.
   const requesterPhone = canRequest && user ? await getUserPhone(user.id) : null;
 
@@ -458,7 +463,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 departments={catalog.departments}
                 defaultPhone={requesterPhone ?? undefined}
                 policy={policy && { max_budget_per_head: policy.max_budget_per_head, requires_approval_above: policy.requires_approval_above }}
-                office={officeOf(company)}
+                office={office}
+                officeDistances={officeDistances}
               />
             </div>
           ) : null}

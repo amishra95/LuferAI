@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 import { vector } from "@electric-sql/pglite-pgvector";
+import { postgis } from "@electric-sql/pglite-postgis";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
 
@@ -37,7 +38,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 
 /** `prelude` runs after the bootstrap, before the migrations (e.g. a stub Realtime schema). */
 export async function createDatabase({ seed = true, prelude = "" } = {}) {
-  const db = new PGlite({ extensions: { btree_gist, vector } });
+  const db = new PGlite({ extensions: { btree_gist, vector, postgis } });
   await db.exec(BOOTSTRAP);
   if (prelude) await db.exec(prelude);
   const dir = join(ROOT, "supabase/migrations");

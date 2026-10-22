@@ -3623,6 +3623,23 @@ export type Database = {
           summary: string
         }[]
       }
+      nearby_venues_within_radius: {
+        Args: {
+          client_lat: number
+          client_lng: number
+          max_results?: number
+          radius_meters: number
+        }
+        Returns: {
+          city: string
+          distance_meters: number
+          latitude: number
+          longitude: number
+          name: string
+          neighborhood: string
+          venue_id: string
+        }[]
+      }
       replace_approval_chain: {
         Args: { p_approvers: string[]; p_tenant_id: string }
         Returns: undefined
