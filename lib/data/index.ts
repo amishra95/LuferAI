@@ -37,7 +37,8 @@ import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policie
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
-import { mockGstType, type MockDb } from "./mock-store";
+import { BOOKING_ITC_DEFAULTS, mockGstType, type MockDb } from "./mock-store";
+import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 
 /**
  * Single data-access layer for all three portals.
@@ -200,19 +201,27 @@ export function computePlatformMetrics(bookings: BookingDetail[]): PlatformMetri
   };
 }
 
-export interface ItcSummary {
-  reclaimed: number; // GST on COMPLETED (invoiced) bookings
-  pipeline: number; // GST on PENDING + CONFIRMED
-  committedSpend: number;
+export interface ItcSummary extends ItcStatusSummary {
+  /** GST finance has confirmed as claimable (= eligible). Kept for /api/bookings clients. */
+  reclaimed: number;
+  /** GST not yet confirmed either way: pending review + awaiting invoice. Kept for /api/bookings clients. */
+  pipeline: number;
 }
 
+/** GST per input tax credit status (lib/finance/itc.ts): only finance-confirmed credit counts as claimable. */
 export function computeItcSummary(bookings: BookingDetail[]): ItcSummary {
-  const sum = (xs: BookingDetail[], f: (b: BookingDetail) => number) => sumInr(xs.map(f));
-  return {
-    reclaimed: sum(bookings.filter((b) => b.status === "COMPLETED"), (b) => b.invoice.total_tax),
-    pipeline: sum(bookings.filter((b) => b.status === "PENDING" || b.status === "CONFIRMED"), (b) => b.invoice.total_tax),
-    committedSpend: sum(bookings.filter((b) => b.status !== "CANCELLED"), (b) => b.total_amount_inr),
-  };
+  const summary = summariseItc(
+    bookings.map((b) => ({
+      status: b.status,
+      itc_decision: b.itc_decision,
+      company_gstin: b.company.gstin,
+      billed_gstin: b.billing_gstin,
+      venue_gstin: b.venue.gstin,
+      total_tax: b.invoice.total_tax,
+      total_amount_inr: b.total_amount_inr,
+    }))
+  );
+  return { ...summary, reclaimed: summary.eligible, pipeline: sumInr([summary.pendingReview, summary.awaitingInvoice]) };
 }
 
 export interface MonthlyPayout {
@@ -395,6 +404,7 @@ export async function createBookingRequest(
     const booking: Booking = {
       id: crypto.randomUUID(),
       ...row,
+      ...BOOKING_ITC_DEFAULTS,
       total_amount_inr: total,
       sac_code: "998596",
       gst_type: mockGstType(db, input.company_id, input.venue_id, row.billing_gstin),
@@ -426,7 +436,7 @@ export async function createBookingRequest(
     if (allocation) {
       // Local equivalent of the po_allocations_check trigger (the store lock makes it atomic).
       checkLocalAllocation(db, allocation, booking);
-      db.poAllocations.push({ id: crypto.randomUUID(), po_id: allocation.po_id, tenant_id: c.id, booking_id: booking.id, catalog_order_id: null, amount_inr: total, status: "committed", over_balance: allocation.over_balance, created_at: now, updated_at: now });
+      db.poAllocations.push({ id: crypto.randomUUID(), po_id: allocation.po_id, line_number: nextLocalLine(db, allocation.po_id), tenant_id: c.id, booking_id: booking.id, catalog_order_id: null, amount_inr: total, status: "committed", over_balance: allocation.over_balance, created_at: now, updated_at: now });
     }
     return enrich(booking, c, v);
   });
@@ -626,10 +636,12 @@ export async function reallocateBooking(bookingId: string, tenantId: string, poI
       const now = new Date().toISOString();
       const existing = db.poAllocations.find((a) => a.booking_id === bookingId);
       if (existing) {
-        Object.assign(existing, { po_id: poId, over_balance: false, amount_inr: Number(booking.total_amount_inr), updated_at: now });
+        // Local equivalent of the po_allocations_assign_line trigger: a new PO gives a new line.
+        const line = existing.po_id === poId ? existing.line_number : nextLocalLine(db, poId);
+        Object.assign(existing, { po_id: poId, line_number: line, over_balance: false, amount_inr: Number(booking.total_amount_inr), updated_at: now });
         return allocationRow(existing);
       }
-      const created: PoAllocation = { id: crypto.randomUUID(), po_id: poId, tenant_id: tenantId, booking_id: bookingId, catalog_order_id: null, amount_inr: Number(booking.total_amount_inr), status: allocationStatusFor(booking.status), over_balance: false, created_at: now, updated_at: now };
+      const created: PoAllocation = { id: crypto.randomUUID(), po_id: poId, line_number: nextLocalLine(db, poId), tenant_id: tenantId, booking_id: bookingId, catalog_order_id: null, amount_inr: Number(booking.total_amount_inr), status: allocationStatusFor(booking.status), over_balance: false, created_at: now, updated_at: now };
       db.poAllocations.push(created);
       return created;
     });
@@ -707,6 +719,24 @@ export async function updateBookingCostCenter(id: string, companyId: string, cos
     });
   }
   const { data, error } = await createAdminClient().from("bookings").update({ cost_center: costCenter }).eq("id", id).eq("company_id", companyId).select("id");
+  if (error) throw error;
+  if (data.length === 0) throw new Error("Booking not found");
+}
+
+/**
+ * Records finance's input tax credit decision on a booking (lib/finance/itc.ts),
+ * or clears it (decision null) to send it back to review.
+ */
+export async function updateBookingItcDecision(id: string, companyId: string, decision: "eligible" | "blocked" | null, by: string | null, note: string | null) {
+  const values = { itc_decision: decision, itc_decided_by: decision ? by : null, itc_decided_at: decision ? new Date().toISOString() : null, itc_note: decision ? note : null };
+  if (local()) {
+    return mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id && x.company_id === companyId);
+      if (!b) throw new Error("Booking not found");
+      Object.assign(b, values, { updated_at: new Date().toISOString() });
+    });
+  }
+  const { data, error } = await createAdminClient().from("bookings").update(values).eq("id", id).eq("company_id", companyId).select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("Booking not found");
 }
@@ -1068,30 +1098,44 @@ export type ExpenseExportEvent = "booking.confirmed" | "order.confirmed";
 
 /** Which column identifies the export's subject: bookings and orders each export once per event. */
 const exportSubject = (event: string) => (event === "order.confirmed" ? "catalog_order_id" : "booking_id");
-export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "updated_at" | "attempts" | "receipt"> & { receipt: Json };
+export type NewExpenseExport = Omit<ExpenseExport, "id" | "created_at" | "updated_at" | "attempts" | "receipt" | "requested_by"> & { receipt: Json; requested_by?: string | null };
 
-/** The existing export for a booking (or order) and event, if any (exports are idempotent per subject + event). */
-export async function findExpenseExport(subjectId: string, event: ExpenseExportEvent): Promise<ExpenseExport | null> {
+/** The next line on a PO in the local store (the po_allocations_assign_line trigger's job in Postgres). */
+function nextLocalLine(db: MockDb, poId: string): number {
+  return Math.max(0, ...db.poAllocations.filter((a) => a.po_id === poId).map((a) => a.line_number ?? 0)) + 1;
+}
+
+/**
+ * The existing export for a booking (or order) and event to `provider`, if any
+ * (exports are idempotent per subject + event + provider). Without a provider:
+ * the earliest export to any of them, e.g. "has this reached finance at all".
+ */
+export async function findExpenseExport(subjectId: string, event: ExpenseExportEvent, provider?: string): Promise<ExpenseExport | null> {
+  return (await listExpenseExportsFor(subjectId, event)).find((e) => !provider || e.provider === provider) ?? null;
+}
+
+/** Every export of a booking (or order) and event, one per provider, oldest first. */
+export async function listExpenseExportsFor(subjectId: string, event: ExpenseExportEvent): Promise<ExpenseExport[]> {
   const col = exportSubject(event);
-  if (local()) return (await readDb()).expenseExports.find((e) => e[col] === subjectId && e.event === event) ?? null;
-  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq(col, subjectId).eq("event", event).maybeSingle();
+  if (local()) return (await readDb()).expenseExports.filter((e) => e[col] === subjectId && e.event === event).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const { data, error } = await createAdminClient().from("expense_exports").select("*").eq(col, subjectId).eq("event", event).order("created_at");
   if (error) throw error;
   return data;
 }
 
-/** Records an export. Returns false if one already exists for this booking + event. */
+/** Records an export. Returns false if one already exists for this booking + event + provider. */
 export async function recordExpenseExport(row: NewExpenseExport): Promise<boolean> {
   if (local()) {
     return mutateDb((db) => {
       const col = exportSubject(row.event);
-      if (db.expenseExports.some((e) => e[col] === row[col] && e.event === row.event)) return false;
+      if (db.expenseExports.some((e) => e[col] === row[col] && e.event === row.event && e.provider === row.provider)) return false;
       const now = new Date().toISOString();
-      db.expenseExports.push({ ...row, id: crypto.randomUUID(), attempts: 1, created_at: now, updated_at: now });
+      db.expenseExports.push({ ...row, requested_by: row.requested_by ?? null, id: crypto.randomUUID(), attempts: 1, created_at: now, updated_at: now });
       return true;
     });
   }
   const { error } = await createAdminClient().from("expense_exports").insert(row);
-  if (error?.code === "23505") return false; // unique (booking_id | catalog_order_id, event)
+  if (error?.code === "23505") return false; // unique (booking_id | catalog_order_id, event, provider)
   if (error) throw error;
   return true;
 }
@@ -1532,7 +1576,7 @@ export async function createCatalogOrder(
         db.approvals.push(localApproval(a, { tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id }, now));
       }
       if (options.allocation) {
-        db.poAllocations.push({ id: crypto.randomUUID(), po_id: options.allocation.po_id, tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, amount_inr: Number(input.total_amount_inr), status: "committed", over_balance: options.allocation.over_balance, created_at: now, updated_at: now });
+        db.poAllocations.push({ id: crypto.randomUUID(), po_id: options.allocation.po_id, line_number: nextLocalLine(db, options.allocation.po_id), tenant_id: input.tenant_id, booking_id: null, catalog_order_id: order.id, amount_inr: Number(input.total_amount_inr), status: "committed", over_balance: options.allocation.over_balance, created_at: now, updated_at: now });
       }
       return order.id;
     });

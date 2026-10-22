@@ -601,6 +601,10 @@ export type Database = {
           expense_reference: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id: string
+          itc_decided_at: string | null
+          itc_decided_by: string | null
+          itc_decision: string | null
+          itc_note: string | null
           list_budget_per_head_inr: number | null
           notes: string | null
           party_size: number
@@ -634,6 +638,10 @@ export type Database = {
           expense_reference?: string | null
           gst_type: Database["public"]["Enums"]["gst_type"]
           id?: string
+          itc_decided_at?: string | null
+          itc_decided_by?: string | null
+          itc_decision?: string | null
+          itc_note?: string | null
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size: number
@@ -667,6 +675,10 @@ export type Database = {
           expense_reference?: string | null
           gst_type?: Database["public"]["Enums"]["gst_type"]
           id?: string
+          itc_decided_at?: string | null
+          itc_decided_by?: string | null
+          itc_decision?: string | null
+          itc_note?: string | null
           list_budget_per_head_inr?: number | null
           notes?: string | null
           party_size?: number
@@ -1873,6 +1885,7 @@ export type Database = {
           payload_sha256: string
           provider: string
           receipt: Json
+          requested_by: string | null
           response_code: number | null
           status: string
           tenant_id: string
@@ -1891,6 +1904,7 @@ export type Database = {
           payload_sha256: string
           provider?: string
           receipt: Json
+          requested_by?: string | null
           response_code?: number | null
           status: string
           tenant_id: string
@@ -1909,6 +1923,7 @@ export type Database = {
           payload_sha256?: string
           provider?: string
           receipt?: Json
+          requested_by?: string | null
           response_code?: number | null
           status?: string
           tenant_id?: string
@@ -2574,6 +2589,7 @@ export type Database = {
           catalog_order_id: string | null
           created_at: string
           id: string
+          line_number: number | null
           over_balance: boolean
           po_id: string
           status: string
@@ -2586,6 +2602,7 @@ export type Database = {
           catalog_order_id?: string | null
           created_at?: string
           id?: string
+          line_number?: number | null
           over_balance?: boolean
           po_id: string
           status?: string
@@ -2598,6 +2615,7 @@ export type Database = {
           catalog_order_id?: string | null
           created_at?: string
           id?: string
+          line_number?: number | null
           over_balance?: boolean
           po_id?: string
           status?: string
