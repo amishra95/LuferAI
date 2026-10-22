@@ -73,6 +73,8 @@ import { DiscoveryPanel } from "./_components/discovery-panel";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
+import { SettlementCard } from "@/components/finance/settlement-card";
+import { settlementsFor } from "@/lib/finance/settlement-store";
 
 const ROLE_LABEL: Record<CorporateRole, string> = { ORGANIZER: "Organizer", APPROVER: "Approver", FINANCE_VIEWER: "Finance viewer" };
 const ROLE_HELP: Record<CorporateRole, string> = {
@@ -166,7 +168,12 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     );
   const waitingOnMe = signOffs.filter((s) => myTurn(s)).length;
 
-  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : "bookings";
+  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : tab === "settlement" ? "settlement" : "bookings";
+  // Settlement: confirmed bookings onwards, most recent event first (loaded only on that tab).
+  const settlements =
+    activeTab === "settlement"
+      ? await settlementsFor(company.id, bookings.filter((b) => ["CONFIRMED", "COMPLETED", "SETTLED"].includes(b.status)).sort((a, b) => b.event_date.localeCompare(a.event_date)))
+      : [];
   // Approvers manage their company's POs; admins any company's.
   const canManagePos = member.role === "ADMIN" || role === "APPROVER";
   const openPos = pos.filter((p) => p.status === "open").length;
@@ -259,6 +266,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             { key: "signoffs", label: "Sign-offs", count: signOffs.length },
             { key: "catalog", label: "Catalogue", count: 0 },
             { key: "pos", label: "Purchase orders", count: openPos },
+            { key: "settlement", label: "Settlement", count: 0 },
           ] as const
         ).map((t) => (
           <Link
@@ -305,6 +313,23 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           marketplaceHref={marketplaceHref}
           readOnlyReason={member.role === "ADMIN" ? "Platform admins view this portal read-only." : "Only Organizers and Approvers can order."}
         />
+      ) : activeTab === "settlement" ? (
+        <section aria-labelledby="settlement-heading" className="grid gap-4">
+          <div>
+            <h2 id="settlement-heading" className="text-fg text-body font-semibold tracking-tight">
+              Settlement
+            </h2>
+            <p className="text-fg-subtle text-caption">
+              PO lines, GST as invoiced, input tax credit and exports to your expense or ERP system, for confirmed bookings.
+              {member.role === "ADMIN" || role === "APPROVER" ? "" : " Approvers review ITC and send exports."}
+            </p>
+          </div>
+          {settlements.length ? (
+            settlements.map((s) => <SettlementCard key={s.bookingId} view={s} canAct={member.role === "ADMIN" || role === "APPROVER"} />)
+          ) : (
+            <EmptyState compact icon={Receipt} title="Nothing to settle yet" description="Bookings appear here once a venue confirms them." />
+          )}
+        </section>
       ) : activeTab === "pos" ? (
         <PoLedger
           companyId={company.id}
@@ -537,7 +562,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ItcCalculator reclaimed={itc.reclaimed} pipeline={itc.pipeline} committedSpend={itc.committedSpend} />
+                <ItcCalculator eligible={itc.eligible} pendingReview={itc.pendingReview} awaitingInvoice={itc.awaitingInvoice} blocked={itc.blocked} committedSpend={itc.committedSpend} />
               </CardContent>
             </Card>
           </div>

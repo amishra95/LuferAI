@@ -34,11 +34,14 @@ interface ExportSubject {
   receipt: ExpenseReceipt;
 }
 
-/** Sends one receipt to the company's provider and records it (retrying a failed export in place). */
-async function deliver(subject: ExportSubject, existing: ExpenseExport | null): Promise<DispatchOutcome> {
-  const companies = await listCompanies();
-  const company = companies.find((c) => c.id === subject.tenantId);
-  const provider: ExpenseProvider = isExpenseProvider(company?.expense_provider) ? company.expense_provider : "webhook";
+/** The company's default expense system (companies.expense_provider). */
+async function defaultProvider(tenantId: string): Promise<ExpenseProvider> {
+  const company = (await listCompanies()).find((c) => c.id === tenantId);
+  return isExpenseProvider(company?.expense_provider) ? company.expense_provider : "webhook";
+}
+
+/** Sends one receipt to `provider` and records it (retrying a failed export in place). */
+async function deliver(subject: ExportSubject, existing: ExpenseExport | null, provider: ExpenseProvider, requestedBy: string | null = null): Promise<DispatchOutcome> {
   const event = subject.receipt.event;
   const request = buildExpenseRequest(provider, subject.receipt);
   const body = JSON.stringify(request.body);
@@ -95,6 +98,8 @@ async function deliver(subject: ExportSubject, existing: ExpenseExport | null): 
     status,
     response_code: responseCode,
     error,
+    // Only on manual exports, so automatic ones still save before migration 20261101120000.
+    ...(requestedBy && { requested_by: requestedBy }),
   };
   const recorded = existing ? await retryExpenseExport(existing.id, row) : await recordExpenseExport(row);
   audit({
@@ -123,23 +128,26 @@ function alreadyExported(existing: ExpenseExport | null, subjectId: string): Dis
 }
 
 /**
- * Exports a confirmed booking to the company's expense system
- * (companies.expense_provider: signed webhook, Ramp, Brex or Concur; see
+ * Exports a confirmed booking to an expense system: the company's own
+ * (companies.expense_provider) unless `provider` names another (signed
+ * webhook, Ramp, Brex, SAP Concur, Zoho Expense or ERPNext; see
  * lib/finance/expense-adapters.ts). Without that provider's URL configured the
- * export is recorded as mocked. Idempotent per booking: a delivered or mocked
- * export is never re-sent; a failed one is retried in place (attempts + 1).
- * Never throws; callers must not fail the confirmation over an export.
+ * export is recorded as mocked. Idempotent per booking and provider: a
+ * delivered or mocked export is never re-sent; a failed one is retried in
+ * place (attempts + 1). Never throws; callers must not fail the confirmation
+ * over an export.
  */
-export async function exportBookingExpense(bookingId: string): Promise<DispatchOutcome> {
+export async function exportBookingExpense(bookingId: string, opts: { provider?: ExpenseProvider; requestedBy?: string | null } = {}): Promise<DispatchOutcome> {
   try {
-    const existing = await findExpenseExport(bookingId, "booking.confirmed");
-    const done = alreadyExported(existing, bookingId);
-    if (done) return done;
     const booking = (await listBookings()).find((b) => b.id === bookingId);
     if (!booking) throw new Error(`Booking ${bookingId} not found`);
+    const provider = opts.provider ?? (await defaultProvider(booking.company.id));
+    const existing = await findExpenseExport(bookingId, "booking.confirmed", provider);
+    const done = alreadyExported(existing, bookingId);
+    if (done) return done;
     if (!EXPORTABLE.has(booking.status)) throw new Error(`Booking ${bookingId} is ${booking.status}, not confirmed`);
     const receipt = buildExpenseReceipt({ ...booking, company: booking.company, venue: { ...booking.venue } }, new Date().toISOString());
-    const outcome = await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing);
+    const outcome = await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing, provider, opts.requestedBy ?? null);
     // Virtual cards issued for the booking (migration 0033) show whether their receipt synced.
     await markCardReceipts(booking.id, outcome);
     return outcome;
@@ -162,11 +170,12 @@ const ORDER_EXPORTABLE = new Set(["CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED"
  */
 export async function exportOrderExpense(orderId: string): Promise<DispatchOutcome> {
   try {
-    const existing = await findExpenseExport(orderId, "order.confirmed");
-    const done = alreadyExported(existing, orderId);
-    if (done) return done;
     const [order] = await listCatalogOrders({ ids: [orderId] });
     if (!order) throw new Error(`Order ${orderId} not found`);
+    const provider = await defaultProvider(order.tenant_id);
+    const existing = await findExpenseExport(orderId, "order.confirmed", provider);
+    const done = alreadyExported(existing, orderId);
+    if (done) return done;
     if (!ORDER_EXPORTABLE.has(order.status)) throw new Error(`Order ${orderId} is ${order.status}, not confirmed`);
     const [company] = (await listCompanies()).filter((c) => c.id === order.tenant_id);
     const invoice = order.invoice as unknown as TaxInvoicePayload;
@@ -191,7 +200,7 @@ export async function exportOrderExpense(orderId: string): Promise<DispatchOutco
       new Date().toISOString(),
       "order.confirmed"
     );
-    return await deliver({ kind: "order", id: order.id, tenantId: order.tenant_id, costCenter: order.cost_center, projectCode: order.project_code, receipt }, existing);
+    return await deliver({ kind: "order", id: order.id, tenantId: order.tenant_id, costCenter: order.cost_center, projectCode: order.project_code, receipt }, existing, provider);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     audit({ order_id: orderId, status: "error", error: message });

@@ -19,6 +19,7 @@ import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { selectPo } from "@/lib/procurement/po-ledger";
+import { poLineRef } from "@/lib/finance/settlement";
 import { evaluateEventPolicy } from "@/lib/policies/checkBookingPolicy";
 import type { EventType } from "@/lib/policies/evaluate-booking-policy";
 import { applyRateCard } from "@/lib/rates/apply-rate-card";
@@ -79,6 +80,8 @@ export interface PlaceBookingResult {
   holdHours?: number;
   bookingId?: string;
   venueName?: string;
+  /** The booking's line on the blanket PO it draws from, e.g. "PO-2026-014/L3". */
+  poRef?: string;
 }
 
 /**
@@ -229,6 +232,11 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         },
         { approvals, hold, allocation, budgetHolds: governance.spend.kind === "ok" || governance.spend.kind === "over" ? governance.spend.holds : [] }
       );
+      // Its PO line: numbered by the database as the allocation was made.
+      const poRef =
+        allocation && (po.kind === "ok" || po.kind === "over_balance")
+          ? poLineRef(po.po.po_number, (await listPoAllocations({ tenantId: company.id, poId: po.po.id })).find((a) => a.booking_id === booking.id)?.line_number ?? null)
+          : undefined;
       // Live update for every entry point: open client, admin and property portals refresh
       // (the venue's host hears it too; PENDING_APPROVAL stays off their inbox until signed off).
       void publishBooking(booking.id, venue!.id, initialStatus(approvals.length), "request", company.id);
@@ -241,6 +249,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           holdHours: hours,
           bookingId: booking.id,
           venueName: venue!.name,
+          poRef,
         };
       }
       return {
@@ -250,6 +259,7 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
         holdHours: hours,
         bookingId: booking.id,
         venueName: venue!.name,
+        poRef,
       };
     } catch (err) {
       if (err instanceof BudgetHoldError) {

@@ -8,17 +8,21 @@ import { GST_RATE_PERCENT, gstOn } from "@/lib/gst-engine";
 import { formatINR } from "@/lib/utils";
 
 /**
- * 18% GST ITC savings calculator.
- * Shows what has been reclaimed on invoiced (completed) bookings, plus a what-if
- * for planned spend.
+ * 18% GST ITC calculator. Shows the credit finance has confirmed as claimable,
+ * what's pending their review or the tax invoice, and what's blocked
+ * (lib/finance/itc.ts), plus a what-if for planned spend.
  */
 export function ItcCalculator({
-  reclaimed,
-  pipeline,
+  eligible,
+  pendingReview,
+  awaitingInvoice,
+  blocked,
   committedSpend,
 }: {
-  reclaimed: number;
-  pipeline: number;
+  eligible: number;
+  pendingReview: number;
+  awaitingInvoice: number;
+  blocked: number;
   committedSpend: number;
 }) {
   const [planned, setPlanned] = useState("250000");
@@ -28,11 +32,16 @@ export function ItcCalculator({
   return (
     <div className="grid gap-5">
       <div>
-        <p className="text-muted-foreground text-body">Total tax credits reclaimed</p>
-        <p className="text-fg font-mono text-hero leading-tight font-medium tracking-[-0.03em] tabular-nums">{formatINR(reclaimed, true)}</p>
-        <p className="text-muted-foreground mt-1 text-caption">
-          {formatINR(pipeline)} more becomes claimable once upcoming events are invoiced.
-        </p>
+        <p className="text-muted-foreground text-body">Tax credit confirmed claimable</p>
+        <p className="text-fg font-mono text-hero leading-tight font-medium tracking-[-0.03em] tabular-nums">{formatINR(eligible, true)}</p>
+        <dl className="text-muted-foreground mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-caption">
+          <dt>Pending finance review</dt>
+          <dd className="text-right tabular-nums">{formatINR(pendingReview)}</dd>
+          <dt>Awaiting tax invoice</dt>
+          <dd className="text-right tabular-nums">{formatINR(awaitingInvoice)}</dd>
+          <dt>Blocked / not eligible</dt>
+          <dd className="text-right tabular-nums">{formatINR(blocked)}</dd>
+        </dl>
       </div>
 
       <div className="grid gap-2">

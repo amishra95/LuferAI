@@ -10,9 +10,11 @@ import { getVenueCatalog } from "@/lib/catalog";
 import { getUserPhone, saveUserPhone } from "@/lib/services/contact";
 import { runBookingAgent, type AgentBookingOutcome } from "@/lib/bookings/booking-agent";
 import type { OrderEventStatus } from "@/lib/telemetry/events";
-import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingStatus } from "@/lib/data";
+import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingItcDecision, updateBookingStatus } from "@/lib/data";
 import { costCentreLock, validateCostCentre } from "@/lib/bookings/expense-meta";
 import { exportBookingExpense } from "@/lib/finance/export-dispatcher";
+import { isExpenseProvider, PROVIDER_LABEL, type ExpenseProvider } from "@/lib/finance/expense-adapters";
+import { itcStatusOf } from "@/lib/finance/itc";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 import { publishApproval, publishBooking, publishExpense, publishOrder } from "@/lib/telemetry/live";
@@ -37,6 +39,8 @@ export interface BookingRequestState {
   approval?: { reason: string; approverName: string; tiers: number };
   /** How long the venue/date is held for this booking. */
   holdHours?: number;
+  /** The booking's line on the blanket PO it draws from, e.g. "PO-2026-014/L3". */
+  poRef?: string;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -448,7 +452,7 @@ export async function syncExpenseManagement(bookingId: string): Promise<ActionRe
       const provider = result.provider ?? "webhook";
       let settled = false;
       if (booking.status === "COMPLETED" && result.status !== "failed") {
-        const exp = await findExpenseExport(bookingId, "booking.confirmed");
+        const exp = await findExpenseExport(bookingId, "booking.confirmed", provider);
         await updateBookingStatus(bookingId, "SETTLED", { companyId: booking.company_id, expenseReference: exp ? `${provider}:${exp.id}` : null });
         settled = true;
       }
@@ -463,6 +467,79 @@ export async function syncExpenseManagement(bookingId: string): Promise<ActionRe
       },
     }
   );
+}
+
+/**
+ * The company a finance action may touch: Approvers act for their own company,
+ * admins for any. Same rule as syncExpenseManagement.
+ */
+async function financeScope(action: string): Promise<{ companyId?: string; userId: string | null }> {
+  const member = await requirePortal("/client");
+  if (member.role === "ADMIN") return { userId: member.userId ?? null };
+  if (member.role === "CLIENT" && member.companyId) {
+    const actor = (await listPortalUsers({ companyId: member.companyId })).find((u) => u.id === member.userId);
+    if (actor?.role === "APPROVER") return { companyId: member.companyId, userId: member.userId };
+  }
+  throw new ActionError(`Only Approvers (or admins) can ${action}.`);
+}
+
+/**
+ * Sends a confirmed booking's itemised receipt to a chosen expense/ERP system
+ * (SAP Concur, Zoho Expense, ERPNext, Ramp, Brex or the signed webhook; see
+ * lib/finance/expense-adapters.ts) and records the attempt. Idempotent per
+ * provider: a delivered export isn't re-sent, a failed one is retried.
+ */
+export async function exportBookingToERP(bookingId: string, provider: string): Promise<ActionResult<ErpExport>> {
+  return serverDispatch(
+    "client/exportBookingToERP",
+    async () => {
+      if (!isExpenseProvider(provider)) throw new ActionError("Choose an expense system.");
+      const scope = await financeScope("export bookings to finance systems");
+      const booking = (await listBookings(scope.companyId ? { companyId: scope.companyId } : {})).find((b) => b.id === bookingId);
+      if (!booking) throw new ActionError("Booking not found.");
+      if (!["CONFIRMED", "COMPLETED", "SETTLED"].includes(booking.status)) throw new ActionError("Only confirmed bookings can be exported.");
+      const result = await exportBookingExpense(bookingId, { provider, requestedBy: scope.userId });
+      revalidateBookingViews();
+      return {
+        bookingId,
+        provider,
+        export: result.status,
+        companyId: booking.company_id,
+        ...(result.status === "skipped" && { message: `Already sent to ${PROVIDER_LABEL[provider]}.` }),
+        ...(result.status === "failed" && { error: result.error }),
+      };
+    },
+    { emit: async ({ bookingId: id, provider: p, export: status }) => publishExpense(id, p, status) }
+  );
+}
+
+export interface ErpExport {
+  bookingId: string;
+  provider: ExpenseProvider;
+  export: "delivered" | "mocked" | "failed" | "skipped";
+  companyId: string;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Finance's input tax credit call on a booking: eligible, blocked (e.g. under
+ * Sec. 17(5) for food and beverages), or null to send it back to review. Only
+ * once its tax invoice exists (lib/finance/itc.ts).
+ */
+export async function setItcDecision(bookingId: string, decision: "eligible" | "blocked" | null, note?: string): Promise<ActionResult<{ bookingId: string; decision: "eligible" | "blocked" | null }>> {
+  return serverDispatch("client/setItcDecision", async () => {
+    if (decision !== null && decision !== "eligible" && decision !== "blocked") throw new ActionError("Unknown ITC decision.");
+    const scope = await financeScope("review input tax credit");
+    const booking = (await listBookings(scope.companyId ? { companyId: scope.companyId } : {})).find((b) => b.id === bookingId);
+    if (!booking) throw new ActionError("Booking not found.");
+    const status = itcStatusOf({ status: booking.status, itc_decision: null, company_gstin: booking.company.gstin, billed_gstin: booking.billing_gstin, venue_gstin: booking.venue.gstin });
+    if (decision && status !== "review") throw new ActionError(status === "awaiting_invoice" ? "Decide ITC once the event is completed and invoiced." : "This booking isn't eligible for input tax credit.");
+    const trimmed = note?.trim().slice(0, 500) || null;
+    await updateBookingItcDecision(bookingId, booking.company_id, decision, scope.userId, trimmed);
+    revalidateBookingViews();
+    return { bookingId, decision };
+  });
 }
 
 /**

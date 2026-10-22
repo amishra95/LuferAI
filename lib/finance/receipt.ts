@@ -4,6 +4,7 @@
  * `schema`; add fields, never repurpose them.
  */
 import type { TaxInvoicePayload } from "../gst-engine.ts";
+import { itcClaimable, itcStatusOf, itcTags, type ItcStatus, type ItcTag } from "./itc.ts";
 
 export const RECEIPT_SCHEMA = "lufer.expense-receipt/v1";
 
@@ -23,6 +24,8 @@ export interface ReceiptBooking {
   company: { id: string; legal_name: string; gstin: string };
   venue: { id: string; name: string; city: string; gstin: string };
   invoice: TaxInvoicePayload;
+  /** Finance's input tax credit decision (bookings.itc_decision); absent/null = not reviewed. */
+  itc_decision?: string | null;
 }
 
 export type ReceiptEvent = "booking.confirmed" | "order.confirmed";
@@ -45,7 +48,10 @@ export interface ExpenseReceipt {
     igst: number;
     total_tax: number;
     invoice_total: number;
+    /** GST finance has confirmed as claimable; 0 until then (lib/finance/itc.ts). */
     itc_eligible_amount: number;
+    itc_status: ItcStatus;
+    itc_tags: ItcTag[];
   };
   amounts: { currency: "INR"; per_head: number; party_size: number };
   platform: { commission_rate: number; commission_inr: number };
@@ -54,6 +60,8 @@ export interface ExpenseReceipt {
 /** `event` is "order.confirmed" for catalogue orders (the supplier is in `venue`, units in `party_size`). */
 export function buildExpenseReceipt(b: ReceiptBooking, issuedAt: string, event: ReceiptEvent = "booking.confirmed"): ExpenseReceipt {
   const inv = b.invoice;
+  const itc = { status: b.status, itc_decision: b.itc_decision ?? null, company_gstin: b.company.gstin, billed_gstin: b.billing_gstin, venue_gstin: b.venue.gstin };
+  const itcStatus = itcStatusOf(itc);
   return {
     schema: RECEIPT_SCHEMA,
     event,
@@ -78,7 +86,9 @@ export function buildExpenseReceipt(b: ReceiptBooking, issuedAt: string, event: 
       igst: inv.tax_breakup.igst.amount,
       total_tax: inv.total_tax,
       invoice_total: inv.invoice_total,
-      itc_eligible_amount: inv.itc_eligible_amount,
+      itc_eligible_amount: itcClaimable(itcStatus, inv.total_tax),
+      itc_status: itcStatus,
+      itc_tags: itcTags({ ...itc, sac_code: inv.sac.code, gst_type: inv.gst_type }),
     },
     amounts: { currency: "INR", per_head: b.budget_per_head_inr, party_size: b.party_size },
     platform: { commission_rate: b.commission_rate, commission_inr: b.commission_inr },

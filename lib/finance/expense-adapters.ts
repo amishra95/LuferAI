@@ -6,6 +6,8 @@
  *   ramp     a card/reimbursement-style transaction with accounting fields
  *   brex     an expense with merchant, memo and metadata
  *   concur   an SAP Concur expense entry
+ *   zoho     a Zoho Expense itemised expense report (one expense, its lines and GST details)
+ *   erpnext  an ERPNext Purchase Invoice (draft), with GST tax rows and ITC classification
  *
  * The provider shapes are a mapping layer, not a vendor SDK: each adapter turns
  * the receipt into a JSON body with amounts in minor units (paise) where the
@@ -17,10 +19,17 @@
  */
 import type { ExpenseReceipt } from "./receipt.ts";
 
-export const EXPENSE_PROVIDERS = ["webhook", "ramp", "brex", "concur"] as const;
+export const EXPENSE_PROVIDERS = ["webhook", "ramp", "brex", "concur", "zoho", "erpnext"] as const;
 export type ExpenseProvider = (typeof EXPENSE_PROVIDERS)[number];
 
-export const PROVIDER_LABEL: Record<ExpenseProvider, string> = { webhook: "Webhook", ramp: "Ramp", brex: "Brex", concur: "SAP Concur" };
+export const PROVIDER_LABEL: Record<ExpenseProvider, string> = {
+  webhook: "Webhook",
+  ramp: "Ramp",
+  brex: "Brex",
+  concur: "SAP Concur",
+  zoho: "Zoho Expense",
+  erpnext: "ERPNext",
+};
 
 export const isExpenseProvider = (v: unknown): v is ExpenseProvider => typeof v === "string" && (EXPENSE_PROVIDERS as readonly string[]).includes(v);
 
@@ -104,7 +113,86 @@ export function buildExpenseRequest(provider: ExpenseProvider, r: ExpenseReceipt
           Comment: `GST ${r.tax.gst_type} · supplier ${r.supplier.gstin} · buyer ${r.buyer.billed_gstin}`,
         },
       };
+    case "zoho":
+      return {
+        provider,
+        idempotencyKey,
+        summary,
+        body: {
+          report_name: `${r.supplier.name} · ${r.booking.event_date}`,
+          description: memo(r),
+          start_date: r.booking.event_date,
+          end_date: r.booking.event_date,
+          expenses: [
+            {
+              date: r.booking.event_date,
+              merchant_name: r.supplier.name,
+              currency_code: "INR",
+              amount: total,
+              reference_number: r.booking.id,
+              description: memo(r),
+              is_reimbursable: false,
+              gst_no: r.supplier.gstin,
+              source_of_supply: r.supplier.gstin.slice(0, 2),
+              destination_of_supply: r.buyer.billed_gstin.slice(0, 2),
+              line_items: taxLines(r).map((l) => ({ description: l.description, amount: l.amount, ...(l.sac && { hsn_or_sac: l.sac }) })),
+              custom_fields: coding(r).map((c) => ({ label: c.field, value: c.value })).concat([{ label: "itc_status", value: r.tax.itc_status }]),
+            },
+          ],
+        },
+      };
+    case "erpnext": {
+      const decided = r.tax.itc_status === "eligible" || r.tax.itc_status === "blocked" || r.tax.itc_status === "not_eligible";
+      return {
+        provider,
+        idempotencyKey,
+        summary,
+        body: {
+          doctype: "Purchase Invoice",
+          // A draft: finance reviews and submits it in ERPNext.
+          docstatus: 0,
+          supplier: r.supplier.name,
+          bill_no: r.booking.id,
+          bill_date: r.booking.event_date,
+          posting_date: r.booking.event_date,
+          currency: "INR",
+          supplier_gstin: r.supplier.gstin,
+          company_gstin: r.buyer.billed_gstin,
+          place_of_supply: r.buyer.place_of_supply.replace(" ", "-"),
+          ...(r.expense.cost_center && { cost_center: r.expense.cost_center }),
+          ...(r.expense.project_code && { project: r.expense.project_code }),
+          // Only once finance has decided; until then the draft says so in remarks.
+          ...(decided && { itc_classification: r.tax.itc_status === "eligible" ? "All Other ITC" : "Ineligible" }),
+          items: [
+            {
+              item_name: "Corporate event",
+              description: memo(r),
+              qty: r.amounts.party_size,
+              rate: r.amounts.per_head,
+              amount: r.tax.taxable_value,
+              gst_hsn_code: r.tax.sac_code,
+              uom: "Nos",
+            },
+          ],
+          taxes: taxLines(r)
+            .filter((l) => l.head)
+            .map((l) => ({ charge_type: "Actual", account_head: `Input Tax ${l.head}`, description: l.description, tax_amount: l.amount })),
+          remarks: `${memo(r)} · ITC: ${r.tax.itc_status.replace(/_/g, " ")} · tags: ${r.tax.itc_tags.join(", ")}`,
+        },
+      };
+    }
   }
+}
+
+/** The receipt as itemised lines: the taxable service, then each GST head with an amount. */
+export function taxLines(r: ExpenseReceipt): { description: string; amount: number; sac?: string; head?: "CGST" | "SGST" | "IGST" }[] {
+  const lines: { description: string; amount: number; sac?: string; head?: "CGST" | "SGST" | "IGST" }[] = [
+    { description: `Event services (SAC ${r.tax.sac_code}), ${r.amounts.party_size} × ₹${r.amounts.per_head}`, amount: r.tax.taxable_value, sac: r.tax.sac_code },
+  ];
+  if (r.tax.cgst) lines.push({ description: "CGST", amount: r.tax.cgst, head: "CGST" });
+  if (r.tax.sgst) lines.push({ description: "SGST", amount: r.tax.sgst, head: "SGST" });
+  if (r.tax.igst) lines.push({ description: "IGST", amount: r.tax.igst, head: "IGST" });
+  return lines;
 }
 
 /** Env var names for a provider's endpoint and credential. */

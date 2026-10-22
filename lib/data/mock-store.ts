@@ -185,6 +185,9 @@ const venues: Venue[] = [
 ];
 
 /** Bookings and RFPs from before migration 20261031120000: no event context or policy outcome recorded. */
+/** Bookings not yet reviewed for input tax credit (migration 20261101120000). */
+export const BOOKING_ITC_DEFAULTS = { itc_decision: null, itc_decided_by: null, itc_decided_at: null, itc_note: null } satisfies Partial<Booking>;
+
 export const BOOKING_POLICY_DEFAULTS = { event_type: null, event_start_time: null, policy_status: null, policy_violation_reasons: [] } satisfies Partial<Booking>;
 
 const bookings: Booking[] = [
@@ -212,6 +215,7 @@ const bookings: Booking[] = [
     venue_accepted_at: null,
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
+    ...BOOKING_ITC_DEFAULTS,
     status: "CONFIRMED",
     event_date: "2026-10-16",
     notes: "Q3 engineering offsite dinner, PDR required",
@@ -242,6 +246,7 @@ const bookings: Booking[] = [
     venue_accepted_at: null,
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
+    ...BOOKING_ITC_DEFAULTS,
     status: "COMPLETED",
     event_date: "2026-09-18",
     notes: "Bengaluru LP roadshow cocktail evening",
@@ -272,6 +277,7 @@ const bookings: Booking[] = [
     venue_accepted_at: null,
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
+    ...BOOKING_ITC_DEFAULTS,
     status: "PENDING",
     event_date: "2026-11-06",
     notes: "Annual sales kickoff, live music preferred",
@@ -431,11 +437,11 @@ const purchaseOrders: PurchaseOrder[] = [
 ];
 
 const poAllocations: PoAllocation[] = [
-  { id: "71000000-0001-4000-8000-000000000001", po_id: purchaseOrders[1].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0001-4000-8000-000000000001", catalog_order_id: null,
+  { id: "71000000-0001-4000-8000-000000000001", po_id: purchaseOrders[1].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0001-4000-8000-000000000001", catalog_order_id: null, line_number: 1,
     amount_inr: 100000, status: "committed", over_balance: false, created_at: "2026-09-20T10:00:00.000Z", updated_at: "2026-09-21T10:00:00.000Z" },
-  { id: "71000000-0002-4000-8000-000000000002", po_id: purchaseOrders[2].id, tenant_id: VERTEX, booking_id: "bbbbbbbb-0002-4000-8000-000000000002", catalog_order_id: null,
+  { id: "71000000-0002-4000-8000-000000000002", po_id: purchaseOrders[2].id, tenant_id: VERTEX, booking_id: "bbbbbbbb-0002-4000-8000-000000000002", catalog_order_id: null, line_number: 1,
     amount_inr: 120000, status: "consumed", over_balance: false, created_at: "2026-09-02T10:00:00.000Z", updated_at: "2026-09-19T10:00:00.000Z" },
-  { id: "71000000-0003-4000-8000-000000000003", po_id: purchaseOrders[0].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0003-4000-8000-000000000003", catalog_order_id: null,
+  { id: "71000000-0003-4000-8000-000000000003", po_id: purchaseOrders[0].id, tenant_id: NIMBUS, booking_id: "bbbbbbbb-0003-4000-8000-000000000003", catalog_order_id: null, line_number: 1,
     amount_inr: 108000, status: "committed", over_balance: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" },
 ];
 
@@ -600,6 +606,11 @@ export function backfillDefaults(db: MockDb): MockDb {
     a.escalated_from ??= null;
   }
   for (const a of db.poAllocations) a.catalog_order_id ??= null;
+  // Allocations saved before PO line numbers: numbered per PO in the order they were made.
+  for (const a of [...db.poAllocations].sort((x, y) => x.created_at.localeCompare(y.created_at))) {
+    a.line_number ??= Math.max(0, ...db.poAllocations.filter((o) => o.po_id === a.po_id).map((o) => o.line_number ?? 0)) + 1;
+  }
+  for (const e of db.expenseExports) e.requested_by ??= null;
   for (const e of db.expenseExports) e.catalog_order_id ??= null;
   for (const v of db.venues) for (const [k, d] of Object.entries(VENUE_PROFILE_DEFAULTS)) (v as Record<string, unknown>)[k] ??= structuredClone(d);
   for (const c of db.companies) {
@@ -616,7 +627,7 @@ export function backfillDefaults(db: MockDb): MockDb {
     b.entertainment ??= [];
     b.settled_at ??= null;
     b.expense_reference ??= null;
-    for (const [k, d] of Object.entries(BOOKING_POLICY_DEFAULTS)) (b as Record<string, unknown>)[k] ??= structuredClone(d);
+    for (const [k, d] of Object.entries({ ...BOOKING_POLICY_DEFAULTS, ...BOOKING_ITC_DEFAULTS })) (b as Record<string, unknown>)[k] ??= structuredClone(d);
   }
   for (const e of db.expenseExports) {
     e.provider ??= "webhook";

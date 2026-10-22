@@ -31,7 +31,7 @@ import {
   type Food,
   type Seating,
 } from "@/lib/bookings/event-details";
-import { calculateGst, normalizeGstin, validateGstin } from "@/lib/gst-engine";
+import { calculateGst, normalizeGstin, validateGstin, type TaxInvoicePayload } from "@/lib/gst-engine";
 import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import {
@@ -786,6 +786,8 @@ export function EventRequestForm({
         </div>
       ) : null}
 
+      {succeeded && state.invoice ? <ConfirmationSummary invoice={state.invoice} poRef={state.poRef} /> : null}
+
       <div className="flex flex-wrap items-center gap-3">
         {step > 0 ? (
           <Button type="button" variant="outline" onClick={() => setStep((s) => s - 1)} disabled={pending}>
@@ -820,6 +822,44 @@ export function EventRequestForm({
         ) : null}
       </div>
     </form>
+  );
+}
+
+/** The request's tax invoice (as it will be issued) and the PO line it draws from. */
+function ConfirmationSummary({ invoice, poRef }: { invoice: TaxInvoicePayload; poRef?: string }) {
+  const intra = invoice.gst_type !== "IGST";
+  return (
+    <dl className="border-line/60 bg-surface grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-1.5 rounded-md border p-3 text-body" aria-label="Tax invoice and purchase order">
+      {poRef ? (
+        <>
+          <dt className="label-mono">PO line</dt>
+          <dd className="text-right font-mono">{poRef}</dd>
+        </>
+      ) : null}
+      <dt className="label-mono">SAC · place of supply</dt>
+      <dd className="text-right">
+        {invoice.sac.code} · {invoice.place_of_supply.state_code} {invoice.place_of_supply.state_name}
+      </dd>
+      <dt className="label-mono">Taxable value</dt>
+      <dd className="figure text-right">{formatINR(invoice.taxable_value, true)}</dd>
+      {intra ? (
+        <>
+          <dt className="label-mono">CGST {invoice.tax_breakup.cgst.rate_percent}%</dt>
+          <dd className="figure text-right">{formatINR(invoice.tax_breakup.cgst.amount, true)}</dd>
+          <dt className="label-mono">SGST {invoice.tax_breakup.sgst.rate_percent}%</dt>
+          <dd className="figure text-right">{formatINR(invoice.tax_breakup.sgst.amount, true)}</dd>
+        </>
+      ) : (
+        <>
+          <dt className="label-mono">IGST {invoice.tax_breakup.igst.rate_percent}%</dt>
+          <dd className="figure text-right">{formatINR(invoice.tax_breakup.igst.amount, true)}</dd>
+        </>
+      )}
+      <div className="border-line col-span-2 mt-1 grid grid-cols-subgrid items-baseline border-t pt-2">
+        <dt className="label-mono text-fg">Invoice total</dt>
+        <dd className="figure text-right font-medium">{formatINR(invoice.invoice_total, true)}</dd>
+      </div>
+    </dl>
   );
 }
 
