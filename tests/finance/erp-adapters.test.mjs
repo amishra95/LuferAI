@@ -2,15 +2,35 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildExpenseRequest, EXPENSE_PROVIDERS, isExpenseProvider, PROVIDER_LABEL, providerEnv, taxLines, toMinorUnits } from "../../lib/finance/expense-adapters.ts";
+import { buildExpenseRequest, EXPENSE_PROVIDERS, isExpenseProvider, PROVIDER_LABEL, providerConnection, taxLines, toMinorUnits } from "../../lib/finance/expense-adapters.ts";
 import { receipt, VENUE_MH } from "./fixtures.mjs";
 
-test("six targets, each with a label and env names", () => {
+test("six targets, each with a label", () => {
   assert.deepEqual([...EXPENSE_PROVIDERS], ["webhook", "ramp", "brex", "concur", "zoho", "erpnext"]);
   for (const p of EXPENSE_PROVIDERS) assert.ok(PROVIDER_LABEL[p]);
-  assert.deepEqual(providerEnv("zoho"), { url: "ZOHO_EXPENSE_URL", token: "ZOHO_API_TOKEN" });
-  assert.deepEqual(providerEnv("erpnext"), { url: "ERPNEXT_EXPENSE_URL", token: "ERPNEXT_API_TOKEN" });
   assert.equal(isExpenseProvider("netsuite"), false);
+});
+
+const envOf = (vars) => (k) => vars[k] ?? "";
+
+test("Zoho Expense: Zoho-oauthtoken auth and the organisation header; the older token name still works", () => {
+  const env = envOf({ ZOHO_EXPENSE_URL: "https://expense.zoho.com/api/v1/expenses", ZOHO_EXPENSE_AUTH_TOKEN: "1000.abc", ZOHO_EXPENSE_ORGANIZATION_ID: "60001234" });
+  assert.deepEqual(providerConnection("zoho", env), {
+    url: "https://expense.zoho.com/api/v1/expenses",
+    headers: { Authorization: "Zoho-oauthtoken 1000.abc", "X-com-zoho-expense-organizationid": "60001234" },
+  });
+  assert.deepEqual(providerConnection("zoho", envOf({ ZOHO_EXPENSE_URL: "https://z.example", ZOHO_API_TOKEN: "old" })).headers, { Authorization: "Zoho-oauthtoken old" });
+});
+
+test("ERPNext: token <key>:<secret> auth, only with both; the space in the resource URL is encoded", () => {
+  const env = envOf({ ERPNEXT_URL: "https://acme.erpnext.com/api/resource/Purchase Invoice", ERPNEXT_API_KEY: "k1", ERPNEXT_API_SECRET: "s1" });
+  assert.deepEqual(providerConnection("erpnext", env), { url: "https://acme.erpnext.com/api/resource/Purchase%20Invoice", headers: { Authorization: "token k1:s1" } });
+  assert.deepEqual(providerConnection("erpnext", envOf({ ERPNEXT_URL: "https://acme.erpnext.com/x", ERPNEXT_API_KEY: "k1" })).headers, {});
+  assert.equal(providerConnection("erpnext", envOf({ ERPNEXT_EXPENSE_URL: "https://old.example" })).url, "https://old.example");
+});
+
+test("no URL configured: nothing to send (the export is mocked)", () => {
+  for (const p of EXPENSE_PROVIDERS) assert.equal(providerConnection(p, envOf({})).url, "", p);
 });
 
 test("every provider gets the same idempotency key per booking and event", () => {
@@ -37,12 +57,10 @@ test("SAP Concur: an expense entry with the gross amount, tax and accounting cod
   assert.deepEqual([body.Custom1, body.Custom2], ["ENG-BLR", "Q4-OFFSITE"]);
 });
 
-test("Zoho Expense: an itemised report with one expense, GST details and ITC status", () => {
+test("Zoho Expense: one itemised expense with GST details and ITC status", () => {
   const r = receipt();
-  const { body, summary } = buildExpenseRequest("zoho", r);
+  const { body: e, summary } = buildExpenseRequest("zoho", r);
   assert.match(summary, /^Zoho Expense · The Copper Courtyard · ₹118000\.00$/);
-  assert.equal(body.expenses.length, 1);
-  const [e] = body.expenses;
   assert.equal(e.amount, 118_000);
   assert.equal(e.reference_number, r.booking.id);
   assert.equal(e.gst_no, r.supplier.gstin);

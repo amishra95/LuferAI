@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { negotiatePerHead, routeBooking, shortlistVenues } from "../lib/bookings/agent-plan.ts";
 import { ALLOWED_TRANSITIONS, BOOKING_STATUSES, canTransition, isFinal, LIFECYCLE_PATH } from "../lib/bookings/lifecycle.ts";
-import { buildExpenseRequest, EXPENSE_PROVIDERS, providerEnv, toMinorUnits } from "../lib/finance/expense-adapters.ts";
+import { buildExpenseRequest, EXPENSE_PROVIDERS, providerConnection, toMinorUnits } from "../lib/finance/expense-adapters.ts";
 import { buildExpenseReceipt } from "../lib/finance/receipt.ts";
 import { calculateGst } from "../lib/gst-engine.ts";
 import { ActionError, dispatch, unwrap } from "../lib/mutations/dispatch.ts";
@@ -241,8 +241,9 @@ test("expense adapters: one receipt, shaped per provider", () => {
   assert.equal(reqs.concur.body.Custom1, "ENG-BLR");
   assert.match(reqs.concur.body.Comment, /CGST_SGST/);
   assert.equal(toMinorUnits(0.1 + 0.2), 30);
-  assert.deepEqual(providerEnv("ramp"), { url: "RAMP_EXPENSE_URL", token: "RAMP_API_TOKEN" });
-  assert.deepEqual(providerEnv("webhook"), { url: "EXPENSE_WEBHOOK_URL", token: "EXPENSE_WEBHOOK_SECRET" });
+  const env = (k) => ({ RAMP_EXPENSE_URL: "https://ramp.example/x", RAMP_API_TOKEN: "rt", EXPENSE_WEBHOOK_URL: "https://hook.example" })[k] ?? "";
+  assert.deepEqual(providerConnection("ramp", env), { url: "https://ramp.example/x", headers: { Authorization: "Bearer rt" } });
+  assert.deepEqual(providerConnection("webhook", env), { url: "https://hook.example", headers: {} });
 });
 
 // ----------------------------------------------------------------------------

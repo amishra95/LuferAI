@@ -4,11 +4,11 @@ import { after } from "next/server";
 
 import { dataSource, findExpenseExport, listApprovals, listBookings, listCompanies } from "@/lib/data";
 import { exportBookingExpense, type DispatchOutcome } from "@/lib/finance/export-dispatcher";
+import { providerConnection } from "@/lib/finance/expense-adapters";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { VirtualCard } from "@/lib/supabase/database.types";
 import {
-  cardSyncEnv,
   deliverCardTransaction,
   isCardSyncProvider,
   type CardEvent,
@@ -80,9 +80,9 @@ export async function syncCardTransaction(
   try {
     const { txn, companyProvider } = await buildTransaction(card, event, opts);
     const provider: CardSyncProvider = opts.provider ?? (isCardSyncProvider(companyProvider) ? companyProvider : "webhook");
-    const keys = cardSyncEnv(provider);
-    const url = env(keys.url);
-    const outcome = await deliverCardTransaction({ provider, url, token: env(keys.token), signingSecret: env("EXPENSE_WEBHOOK_SECRET") }, txn);
+    // Same endpoints and credentials as receipt exports.
+    const { url, headers } = providerConnection(provider, env);
+    const outcome = await deliverCardTransaction({ provider, url, headers, signingSecret: env("EXPENSE_WEBHOOK_SECRET") }, txn);
     audit({
       card_id: card.id,
       booking_id: card.booking_id,

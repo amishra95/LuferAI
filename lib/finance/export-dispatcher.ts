@@ -6,7 +6,7 @@ import { findExpenseExport, listBookings, listCatalogOrders, listCompanies, reco
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import type { ExpenseExport } from "@/lib/supabase/database.types";
 import { markCardReceipts } from "@/lib/finance/card-receipts";
-import { buildExpenseRequest, isExpenseProvider, providerEnv, type ExpenseProvider } from "@/lib/finance/expense-adapters";
+import { buildExpenseRequest, isExpenseProvider, providerConnection, type ExpenseProvider } from "@/lib/finance/expense-adapters";
 import { buildExpenseReceipt, type ExpenseReceipt } from "@/lib/finance/receipt";
 import type { Json } from "@/lib/supabase/database.generated";
 
@@ -46,23 +46,17 @@ async function deliver(subject: ExportSubject, existing: ExpenseExport | null, p
   const request = buildExpenseRequest(provider, subject.receipt);
   const body = JSON.stringify(request.body);
   const sha256 = createHash("sha256").update(body).digest("hex");
-  const keys = providerEnv(provider);
-  const url = env(keys.url);
+  const connection = providerConnection(provider, env);
+  const url = connection.url;
 
   let status: "delivered" | "mocked" | "failed" = "mocked";
   let responseCode: number | null = null;
   let error: string | null = null;
   if (url) {
     try {
-      const secret = env(keys.token);
-      const auth: Record<string, string> =
-        provider === "webhook"
-          ? secret
-            ? { "X-Lufer-Signature": `sha256=${createHmac("sha256", secret).update(body).digest("hex")}` }
-            : {}
-          : secret
-            ? { Authorization: `Bearer ${secret}` }
-            : {};
+      // The plain webhook is authenticated by signing the body; providers by their own scheme.
+      const secret = provider === "webhook" ? env("EXPENSE_WEBHOOK_SECRET") : "";
+      const auth: Record<string, string> = secret ? { "X-Lufer-Signature": `sha256=${createHmac("sha256", secret).update(body).digest("hex")}` } : connection.headers;
       const res = await fetch(url, {
         method: "POST",
         headers: {
