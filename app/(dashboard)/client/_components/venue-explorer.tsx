@@ -13,7 +13,7 @@ import type { CatalogVenue } from "@/lib/catalog";
 import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
 import type { BookingPolicyRules } from "@/lib/policies/evaluate-booking-policy";
-import { officeDistanceLabel, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
+import { formatOfficeDistance, officeDistanceLabel, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
 import { AiVenueSearch } from "./ai-venue-search";
 import { EventRequestForm, type VenuePrefill } from "./event-request-form";
@@ -36,6 +36,7 @@ export function VenueExplorer({
   defaultPhone,
   policy = null,
   office = null,
+  officeDistances = null,
 }: {
   venues: CatalogVenue[];
   company: { id: string; gstin: string };
@@ -46,6 +47,11 @@ export function VenueExplorer({
   policy?: Pick<BookingPolicyRules, "max_budget_per_head" | "requires_approval_above"> | null;
   /** The company's office, for distance badges and the map's office pin. */
   office?: OfficeLocation | null;
+  /**
+   * Metres from the office by venue id, from PostGIS; a venue missing is out of
+   * range. null = not available, so badges are computed here instead.
+   */
+  officeDistances?: Record<string, number> | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -54,6 +60,11 @@ export function VenueExplorer({
   const selected = venues.find((v) => v.id === selectedId) ?? null;
   const options = venues.map(toVenueOption);
   const fit = new Map(options.map((o) => [o.id, venuePolicyStatus(policy, o)]));
+  const distanceLabel = (venue: CatalogVenue) => {
+    if (!officeDistances) return officeDistanceLabel(office, venue);
+    const meters = officeDistances[venue.id];
+    return office && meters != null ? formatOfficeDistance(office, meters / 1000) : null;
+  };
 
   const pick = (id: string) => {
     setSelectedId(id);
@@ -123,7 +134,7 @@ export function VenueExplorer({
                     <VenueCardBody
                       venue={v}
                       policy={policy ? fit.get(v.id) : undefined}
-                      distance={officeDistanceLabel(office, venues[i])}
+                      distance={distanceLabel(venues[i])}
                       indicator={
                         <ArrowUpRight
                           aria-hidden

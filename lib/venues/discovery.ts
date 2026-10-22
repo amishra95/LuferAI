@@ -80,7 +80,14 @@ export function officeDistanceLabel(
   venue: { latitude: number | null; longitude: number | null }
 ): string | null {
   if (!office || venue.latitude == null || venue.longitude == null) return null;
-  const km = distanceKm(office, { latitude: venue.latitude, longitude: venue.longitude });
+  return formatOfficeDistance(office, distanceKm(office, { latitude: venue.latitude, longitude: venue.longitude }));
+}
+
+/**
+ * The badge for a distance already known, e.g. from PostGIS
+ * (lib/actions/venue-search.ts); null when out of town.
+ */
+export function formatOfficeDistance(office: Pick<OfficeLocation, "label">, km: number): string | null {
   if (km > MAX_BADGE_KM) return null;
   const distance = km < 1 ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m` : `${km.toLocaleString("en-IN", { maximumFractionDigits: km < 10 ? 1 : 0 })} km`;
   return `${distance} from ${office.label}`;
