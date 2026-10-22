@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { AlertTriangle, BadgePercent, Check, DoorClosed, MapPin, Search, Users } from "lucide-react";
 
-import { Pill } from "@/components/portal/pills";
+import { PolicyBadge } from "@/components/policy/policy-badge";
 import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenuePolicyStatus } from "@/lib/venues/discovery";
@@ -109,15 +109,7 @@ export function VenueCardBody({
 
       {v.rate_card_label || v.dietary?.length || policy || distance ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {policy ? (
-            policy.status === "in_policy" ? (
-              <Pill tone="ok">In policy</Pill>
-            ) : (
-              <Pill tone="warn" title={`Needs approval: ${policy.reason}`}>
-                Needs approval
-              </Pill>
-            )
-          ) : null}
+          {policy ? <PolicyBadge status={policy.status} range={"range" in policy ? policy.range : undefined} reason={"reason" in policy ? policy.reason : undefined} /> : null}
           {distance ? (
             <span
               title="Straight-line distance"

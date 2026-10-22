@@ -33,6 +33,7 @@ import { EMPTY_PLAN, planDiffers, type EventPlan, type PlanContent, type RunOfSh
 import { allocationStatusFor, ineligibility, poBalance, type NewPoInput } from "@/lib/procurement/po-ledger";
 import { isActionable, stepsToActivate } from "@/lib/services/enterprise/approvalEngine";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
+import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policies/evaluate-booking-policy";
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
@@ -246,6 +247,9 @@ export function computeMonthlyPayouts(bookings: BookingDetail[]): MonthlyPayout[
 /** PostgREST / Postgres "no such column": a migration hasn't been applied yet. */
 const isMissingColumnError = (error: { code?: string } | null | undefined) => error?.code === "42703" || error?.code === "PGRST204";
 
+/** bookings / rfps columns added by migration 20261031120000. */
+const POLICY_COLUMNS = new Set(["event_type", "event_start_time", "policy_status", "policy_violation_reasons"]);
+
 export interface NewBookingInput {
   company_id: string;
   venue_id: string;
@@ -269,6 +273,11 @@ export interface NewBookingInput {
   requested_by?: string | null;
   /** Their mobile for this event, E.164 (migration 20261028120000). */
   requested_by_phone?: string | null;
+  /** Event context and the spend-policy outcome at request time (migration 20261031120000). */
+  event_type?: EventType | null;
+  event_start_time?: string | null;
+  policy_status?: PolicyStatus | null;
+  policy_violation_reasons?: PolicyViolationCode[];
 }
 
 export interface NewApprovalRequest {
@@ -367,6 +376,10 @@ export async function createBookingRequest(
     entertainment: input.entertainment ?? [],
     requested_by: input.requested_by ?? null,
     requested_by_phone: input.requested_by_phone ?? null,
+    event_type: input.event_type ?? null,
+    event_start_time: input.event_start_time ?? null,
+    policy_status: input.policy_status ?? null,
+    policy_violation_reasons: input.policy_violation_reasons ?? [],
   };
 
   if (local()) return mutateDb((db) => {
@@ -423,8 +436,10 @@ export async function createBookingRequest(
   const insertBooking = (values: Partial<typeof row>) =>
     supabase.from("bookings").insert({ ...(values as typeof row), total_amount_inr: total, status }).select("id").single();
   let { data, error } = await insertBooking(row);
-  // Before migrations 20261028120000 / 20261027120000 these columns don't exist: book without them.
-  const { requested_by_phone: phone, ...withoutPhone } = row;
+  // Before migrations 20261031120000 / 20261028120000 / 20261027120000 these columns don't exist: book without them.
+  const withoutPolicy = Object.fromEntries(Object.entries(row).filter(([k]) => !POLICY_COLUMNS.has(k))) as Omit<typeof row, "event_type" | "event_start_time" | "policy_status" | "policy_violation_reasons">;
+  if (isMissingColumnError(error)) ({ data, error } = await insertBooking(withoutPolicy));
+  const { requested_by_phone: phone, ...withoutPhone } = withoutPolicy;
   if (isMissingColumnError(error) && phone !== undefined) ({ data, error } = await insertBooking(withoutPhone));
   const { requested_by: requestedBy, ...withoutRequester } = withoutPhone;
   if (isMissingColumnError(error) && requestedBy !== undefined) ({ data, error } = await insertBooking(withoutRequester));
@@ -743,6 +758,14 @@ export async function getCorporatePolicy(tenantId: string): Promise<CorporatePol
       max_budget_per_head: numOrNull(data.max_budget_per_head),
       requires_approval_above: numOrNull(data.requires_approval_above),
       high_value_threshold: numOrNull(data.high_value_threshold),
+      // Before migration 20261031120000 these columns don't exist.
+      auto_approval_limit_per_head: numOrNull(data.auto_approval_limit_per_head ?? null),
+      manager_approval_limit_per_head: numOrNull(data.manager_approval_limit_per_head ?? null),
+      max_office_distance_km: numOrNull(data.max_office_distance_km ?? null),
+      event_hours_start: data.event_hours_start ?? null,
+      event_hours_end: data.event_hours_end ?? null,
+      weekday_open_bar_policy: data.weekday_open_bar_policy ?? "allowed",
+      restricted_event_types: data.restricted_event_types ?? [],
     }
   );
 }

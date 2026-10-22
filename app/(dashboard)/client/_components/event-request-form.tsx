@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PolicyBadge, PolicyBanner } from "@/components/policy/policy-badge";
+import { EVENT_TYPES } from "@/lib/policies/evaluate-booking-policy";
 import {
   BOOKING_STEPS,
   NOTES_MAX,
@@ -34,12 +36,14 @@ import type { NegotiatedPricing } from "@/lib/rates/apply-rate-card";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import {
   getUnavailableDates,
+  previewBookingPolicy,
   previewNegotiatedRate,
   releaseCheckoutSlot,
   reserveCheckoutSlot,
   submitBookingRequest,
   type BookingRequestState,
   type CheckoutSlotState,
+  type PolicyPreview,
 } from "../actions";
 import { VenuePicker, type VenuePickerOption } from "./venue-picker";
 
@@ -59,6 +63,9 @@ const EMPTY: BookingFormInput = {
   event_date: "",
   party_size: "",
   budget_per_head_inr: "",
+  event_type: "",
+  event_start_time: "",
+  alcohol_included: "",
   department_id: "",
   cost_center: "",
   project_code: "",
@@ -124,7 +131,15 @@ export function EventRequestForm({
   const [details, setDetails] = useState<EventDetails>(EMPTY_EVENT_DETAILS);
   const setDetail = <K extends keyof EventDetails>(field: K, value: EventDetails[K]) => setDetails((d) => ({ ...d, [field]: value }));
   // What's validated and sent as `notes`: the details' lines, then the user's own notes.
-  const submitted: BookingFormInput = withEventDetails ? { ...values, notes: composeEventNotes(details, values.notes) } : values;
+  // With event details, their start time and "Alcohol" choice are what policy checks.
+  const submitted: BookingFormInput = withEventDetails
+    ? {
+        ...values,
+        notes: composeEventNotes(details, values.notes),
+        event_start_time: details.startTime,
+        alcohol_included: details.food.includes("alcohol") ? "on" : "",
+      }
+    : values;
   const detailErrors = withEventDetails ? eventDetailsErrors(details, values.notes) : {};
   const capError = withEventDetails ? budgetCapError({ partySize: Number(partySize), perHead: Number(perHead), cap: Number(details.budgetCap) || null }) : null;
 
@@ -206,6 +221,34 @@ export function EventRequestForm({
     };
   }, [pricingKey, companyId, venueId, eventDate, partySize, perHead]);
   const pricing = rate?.key === pricingKey ? rate.pricing : null;
+
+  // The spend-policy outcome if sent now (same pricing and rules as the server), for the banner.
+  const { event_type: eventType, event_start_time: startTime, alcohol_included: alcohol, department_id: departmentId } = submitted;
+  const policyKey = [pricingKey, eventType, startTime, alcohol, departmentId].join("|");
+  const [policyPreview, setPolicyPreview] = useState<{ key: string; preview: PolicyPreview | null }>();
+  useEffect(() => {
+    if (!venueId || !eventDate || !(Number(partySize) > 0) || !(Number(perHead) > 0)) return;
+    let current = true;
+    const timer = setTimeout(() => {
+      previewBookingPolicy({
+        companyId,
+        venueId,
+        eventDate,
+        partySize: Number(partySize),
+        perHead: Number(perHead),
+        eventType: eventType || null,
+        startTime: startTime || null,
+        alcoholIncluded: alcohol === "on",
+        departmentId: departmentId || null,
+      }).then((preview) => current && setPolicyPreview({ key: policyKey, preview }));
+    }, 350);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [policyKey, companyId, venueId, eventDate, partySize, perHead, eventType, startTime, alcohol, departmentId]);
+  const policy = policyPreview?.key === policyKey ? policyPreview.preview : null;
+  const policyBlocked = policy?.status === "out_of_policy";
 
   // GST is on what will actually be invoiced: the negotiated total once known.
   const total = pricing?.taxableTotal ?? Number(partySize) * Number(perHead);
@@ -292,6 +335,8 @@ export function EventRequestForm({
         <>
           <input type="hidden" name="notes" value={submitted.notes} />
           <input type="hidden" name="budget_cap_inr" value={details.budgetCap} />
+          <input type="hidden" name="event_start_time" value={submitted.event_start_time} />
+          <input type="hidden" name="alcohol_included" value={submitted.alcohol_included} />
         </>
       ) : null}
 
@@ -400,6 +445,51 @@ export function EventRequestForm({
           </div>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid content-start gap-2">
+            <Label htmlFor="event_type">
+              Event type <span className="text-fg-subtle font-normal">(optional)</span>
+            </Label>
+            <NativeSelect id="event_type" name="event_type" value={values.event_type} onChange={(e) => set("event_type", e.target.value)} aria-invalid={Boolean(err("event_type"))}>
+              <option value="">Not specified</option>
+              {Object.entries(EVENT_TYPES).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+            <FieldError message={err("event_type")} />
+          </div>
+          {withEventDetails ? null : (
+            <>
+              <div className="grid content-start gap-2">
+                <Label htmlFor="event_start_time">
+                  Start time <span className="text-fg-subtle font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="event_start_time"
+                  name="event_start_time"
+                  type="time"
+                  value={values.event_start_time}
+                  onChange={(e) => set("event_start_time", e.target.value)}
+                  aria-invalid={Boolean(err("event_start_time"))}
+                />
+                <FieldError message={err("event_start_time")} />
+              </div>
+              <label className="text-fg flex items-center gap-2 self-end text-meta sm:pb-2 pointer-coarse:min-h-11">
+                <input
+                  type="checkbox"
+                  name="alcohol_included"
+                  checked={values.alcohol_included === "on"}
+                  onChange={(e) => set("alcohol_included", e.target.checked ? "on" : "")}
+                  className="accent-fg size-4"
+                />
+                Alcohol / open bar
+              </label>
+            </>
+          )}
+        </div>
+
         {unavailableDates.length > 0 ? (
           <p id="unavailable-dates" className="text-muted-foreground -mt-2 text-caption">
             Unavailable at {venue?.name}: {unavailableDates.slice(0, 8).map(formatDate).join(", ")}
@@ -459,6 +549,11 @@ export function EventRequestForm({
         ) : null}
 
         {pricing ? <PricingPanel pricing={pricing} /> : null}
+        {policy ? (
+          <p className="text-fg-subtle flex flex-wrap items-center gap-2 text-caption">
+            Spend policy: <PolicyBadge status={policy.status} reason={policy.reason} />
+          </p>
+        ) : null}
       </div>
 
       {/* ── Step 2 · Billing ───────────────────────────────────────────── */}
@@ -654,6 +749,8 @@ export function EventRequestForm({
           ) : null}
         </dl>
 
+        {policy ? <PolicyBanner status={policy.status} reason={policy.reason} checks={policy.checks} /> : null}
+
         {preview ? (
           <dl className="border-line/60 bg-surface grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-2 rounded-md border p-3 text-body" aria-label="Invoice estimate">
             <dt className="label-mono">Taxable value</dt>
@@ -705,7 +802,7 @@ export function EventRequestForm({
             Request another event
           </Button>
         ) : (
-          <Button type="submit" disabled={pending || eventBlocked || Boolean(detailErrors.notes)} className={submitClassName}>
+          <Button type="submit" disabled={pending || eventBlocked || policyBlocked || Boolean(detailErrors.notes)} className={submitClassName}>
             {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
             {submitLabel}
           </Button>

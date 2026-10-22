@@ -59,7 +59,7 @@ test("policy: alcohol — allowed, needs sign-off, or blocked outright", () => {
   assert.equal(approval.tiers, 1);
   assert.match(approval.reason, /alcohol/);
   const blocked = evaluateBookingPolicy({ ...NIMBUS_RULES, alcohol_policy: "prohibited" }, event(20, 2000, { alcohol_included: true }));
-  assert.deepEqual(blocked, { requiresApproval: false, blocked: true, reason: "company policy doesn't allow alcohol at company events" });
+  assert.deepEqual(blocked, { requiresApproval: false, blocked: true, reason: "company policy doesn't allow alcohol at company events", codes: ["ALCOHOL_PROHIBITED"] });
   // No alcohol, no rule.
   assert.equal(evaluateBookingPolicy({ ...NIMBUS_RULES, alcohol_policy: "prohibited" }, event(20, 2000)).blocked, undefined);
 });

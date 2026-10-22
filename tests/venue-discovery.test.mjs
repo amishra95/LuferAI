@@ -15,13 +15,13 @@ test("cheapest package and minimum spend within limits is in policy; limits are 
 
 test("cheapest package over the per-head cap needs approval", () => {
   const r = venuePolicyStatus(policy, { from_per_head_inr: 4200, min_spend_inr: 60000 });
-  assert.equal(r.status, "requires_approval");
+  assert.equal(r.status, "requires_manager");
   assert.match(r.reason, /4,200\/head, over the ₹2,500 cap/);
 });
 
 test("minimum spend above the approval threshold needs approval", () => {
   const r = venuePolicyStatus(policy, { from_per_head_inr: 1800, min_spend_inr: 200000 });
-  assert.equal(r.status, "requires_approval");
+  assert.equal(r.status, "requires_manager");
   assert.match(r.reason, /minimum spend is above/);
 });
 

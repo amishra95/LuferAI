@@ -14,12 +14,24 @@
 import { z } from "zod";
 
 import { normalizePhone } from "../phone.ts";
+import { isEventType, type EventType } from "../policies/evaluate-booking-policy.ts";
 import { validateExpense, type ExpenseField } from "./expense.ts";
 
-export type BookingFormField = "venue_id" | "event_date" | "party_size" | "budget_per_head_inr" | "department_id" | "contact_phone" | "notes" | ExpenseField;
+export type BookingFormField =
+  | "venue_id"
+  | "event_date"
+  | "party_size"
+  | "budget_per_head_inr"
+  | "event_type"
+  | "event_start_time"
+  | "alcohol_included"
+  | "department_id"
+  | "contact_phone"
+  | "notes"
+  | ExpenseField;
 
 export const BOOKING_STEPS = [
-  { id: "event", title: "Event", fields: ["venue_id", "event_date", "party_size", "budget_per_head_inr"] },
+  { id: "event", title: "Event", fields: ["venue_id", "event_date", "party_size", "budget_per_head_inr", "event_type", "event_start_time", "alcohol_included"] },
   { id: "billing", title: "Billing", fields: ["department_id", "cost_center", "project_code", "billing_gstin", "contact_phone", "notes"] },
   { id: "review", title: "Review", fields: [] },
 ] as const satisfies readonly { id: string; title: string; fields: readonly BookingFormField[] }[];
@@ -27,6 +39,7 @@ export const BOOKING_STEPS = [
 export type BookingStepId = (typeof BOOKING_STEPS)[number]["id"];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const NOTES_MAX = 500;
 
@@ -57,6 +70,17 @@ export function bookingRequestSchema(ctx: BookingSchemaContext) {
         .min(1, "Enter a budget per head")
         .transform(Number)
         .refine((n) => Number.isFinite(n) && n > 0, "Enter a budget per head"),
+      // Event context for the company's spend policy (event types, event hours, weekday alcohol). Optional.
+      event_type: text
+        .optional()
+        .transform((v) => v || null)
+        .refine((v) => v === null || isEventType(v), "Choose an event type")
+        .transform((v) => v as EventType | null),
+      event_start_time: text
+        .optional()
+        .transform((v) => v || null)
+        .refine((v) => v === null || TIME.test(v), "Use a time like 19:30"),
+      alcohol_included: text.optional().transform((v) => v === "on" || v === "true"),
       department_id: text.refine((v) => v === "" || UUID.test(v), "Choose a department").transform((v) => v || null),
       cost_center: text,
       project_code: text,
@@ -121,6 +145,9 @@ export function bookingFormInput(formData: FormData): BookingFormInput {
     event_date: get("event_date"),
     party_size: get("party_size"),
     budget_per_head_inr: get("budget_per_head_inr"),
+    event_type: get("event_type"),
+    event_start_time: get("event_start_time"),
+    alcohol_included: get("alcohol_included"),
     department_id: get("department_id"),
     cost_center: get("cost_center"),
     project_code: get("project_code"),

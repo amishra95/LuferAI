@@ -18,6 +18,8 @@ import { effectiveRules, platformAutoDecision } from "@/lib/guardrails/platform"
 import { getPlatformGuardrails } from "@/lib/guardrails/platform-store";
 import { checkOffer } from "@/lib/rfp/guardrails";
 import { getNegotiationRules, rulesForVenues } from "@/lib/rfp/rules-store";
+import { evaluateEventPolicy } from "@/lib/policies/checkBookingPolicy";
+import { EVENT_TYPES, type EventType, type PolicyCheck, type PolicyStatus } from "@/lib/policies/evaluate-booking-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, pricingForVenues } from "@/lib/venues/pricing-store";
@@ -40,6 +42,14 @@ export const RfpRequirements = z.object({
   dietary: z.array(z.enum(DIETARY_TAGS)).describe("Dietary requirements the menu must cover for everyone"),
   requires_private_dining: z.boolean().describe("True if a private dining room / exclusive space is required"),
   other_requirements: z.array(z.string()).describe("AV, music, accessibility and other asks, verbatim-ish"),
+  // For the company's spend policy. Optional: RFPs saved before these existed lack them.
+  event_category: z
+    .enum(Object.keys(EVENT_TYPES) as [EventType, ...EventType[]])
+    .nullable()
+    .optional()
+    .describe("Closest kind of event: team_meal, client_entertainment, offsite, celebration, town_hall, workshop, or other; null if unclear"),
+  start_time: z.string().nullable().optional().describe("Start time as HH:MM (24-hour), or null if not stated"),
+  alcohol: z.boolean().optional().describe("True if the brief asks for alcohol, drinks or an open bar"),
 });
 export type RfpRequirements = z.infer<typeof RfpRequirements>;
 
@@ -63,6 +73,44 @@ export interface BroadcastResult {
   rfp: Rfp;
   columns: MatrixColumn[];
   markdown: string;
+  /** The brief's spend-policy outcome, when just broadcast. */
+  policy?: RfpPolicy;
+}
+
+export interface RfpPolicy {
+  status: PolicyStatus;
+  reason?: string;
+  checks: PolicyCheck[];
+}
+
+/** The brief breaks a rule no sign-off can lift (e.g. alcohol where it's prohibited): nothing is sent. */
+export class PolicyBlockedError extends Error {
+  readonly policy: RfpPolicy;
+  constructor(policy: RfpPolicy) {
+    super(`This event can't be booked under your company's policy: ${policy.reason}.`);
+    this.policy = policy;
+  }
+}
+
+/** Rules that need a per-head figure; left out of the breakdown when the brief gives no budget. */
+const PRICE_RULES = new Set<PolicyCheck["rule"]>(["per_head", "per_head_tier", "approval_threshold", "monthly_limit"]);
+
+/** The company's spend policy applied to a brief (lib/policies/checkBookingPolicy.ts). */
+async function briefPolicy(companyId: string, req: RfpRequirements) {
+  const perHead = req.budget_per_head_inr;
+  const evaluation = await evaluateEventPolicy(companyId, perHead ?? 0, {
+    headcount: req.party_size,
+    eventDate: req.event_date ?? undefined,
+    eventType: req.event_category ?? null,
+    startTime: req.start_time && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.start_time) ? req.start_time : null,
+    alcoholIncluded: req.alcohol ?? false,
+  });
+  const policy: RfpPolicy = {
+    status: evaluation.status,
+    reason: "reason" in evaluation.result ? evaluation.result.reason : undefined,
+    checks: perHead == null ? evaluation.checks.filter((c) => !PRICE_RULES.has(c.rule)) : evaluation.checks,
+  };
+  return { policy, codes: evaluation.codes };
 }
 
 /** Creates the RFP and one instant-quoted response per matched venue. */
@@ -94,22 +142,30 @@ export async function broadcastRfp(input: {
     getPlatformGuardrails(),
   ]);
 
-  const { data: rfp, error } = await db
-    .from("rfps")
-    .insert({
-      company_id: company.id,
-      created_by: input.createdBy,
-      brief: input.brief,
-      requirements: req as unknown as Json,
-      event_date: req.event_date,
-      party_size: req.party_size,
-      budget_per_head_inr: req.budget_per_head_inr,
-      city: req.city,
-      dietary_tags: req.dietary,
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
+  const { policy, codes } = await briefPolicy(company.id, req);
+  if (policy.status === "out_of_policy") throw new PolicyBlockedError(policy);
+
+  const values = {
+    company_id: company.id,
+    created_by: input.createdBy,
+    brief: input.brief,
+    requirements: req as unknown as Json,
+    event_date: req.event_date,
+    party_size: req.party_size,
+    budget_per_head_inr: req.budget_per_head_inr,
+    city: req.city,
+    dietary_tags: req.dietary,
+  };
+  const policyColumns = {
+    event_type: req.event_category ?? null,
+    event_start_time: req.start_time && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.start_time) ? req.start_time : null,
+    policy_status: policy.status,
+    policy_violation_reasons: codes,
+  };
+  let { data: rfp, error } = await db.from("rfps").insert({ ...values, ...policyColumns }).select("*").single();
+  // Before migration 20261031120000 the policy columns don't exist: save without them.
+  if (error?.code === "42703" || error?.code === "PGRST204") ({ data: rfp, error } = await db.from("rfps").insert(values).select("*").single());
+  if (error || !rfp) throw error ?? new Error("Could not save the RFP.");
 
   const now = new Date().toISOString();
   const escalations: Omit<NewEscalation, "rfpId" | "responseId">[] = [];
@@ -224,7 +280,7 @@ export async function broadcastRfp(input: {
   }
 
   const [withMatrix] = await listRfps({ rfpIds: [rfp.id] });
-  return withMatrix;
+  return { ...withMatrix, policy };
 }
 
 // ----------------------------------------------------------------------------
@@ -506,6 +562,9 @@ export async function createDirectQuote(input: DirectQuoteInput): Promise<{ rfpI
     dietary: [],
     requires_private_dining: false,
     other_requirements: input.notes ? [input.notes] : [],
+    event_category: null,
+    start_time: null,
+    alcohol: false,
   };
   const { data: rfp, error } = await db
     .from("rfps")

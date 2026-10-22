@@ -19,7 +19,8 @@ import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getSlotLocks } from "@/lib/locks";
 import { planHold } from "@/lib/inventory/plan-hold";
 import { selectPo } from "@/lib/procurement/po-ledger";
-import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
+import { evaluateEventPolicy } from "@/lib/policies/checkBookingPolicy";
+import type { EventType } from "@/lib/policies/evaluate-booking-policy";
 import { applyRateCard } from "@/lib/rates/apply-rate-card";
 import { approvalDemand } from "@/lib/services/enterprise/approvalEngine";
 import { checkGovernance } from "@/lib/services/enterprise/governanceStore";
@@ -53,6 +54,9 @@ export interface PlaceBookingInput {
   /** What the event includes: checked against the venue and the company's alcohol/entertainment rules. */
   alcoholIncluded?: boolean;
   entertainment?: string[];
+  /** Event type and start time ("HH:MM"), for the company's event-type and event-hours rules. */
+  eventType?: EventType | null;
+  eventStartTime?: string | null;
   /**
    * The venue's own quote (a direct quote accepted from the client portal):
    * budgetPerHead is the final price, so no rate card is applied on top and the
@@ -151,16 +155,18 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
 
       // Policy is checked against what the company will actually pay.
-      const policy = await checkBookingPolicy({
-        tenant_id: company.id,
-        total_amount: pricing.taxableTotal,
+      const evaluation = await evaluateEventPolicy(company.id, pricing.negotiatedPerHead, {
         headcount: partySize,
-        per_head_amount: pricing.negotiatedPerHead,
-        event_date: eventDate,
-        alcohol_included: alcoholIncluded,
+        totalAmount: pricing.taxableTotal,
+        eventDate,
+        eventType: input.eventType,
+        startTime: input.eventStartTime,
+        alcoholIncluded,
         entertainment,
-        department_id: departmentId,
+        departmentId,
+        venue: venue!,
       });
+      const policy = evaluation.result;
       if (policy.blocked) return { status: "error", message: `This booking can't be made: ${policy.reason}.` };
 
       // Blanket PO (lib/procurement/po-ledger.ts): companies with POs must draw from one;
@@ -213,6 +219,10 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
           rate_card_id: pricing.rateCardId,
           alcohol_included: alcoholIncluded,
           entertainment,
+          event_type: input.eventType ?? null,
+          event_start_time: input.eventStartTime || null,
+          policy_status: evaluation.status,
+          policy_violation_reasons: evaluation.codes,
           requested_by: userId || null,
           requested_by_phone: input.requesterPhone ?? null,
           ...(expense.ok ? expense.value : { cost_center: "" }),

@@ -18,7 +18,7 @@ import { venueEventPrompt } from "@/lib/chat/concierge-link";
 import { dataSource, getCorporatePolicy, listCompanies } from "@/lib/data";
 import { listDirectory, type DirectoryVenue } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
-import { officeOf, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
+import { officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
@@ -106,7 +106,7 @@ async function mapData(matches: DirectoryVenue[], companyId: string | null): Pro
         latitude: v.latitude ?? null,
         longitude: v.longitude ?? null,
         label: compact(option?.min_spend_inr ?? v.min_spend_inr),
-        tone: fit ? (fit.status === "in_policy" ? "ok" : "warn") : undefined,
+        tone: fit ? POLICY_TONE[fit.status] : undefined,
       };
     }),
   };

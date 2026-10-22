@@ -334,6 +334,10 @@
   --marker-tone: var(--color-warn);
   border-color: var(--color-warn);
 }
+.venue-marker[data-tone="error"] {
+  --marker-tone: var(--color-rose);
+  border-color: var(--color-rose);
+}
 .venue-marker[data-tone]:hover,
 .venue-marker[data-tone]:focus-visible {
   border-color: var(--color-plum);
