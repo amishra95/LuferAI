@@ -1,4 +1,4 @@
-import { generateText, NoOutputGeneratedError, Output } from "ai";
+import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -67,7 +67,8 @@ async function handleRfpBroadcast(request: NextRequest) {
     await logAgentRun("rfp-broadcaster", { at: new Date().toISOString(), ok: true, durationMs: Date.now() - started, source: "api", task, tokens: totalUsage.totalTokens, steps: 1 });
   } catch (err) {
     await logAgentRun("rfp-broadcaster", { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, source: "api", task, error: err instanceof Error ? err.message : "Extraction failed" });
-    if (NoOutputGeneratedError.isInstance(err)) {
+    // No output, or output that isn't JSON / doesn't fit RfpRequirements: the brief is the problem, not the service.
+    if (NoOutputGeneratedError.isInstance(err) || NoObjectGeneratedError.isInstance(err)) {
       return NextResponse.json({ error: "Couldn't read that brief — add the guest count and date." }, { status: 422 });
     }
     console.error("rfp-broadcast extraction failed", err);
