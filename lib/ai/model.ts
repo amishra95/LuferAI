@@ -197,6 +197,9 @@ export function providerModelId(provider: Provider, speed: ModelSpeed = "standar
 
 const PROVIDER_CLIENT: Record<Provider, () => (id: string) => LanguageModelV4> = { google, openai, anthropic, groq };
 
+/** Providers whose models read PDFs and images (Groq's Llama models take text only). */
+const READS_FILES: Record<Provider, boolean> = { google: true, openai: true, anthropic: true, groq: false };
+
 /** Each provider's circuit and latency now, for routing and the /agents health panel. */
 export function providerStatuses(): ProviderStatus[] {
   return PROVIDERS.map((provider) => ({ provider, configured: isProviderConfigured(provider), circuit: llmBreakers[provider].getState(), latencyMs: providerLatency.get(provider) }));
@@ -270,6 +273,7 @@ async function withFailover<T>(
   usage: UsageContext | undefined,
   signal: AbortSignal | undefined,
   speed: ModelSpeed,
+  files: boolean,
   call: (model: LanguageModelV4) => PromiseLike<T>
 ): Promise<T> {
   // A fast model that's been retired falls back to the provider's standard one before the next provider.
@@ -283,8 +287,8 @@ async function withFailover<T>(
       return call(providerModel(p, usage));
     }
   };
-  const routed = routeOrder(primary, providerStatuses());
-  if (routed.length === 0) throw new AiUnavailableError("No AI provider is configured.");
+  const routed = routeOrder(primary, providerStatuses()).filter((p) => !files || READS_FILES[p]);
+  if (routed.length === 0) throw new AiUnavailableError(files ? "No AI provider that reads documents is configured." : "No AI provider is configured.");
   // Account-blocked providers last: still tried if nothing else answers.
   const order = [...routed.filter((p) => !accountBlocked(p)), ...routed.filter(accountBlocked)];
   const { result, provider, index, errors } = await tryInOrder(order, attempt, {
@@ -317,15 +321,18 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : "unavailable
 /**
  * The routed model for a backend (default Gemini): that backend's provider
  * first, then the others (lib/ai/routing.ts). Null only when no provider has
- * an API key. Pass `usage` to log each call's tokens and cost, and
- * `speed: "fast"` for interactive chat (Gemini's fast model).
+ * an API key (with `files`, one whose models read PDFs and images). Pass
+ * `usage` to log each call's tokens and cost, `speed: "fast"` for interactive
+ * chat (Gemini's fast model), and `files: true` when the prompt carries
+ * documents or images, so it's never routed to a text-only provider.
  */
-export function getLanguageModel(options: { backend?: ModelBackend; usage?: UsageContext; speed?: ModelSpeed } = {}): LanguageModelV4 | null {
+export function getLanguageModel(options: { backend?: ModelBackend; usage?: UsageContext; speed?: ModelSpeed; files?: boolean } = {}): LanguageModelV4 | null {
   const speed = options.speed ?? "standard";
+  const files = options.files ?? false;
   const primary = BACKEND_PROVIDER[options.backend ?? DEFAULT_BACKEND];
-  if (!PROVIDERS.some(isProviderConfigured)) return null;
+  if (!PROVIDERS.some((p) => isProviderConfigured(p) && (!files || READS_FILES[p]))) return null;
   // Named after the provider that would answer now, so pages show what's live.
-  const routed = routeOrder(primary, providerStatuses());
+  const routed = routeOrder(primary, providerStatuses()).filter((p) => !files || READS_FILES[p]);
   const first = routed.find((p) => !accountBlocked(p)) ?? routed[0] ?? primary;
   return {
     specificationVersion: "v4",
@@ -333,8 +340,8 @@ export function getLanguageModel(options: { backend?: ModelBackend; usage?: Usag
     modelId: providerModelId(first, speed),
     // No URL is passed through as-is: the SDK downloads files itself, which every provider accepts.
     supportedUrls: {},
-    doGenerate: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, (m) => m.doGenerate(callOptions)),
-    doStream: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, (m) => m.doStream(callOptions)),
+    doGenerate: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, files, (m) => m.doGenerate(callOptions)),
+    doStream: (callOptions) => withFailover(primary, options.usage, callOptions.abortSignal, speed, files, (m) => m.doStream(callOptions)),
   };
 }
 

@@ -56,6 +56,19 @@ export function rfpExtractionInstructions(today: string) {
   ].join("\n");
 }
 
+/** Reading a venue's GST tax invoice (PDF or photo) into InvoiceExtraction (lib/ai/invoice-schema.ts). */
+export function invoiceExtractionInstructions() {
+  return [
+    "You read GST tax invoices issued by Indian hospitality venues (restaurants, hotels, banquet halls) to corporate clients.",
+    "Copy what the document says; never compute, infer or correct a figure. A field you can't read clearly is null.",
+    "vendor_gstin is the supplier's (issuer's) 15-character GSTIN; buyer_gstin the recipient's (billed to). Copy them exactly, upper case.",
+    "Dates are YYYY-MM-DD. Indian invoices write dates day first: 05/12/2026 is 5 December 2026.",
+    "Amounts are INR numbers without symbols or commas. subtotal is the taxable value before GST; total_amount the invoice total after GST and any round-off.",
+    "cgst, sgst and igst are the tax amounts charged under each head (0 when the head is shown as zero, null when it isn't on the invoice).",
+    "line_items are the invoice's itemised lines, in order, with their HSN/SAC code where printed.",
+  ].join("\n");
+}
+
 export const CONCIERGE_UNLINKED =
   "The sender is not linked to an account: you may search but not book; tell them to ask their admin to link them. ";
 
