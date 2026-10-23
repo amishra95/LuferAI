@@ -46,7 +46,7 @@ export function LoginForm({ next }: { next: string }) {
             />
             {state.status === "error" ? <p className="text-destructive text-caption">{state.message}</p> : null}
           </div>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" size="lg" disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
             Email me a sign-in link
           </Button>

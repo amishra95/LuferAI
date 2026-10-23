@@ -105,7 +105,7 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
           {state.message}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" size="lg" disabled={pending}>
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
         Apply and confirm my email
       </Button>

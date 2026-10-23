@@ -126,7 +126,7 @@ export function VenueCardBody({
             const Icon = SIGNAL_ICON[key];
             return (
               <li key={key} title={SIGNAL_TITLE[key]} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
-                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current")} aria-hidden /> {label}
+                <Icon className={cn("size-3.5", key === "favorite" && "text-emerald fill-current")} aria-hidden /> {label}
               </li>
             );
           })}

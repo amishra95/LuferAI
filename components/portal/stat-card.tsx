@@ -30,6 +30,7 @@ export function StatCard({
   hint,
   icon: Icon,
   change,
+  meter,
 }: {
   label: string;
   value: string;
@@ -38,14 +39,24 @@ export function StatCard({
   icon?: LucideIcon;
   /** Change from the previous period. */
   change?: MetricChange | null;
+  /** A thin bar under the figure: share used (0–100+) and its accessible label. */
+  meter?: { pct: number; label: string; tone?: "ok" | "warn" | "over" };
 }) {
   return (
-    <div className="panel flex flex-col p-5">
+    <div className="panel flex min-w-0 flex-col p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="label-mono">{label}</p>
         {Icon ? <Icon className="text-fg-faint size-3.5" strokeWidth={1.75} aria-hidden /> : null}
       </div>
-      <p className="text-fg mt-3 font-mono text-title leading-none font-medium tracking-tight tabular-nums">{value}</p>
+      <p className="text-fg mt-3 font-mono text-[1.4rem] leading-none sm:text-[1.75rem] font-semibold tracking-tight tabular-nums">{value}</p>
+      {meter ? (
+        <div role="meter" aria-label={meter.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(meter.pct, 100))} className="bg-surface-raised mt-3 h-1.5 overflow-hidden rounded-full">
+          <div
+            className={cn("h-full rounded-full", meter.tone === "over" ? "bg-error" : meter.tone === "warn" ? "bg-gold" : "bg-emerald")}
+            style={{ width: `${Math.max(2, Math.min(meter.pct, 100))}%` }}
+          />
+        </div>
+      ) : null}
       {change || hint ? (
         <p className="text-fg-subtle mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption">
           {change ? <ChangePill change={change} /> : null}
