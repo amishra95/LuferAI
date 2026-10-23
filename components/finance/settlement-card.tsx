@@ -22,8 +22,8 @@ const ITC_TONE: Record<ItcStatus, PillTone> = {
   not_applicable: "neutral",
 };
 
-const EXPORT_TONE: Record<string, PillTone> = { delivered: "ok", mocked: "warn", failed: "error" };
-const EXPORT_LABEL: Record<string, string> = { delivered: "Delivered", mocked: "Recorded (no endpoint)", failed: "Failed" };
+const EXPORT_TONE: Record<string, PillTone> = { delivered: "ok", mocked: "warn", failed: "error", dead_lettered: "error" };
+const EXPORT_LABEL: Record<string, string> = { delivered: "Delivered", mocked: "Recorded (no endpoint)", failed: "Failed", dead_lettered: "Gave up" };
 const DOT: Record<SettlementTone, string> = { ok: "bg-sage", warn: "bg-warn", error: "bg-rose", neutral: "bg-fg-faint" };
 
 const time = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });

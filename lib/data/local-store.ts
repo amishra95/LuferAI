@@ -40,6 +40,8 @@ const COLLECTIONS = [
   "catalogOrders",
   "eventWorkspaces",
   "eventAttendees",
+  "oauthCredentials",
+  "taxInvoiceDocuments",
 ] as const satisfies readonly (keyof MockDb)[];
 
 const PREFIX = "lufer:db:";
@@ -49,8 +51,11 @@ const LOCK_TTL_MS = 10_000;
 const LOCK_WAIT_MS = 8_000;
 
 const keyOf = (c: keyof MockDb) => `${PREFIX}${c}`;
-/** Row primary key: platform users are keyed by user_id, everything else by id. */
-const idOf = (row: object) => String((row as { id?: string; user_id?: string }).id ?? (row as { user_id: string }).user_id);
+/** Row primary key: platform users by user_id, OAuth credentials by provider, tax invoices by booking_id, everything else by id. */
+const idOf = (row: object) => {
+  const r = row as { id?: string; user_id?: string; provider?: string; booking_id?: string };
+  return String(r.id ?? r.user_id ?? r.provider ?? r.booking_id);
+};
 
 const g = globalThis as typeof globalThis & { __luferDataRedis?: Redis | null };
 

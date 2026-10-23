@@ -2197,6 +2197,45 @@ export type Database = {
           },
         ]
       }
+      oauth_credentials: {
+        Row: {
+          created_at: string
+          encrypted_access_token: string
+          encrypted_refresh_token: string | null
+          expires_at: string | null
+          last_error: string | null
+          organization_id: string | null
+          provider: string
+          refreshed_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          encrypted_access_token: string
+          encrypted_refresh_token?: string | null
+          expires_at?: string | null
+          last_error?: string | null
+          organization_id?: string | null
+          provider: string
+          refreshed_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          encrypted_access_token?: string
+          encrypted_refresh_token?: string | null
+          expires_at?: string | null
+          last_error?: string | null
+          organization_id?: string | null
+          provider?: string
+          refreshed_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       partner_audit_log: {
         Row: {
           action: string
@@ -2885,6 +2924,70 @@ export type Database = {
           {
             foreignKeyName: "rfps_company_id_fkey"
             columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_invoice_documents: {
+        Row: {
+          attempts: number
+          booking_id: string
+          created_at: string
+          error: string | null
+          html: string | null
+          html_sha256: string | null
+          invoice_number: string | null
+          rendered_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          booking_id: string
+          created_at?: string
+          error?: string | null
+          html?: string | null
+          html_sha256?: string | null
+          invoice_number?: string | null
+          rendered_at?: string | null
+          status: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          booking_id?: string
+          created_at?: string
+          error?: string | null
+          html?: string | null
+          html_sha256?: string | null
+          invoice_number?: string | null
+          rendered_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_invoice_documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "booking_tax_breakdown"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]

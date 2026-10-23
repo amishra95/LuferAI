@@ -540,7 +540,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             </TableCell>
                             <TableCell className="text-right font-mono">{formatINR(r.tax?.invoice_total ?? 0, true)}</TableCell>
                             <TableCell>
-                              <Badge variant={e.status === "failed" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status}</Badge>
+                              <Badge variant={e.status === "failed" || e.status === "dead_lettered" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status === "dead_lettered" ? "dead-lettered" : e.status}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-caption" download>

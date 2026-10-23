@@ -198,17 +198,25 @@ export const PROVIDER_ENV = {
   erpnext: { url: ["ERPNEXT_URL", "ERPNEXT_EXPENSE_URL"], key: ["ERPNEXT_API_KEY"], secret: ["ERPNEXT_API_SECRET"] },
 } as const satisfies Record<ExpenseProvider, Record<string, readonly string[]>>;
 
+/** An OAuth access token from the vault (lib/auth/token-rotator.ts accessTokenFor), used over env. */
+export interface VaultCredentials {
+  accessToken: string;
+  organizationId: string | null;
+}
+
 /**
  * Where a provider's exports go and how they authenticate, from env:
  *   ramp / brex / concur   Authorization: Bearer <token>
  *   zoho                   Authorization: Zoho-oauthtoken <token>, plus
  *                          X-com-zoho-expense-organizationid when set
- *   erpnext                Authorization: token <api key>:<api secret>
+ *   erpnext                Authorization: token <api key>:<api secret>, or
+ *                          Bearer <OAuth access token> from the vault
  *   webhook                no header; the caller signs the body (X-Lufer-Signature)
+ * For Zoho and ERPNext, `vault` (a refreshed OAuth token) wins over env.
  * An empty url means nothing is sent (the export is recorded as mocked).
  * Spaces in the URL (ERPNext's "/api/resource/Purchase Invoice") are encoded.
  */
-export function providerConnection(provider: ExpenseProvider, env: (name: string) => string): { url: string; headers: Record<string, string> } {
+export function providerConnection(provider: ExpenseProvider, env: (name: string) => string, vault: VaultCredentials | null = null): { url: string; headers: Record<string, string> } {
   const names: Record<string, readonly string[]> = PROVIDER_ENV[provider];
   const read = (k: string) => (names[k] ?? []).map((n) => env(n).trim()).find(Boolean) ?? "";
   const url = read("url").replace(/ /g, "%20");
@@ -216,11 +224,12 @@ export function providerConnection(provider: ExpenseProvider, env: (name: string
     case "webhook":
       return { url, headers: {} };
     case "zoho": {
-      const token = read("token");
-      const organization = read("organization");
+      const token = vault?.accessToken || read("token");
+      const organization = vault?.organizationId || read("organization");
       return { url, headers: { ...(token && { Authorization: `Zoho-oauthtoken ${token}` }), ...(organization && { "X-com-zoho-expense-organizationid": organization }) } };
     }
     case "erpnext": {
+      if (vault?.accessToken) return { url, headers: { Authorization: `Bearer ${vault.accessToken}` } };
       const [key, secret] = [read("key"), read("secret")];
       return { url, headers: key && secret ? { Authorization: `token ${key}:${secret}` } : {} };
     }

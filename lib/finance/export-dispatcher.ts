@@ -2,11 +2,13 @@ import "server-only";
 
 import { createHash, createHmac } from "node:crypto";
 
-import { findExpenseExport, listBookings, listCatalogOrders, listCompanies, recordExpenseExport, retryExpenseExport } from "@/lib/data";
+import { accessTokenFor } from "@/lib/auth/token-rotator";
+import { deadLetterExpenseExport, findExpenseExport, listBookings, listCatalogOrders, listCompanies, recordExpenseExport, retryExpenseExport } from "@/lib/data";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import type { ExpenseExport } from "@/lib/supabase/database.types";
 import { markCardReceipts } from "@/lib/finance/card-receipts";
 import { buildExpenseRequest, isExpenseProvider, providerConnection, type ExpenseProvider } from "@/lib/finance/expense-adapters";
+import { isRetryableStatus } from "@/lib/jobs/retry-policy";
 import { buildExpenseReceipt, type ExpenseReceipt } from "@/lib/finance/receipt";
 import type { Json } from "@/lib/supabase/database.generated";
 
@@ -14,8 +16,12 @@ const env = (k: string) => (process.env[k] ?? "").trim();
 
 export type DispatchOutcome =
   | { status: "delivered" | "mocked"; provider: ExpenseProvider; exportId?: string; duplicate?: false }
-  | { status: "failed"; provider?: ExpenseProvider; error: string; duplicate?: false }
+  /** `retryable`: whether trying again could succeed (network, 5xx, 429…) or not (4xx, unexportable booking). */
+  | { status: "failed"; provider?: ExpenseProvider; error: string; retryable: boolean; duplicate?: false }
   | { status: "skipped"; provider: ExpenseProvider; duplicate: true };
+
+/** A failure no retry will fix (missing or unconfirmed subject). */
+class PermanentExportError extends Error {}
 
 /** One JSON line per export, for log pipelines (Datadog, CloudWatch, …). */
 function audit(entry: Record<string, unknown>) {
@@ -46,12 +52,14 @@ async function deliver(subject: ExportSubject, existing: ExpenseExport | null, p
   const request = buildExpenseRequest(provider, subject.receipt);
   const body = JSON.stringify(request.body);
   const sha256 = createHash("sha256").update(body).digest("hex");
-  const connection = providerConnection(provider, env);
+  // Zoho and ERPNext prefer a refreshed OAuth token from the vault over the env one.
+  const connection = providerConnection(provider, env, await accessTokenFor(provider));
   const url = connection.url;
 
   let status: "delivered" | "mocked" | "failed" = "mocked";
   let responseCode: number | null = null;
   let error: string | null = null;
+  let retryable = true;
   if (url) {
     try {
       // The plain webhook is authenticated by signing the body; providers by their own scheme.
@@ -72,7 +80,10 @@ async function deliver(subject: ExportSubject, existing: ExpenseExport | null, p
       });
       responseCode = res.status;
       status = res.ok ? "delivered" : "failed";
-      if (!res.ok) error = `Receiver returned ${res.status}`;
+      if (!res.ok) {
+        error = `Receiver returned ${res.status}`;
+        retryable = isRetryableStatus(res.status);
+      }
     } catch (err) {
       status = "failed";
       error = err instanceof Error ? err.message : "Delivery failed";
@@ -110,12 +121,12 @@ async function deliver(subject: ExportSubject, existing: ExpenseExport | null, p
     ...(error && { error }),
   });
   if (!recorded) return { status: "skipped", provider, duplicate: true };
-  return status === "failed" ? { status, provider, error: error ?? "Delivery failed" } : { status, provider };
+  return status === "failed" ? { status, provider, error: error ?? "Delivery failed", retryable } : { status, provider };
 }
 
-/** A delivered or mocked export is final; a failed one is retried. */
+/** A delivered or mocked export is final; a failed or dead-lettered one is retried. */
 function alreadyExported(existing: ExpenseExport | null, subjectId: string): DispatchOutcome | null {
-  if (!existing || existing.status === "failed") return null;
+  if (!existing || existing.status === "failed" || existing.status === "dead_lettered") return null;
   const provider = isExpenseProvider(existing.provider) ? existing.provider : "webhook";
   audit({ subject: subjectId, status: "skipped", reason: "already exported", provider });
   return { status: "skipped", provider, duplicate: true };
@@ -134,12 +145,12 @@ function alreadyExported(existing: ExpenseExport | null, subjectId: string): Dis
 export async function exportBookingExpense(bookingId: string, opts: { provider?: ExpenseProvider; requestedBy?: string | null } = {}): Promise<DispatchOutcome> {
   try {
     const booking = (await listBookings()).find((b) => b.id === bookingId);
-    if (!booking) throw new Error(`Booking ${bookingId} not found`);
+    if (!booking) throw new PermanentExportError(`Booking ${bookingId} not found`);
     const provider = opts.provider ?? (await defaultProvider(booking.company.id));
     const existing = await findExpenseExport(bookingId, "booking.confirmed", provider);
     const done = alreadyExported(existing, bookingId);
     if (done) return done;
-    if (!EXPORTABLE.has(booking.status)) throw new Error(`Booking ${bookingId} is ${booking.status}, not confirmed`);
+    if (!EXPORTABLE.has(booking.status)) throw new PermanentExportError(`Booking ${bookingId} is ${booking.status}, not confirmed`);
     const receipt = buildExpenseReceipt({ ...booking, company: booking.company, venue: { ...booking.venue } }, new Date().toISOString());
     const outcome = await deliver({ kind: "booking", id: booking.id, tenantId: booking.company.id, costCenter: booking.cost_center, projectCode: booking.project_code, receipt }, existing, provider, opts.requestedBy ?? null);
     // Virtual cards issued for the booking (migration 0033) show whether their receipt synced.
@@ -148,7 +159,21 @@ export async function exportBookingExpense(bookingId: string, opts: { provider?:
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     audit({ booking_id: bookingId, status: "error", error: message });
-    return { status: "failed", error: message };
+    return { status: "failed", error: message, retryable: !(err instanceof PermanentExportError) };
+  }
+}
+
+/**
+ * Closes out a booking export whose durable job (workflows/erp-export.ts) gave
+ * up: its row becomes 'dead_lettered' with the last error, and the audit log
+ * says so. A manual export still retries it. Never throws.
+ */
+export async function deadLetterBookingExport(bookingId: string, provider: ExpenseProvider, error: string): Promise<void> {
+  try {
+    const row = await deadLetterExpenseExport(bookingId, "booking.confirmed", provider, error);
+    audit({ booking_id: bookingId, provider, status: "dead_lettered", attempts: row?.attempts ?? 0, recorded: Boolean(row), error });
+  } catch (err) {
+    audit({ booking_id: bookingId, provider, status: "dead_lettered", recorded: false, error, record_error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -165,12 +190,12 @@ const ORDER_EXPORTABLE = new Set(["CONFIRMED", "SHIPPED", "DELIVERED", "SETTLED"
 export async function exportOrderExpense(orderId: string): Promise<DispatchOutcome> {
   try {
     const [order] = await listCatalogOrders({ ids: [orderId] });
-    if (!order) throw new Error(`Order ${orderId} not found`);
+    if (!order) throw new PermanentExportError(`Order ${orderId} not found`);
     const provider = await defaultProvider(order.tenant_id);
     const existing = await findExpenseExport(orderId, "order.confirmed", provider);
     const done = alreadyExported(existing, orderId);
     if (done) return done;
-    if (!ORDER_EXPORTABLE.has(order.status)) throw new Error(`Order ${orderId} is ${order.status}, not confirmed`);
+    if (!ORDER_EXPORTABLE.has(order.status)) throw new PermanentExportError(`Order ${orderId} is ${order.status}, not confirmed`);
     const [company] = (await listCompanies()).filter((c) => c.id === order.tenant_id);
     const invoice = order.invoice as unknown as TaxInvoicePayload;
     const receipt = buildExpenseReceipt(
@@ -198,6 +223,6 @@ export async function exportOrderExpense(orderId: string): Promise<DispatchOutco
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     audit({ order_id: orderId, status: "error", error: message });
-    return { status: "failed", error: message };
+    return { status: "failed", error: message, retryable: !(err instanceof PermanentExportError) };
   }
 }

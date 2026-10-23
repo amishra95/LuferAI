@@ -2,8 +2,10 @@
 //
 // The Sprint 3 finance server actions end to end, against the in-memory mock
 // store (lib/data/mock-store.ts) with the session stubbed: setItcDecision and
-// exportBookingToERP (app/(dashboard)/client/actions.ts).
-import { signIn } from "../support/server-actions.mjs";
+// exportBookingToERP (app/(dashboard)/client/actions.ts). Without a workflow
+// runtime (the default here) exports run inline; see the "queued" tests for
+// the durable path.
+import { onWorkflowStart, signIn } from "../support/server-actions.mjs";
 import { after, beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -14,6 +16,7 @@ for (const names of Object.values(PROVIDER_ENV)) for (const list of Object.value
 
 const { exportBookingToERP, setItcDecision } = await import("../../app/(dashboard)/client/actions.ts");
 const { findExpenseExport, listBookings } = await import("../../lib/data/index.ts");
+const { erpExportWorkflow } = await import("../../workflows/erp-export.ts");
 const { receiptState } = await import("../../lib/bookings/expense-meta.ts");
 
 // Seed data (lib/data/mock-store.ts).
@@ -151,12 +154,39 @@ for (const provider of ["zoho", "erpnext"]) {
   });
 }
 
-test("exportBookingToERP: a second export to the same provider is skipped, not re-sent", async () => {
+test("exportBookingToERP: a second export to the same provider is skipped, not re-sent or queued", async () => {
   asClient(USERS.nimbusApprover);
-  const result = await exportBookingToERP(EXPORT_BOOKING, "zoho");
-  assert.deepEqual(result, { ok: true, data: { bookingId: EXPORT_BOOKING, provider: "zoho", export: "skipped", companyId: NIMBUS, message: "Already sent to Zoho Expense." } });
+  const starts = [];
+  onWorkflowStart(async (wf, args) => (starts.push(args), { runId: "wrun_never" }));
+  try {
+    const result = await exportBookingToERP(EXPORT_BOOKING, "zoho");
+    assert.deepEqual(result, { ok: true, data: { bookingId: EXPORT_BOOKING, provider: "zoho", export: "skipped", companyId: NIMBUS, message: "Already sent to Zoho Expense." } });
+  } finally {
+    onWorkflowStart(null);
+  }
   assert.equal((await findExpenseExport(EXPORT_BOOKING, "booking.confirmed", "zoho")).attempts, 1);
-  assert.deepEqual(auditLines.map((l) => [l.status, l.reason]), [["skipped", "already exported"]]);
+  assert.deepEqual(starts, []);
+  assert.deepEqual(auditLines, []);
+});
+
+test("exportBookingToERP with the workflow runtime: queues the durable export with the requester and returns its run", async () => {
+  asClient(USERS.nimbusApprover);
+  const starts = [];
+  onWorkflowStart(async (wf, args) => (starts.push({ wf, args }), { runId: "wrun_01" }));
+  try {
+    const result = await exportBookingToERP(EXPORT_BOOKING, "concur");
+    assert.deepEqual(result, {
+      ok: true,
+      data: { bookingId: EXPORT_BOOKING, provider: "concur", export: "queued", runId: "wrun_01", companyId: NIMBUS, message: "Sending to SAP Concur. Failures retry automatically (up to 5 attempts)." },
+    });
+  } finally {
+    onWorkflowStart(null);
+  }
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].wf, erpExportWorkflow);
+  assert.deepEqual(starts[0].args, [{ bookingId: EXPORT_BOOKING, provider: "concur", requestedBy: USERS.nimbusApprover.userId }]);
+  // Queued, not sent: the workflow does the export.
+  assert.equal(await findExpenseExport(EXPORT_BOOKING, "booking.confirmed", "concur"), null);
 });
 
 test("exportBookingToERP: an admin's export records the admin as requester", async () => {
