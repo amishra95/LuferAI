@@ -6,7 +6,7 @@ import { buildExpenseReceipt, RECEIPT_SCHEMA } from "../lib/finance/receipt.ts";
 import { calculateGst, computeGstinChecksum } from "../lib/gst-engine.ts";
 import { evaluateBookingPolicy } from "../lib/policies/evaluate-booking-policy.ts";
 import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, partnerToDirectory } from "../lib/venues/partner-network.ts";
-import { applyVenueQuery, parseVenueQuery } from "../lib/venues/query.ts";
+import { applyVenueQuery, parseVenueQuery, withoutCommission } from "../lib/venues/query.ts";
 
 const NIMBUS = "29AABCN4821K1ZA"; // Karnataka registration
 const gstin = (first14) => first14 + computeGstinChecksum(first14);
@@ -128,4 +128,16 @@ test("directory query filters by tier and sorts missing commission last", async 
   const byCommission = applyVenueQuery(all, parseVenueQuery({ sort: "commission_rate", dir: "desc", size: "50" })).rows;
   assert.equal(byCommission[0].id, "i1");
   assert.equal(parseVenueQuery({ tier: "bogus" }).tier, "");
+});
+
+test("buyers never see venue commission, and can't sort by it", () => {
+  const venues = [
+    { id: "a", tier: "internal", name: "B", commission_rate: 0.15 },
+    { id: "b", tier: "partner", name: "A", commission_rate: null },
+  ];
+  const { venues: shown, query } = withoutCommission(venues, parseVenueQuery({ sort: "commission_rate", dir: "desc" }));
+  assert.deepEqual(shown.map((v) => v.commission_rate), [null, null]);
+  assert.equal(query.sort, "name");
+  assert.equal(query.dir, "asc");
+  assert.equal(venues[0].commission_rate, 0.15, "the directory itself is not mutated");
 });

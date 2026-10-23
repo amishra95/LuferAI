@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { authorize, data, failed } from "@/lib/api/respond";
 import { canAccessWorkspace } from "@/lib/auth/roles";
 import { listDirectory } from "@/lib/venues/directory";
-import { applyVenueQuery, parseVenueQuery } from "@/lib/venues/query";
+import { applyVenueQuery, parseVenueQuery, withoutCommission } from "@/lib/venues/query";
 
 /**
  * GET /api/venues — the venue directory (own venues + partner network), with the
@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
 
   try {
-    const query = parseVenueQuery(Object.fromEntries(request.nextUrl.searchParams));
-    const { venues, partners } = await listDirectory();
+    const parsed = parseVenueQuery(Object.fromEntries(request.nextUrl.searchParams));
+    const directory = await listDirectory();
+    const { partners } = directory;
+    const { venues, query } = auth.member.role === "ADMIN" ? { venues: directory.venues, query: parsed } : withoutCommission(directory.venues, parsed);
     const { rows, total, page, pageCount } = applyVenueQuery(venues, query);
     return data({ query, venues: rows, total, page, pageCount, areas: [...new Set(venues.map((v) => v.neighborhood))].sort(), partners });
   } catch (err) {

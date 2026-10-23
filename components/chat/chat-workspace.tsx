@@ -176,7 +176,7 @@ export function ChatWorkspace({
                 ) : null}
                 <Heading className="text-fg mt-5 text-title font-semibold tracking-[-0.03em]">What should we look into?</Heading>
                 <p className="text-fg-subtle mt-1.5 text-body">
-                  The agent searches venues and analyses spend and budgets from your booking data. Every tool call is inspectable.
+                  Ask in plain English. Lufer searches venues, checks them against your policy and budget, and answers spend questions from your own bookings.
                 </p>
                 <ul className="panel mt-8 overflow-hidden">
                   {SUGGESTIONS.map(({ icon: Icon, text }) => (

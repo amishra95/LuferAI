@@ -19,7 +19,7 @@ import { dataSource, getCorporatePolicy, listCompanies } from "@/lib/data";
 import { listDirectory, type DirectoryVenue } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
 import { officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
-import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
+import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, withoutCommission, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
 
@@ -29,8 +29,8 @@ const COLUMNS: { key: VenueSortKey | null; label: string; align?: "right"; class
   { key: "neighborhood", label: "Area" },
   { key: "capacity_max", label: "Guests", align: "right" },
   { key: "min_spend_inr", label: "Min spend", align: "right" },
-  { key: null, label: "PDR", className: "text-center" },
-  { key: "commission_rate", label: "Comm.", align: "right" },
+  { key: null, label: "Private room", className: "text-center" },
+  { key: "commission_rate", label: "Comm.", align: "right" }, // admins only
   { key: null, label: "GSTIN", className: "hidden xl:table-cell" },
 ];
 
@@ -113,8 +113,11 @@ async function mapData(matches: DirectoryVenue[], companyId: string | null): Pro
 }
 
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
-  const query = parseVenueQuery(await searchParams);
-  const [{ venues, partners }, member] = await Promise.all([listDirectory(), getCurrentMember()]);
+  const [directory, member] = await Promise.all([listDirectory(), getCurrentMember()]);
+  const admin = member?.role === "ADMIN";
+  const { venues, query } = admin ? { venues: directory.venues, query: parseVenueQuery(await searchParams) } : withoutCommission(directory.venues, parseVenueQuery(await searchParams));
+  const { partners } = directory;
+  const columns = admin ? COLUMNS : COLUMNS.filter((c) => c.key !== "commission_rate");
   // Row booking actions for admins and client users (the modal decides who can file).
   const canRequest = member?.role === "ADMIN" || member?.role === "CLIENT";
   const { matches, rows, total, page, pageCount } = applyVenueQuery(venues, query);
@@ -128,8 +131,8 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
     <Page>
       <PageHeader
         title="Venues"
-        description="Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries."
-        badge={<NoticePill>{source === "mock" ? "mock data" : source}</NoticePill>}
+        description={admin ? "Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
+        badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
       />
 
       {/* GET form: filters live in the URL, so views are shareable and work without JS. */}
@@ -159,9 +162,9 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         <label className="flex-[1_1_8rem]">
           <span className="sr-only">Private dining room</span>
           <select name="pdr" defaultValue={query.pdr} className="field">
-            <option value="">Any PDR</option>
-            <option value="yes">With PDR</option>
-            <option value="no">Without PDR</option>
+            <option value="">Any room</option>
+            <option value="yes">Private room</option>
+            <option value="no">No private room</option>
           </select>
         </label>
         <label className="flex-[0_1_7.5rem]">
@@ -246,8 +249,8 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                   <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-caption tabular-nums">
                     <span className="text-fg-muted font-sans text-meta">{v.neighborhood}</span>
                     <span>{v.capacity_max} guests</span>
-                    <span>{v.pdr_available ? "PDR" : "no PDR"}</span>
-                    {v.tier === "partner" ? <span>partner · {v.supplier}</span> : <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span>}
+                    <span>{v.pdr_available ? "private room" : "no private room"}</span>
+                    {v.tier === "partner" ? <span>partner · {v.supplier}</span> : admin ? <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span> : null}
                   </p>
                   {canRequest ? (
                     <div className="-ml-2 mt-1.5 flex gap-1">
@@ -263,7 +266,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
               <table className="w-full min-w-[46rem] text-meta">
                 <thead>
                   <tr className="border-line bg-surface-hover border-b">
-                    {COLUMNS.map((c) => (
+                    {columns.map((c) => (
                       <th
                         key={c.label}
                         scope="col"
@@ -307,9 +310,11 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                         )}
                         <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
                       </td>
-                      <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
-                        {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
-                      </td>
+                      {admin ? (
+                        <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
+                          {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
+                        </td>
+                      ) : null}
                       <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
                       {canRequest ? (
                         <td className="pr-5 text-right whitespace-nowrap">

@@ -21,7 +21,7 @@ export function Header({
   workspaceName: string;
   system: SystemMode;
   /** The signed-in user, or null when signed out / auth isn't configured. */
-  account: { email: string | null } | null;
+  account: { email: string | null; role?: string } | null;
   onOpenMobileNav: () => void;
   onOpenPalette: () => void;
 }) {
@@ -82,23 +82,26 @@ export function Header({
         <kbd className="border-line rounded-tile hidden border px-1 text-caption lg:inline">⌘K</kbd>
       </button>
 
-      <Link
-        href="/settings"
-        title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat is unavailable"}
-        className={system.mode === "live" ? "pill hover:brightness-110" : "pill hover:text-fg transition-colors"}
-      >
-        {system.mode === "live" ? (
-          <>
-            <span className="status-dot bg-sage" aria-hidden />
-            <span className="max-w-[9rem] truncate">{system.model}</span>
-          </>
-        ) : (
-          <>
-            <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
-            no model
-          </>
-        )}
-      </Link>
+      {/* Model status is operator detail (and /settings is admin-only). */}
+      {account?.role === "ADMIN" ? (
+        <Link
+          href="/settings"
+          title={system.mode === "live" ? "Chat is using a live model" : "No model key set — Chat is unavailable"}
+          className={system.mode === "live" ? "pill hover:brightness-110" : "pill hover:text-fg transition-colors"}
+        >
+          {system.mode === "live" ? (
+            <>
+              <span className="status-dot bg-sage" aria-hidden />
+              <span className="max-w-[9rem] truncate">{system.model}</span>
+            </>
+          ) : (
+            <>
+              <span className="border-fg-faint size-1.5 rounded-full border" aria-hidden />
+              no model
+            </>
+          )}
+        </Link>
+      ) : null}
 
       {account ? (
         <form action={signOut} className="flex items-center gap-2">

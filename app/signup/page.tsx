@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { homeFor } from "@/lib/auth/roles";
 import { currentApplicationStatus, getCurrentMember } from "@/lib/auth/session";
@@ -28,7 +29,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   const accountType: AccountType = type === "partner" ? "partner" : "enterprise";
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 px-4 pt-[calc(3rem+var(--app-safe-top))] pb-[calc(3rem+var(--app-safe-bottom))]">
+    <AuthShell wide>
       <nav aria-label="Account type" className="border-line grid grid-cols-2 gap-1 rounded-md border p-1">
         {(["enterprise", "partner"] as const).map((t) => (
           <Link
@@ -56,6 +57,6 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
           Sign in
         </Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }
