@@ -49,13 +49,13 @@ export function FloatingAiConcierge() {
       aria-expanded={false}
       aria-keyshortcuts="Meta+J Control+J"
       className={cn(
-        "bg-graphite text-white border-emerald/30 hover:border-emerald fixed right-4 bottom-[calc(1rem+var(--app-safe-bottom))] z-40 flex cursor-pointer items-center gap-3 rounded-full border shadow-xl transition-all hover:scale-105",
+        "bg-plum text-white border-coral/30 hover:border-coral fixed right-4 bottom-[calc(1rem+var(--app-safe-bottom))] z-40 flex cursor-pointer items-center gap-3 rounded-full border shadow-xl transition-all hover:scale-105",
         "size-12 justify-center sm:right-6 sm:bottom-[calc(1.5rem+var(--app-safe-bottom))] sm:size-auto sm:px-5 sm:py-3"
       )}
     >
-      <Sparkles className="text-emerald size-5 shrink-0 sm:size-4" aria-hidden />
+      <Sparkles className="text-coral size-5 shrink-0 sm:size-4" aria-hidden />
       <span className="hidden text-meta font-medium sm:inline">Ask LuferAI Concierge…</span>
-      <kbd className="border-graphite-light text-on-graphite-muted hidden rounded-tile border px-1.5 text-caption sm:inline">{mod}J</kbd>
+      <kbd className="border-plum-light text-on-plum-muted hidden rounded-tile border px-1.5 text-caption sm:inline">{mod}J</kbd>
     </button>
   );
 }

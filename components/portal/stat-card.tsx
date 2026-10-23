@@ -52,7 +52,7 @@ export function StatCard({
       {meter ? (
         <div role="meter" aria-label={meter.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(meter.pct, 100))} className="bg-surface-raised mt-3 h-1.5 overflow-hidden rounded-full">
           <div
-            className={cn("h-full rounded-full", meter.tone === "over" ? "bg-error" : meter.tone === "warn" ? "bg-gold" : "bg-emerald")}
+            className={cn("h-full rounded-full", meter.tone === "over" ? "bg-error" : meter.tone === "warn" ? "bg-gold" : "bg-coral")}
             style={{ width: `${Math.max(2, Math.min(meter.pct, 100))}%` }}
           />
         </div>

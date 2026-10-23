@@ -4,17 +4,17 @@ import { GeistMono } from "geist/font/mono";
 import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
-// Type: Plus Jakarta Sans for UI, Fraunces for display headings,
+// Velvet Night type: Plus Jakarta Sans for UI, Fraunces for display headings,
 // Geist Mono (self-hosted) for code only. next/font self-hosts the Google fonts.
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-jakarta", display: "swap" });
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-fraunces", display: "swap" });
 const geistMono = GeistMono;
 
 export const viewport: Viewport = {
-  // Linen canvas (light) / ink canvas (dark); mirrors --color-linen and --color-ink.
+  // Plum brand bar (light) / ink canvas (dark); mirrors --color-plum and --color-ink.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F8F7F4" },
-    { media: "(prefers-color-scheme: dark)", color: "#111316" },
+    { media: "(prefers-color-scheme: light)", color: "#2A1B3D" },
+    { media: "(prefers-color-scheme: dark)", color: "#1A1523" },
   ],
   colorScheme: "light dark",
   // Edge-to-edge (incl. Capacitor shells); layouts pad via --app-safe-* in globals.css.

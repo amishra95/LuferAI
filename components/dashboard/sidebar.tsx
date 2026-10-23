@@ -15,7 +15,7 @@ export function Monogram({ name, className }: { name: string; className?: string
     <span
       aria-hidden
       className={cn(
-        "bg-graphite-light text-gold grid size-7 shrink-0 place-items-center rounded-tile text-caption font-semibold",
+        "bg-plum-light text-gold grid size-7 shrink-0 place-items-center rounded-tile text-caption font-semibold",
         className
       )}
     >
@@ -50,7 +50,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "bg-surface border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
+        "on-plum border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
         collapsed ? "w-[3.75rem]" : "w-60",
         className
       )}
@@ -62,7 +62,7 @@ export function Sidebar({
           {!collapsed &&
             (workspaceName === "Lufer.ai" ? (
               <span className="font-display text-fg text-[1.3rem] leading-none font-semibold tracking-tight">
-                Lufer<span className="text-emerald font-sans text-[0.6em]">.ai</span>
+                Lufer<span className="text-coral font-sans text-[0.6em]">.ai</span>
               </span>
             ) : (
               <span className="text-fg truncate text-body font-semibold tracking-tight">{workspaceName}</span>
@@ -102,7 +102,7 @@ export function Sidebar({
                       )}
                     >
                       {/* Gold rail marks the current page. */}
-                      {active && <span aria-hidden className="bg-emerald absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full" />}
+                      {active && <span aria-hidden className="bg-gold absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full" />}
                       <Icon
                         className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
                         strokeWidth={1.75}

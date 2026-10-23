@@ -2,10 +2,10 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-// Soft tile, strong glyph: emerald and graphite accents on the linen landing.
+// Soft tile, strong glyph: coral and plum accents on the linen landing.
 const ACCENTS = {
-  emerald: "bg-emerald-soft text-emerald-ink",
-  graphite: "bg-graphite/[0.07] text-graphite",
+  coral: "bg-coral-soft text-coral-ink",
+  plum: "bg-plum/[0.07] text-plum",
 } as const;
 
 export type Accent = keyof typeof ACCENTS;
