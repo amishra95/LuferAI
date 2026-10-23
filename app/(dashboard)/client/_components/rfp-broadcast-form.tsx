@@ -68,7 +68,16 @@ export function RfpBroadcastForm() {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3">
+    <form onSubmit={submit} className="grid gap-3" aria-labelledby="rfp-form-heading">
+      {/* Titled so it doesn't read as a second concierge box: this one sends, the concierge searches. */}
+      <header>
+        <h2 id="rfp-form-heading" className="text-fg text-body font-semibold">
+          Get quotes from venues
+        </h2>
+        <p className="text-fg-subtle text-meta">
+          Describe the event once. Matching venues get a structured request and quote you directly, and you compare them side by side under Quotes to review.
+        </p>
+      </header>
       <div className="panel focus-within:border-line-strong relative p-2 transition-colors duration-100">
         <label htmlFor="brief" className="sr-only">
           Describe your event

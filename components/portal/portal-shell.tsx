@@ -54,13 +54,15 @@ export async function PortalShell({
   children: React.ReactNode;
 }) {
   const source = dataSource();
-  const switcher = portal === "/property" || portal === "/partner" ? (await getCurrentMember())?.role === "ADMIN" : false;
+  // Operator-only chrome: the data-source badge and the portal switcher.
+  const admin = (await getCurrentMember())?.role === "ADMIN";
+  const switcher = admin && (portal === "/property" || portal === "/partner");
   return (
     <Page>
       <PageHeader
         title={title}
         description={subtitle}
-        badge={<NoticePill>{source === "mock" ? "mock data" : source}</NoticePill>}
+        badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
         actions={
           switcher ? (
             <div className="flex flex-wrap items-center justify-end gap-2">

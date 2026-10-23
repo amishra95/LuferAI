@@ -25,7 +25,8 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
       model={model?.modelId ?? "none"}
       offline={!model}
       agentEnabled={agentEnabled}
-      defaultInspectorOpen={inspectorOpen}
+      // The tool inspector is operator detail: open by preference for admins, on demand for everyone else.
+      defaultInspectorOpen={member?.role === "ADMIN" && inspectorOpen}
       companyName={company?.legal_name}
       initialDraft={draftFromParam(prompt)}
     />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { canAccess, homeFor, portalFor, safeNextPath } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
@@ -30,7 +31,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const errorMessage = typeof error === "string" ? ERRORS[error] : undefined;
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 pt-[calc(4rem+var(--app-safe-top))] pb-[calc(4rem+var(--app-safe-bottom))]">
+    <AuthShell>
       <Card>
         <CardHeader>
           <CardTitle>Sign in to Lufer.ai</CardTitle>
@@ -45,12 +46,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <LoginForm next={next ?? ""} />
         </CardContent>
       </Card>
-      <p className="text-fg-subtle mt-4 text-center text-meta">
+      <p className="text-fg-subtle text-center text-meta">
         New to Lufer.ai?{" "}
         <Link href="/signup" className="text-link underline-offset-2 hover:underline">
           Apply for an account
         </Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }

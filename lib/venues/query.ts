@@ -87,3 +87,14 @@ export function applyVenueQuery(venues: DirectoryVenue[], q: VenueQuery) {
     rows: filtered.slice((page - 1) * q.size, page * q.size),
   };
 }
+
+/**
+ * Commission is the platform's commercial term with each venue: operators see
+ * it, buyers don't (and so can't sort by it either).
+ */
+export function withoutCommission(venues: DirectoryVenue[], query: VenueQuery): { venues: DirectoryVenue[]; query: VenueQuery } {
+  return {
+    venues: venues.map((v) => (v.commission_rate === null ? v : { ...v, commission_rate: null })),
+    query: query.sort === "commission_rate" ? { ...query, sort: "name", dir: "asc" } : query,
+  };
+}
