@@ -1,8 +1,8 @@
-// Module hooks for importing server actions under Node's test runner
-// (tests/finance/server-actions.test.mjs): resolves the "@/" alias and
+// Module hooks for importing server code (actions, workflows, the OAuth vault)
+// under Node's test runner: resolves the "@/" alias and
 // extensionless TypeScript imports, transforms the TypeScript that strip-only
-// mode rejects (parameter properties, enums), and swaps the Next.js runtime and the
-// session for stubs. Registered by tests/support/server-actions.mjs.
+// mode rejects (parameter properties, enums), and swaps the Next.js runtime, the
+// session and workflow/api for stubs. Registered by tests/support/server-actions.mjs.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -16,6 +16,7 @@ const STUBBED = {
   "next/cache": "next-cache.mjs",
   "next/navigation": "next-navigation.mjs",
   "@/lib/auth/session": "session.mjs",
+  "workflow/api": "workflow-api.mjs",
 };
 
 const isFile = (p) => existsSync(p) && statSync(p).isFile();

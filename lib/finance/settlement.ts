@@ -68,6 +68,8 @@ export function settlementTimeline(input: SettlementInput): SettlementEvent[] {
     const by = e.requested_by ? "sent by hand" : "sent on confirmation";
     const attempts = e.attempts > 1 ? ` after ${e.attempts} attempts` : "";
     if (e.status === "failed") events.push({ at: e.updated_at, kind: "export", label: `Export to ${name} failed`, detail: e.error ?? undefined, tone: "error" });
+    else if (e.status === "dead_lettered")
+      events.push({ at: e.updated_at, kind: "export", label: `Export to ${name} gave up${attempts}`, detail: [e.error, "export again to retry"].filter(Boolean).join(" · "), tone: "error" });
     else events.push({ at: e.updated_at, kind: "export", label: `${e.status === "mocked" ? "Recorded for" : "Exported to"} ${name}`, detail: `${by}${attempts}${e.status === "mocked" ? " (no endpoint configured)" : ""}`, tone: e.status === "mocked" ? "warn" : "ok" });
   }
 

@@ -13,6 +13,7 @@ import type { OrderEventStatus } from "@/lib/telemetry/events";
 import { addApprovalComment, decideApproval, findExpenseExport, listApprovals, listBookings, listCatalogOrders, listCompanies, listPortalUsers, listVenues, updateBookingCostCenter, updateBookingItcDecision, updateBookingStatus } from "@/lib/data";
 import { costCentreLock, validateCostCentre } from "@/lib/bookings/expense-meta";
 import { exportBookingExpense } from "@/lib/finance/export-dispatcher";
+import { queueBookingExport } from "@/lib/finance/export-queue";
 import { isExpenseProvider, PROVIDER_LABEL, type ExpenseProvider } from "@/lib/finance/expense-adapters";
 import { itcStatusOf } from "@/lib/finance/itc";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
@@ -486,8 +487,11 @@ async function financeScope(action: string): Promise<{ companyId?: string; userI
 /**
  * Sends a confirmed booking's itemised receipt to a chosen expense/ERP system
  * (SAP Concur, Zoho Expense, ERPNext, Ramp, Brex or the signed webhook; see
- * lib/finance/expense-adapters.ts) and records the attempt. Idempotent per
- * provider: a delivered export isn't re-sent, a failed one is retried.
+ * lib/finance/expense-adapters.ts) through the durable export workflow
+ * (workflows/erp-export.ts: 5 attempts with backoff, then dead-lettered), and
+ * records each attempt. Idempotent per provider: a delivered export isn't
+ * re-sent, a failed or dead-lettered one is retried. Without the workflow
+ * runtime it exports inline, once.
  */
 export async function exportBookingToERP(bookingId: string, provider: string): Promise<ActionResult<ErpExport>> {
   return serverDispatch(
@@ -498,25 +502,35 @@ export async function exportBookingToERP(bookingId: string, provider: string): P
       const booking = (await listBookings(scope.companyId ? { companyId: scope.companyId } : {})).find((b) => b.id === bookingId);
       if (!booking) throw new ActionError("Booking not found.");
       if (!["CONFIRMED", "COMPLETED", "SETTLED"].includes(booking.status)) throw new ActionError("Only confirmed bookings can be exported.");
-      const result = await exportBookingExpense(bookingId, { provider, requestedBy: scope.userId });
+      const base = { bookingId, provider, companyId: booking.company_id };
+      const label = PROVIDER_LABEL[provider];
+
+      // Say so now rather than queueing a job that would only skip.
+      const existing = await findExpenseExport(bookingId, "booking.confirmed", provider);
+      if (existing && existing.status !== "failed" && existing.status !== "dead_lettered") return { ...base, export: "skipped" as const, message: `Already sent to ${label}.` };
+
+      const queued = await queueBookingExport({ bookingId, provider, requestedBy: scope.userId });
       revalidateBookingViews();
+      if (queued.queued) return { ...base, export: "queued" as const, runId: queued.runId, message: `Sending to ${label}. Failures retry automatically (up to 5 attempts).` };
+      const result = queued.outcome;
       return {
-        bookingId,
-        provider,
+        ...base,
         export: result.status,
-        companyId: booking.company_id,
-        ...(result.status === "skipped" && { message: `Already sent to ${PROVIDER_LABEL[provider]}.` }),
+        ...(result.status === "skipped" && { message: `Already sent to ${label}.` }),
         ...(result.status === "failed" && { error: result.error }),
       };
     },
-    { emit: async ({ bookingId: id, provider: p, export: status }) => publishExpense(id, p, status) }
+    // A queued export publishes its own outcome when the workflow finishes.
+    { emit: async ({ bookingId: id, provider: p, export: status }) => (status === "queued" ? undefined : publishExpense(id, p, status)) }
   );
 }
 
 export interface ErpExport {
   bookingId: string;
   provider: ExpenseProvider;
-  export: "delivered" | "mocked" | "failed" | "skipped";
+  /** "queued": handed to the durable workflow (runId); the others are an inline export's outcome. */
+  export: "queued" | "delivered" | "mocked" | "failed" | "skipped";
+  runId?: string;
   companyId: string;
   message?: string;
   error?: string;

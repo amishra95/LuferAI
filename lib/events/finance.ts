@@ -92,7 +92,7 @@ export function depositReadiness(bookingStatus: string, payment: { status: strin
 
 /** The final invoice and receipt, from the booking status and its expense export (if any). */
 export function receiptReadiness(bookingStatus: string, exportStatus: string | null): Readiness {
-  if (exportStatus === "failed") return { tone: "problem", label: "Receipt export failed", hint: "The receipt couldn't reach your expense system. An Approver can retry the sync." };
+  if (exportStatus === "failed" || exportStatus === "dead_lettered") return { tone: "problem", label: "Receipt export failed", hint: "The receipt couldn't reach your expense system. An Approver can retry the sync." };
   if (exportStatus) return { tone: "done", label: "Receipt ready", hint: "The structured receipt was exported to finance." };
   if (bookingStatus === "CANCELLED") return { tone: "none", label: "No invoice", hint: "Cancelled, so no invoice was issued." };
   if (["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Invoice issued · receipt pending", hint: "Confirmed; the receipt hasn't been exported to finance yet." };

@@ -19,9 +19,11 @@ import type {
   Department,
   ExpenseExport,
   InventoryHold,
+  OAuthCredentialRow,
   PlatformUser,
   PoAllocation,
   PurchaseOrder,
+  TaxInvoiceDocument,
   Venue,
   VenueBlockedDate,
   VenueOnboardingRequest,
@@ -511,6 +513,8 @@ export interface MockDb {
   blockedDates: VenueBlockedDate[];
   eventPlans: EventPlanRow[];
   eventCheckins: EventCheckin[];
+  oauthCredentials: OAuthCredentialRow[];
+  taxInvoiceDocuments: TaxInvoiceDocument[];
 }
 
 const globalForMock = globalThis as unknown as { __corpHospitalityMockDb?: MockDb };
@@ -541,6 +545,8 @@ export function seedDb(): MockDb {
     blockedDates: [],
     eventPlans: [],
     eventCheckins: [],
+    oauthCredentials: [],
+    taxInvoiceDocuments: [],
   });
 }
 
@@ -570,6 +576,8 @@ export const mockDb: MockDb = (globalForMock.__corpHospitalityMockDb = {
   blockedDates: [],
   eventPlans: [],
   eventCheckins: [],
+  oauthCredentials: [],
+  taxInvoiceDocuments: [],
   ...globalForMock.__corpHospitalityMockDb,
 });
 
@@ -590,6 +598,8 @@ export function backfillDefaults(db: MockDb): MockDb {
   db.blockedDates ??= [];
   db.eventPlans ??= [];
   db.eventCheckins ??= [];
+  db.oauthCredentials ??= [];
+  db.taxInvoiceDocuments ??= [];
   for (const p of db.partners) {
     p.commission_rate ??= 0.1;
     p.razorpay_account_id ??= null;

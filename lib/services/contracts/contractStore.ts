@@ -3,6 +3,7 @@ import "server-only";
 import type { Member } from "@/lib/auth/session";
 import { dataSource, listApprovalChain, listApprovals } from "@/lib/data";
 import { dispatchBookingConfirmed } from "@/lib/finance/export-dispatcher";
+import { queueTaxInvoice } from "@/lib/finance/tax-invoice-queue";
 import { calculateGst } from "@/lib/gst-engine";
 import { settleDeposit } from "@/lib/payments/service";
 import { depositFor } from "@/lib/quotes";
@@ -446,6 +447,7 @@ export async function afterExecution(contractId: string): Promise<void> {
 
     // What the venue's Confirm did besides the status change (lib/bookings/confirm.ts).
     await dispatchBookingConfirmed(contract.booking_id);
+    await queueTaxInvoice(contract.booking_id);
     await settleDeposit(contract.booking_id, "capture");
   } catch (err) {
     console.error(`contracts: post-execution steps failed for ${contractId}`, err);

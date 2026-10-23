@@ -45,7 +45,7 @@ export interface ReceiptState {
 
 /** The Receipt column for a booking, from its status and its expense export (if any). */
 export function receiptState(bookingStatus: string, exportStatus: string | null): ReceiptState {
-  if (exportStatus === "failed") return { kind: "failed", label: "Export failed", hint: "The receipt couldn't be delivered to your expense system. An Approver can retry the sync." };
+  if (exportStatus === "failed" || exportStatus === "dead_lettered") return { kind: "failed", label: "Export failed", hint: "The receipt couldn't be delivered to your expense system. An Approver can retry the sync." };
   if (exportStatus) return { kind: "available", label: "Receipt available", hint: "Exported to finance. Download the structured receipt (JSON)." };
   if (bookingStatus === "CANCELLED") return { kind: "none", label: "No receipt", hint: "Cancelled, so no invoice or receipt was issued." };
   if (bookingStatus === "CONFIRMED" || bookingStatus === "COMPLETED" || bookingStatus === "SETTLED") {

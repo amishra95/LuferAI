@@ -320,5 +320,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 function ExportStatusBadge({ status }: { status: string }) {
   if (status === "delivered") return <Badge variant="success">delivered</Badge>;
   if (status === "failed") return <Badge variant="destructive">failed</Badge>;
+  if (status === "dead_lettered") return <Badge variant="destructive">dead-lettered</Badge>;
   return <Badge variant="outline">mocked</Badge>;
 }

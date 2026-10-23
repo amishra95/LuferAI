@@ -20,6 +20,8 @@ import type {
   EventWorkspace,
   ExpenseExport,
   InventoryHold,
+  OAuthCredentialRow,
+  TaxInvoiceDocument,
   VenueBlockedDate,
   PoAllocation,
   PurchaseOrder,
@@ -1140,31 +1142,63 @@ export async function recordExpenseExport(row: NewExpenseExport): Promise<boolea
   return true;
 }
 
+/** Exports that may be sent again: failed, or dead-lettered after the durable job gave up. */
+const RETRYABLE_EXPORT = ["failed", "dead_lettered"];
+
 /**
- * Re-sends a failed export in place (one row per booking + event). Returns false
- * if it is no longer failed (another retry got there first).
+ * Re-sends a failed (or dead-lettered) export in place (one row per booking +
+ * event). Returns false if it is no longer retryable (another retry got there first).
  */
 export async function retryExpenseExport(id: string, row: NewExpenseExport): Promise<boolean> {
   if (local()) {
     return mutateDb((db) => {
-      const e = db.expenseExports.find((x) => x.id === id && x.status === "failed");
+      const e = db.expenseExports.find((x) => x.id === id && RETRYABLE_EXPORT.includes(x.status));
       if (!e) return false;
       Object.assign(e, row, { attempts: e.attempts + 1, updated_at: new Date().toISOString() });
       return true;
     });
   }
   const db = createAdminClient();
-  const { data: current, error: readError } = await db.from("expense_exports").select("attempts").eq("id", id).eq("status", "failed").maybeSingle();
+  const { data: current, error: readError } = await db.from("expense_exports").select("attempts").eq("id", id).in("status", RETRYABLE_EXPORT).maybeSingle();
   if (readError) throw readError;
   if (!current) return false;
   const { data, error } = await db
     .from("expense_exports")
     .update({ ...row, attempts: current.attempts + 1 })
     .eq("id", id)
-    .eq("status", "failed")
+    .in("status", RETRYABLE_EXPORT)
     .select("id");
   if (error) throw error;
   return data.length > 0;
+}
+
+/**
+ * Marks a failed export dead-lettered: its durable job ran out of attempts (or
+ * hit a permanent error). Returns the row, or null if it isn't failed (e.g. a
+ * manual export delivered it meanwhile).
+ */
+export async function deadLetterExpenseExport(subjectId: string, event: ExpenseExportEvent, provider: string, error: string): Promise<ExpenseExport | null> {
+  const values = { status: "dead_lettered", error: error.slice(0, 500) };
+  const col = exportSubject(event);
+  if (local()) {
+    return mutateDb((db) => {
+      const e = db.expenseExports.find((x) => x[col] === subjectId && x.event === event && x.provider === provider && x.status === "failed");
+      if (!e) return null;
+      Object.assign(e, values, { updated_at: new Date().toISOString() });
+      return { ...e };
+    });
+  }
+  const { data, error: dbError } = await createAdminClient()
+    .from("expense_exports")
+    .update(values)
+    .eq(col, subjectId)
+    .eq("event", event)
+    .eq("provider", provider)
+    .eq("status", "failed")
+    .select("*")
+    .maybeSingle();
+  if (dbError) throw dbError;
+  return data;
 }
 
 export async function listExpenseExports(filter: { tenantId?: string; limit?: number } = {}): Promise<ExpenseExport[]> {
@@ -1187,6 +1221,136 @@ export async function getExpenseExport(id: string): Promise<ExpenseExport | null
   const { data, error } = await createAdminClient().from("expense_exports").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// ----------------------------------------------------------------------------
+// OAuth token vault (rows hold ciphertext only; see lib/auth/oauth-vault.ts)
+// ----------------------------------------------------------------------------
+
+export type OAuthCredentialWrite = Pick<OAuthCredentialRow, "provider" | "encrypted_access_token" | "encrypted_refresh_token" | "expires_at" | "organization_id" | "refreshed_at">;
+
+export async function getOAuthCredentialRow(provider: string): Promise<OAuthCredentialRow | null> {
+  if (local()) return (await readDb()).oauthCredentials.find((c) => c.provider === provider) ?? null;
+  const { data, error } = await createAdminClient().from("oauth_credentials").select("*").eq("provider", provider).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function listOAuthCredentialRows(): Promise<OAuthCredentialRow[]> {
+  if (local()) return [...(await readDb()).oauthCredentials].sort((a, b) => a.provider.localeCompare(b.provider));
+  const { data, error } = await createAdminClient().from("oauth_credentials").select("*").order("provider");
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Writes a credential if it is still at `expectedVersion` (null: it must not
+ * exist yet), bumping the version and clearing the last error. Returns false
+ * when another writer got there first, so concurrent refreshes can't clobber
+ * each other's tokens.
+ */
+export async function saveOAuthCredentialRow(row: OAuthCredentialWrite, expectedVersion: number | null): Promise<boolean> {
+  if (local()) {
+    return mutateDb((db) => {
+      const current = db.oauthCredentials.find((c) => c.provider === row.provider);
+      if ((current?.version ?? null) !== expectedVersion) return false;
+      const now = new Date().toISOString();
+      if (current) Object.assign(current, row, { version: current.version + 1, last_error: null, updated_at: now });
+      else db.oauthCredentials.push({ ...row, version: 1, last_error: null, created_at: now, updated_at: now });
+      return true;
+    });
+  }
+  const db = createAdminClient();
+  if (expectedVersion === null) {
+    const { error } = await db.from("oauth_credentials").insert({ ...row, version: 1, last_error: null });
+    if (error?.code === "23505") return false;
+    if (error) throw error;
+    return true;
+  }
+  const { data, error } = await db
+    .from("oauth_credentials")
+    .update({ ...row, version: expectedVersion + 1, last_error: null })
+    .eq("provider", row.provider)
+    .eq("version", expectedVersion)
+    .select("provider");
+  if (error) throw error;
+  return data.length > 0;
+}
+
+/** Records why the last refresh failed, leaving the tokens as they were. */
+export async function recordOAuthCredentialError(provider: string, message: string): Promise<void> {
+  const last_error = message.slice(0, 500);
+  if (local()) {
+    await mutateDb((db) => {
+      const current = db.oauthCredentials.find((c) => c.provider === provider);
+      if (current) Object.assign(current, { last_error, updated_at: new Date().toISOString() });
+    });
+    return;
+  }
+  const { error } = await createAdminClient().from("oauth_credentials").update({ last_error }).eq("provider", provider);
+  if (error) throw error;
+}
+
+// ----------------------------------------------------------------------------
+// Tax invoice documents (rendered by workflows/tax-invoice.ts)
+// ----------------------------------------------------------------------------
+
+export async function getTaxInvoiceDocument(bookingId: string): Promise<TaxInvoiceDocument | null> {
+  if (local()) return (await readDb()).taxInvoiceDocuments.find((d) => d.booking_id === bookingId) ?? null;
+  const { data, error } = await createAdminClient().from("tax_invoice_documents").select("*").eq("booking_id", bookingId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export type TaxInvoiceOutcome =
+  | { status: "rendered"; invoice_number: string | null; html: string; html_sha256: string }
+  | { status: "failed" | "dead_lettered"; error: string };
+
+/**
+ * Records a render attempt for a booking's tax invoice, one row per booking:
+ * the document, or the failure (attempts + 1). A rendered document is final, so
+ * a later failure or dead-letter never overwrites it. Returns the row.
+ */
+export async function recordTaxInvoiceDocument(bookingId: string, tenantId: string, outcome: TaxInvoiceOutcome): Promise<TaxInvoiceDocument> {
+  const now = new Date().toISOString();
+  const values =
+    outcome.status === "rendered"
+      ? { status: "rendered", invoice_number: outcome.invoice_number, html: outcome.html, html_sha256: outcome.html_sha256, rendered_at: now, error: null }
+      : { status: outcome.status, error: outcome.error.slice(0, 500) };
+  // Dead-lettering closes out the attempts already counted; it isn't one itself.
+  const counts = outcome.status !== "dead_lettered";
+  if (local()) {
+    return mutateDb((db) => {
+      const current = db.taxInvoiceDocuments.find((d) => d.booking_id === bookingId);
+      if (current?.status === "rendered") return { ...current };
+      if (current) {
+        Object.assign(current, values, { attempts: current.attempts + (counts ? 1 : 0), updated_at: now });
+        return { ...current };
+      }
+      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, html: null, html_sha256: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
+      db.taxInvoiceDocuments.push(row);
+      return { ...row };
+    });
+  }
+  const db = createAdminClient();
+  const current = await getTaxInvoiceDocument(bookingId);
+  if (current?.status === "rendered") return current;
+  if (!current) {
+    const { data, error } = await db.from("tax_invoice_documents").insert({ booking_id: bookingId, tenant_id: tenantId, ...values }).select("*").single();
+    // Another attempt inserted first: record against its row.
+    if (error?.code === "23505") return recordTaxInvoiceDocument(bookingId, tenantId, outcome);
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await db
+    .from("tax_invoice_documents")
+    .update({ ...values, attempts: current.attempts + (counts ? 1 : 0) })
+    .eq("booking_id", bookingId)
+    .neq("status", "rendered")
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? (await getTaxInvoiceDocument(bookingId))!;
 }
 
 // ----------------------------------------------------------------------------
