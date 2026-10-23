@@ -25,6 +25,7 @@ import type {
   VenueBlockedDate,
   PoAllocation,
   PurchaseOrder,
+  SignupApplication,
   Venue,
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
@@ -2195,4 +2196,158 @@ export async function respondToRsvp(token: string, response: RsvpResponse): Prom
   if (error) throw error;
   if (!data) throw new EventWorkspaceError("This invitation link isn't valid.");
   return data;
+}
+
+// ----------------------------------------------------------------------------
+// Signup applications (migration 20261103000000)
+// ----------------------------------------------------------------------------
+
+/** A refusal written for the admin: already decided, already a member, not found. */
+export class SignupApplicationError extends Error {
+  constructor(
+    message: string,
+    readonly code: "not_found" | "decided" | "already_member"
+  ) {
+    super(message);
+    this.name = "SignupApplicationError";
+  }
+}
+
+export type NewSignupApplication = Pick<
+  SignupApplication,
+  "account_type" | "email" | "full_name" | "company_name" | "phone" | "job_title" | "city" | "message" | "gstin" | "venue_website" | "partner_role"
+>;
+
+/**
+ * Records a verified applicant's application, once: a second call for the
+ * same user returns the first (the applicant opened their link twice, or
+ * signed up again while pending).
+ */
+export async function createSignupApplication(userId: string, input: NewSignupApplication): Promise<SignupApplication> {
+  const existing = await getSignupApplication(userId);
+  if (existing) return existing;
+  if (local()) {
+    let row!: SignupApplication;
+    await mutateDb((db) => {
+      const now = new Date().toISOString();
+      row = { ...input, id: crypto.randomUUID(), user_id: userId, status: "pending_approval", company_id: null, partner_id: null, reviewed_by: null, reviewed_at: null, rejection_reason: null, created_at: now, updated_at: now };
+      db.signupApplications.push(row);
+    });
+    return row;
+  }
+  const { data, error } = await createAdminClient().from("signup_applications").insert({ ...input, user_id: userId }).select("*").single();
+  // Unique on user_id: a concurrent first call won; return its row.
+  if (error?.code === "23505") return (await getSignupApplication(userId))!;
+  if (error) throw error;
+  return data;
+}
+
+export async function getSignupApplication(userId: string): Promise<SignupApplication | null> {
+  if (local()) return (await readDb()).signupApplications.find((a) => a.user_id === userId) ?? null;
+  const { data, error } = await createAdminClient().from("signup_applications").select("*").eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Applications, oldest first (the queue order), optionally by status. */
+export async function listSignupApplications(filter: { status?: SignupApplication["status"] } = {}): Promise<SignupApplication[]> {
+  if (local()) {
+    return (await readDb()).signupApplications.filter((a) => !filter.status || a.status === filter.status).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+  let query = createAdminClient().from("signup_applications").select("*").order("created_at");
+  if (filter.status) query = query.eq("status", filter.status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+/** "Mosaic Kitchen & Bar" → "mosaic-kitchen-bar", unique among partners (as decide_signup_application does). */
+function partnerSlug(name: string, taken: Set<string>): string {
+  let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "partner";
+  if (base.length < 2) base = `${base}-partner`;
+  base = base.replace(/^-+|-+$/g, "");
+  let slug = base;
+  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+  return slug;
+}
+
+/**
+ * Approves (`active`) or rejects an application. Approval creates the
+ * organisation and the applicant's platform_users row in one transaction
+ * (decide_signup_application in Supabase; the local branch mirrors it):
+ * an enterprise joins the company with its GSTIN (as ORGANIZER) or a new one
+ * (as APPROVER); a partner gets a new partner organisation, as OWNER.
+ */
+export async function decideSignupApplication(applicationId: string, decision: "active" | "rejected", reviewerId: string, reason?: string | null): Promise<SignupApplication> {
+  if (local()) {
+    let out!: SignupApplication;
+    await mutateDb((db) => {
+      const app = db.signupApplications.find((a) => a.id === applicationId);
+      if (!app) throw new SignupApplicationError("This application was not found.", "not_found");
+      if (app.status !== "pending_approval") throw new SignupApplicationError("This application has already been decided.", "decided");
+      const now = new Date().toISOString();
+      const decided = { reviewed_by: reviewerId, reviewed_at: now, updated_at: now };
+      if (decision === "rejected") {
+        Object.assign(app, decided, { status: "rejected", rejection_reason: reason?.trim() || null });
+        out = { ...app };
+        return;
+      }
+      if (db.users.some((u) => u.user_id === app.user_id)) throw new SignupApplicationError("This person already has portal access.", "already_member");
+      const user = { user_id: app.user_id, venue_id: null, created_at: now, name: app.full_name };
+      if (app.account_type === "enterprise") {
+        let company = db.companies.find((c) => c.gstin === app.gstin);
+        const joined = Boolean(company);
+        if (!company) {
+          company = {
+            id: crypto.randomUUID(),
+            legal_name: app.company_name.trim(),
+            gstin: app.gstin!,
+            state_code: app.gstin!.slice(0, 2),
+            primary_contact_email: app.email,
+            monthly_spend_limit_inr: 0,
+            expense_provider: "webhook",
+            contracts_required: false,
+            office_latitude: null,
+            office_longitude: null,
+            office_label: "office",
+            created_at: now,
+            updated_at: now,
+          };
+          db.companies.push(company);
+        }
+        db.users.push({ ...user, role: "CLIENT", company_id: company.id, partner_id: null, partner_role: null, corporate_role: joined ? "ORGANIZER" : "APPROVER" });
+        Object.assign(app, decided, { status: "active", company_id: company.id, partner_id: null, rejection_reason: null });
+      } else {
+        const partner = {
+          id: crypto.randomUUID(),
+          name: app.company_name.trim(),
+          slug: partnerSlug(app.company_name, new Set(db.partners.map((p) => p.slug))),
+          contact_email: app.email,
+          gstin: app.gstin,
+          status: "active",
+          commission_rate: 0.1,
+          razorpay_account_id: null,
+          created_at: now,
+          updated_at: now,
+        };
+        db.partners.push(partner);
+        db.users.push({ ...user, role: "PARTNER", company_id: null, partner_id: partner.id, partner_role: "OWNER", corporate_role: null });
+        Object.assign(app, decided, { status: "active", partner_id: partner.id, company_id: null, rejection_reason: null });
+      }
+      out = { ...app };
+    });
+    return out;
+  }
+
+  const { data, error } = await createAdminClient().rpc("decide_signup_application", {
+    p_application_id: applicationId,
+    p_decision: decision,
+    p_reviewer: reviewerId,
+    ...(reason?.trim() && { p_reason: reason.trim() }),
+  });
+  if (error?.hint === "application_not_found") throw new SignupApplicationError(error.message, "not_found");
+  if (error?.hint === "application_decided") throw new SignupApplicationError(error.message, "decided");
+  if (error?.hint === "already_member") throw new SignupApplicationError(error.message, "already_member");
+  if (error) throw error;
+  return data as SignupApplication;
 }

@@ -79,3 +79,38 @@ export async function notifyVenueAccepted(bookingId: string, venueId: string): P
     return { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+/**
+ * Tells an applicant their account was approved (with the link to sign in)
+ * or not (with the reason, if the admin gave one). Never throws.
+ */
+export async function notifyApplicationDecision(app: { email: string; full_name: string; account_type: string; status: string; rejection_reason: string | null }): Promise<NotifyOutcome> {
+  try {
+    const first = app.full_name.split(" ")[0];
+    const signIn = new URL("/login", siteUrl("http://localhost:3000")).toString();
+    const portal = app.account_type === "partner" ? "partner portal" : "company portal";
+    const approved = app.status === "active";
+    const subject = approved ? "Your CorpHospitality account is approved" : "Your CorpHospitality application";
+    const lines = approved
+      ? [`Hi ${first},`, "", `Your account is approved. Sign in to open your ${portal}:`, signIn, "", "— CorpHospitality"]
+      : [
+          `Hi ${first},`,
+          "",
+          "Thanks for applying. We couldn't approve your account this time.",
+          ...(app.rejection_reason ? ["", `Reason: ${app.rejection_reason}`] : []),
+          "",
+          "If you think this is a mistake, reply to this email.",
+          "— CorpHospitality",
+        ];
+    const text = lines.join("\n");
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${lines
+      .map((l) => (l === signIn ? `<p><a href="${escHtml(signIn)}">Sign in to CorpHospitality</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
+      .join("")}</body></html>`;
+    return await sendEmail({ to: app.email, subject, text, html });
+  } catch (err) {
+    console.error("notify: application decision failed", err);
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}

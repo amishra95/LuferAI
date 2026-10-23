@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isApplicationStatus, landingFor } from "@/lib/auth/onboarding";
 import { canAccess, canAccessWorkspace, homeFor, membershipFromClaims, portalFor, workspaceRouteFor } from "@/lib/auth/roles";
 import { isAiApiPath, limitAiRequest } from "@/lib/ratelimit";
 import type { Database, PortalRole } from "./database.types";
@@ -9,7 +10,8 @@ import { clean, isAuthConfigured } from "./env";
 /**
  * Refreshes the Supabase session cookie on every matched request and gates the portals:
  * - signed out            → /login?next=<path>
- * - signed in, no role    → /login?error=no_access
+ * - signed in, no role    → /signup/pending if they've applied (lib/auth/onboarding.ts),
+ *                           else /login?error=no_access
  * - signed in, wrong role → that role's own portal
  * Workspace areas (/dashboard, /settings, /agents, /chat, /venues) are gated the
  * same way, by portal role plus corporate role (lib/auth/roles.ts).
@@ -75,7 +77,12 @@ export async function updateSession(request: NextRequest) {
   }
   const role: PortalRole | undefined = membership?.role;
 
-  if (!role) return redirectToLogin(request, response, { error: "no_access" });
+  if (!role) {
+    // Applied at /signup and not approved (yet): the waiting room. RLS lets them read only their own application.
+    const { data: application } = await supabase.from("signup_applications").select("status").eq("user_id", userId).maybeSingle();
+    const status = isApplicationStatus(application?.status) ? application.status : null;
+    return withSessionCookies(NextResponse.redirect(new URL(landingFor(null, status), request.url)), response);
+  }
   const allowed = portal ? canAccess(role, portal) : canAccessWorkspace(role, membership?.corporateRole, workspace!);
   if (!allowed) return withSessionCookies(NextResponse.redirect(new URL(homeFor(role), request.url)), response);
 
