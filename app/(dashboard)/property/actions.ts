@@ -18,6 +18,7 @@ import { notifyVenueAccepted } from "@/lib/services/notifications";
 import { publishBooking } from "@/lib/telemetry/live";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, PricingError, saveCancellationTerms, saveMenuPackage, saveMinimumSpend, saveVenuePricing } from "@/lib/venues/pricing-store";
+import { setInquiryStatus } from "@/lib/venues/inquiry-store";
 
 const INTENT_TO_STATUS: Record<string, BookingStatus> = {
   approve: "CONFIRMED",
@@ -428,4 +429,18 @@ export async function removeRateMultiplierAction(formData: FormData) {
   const { pricing } = await getVenuePricing(venueId);
   await saveVenuePricing(venueId, { multipliers: pricing.multipliers.filter((m) => m.id !== id) }, userId);
   revalidatePricing();
+}
+
+/**
+ * The venue's call on an inquiry from its AI inquiry agent: converted (it
+ * became business), closed, or reopened. Property managers act on their own
+ * venue only.
+ */
+export async function setInquiryStatusAction(formData: FormData) {
+  const venueId = await actingVenueId(formData);
+  const id = String(formData.get("inquiry_id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!venueId || !/^[0-9a-f-]{36}$/i.test(id) || !["open", "qualified", "converted", "closed"].includes(status)) throw new Error("Invalid inquiry update");
+  await setInquiryStatus(venueId, id, status as "open" | "qualified" | "converted" | "closed");
+  revalidatePath("/property");
 }

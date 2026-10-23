@@ -43,6 +43,7 @@ const COLLECTIONS = [
   "oauthCredentials",
   "taxInvoiceDocuments",
   "signupApplications",
+  "venueInquiries",
 ] as const satisfies readonly (keyof MockDb)[];
 
 const PREFIX = "lufer:db:";
