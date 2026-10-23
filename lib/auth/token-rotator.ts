@@ -21,7 +21,7 @@ import { isOAuthProvider, OAUTH_PROVIDERS, readCredential, recordRefreshFailure,
  * The first credential comes from ZOHO_REFRESH_TOKEN / ERPNEXT_OAUTH_REFRESH_TOKEN:
  * when the vault has none, the rotator redeems it and stores the result.
  *
- * Runs every 5 minutes (/api/cron/rotate-oauth-tokens) and on use
+ * Runs daily (/api/cron/rotate-oauth-tokens) and on use
  * (accessTokenFor, before each export), so an export never goes out with a
  * token about to lapse even if the cron is late. Concurrent refreshes are safe:
  * writes are compare-and-set on the credential's version, and a refresh that

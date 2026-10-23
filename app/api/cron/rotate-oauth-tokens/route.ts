@@ -4,7 +4,7 @@ import { isCronAuthorized } from "@/lib/api/cron";
 import { rotateExpiringTokens } from "@/lib/auth/token-rotator";
 
 /**
- * Every 5 minutes (vercel.json → crons). Refreshes vault OAuth tokens (Zoho
+ * Daily at 01:00 UTC (vercel.json → crons). Refreshes vault OAuth tokens (Zoho
  * Expense, ERPNext) that expire within 10 minutes (lib/auth/token-rotator.ts).
  * Exports also refresh on use, so a missed run doesn't break them.
  *

@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/rotate-oauth-tokens",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
