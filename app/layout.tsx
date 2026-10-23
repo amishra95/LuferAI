@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 // Velvet Night type: Plus Jakarta Sans for UI, Fraunces for display headings,
@@ -20,13 +21,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const DESCRIPTION =
+  "Book team offsites, client dinners and corporate events in India. AI venue sourcing, direct quotes, pre-spend policy, WhatsApp approvals and GST-correct invoices with ITC tracked.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl("http://localhost:3000")),
   title: {
-    default: "CorpHospitality — Enterprise event procurement for India",
-    template: "%s · CorpHospitality",
+    default: "Lufer.ai — Corporate events & hospitality for India",
+    template: "%s · Lufer.ai",
   },
-  description:
-    "A three-sided marketplace connecting corporates, venues and the platform for GST-compliant hospitality procurement.",
+  description: DESCRIPTION,
+  applicationName: "Lufer.ai",
+  keywords: ["corporate events India", "team offsite", "venue booking", "corporate hospitality", "GST invoice", "SAC 998596", "event procurement"],
+  openGraph: { type: "website", siteName: "Lufer.ai", locale: "en_IN", title: "Lufer.ai — Corporate events & hospitality for India", description: DESCRIPTION },
+  twitter: { card: "summary_large_image", title: "Lufer.ai — Corporate events & hospitality for India", description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
