@@ -35,7 +35,7 @@ type Load =
   | { status: "readOnly"; message: string }
   | { status: "error"; message: string };
 
-// The brand pill, in green rather than the default coral. `!` beats btn-primary's colors (incl. its
+// The brand pill, in green rather than the default emerald. `!` beats btn-primary's colors (incl. its
 // nested :hover); emerald-700 keeps white text above 4.5:1 (emerald-600 doesn't).
 const SUBMIT =
   "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:px-6 " +
@@ -130,7 +130,7 @@ export function ManualBookingModal({
                 <p className="text-fg-muted text-body">{load.message}</p>
                 <Button asChild variant="outline" className="rounded-full">
                   <ChatDrawerTrigger onClick={() => setOpen(false)}>
-                    <Sparkles className="text-coral" aria-hidden /> Ask the concierge
+                    <Sparkles className="text-emerald" aria-hidden /> Ask the concierge
                   </ChatDrawerTrigger>
                 </Button>
               </div>

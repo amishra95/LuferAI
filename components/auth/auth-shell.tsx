@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BadgeCheck, MessageCircle, ReceiptText } from "lucide-react";
 
 /*
- * Sign-in and sign-up frame: a plum brand panel beside the form on wide
+ * Sign-in and sign-up frame: a graphite brand panel (soft emerald glow) beside the form on wide
  * screens, a compact wordmark above it on phones. Claims mirror the landing
  * page (components/landing), which cites the code behind each one.
  */
@@ -17,7 +17,7 @@ function Wordmark({ className }: { className?: string }) {
   return (
     <Link href="/" aria-label="Lufer.ai home" className={className}>
       <span className="font-display text-[1.6rem] leading-none font-semibold tracking-tight">
-        Lufer<span className="text-coral font-sans text-[0.6em]">.ai</span>
+        Lufer<span className="text-emerald-ink font-sans text-[0.6em]">.ai</span>
       </span>
     </Link>
   );
@@ -26,22 +26,24 @@ function Wordmark({ className }: { className?: string }) {
 export function AuthShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="grid flex-1 lg:grid-cols-[minmax(0,26rem)_1fr] xl:grid-cols-[minmax(0,30rem)_1fr]">
-      <aside className="on-plum landing-dark relative hidden flex-col justify-between overflow-hidden p-10 pt-[calc(2.5rem+var(--app-safe-top))] lg:flex">
-        <Wordmark className="text-linen relative w-fit rounded-md" />
+      <aside className="on-graphite landing-dark auth-panel relative hidden flex-col justify-between overflow-hidden p-10 pt-[calc(2.5rem+var(--app-safe-top))] lg:flex">
+        <Wordmark className="text-linen relative w-fit rounded-md [&_span_span]:text-mint" />
         <div className="relative">
           <p className="font-display text-linen text-3xl leading-tight font-semibold tracking-tight text-balance">
             Corporate events, booked inside your rules.
           </p>
           <ul className="mt-8 space-y-4">
             {POINTS.map(({ icon: Icon, text }) => (
-              <li key={text} className="text-on-plum-muted flex items-start gap-3 text-meta">
-                <Icon className="text-gold mt-0.5 size-4 shrink-0" aria-hidden />
+              <li key={text} className="text-on-graphite-muted flex items-center gap-3 text-meta">
+                <span className="bg-mint/10 text-mint grid size-7 shrink-0 place-items-center rounded-lg">
+                  <Icon className="size-3.5" aria-hidden />
+                </span>
                 {text}
               </li>
             ))}
           </ul>
         </div>
-        <p className="text-on-plum-muted relative text-caption">Built for Indian companies, GST and all.</p>
+        <p className="text-on-graphite-muted relative text-caption">Built for Indian companies, GST and all.</p>
       </aside>
 
       <main

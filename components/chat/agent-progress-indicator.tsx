@@ -20,7 +20,7 @@ export const ACTIVITY_ICON: Record<ActivityKind, LucideIcon> = {
 
 /**
  * What the agent is doing right now, shown while a turn is submitted or
- * streaming. A plum-light pill with a pulsing dot; its row has a fixed height
+ * streaming. A graphite-light pill with a pulsing dot; its row has a fixed height
  * and the label truncates, so streaming updates never shift the layout.
  */
 export function AgentProgressIndicator({
@@ -36,7 +36,7 @@ export function AgentProgressIndicator({
   const Icon = ACTIVITY_ICON[activity.kind];
   return (
     <div role="status" aria-live="polite" className={cn("flex h-7 min-w-0 items-center", className)}>
-      <span className="on-plum bg-plum-light rounded-badge inline-flex h-7 max-w-full min-w-0 items-center gap-2 px-2.5 text-caption font-medium leading-none">
+      <span className="on-graphite bg-graphite-light rounded-badge inline-flex h-7 max-w-full min-w-0 items-center gap-2 px-2.5 text-caption font-medium leading-none">
         <span aria-hidden className="status-dot bg-gold animate-pulse motion-reduce:animate-none" />
         <Icon aria-hidden className="text-fg-subtle size-3.5 shrink-0" strokeWidth={1.75} />
         <span className="text-fg-subtle truncate">{activity.label}…</span>

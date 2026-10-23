@@ -43,7 +43,7 @@ export interface CursorPosition extends CursorMessage {
 }
 
 // Velvet Night tokens (app/globals.css), all light enough for ink initials; identity only, not status.
-const PALETTE = ["var(--color-gold)", "var(--color-mint)", "var(--color-on-plum-muted)", "var(--color-gold-soft)", "var(--color-mint-soft)"];
+const PALETTE = ["var(--color-gold)", "var(--color-mint)", "var(--color-on-graphite-muted)", "var(--color-gold-soft)", "var(--color-mint-soft)"];
 
 /** A stable colour per user, the same in every collaborator's browser. */
 export function colorFor(userId: string): string {

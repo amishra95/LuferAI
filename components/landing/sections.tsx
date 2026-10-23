@@ -34,14 +34,14 @@ import { IconTile } from "@/components/landing/icon-tile";
  */
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <p className="text-coral-ink text-xs font-semibold tracking-[0.2em] uppercase">{children}</p>;
+  return <p className="text-emerald-ink text-xs font-semibold tracking-[0.2em] uppercase">{children}</p>;
 }
 
 function SectionHeader({ eyebrow, title, body, id, center }: { eyebrow: string; title: string; body?: string; id: string; center?: boolean }) {
   return (
     <header className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={id} className="font-display text-plum mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+      <h2 id={id} className="font-display text-graphite mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
         {title}
       </h2>
       {body ? <p className="text-ink-muted mt-4 text-pretty sm:text-lg">{body}</p> : null}
@@ -64,9 +64,9 @@ export function IndiaBand() {
       <div className="border-sand grid grid-cols-1 gap-px overflow-hidden rounded-2xl border bg-[var(--color-sand)] sm:grid-cols-2 lg:grid-cols-4">
         {INDIA.map(({ icon: Icon, title, body }) => (
           <div key={title} className="flex items-start gap-3 bg-white/85 p-5">
-            <Icon className="text-coral-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+            <Icon className="text-emerald-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
             <div>
-              <p className="text-plum text-meta font-semibold">{title}</p>
+              <p className="text-graphite text-meta font-semibold">{title}</p>
               <p className="text-ink-muted text-caption">{body}</p>
             </div>
           </div>
@@ -100,11 +100,11 @@ export function Workflow() {
         {STEPS.map(({ icon, title, body }, i) => (
           <li key={title} className="landing-card relative flex flex-col p-6">
             <div className="flex items-center justify-between">
-              <IconTile icon={icon} accent={i % 2 ? "plum" : "coral"} />
-              <span className="font-display text-plum/15 text-4xl leading-none font-semibold tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <IconTile icon={icon} accent={i % 2 ? "graphite" : "emerald"} />
+              <span className="font-display text-graphite/15 text-4xl leading-none font-semibold tabular-nums">{String(i + 1).padStart(2, "0")}</span>
             </div>
-            <h3 className="font-display text-plum mt-5 text-xl font-semibold">{title}</h3>
-            <p className="text-plum/75 mt-2 text-meta">{body}</p>
+            <h3 className="font-display text-graphite mt-5 text-xl font-semibold">{title}</h3>
+            <p className="text-graphite/75 mt-2 text-meta">{body}</p>
           </li>
         ))}
       </ol>
@@ -136,9 +136,9 @@ function FeatureGrid({ items, cols = 3 }: { items: Feature[]; cols?: 2 | 3 }) {
     <ul className={`mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""}`}>
       {items.map(({ icon: Icon, title, body }) => (
         <li key={title} className="flex gap-3">
-          <Icon className="text-coral-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+          <Icon className="text-emerald-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
           <div>
-            <p className="text-plum font-semibold">{title}</p>
+            <p className="text-graphite font-semibold">{title}</p>
             <p className="text-ink-muted text-meta">{body}</p>
           </div>
         </li>
@@ -154,7 +154,7 @@ export function Audiences() {
         <div className="landing-card grid gap-10 p-8 lg:grid-cols-[1fr_1.4fr] lg:p-12">
           <div>
             <Eyebrow>For HR, EAs & team leads</Eyebrow>
-            <h2 id="organisers-title" className="font-display text-plum mt-3 text-3xl font-semibold tracking-tight">
+            <h2 id="organisers-title" className="font-display text-graphite mt-3 text-3xl font-semibold tracking-tight">
               Plan it like you have an events team
             </h2>
             <p className="text-ink-muted mt-4">
@@ -166,14 +166,14 @@ export function Audiences() {
         </div>
       </section>
 
-      <section id="finance" aria-labelledby="finance-title" className="on-plum landing-dark scroll-mt-16">
+      <section id="finance" aria-labelledby="finance-title" className="on-graphite landing-dark scroll-mt-16">
         <div className="section-block container-public">
           <header className="max-w-2xl">
             <p className="text-gold text-xs font-semibold tracking-[0.2em] uppercase">For finance & procurement</p>
             <h2 id="finance-title" className="font-display text-linen mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               Every rupee approved before it&apos;s spent, and reconciled after
             </h2>
-            <p className="text-on-plum-muted mt-4 sm:text-lg">
+            <p className="text-on-graphite-muted mt-4 sm:text-lg">
               One supplier on your books, policy checked up front, and GST you can claim.
             </p>
           </header>
@@ -182,7 +182,7 @@ export function Audiences() {
               <li key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
                 <Icon className="text-gold size-5" strokeWidth={1.75} aria-hidden />
                 <p className="text-linen mt-4 font-semibold">{title}</p>
-                <p className="text-on-plum-muted mt-1 text-meta">{body}</p>
+                <p className="text-on-graphite-muted mt-1 text-meta">{body}</p>
               </li>
             ))}
           </ul>
@@ -236,7 +236,7 @@ const ROWS: { label: string; lufer: Cell; agency: Cell; manual: Cell }[] = [
 
 function Mark({ value }: { value: Cell }) {
   if (value === true) return <Check className="text-mint-ink mx-auto size-5" aria-label="Yes" />;
-  if (value === false) return <X className="text-plum/30 mx-auto size-5" aria-label="No" />;
+  if (value === false) return <X className="text-graphite/30 mx-auto size-5" aria-label="No" />;
   if (value === "partial") return <Minus className="text-gold-ink mx-auto size-5" aria-label="Partly" />;
   return <span className="text-ink-muted text-caption">{value}</span>;
 }
@@ -252,7 +252,7 @@ export function Comparison() {
               <th scope="col" className="text-ink-muted p-4 font-medium">
                 <span className="sr-only">Capability</span>
               </th>
-              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer.ai</th>
+              <th scope="col" className="bg-emerald-soft/60 text-graphite p-4 text-center font-semibold">Lufer.ai</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Event agency</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Email & spreadsheets</th>
             </tr>
@@ -260,8 +260,8 @@ export function Comparison() {
           <tbody>
             {ROWS.map((r) => (
               <tr key={r.label} className="border-sand border-b last:border-0">
-                <th scope="row" className="text-plum p-4 font-medium">{r.label}</th>
-                <td className="bg-coral-soft/30 p-4 text-center"><Mark value={r.lufer} /></td>
+                <th scope="row" className="text-graphite p-4 font-medium">{r.label}</th>
+                <td className="bg-emerald-soft/30 p-4 text-center"><Mark value={r.lufer} /></td>
                 <td className="p-4 text-center"><Mark value={r.agency} /></td>
                 <td className="p-4 text-center"><Mark value={r.manual} /></td>
               </tr>
@@ -310,9 +310,9 @@ export function Faq() {
         <div className="divide-sand border-sand divide-y border-y">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="landing-faq group py-5">
-              <summary className="text-plum flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
+              <summary className="text-graphite flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
                 {q}
-                <span aria-hidden className="border-sand text-plum/60 grid size-7 shrink-0 place-items-center rounded-full border transition-transform group-open:rotate-45">
+                <span aria-hidden className="border-sand text-graphite/60 grid size-7 shrink-0 place-items-center rounded-full border transition-transform group-open:rotate-45">
                   +
                 </span>
               </summary>
@@ -330,12 +330,12 @@ export function Faq() {
 export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="container-public pb-16">
-      <div className="on-plum landing-dark relative overflow-hidden rounded-[1.75rem] px-6 py-14 text-center sm:px-12">
+      <div className="on-graphite landing-dark relative overflow-hidden rounded-[1.75rem] px-6 py-14 text-center sm:px-12">
         <div aria-hidden className="landing-glow landing-glow-cta" />
         <h2 id="cta-title" className="font-display text-linen relative mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Your next offsite, without the week of emails
         </h2>
-        <p className="text-on-plum-muted relative mx-auto mt-4 max-w-xl">
+        <p className="text-on-graphite-muted relative mx-auto mt-4 max-w-xl">
           Apply in two minutes. We review every account, usually within one working day.
         </p>
         <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -367,9 +367,9 @@ export function SiteFooter() {
           <Logo size="sm" tagline={false} className="sm:items-start" />
           <p className="text-ink-muted mt-3 text-caption">Corporate events and hospitality for India.</p>
         </div>
-        <nav aria-label="Footer" className="text-plum/75 flex flex-wrap justify-center gap-x-5 gap-y-2 text-meta">
+        <nav aria-label="Footer" className="text-graphite/75 flex flex-wrap justify-center gap-x-5 gap-y-2 text-meta">
           {FOOTER_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-plum">
+            <Link key={l.href} href={l.href} className="hover:text-graphite">
               {l.label}
             </Link>
           ))}

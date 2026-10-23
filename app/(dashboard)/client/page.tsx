@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardCheck, Download, Eye, FileSignature, NotebookPen, Plus, Receipt, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, ClipboardCheck, Download, Eye, FileSignature, NotebookPen, Plus, Receipt, ShieldCheck, Users, Wallet } from "lucide-react";
 
 import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
 import { RateCardPill } from "@/components/portal/pills";
-import { SpendLimitMeter } from "@/components/portal/spend-limit-meter";
+import { StatCard } from "@/components/portal/stat-card";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
@@ -25,7 +25,6 @@ import { teamEventPrompt } from "@/lib/chat/concierge-link";
 import { getUserPhone } from "@/lib/services/contact";
 import { costCentreLock, receiptState } from "@/lib/bookings/expense-meta";
 import { STAGE_LABEL } from "@/lib/bookings/lifecycle";
-import { statusCounts } from "@/lib/bookings/live";
 import { getVenueCatalog } from "@/lib/catalog";
 import {
   computeItcSummary,
@@ -79,13 +78,16 @@ import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
 const ROLE_LABEL: Record<CorporateRole, string> = { ORGANIZER: "Organizer", APPROVER: "Approver", FINANCE_VIEWER: "Finance viewer" };
-const ROLE_HELP: Record<CorporateRole, string> = {
-  ORGANIZER: "Request events and follow their sign-off.",
-  APPROVER: "Request events and sign off bookings assigned to you.",
-  FINANCE_VIEWER: "Read-only: bookings, tax credit and expense receipts.",
-};
+
+const HOUR = new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" });
+/** Time-of-day greeting in India time. */
+function greeting(now = new Date()) {
+  const h = Number(HOUR.format(now)) % 24;
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
 
 const MONTH = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+const MONTH_SHORT = new Intl.DateTimeFormat("en-IN", { month: "long", timeZone: "Asia/Kolkata" });
 
 const CLOCK = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 
@@ -202,6 +204,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   // Approvers manage their company's POs; admins any company's.
   const canManagePos = member.role === "ADMIN" || role === "APPROVER";
   const openPos = pos.filter((p) => p.status === "open").length;
+  // Home overview figures.
+  const upcoming = bookings.filter((b) => b.status === "CONFIRMED" && b.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date));
+  const withVenue = bookings.filter((b) => b.status === "PENDING").length;
+  const spendPct = spendLimit && spendLimit.monthly_limit > 0 ? (spendLimit.month_to_date / spendLimit.monthly_limit) * 100 : 0;
   const exportByBooking = new Map(exports.map((e) => [e.booking_id, e]));
   const href = (params: { tab?: string }) => {
     const q = new URLSearchParams();
@@ -267,11 +273,16 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     </section>
   );
 
+  // Employees get a greeting; the company, GSTIN and role sit quietly underneath.
+  const firstName = user?.name.split(/[\s@]/)[0];
+  const title = user && firstName ? `${greeting()}, ${firstName[0].toUpperCase()}${firstName.slice(1)}` : company.legal_name;
+  const subtitle = [user ? company.legal_name : null, `GSTIN ${company.gstin}`, stateName(partyStateCode(company)), role ? ROLE_LABEL[role] : null].filter(Boolean).join(" · ");
+
   return (
     <PortalShell
       portal="/client"
-      title={company.legal_name}
-      subtitle={`GSTIN ${company.gstin} · ${stateName(partyStateCode(company))} · monthly limit ${formatINR(Number(company.monthly_spend_limit_inr))}`}
+      title={title}
+      subtitle={subtitle}
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">
           {queue.length > 0 ? (
@@ -281,10 +292,21 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               </Link>
             </Button>
           ) : null}
+          {/* Admins file on behalf of an employee; finance viewers get the concierge (see the modal). */}
+          {activeTab === "bookings" && (member.role === "ADMIN" || member.role === "CLIENT") ? (
+            <ManualBookingModal
+              companyId={company.id}
+              trigger={
+                <Button variant="outline">
+                  <NotebookPen aria-hidden /> Manual request
+                </Button>
+              }
+            />
+          ) : null}
           {/* Always offered, read-only admin view included: the chat is open to every client role and admins. */}
-          <Button asChild variant="outline">
-            <ChatDrawerTrigger companyId={company.id}>
-              <Sparkles className="text-coral" aria-hidden /> Launch AI Assistant
+          <Button asChild>
+            <ChatDrawerTrigger companyId={company.id} prompt={canRequest ? teamEventPrompt(company.legal_name) : undefined}>
+              <Plus aria-hidden /> Plan an event
             </ChatDrawerTrigger>
           </Button>
         </div>
@@ -302,11 +324,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : null}
 
-      {user && role ? (
-        <p className="text-fg-subtle mb-8 text-meta">
-          Signed in as <span className="text-fg">{user.name}</span> · {ROLE_LABEL[role]}. {ROLE_HELP[role]}
-        </p>
-      ) : (
+      {user && role ? null : (
         <div role="note" className="bg-surface-raised border-line mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-2.5">
           <p className="text-fg-muted flex min-w-0 flex-1 items-center gap-2 text-meta">
             <ShieldCheck className="text-fg-subtle size-4 shrink-0" aria-hidden />
@@ -333,7 +351,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </p>
       ) : null}
 
-      <nav className="border-line mb-6 flex gap-1 border-b" aria-label="Client portal sections">
+      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none]" aria-label="Client portal sections">
         {(
           [
             { key: "bookings", label: "Bookings", count: 0 },
@@ -348,7 +366,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             href={href({ tab: t.key === "bookings" ? undefined : t.key })}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
-              "relative -mb-px inline-flex h-10 items-center gap-2 px-3 text-meta transition-colors",
+              "relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 px-3 text-meta whitespace-nowrap transition-colors",
               activeTab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg"
             )}
           >
@@ -398,6 +416,70 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               {member.role === "ADMIN" || role === "APPROVER" ? "" : " Approvers review ITC and send exports."}
             </p>
           </div>
+          {/* Receipts and tax credit live with settlement, not on the home tab. */}
+            <div className="grid gap-6 lg:grid-cols-5">
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="size-4" aria-hidden /> Expense receipts
+                  </CardTitle>
+                  <CardDescription>
+                    Structured receipts exported to finance when a venue confirms a booking.
+                    {canRequest ? "" : " You have read-only access; ask an Organizer to request events."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {exports.length === 0 ? (
+                    <EmptyState compact icon={Receipt} title="No receipts yet" description="A structured receipt goes to your finance system when a venue confirms a booking; it'll be listed here." />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Exported</TableHead>
+                          <TableHead>Cost centre</TableHead>
+                          <TableHead className="text-right">Invoice total</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {exports.map((e) => {
+                          const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null }; tax?: { invoice_total?: number } };
+                          return (
+                            <TableRow key={e.id}>
+                              <TableCell className="font-mono text-caption">{CLOCK.format(new Date(e.created_at))}</TableCell>
+                              <TableCell className="font-mono text-caption">
+                                {r.expense?.cost_center ?? "—"}
+                                {r.expense?.project_code && <span className="text-fg-subtle"> / {r.expense.project_code}</span>}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">{formatINR(r.tax?.invoice_total ?? 0, true)}</TableCell>
+                              <TableCell>
+                                <Badge variant={e.status === "failed" || e.status === "dead_lettered" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status === "dead_lettered" ? "dead-lettered" : e.status}</Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-caption" download>
+                                  <Download className="size-3.5" aria-hidden /> JSON
+                                </a>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>GST ITC savings</CardTitle>
+                  <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ItcCalculator eligible={itc.eligible} pendingReview={itc.pendingReview} awaitingInvoice={itc.awaitingInvoice} blocked={itc.blocked} committedSpend={itc.committedSpend} />
+                </CardContent>
+              </Card>
+            </div>
           {settlements.length ? (
             settlements.map((s) => <SettlementCard key={s.bookingId} view={s} canAct={member.role === "ADMIN" || role === "APPROVER"} />)
           ) : (
@@ -509,46 +591,54 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : (
         <>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-section text-fg font-semibold">Bookings</h2>
-            {/* Everyone here: admins file on behalf of an employee, finance viewers get the concierge (see the modal). */}
-            {member.role === "ADMIN" || member.role === "CLIENT" ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <ManualBookingModal
-                  companyId={company.id}
-                  trigger={
-                    <Button variant="outline" className="rounded-full px-5 font-medium has-[>svg]:px-5">
-                      <NotebookPen aria-hidden /> New manual RFP
-                    </Button>
-                  }
+          <section aria-labelledby="overview-heading" className="mb-10">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="overview-heading" className="text-fg text-body font-semibold">
+                Overview
+              </h2>
+              <LiveBookings
+                initial={bookings.map((b) => ({ id: b.id, status: b.status, venue: b.venue.name, eventDate: b.event_date }))}
+                companyId={member.role === "ADMIN" ? company.id : undefined}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <StatCard
+                label="Upcoming events"
+                icon={CalendarDays}
+                value={String(upcoming.length)}
+                hint={upcoming[0] ? `Next: ${upcoming[0].venue.name}, ${formatDate(upcoming[0].event_date)}` : "Nothing booked yet"}
+              />
+              <StatCard
+                label="Awaiting sign-off"
+                icon={ClipboardCheck}
+                value={String(signOffs.length)}
+                hint={waitingOnMe > 0 ? `${waitingOnMe} need${waitingOnMe === 1 ? "s" : ""} your sign-off` : withVenue > 0 ? `${withVenue} with the venue` : "All clear"}
+              />
+              {spendLimit ? (
+                <StatCard
+                  label={`Committed in ${MONTH_SHORT.format(new Date(`${today}T12:00:00+05:30`))}`}
+                  icon={Wallet}
+                  value={formatINR(spendLimit.month_to_date)}
+                  hint={`of ${formatINR(spendLimit.monthly_limit)} monthly limit`}
+                  meter={{
+                    pct: spendPct,
+                    label: `${Math.round(spendPct)}% of the ${MONTH.format(new Date(`${today}T12:00:00+05:30`))} limit committed`,
+                    tone: spendPct > 100 ? "over" : spendPct >= 90 ? "warn" : "ok",
+                  }}
                 />
-                <Button asChild className="rounded-full px-5 font-medium has-[>svg]:px-5">
-                  <ChatDrawerTrigger companyId={company.id} prompt={teamEventPrompt(company.legal_name)}>
-                    <Plus aria-hidden /> Request team event
-                  </ChatDrawerTrigger>
-                </Button>
-              </div>
-            ) : null}
-          </div>
-
-          <section aria-label="Booking status" className="mb-10 flex flex-wrap items-start justify-between gap-4">
-            <dl className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-4">
-              {statusCounts(bookings).map((c) => (
-                <div key={c.status} className="panel p-5">
-                  <dt className="label-mono">{c.label}</dt>
-                  <dd className={cn("mt-1.5 font-mono text-title leading-none tabular-nums", c.count ? "text-fg" : "text-fg-faint")}>{c.count}</dd>
-                </div>
-              ))}
-            </dl>
-            <LiveBookings
-              initial={bookings.map((b) => ({ id: b.id, status: b.status, venue: b.venue.name, eventDate: b.event_date }))}
-              companyId={member.role === "ADMIN" ? company.id : undefined}
-            />
+              ) : (
+                <StatCard label="Committed spend" icon={Wallet} value={formatINR(itc.committedSpend)} hint="All bookings, before GST" />
+              )}
+              <StatCard
+                label="GST to reclaim"
+                icon={Receipt}
+                value={formatINR(itc.eligible)}
+                hint={itc.pendingReview > 0 ? `${formatINR(itc.pendingReview)} awaiting finance review` : "Input tax credit on your invoices"}
+              />
+            </div>
           </section>
 
           {quotesFirst ? rfpSection : null}
-
-          {spendLimit ? <SpendLimitMeter committed={spendLimit.month_to_date} limit={spendLimit.monthly_limit} month={MONTH.format(new Date(`${today}T12:00:00+05:30`))} className="-mt-6 mb-10" /> : null}
 
           {canRequest ? (
             <div className="mb-10 space-y-10">
@@ -580,88 +670,19 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             </div>
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="size-4" aria-hidden /> Expense receipts
-                </CardTitle>
-                <CardDescription>
-                  Structured receipts exported to finance when a venue confirms a booking.
-                  {canRequest ? "" : " You have read-only access; ask an Organizer to request events."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {exports.length === 0 ? (
-                  <EmptyState compact icon={Receipt} title="No receipts yet" description="A structured receipt goes to your finance system when a venue confirms a booking; it'll be listed here." />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Exported</TableHead>
-                        <TableHead>Cost centre</TableHead>
-                        <TableHead className="text-right">Invoice total</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {exports.map((e) => {
-                        const r = e.receipt as { expense?: { cost_center?: string | null; project_code?: string | null }; tax?: { invoice_total?: number } };
-                        return (
-                          <TableRow key={e.id}>
-                            <TableCell className="font-mono text-caption">{CLOCK.format(new Date(e.created_at))}</TableCell>
-                            <TableCell className="font-mono text-caption">
-                              {r.expense?.cost_center ?? "—"}
-                              {r.expense?.project_code && <span className="text-fg-subtle"> / {r.expense.project_code}</span>}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">{formatINR(r.tax?.invoice_total ?? 0, true)}</TableCell>
-                            <TableCell>
-                              <Badge variant={e.status === "failed" || e.status === "dead_lettered" ? "destructive" : e.status === "delivered" ? "success" : "outline"}>{e.status === "dead_lettered" ? "dead-lettered" : e.status}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <a href={`/api/exports/${e.id}`} className="btn btn-ghost h-7 px-2 text-caption" download>
-                                <Download className="size-3.5" aria-hidden /> JSON
-                              </a>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>GST ITC savings</CardTitle>
-                <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ItcCalculator eligible={itc.eligible} pendingReview={itc.pendingReview} awaitingInvoice={itc.awaitingInvoice} blocked={itc.blocked} committedSpend={itc.committedSpend} />
-              </CardContent>
-            </Card>
-          </div>
-
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Your bookings</CardTitle>
-              <CardDescription>{bookings.length} total{bookings.length ? " · open a row for its event workspace" : ""}</CardDescription>
+              <CardDescription>{bookings.length ? `${bookings.length} in total. Open one for its guest list, plan and invoice.` : "Requests and bookings appear here."}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Event date</TableHead>
-                    <TableHead>Venue</TableHead>
+                    <TableHead>Event</TableHead>
                     <TableHead>Cost centre</TableHead>
-                    <TableHead className="text-right">Guests</TableHead>
-                    <TableHead>GST</TableHead>
-                    <TableHead className="text-right">Taxable</TableHead>
-                    <TableHead className="text-right">Invoice total</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Receipt</TableHead>
                     {canPay ? <TableHead /> : null}
                   </TableRow>
                 </TableHeader>
@@ -680,8 +701,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                     return (
                       // The venue link stretches over the row (after:inset-0); controls sit above it (relative z-10).
                       <TableRow key={b.id} className={cn("relative", workspace && "hover:bg-surface-hover cursor-pointer")}>
-                        <TableCell className="tabular-nums">{formatDate(b.event_date)}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-3.5">
+                          <div className="text-fg-subtle text-caption tabular-nums">{formatDate(b.event_date)}</div>
                           {workspace ? (
                             <Link
                               href={`/client/events/${b.id}`}
@@ -693,30 +714,29 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                           ) : (
                             <div className="font-medium">{b.venue.name}</div>
                           )}
-                          <div className="text-fg-subtle text-caption">{b.venue.neighborhood}</div>
-                          {workspace ? (
-                            <span className="text-fg-muted mt-1 inline-flex items-center gap-1 text-caption">
+                          <div className="text-fg-subtle mt-0.5 flex flex-wrap items-center gap-x-1.5 text-caption">
+                            <span>{b.venue.neighborhood}</span>
+                            <span aria-hidden>·</span>
+                            <span className="inline-flex items-center gap-1 tabular-nums">
                               <Users className="size-3" aria-hidden />
-                              {guestCounts.get(b.id) ? `${guestCounts.get(b.id)} guests` : "Plan guests"}
+                              {workspace && guestCounts.get(b.id) ? `${guestCounts.get(b.id)} of ${b.party_size} guests` : `${b.party_size} guests`}
                             </span>
-                          ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className="relative z-10">
                           <CostCentreCell bookingId={b.id} value={b.cost_center} projectCode={b.project_code} listId="client-cost-centres" locked={ccLock} />
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{b.party_size}</TableCell>
-                        <TableCell>
-                          <GstTypeBadge type={b.invoice.gst_type} />
-                        </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {formatINR(b.total_amount_inr)}
+                          <div className="text-fg font-medium">{formatINR(b.invoice.invoice_total)}</div>
+                          <div className="text-fg-subtle mt-0.5 flex items-center justify-end gap-1.5 text-caption">
+                            {formatINR(b.total_amount_inr)} + <GstTypeBadge type={b.invoice.gst_type} />
+                          </div>
                           {savings > 0 ? (
                             <div className="mt-1">
                               <RateCardPill label={`−${formatINR(savings)}`} />
                             </div>
                           ) : null}
                         </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">{formatINR(b.invoice.invoice_total)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1.5">
                             <BookingStatusBadge status={b.status} audience="client" />
@@ -737,21 +757,23 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                           ) : company.contracts_required && canRequest && b.status === "PENDING" ? (
                             <IssueContractButton bookingId={b.id} className="relative z-10 mt-1.5 h-7 px-2 text-caption" />
                           ) : null}
-                        </TableCell>
-                        <TableCell className="relative z-10">
-                          {exp ? (
-                            <a href={`/api/exports/${exp.id}`} download title={receipt.hint} className="inline-flex items-center gap-1.5 hover:underline">
-                              <Badge variant={receipt.kind === "failed" ? "destructive" : "success"}>{receipt.label}</Badge>
-                              <Download className="text-fg-subtle size-3" aria-label="Download receipt JSON" />
-                            </a>
-                          ) : receipt.kind === "none" ? (
-                            <span title={receipt.hint} className="text-fg-faint text-caption">
-                              {receipt.label}
-                            </span>
-                          ) : (
-                            <span title={receipt.hint}>
-                              <Badge variant={receipt.kind === "pending" ? "warning" : "outline"}>{receipt.label}</Badge>
-                            </span>
+                          {receipt.kind === "none" && !exp ? null : (
+                            <div className="relative z-10 mt-1.5">
+                            {exp ? (
+                              <a href={`/api/exports/${exp.id}`} download title={receipt.hint} className="inline-flex items-center gap-1.5 hover:underline">
+                                <Badge variant={receipt.kind === "failed" ? "destructive" : "success"}>{receipt.label}</Badge>
+                                <Download className="text-fg-subtle size-3" aria-label="Download receipt JSON" />
+                              </a>
+                            ) : receipt.kind === "none" ? (
+                              <span title={receipt.hint} className="text-fg-faint text-caption">
+                                {receipt.label}
+                              </span>
+                            ) : (
+                              <span title={receipt.hint}>
+                                <Badge variant={receipt.kind === "pending" ? "warning" : "outline"}>{receipt.label}</Badge>
+                              </span>
+                            )}
+                            </div>
                           )}
                         </TableCell>
                         {canPay ? (
@@ -770,8 +792,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   })}
                   {bookings.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={canPay ? 10 : 9} className="text-fg-subtle py-6 text-center">
-                        No bookings yet{canRequest ? " — pick a venue above to send your first request" : ""}.
+                      <TableCell colSpan={canPay ? 5 : 4} className="text-fg-subtle py-10 text-center">
+                        No bookings yet{canRequest ? ". Plan an event above, or pick a venue to send your first request" : ""}.
                       </TableCell>
                     </TableRow>
                   )}

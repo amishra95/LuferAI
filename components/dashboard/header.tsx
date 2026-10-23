@@ -33,7 +33,7 @@ export function Header({
   });
 
   return (
-    <header className="on-plum border-line relative z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
+    <header className="bg-surface/80 border-line relative z-20 backdrop-blur flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
       <button type="button" onClick={onOpenMobileNav} aria-label="Open navigation" className="btn btn-ghost btn-icon -ml-1.5 md:hidden">
         <Menu className="size-4" aria-hidden />
       </button>
