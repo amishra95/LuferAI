@@ -33,7 +33,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 pt-[calc(4rem+var(--app-safe-top))] pb-[calc(4rem+var(--app-safe-bottom))]">
       <Card>
         <CardHeader>
-          <CardTitle>Sign in to CorpHospitality</CardTitle>
+          <CardTitle>Sign in to Lufer.ai</CardTitle>
           <CardDescription>Use your work Google account or get a one-time link by email.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -46,7 +46,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </CardContent>
       </Card>
       <p className="text-fg-subtle mt-4 text-center text-meta">
-        New to CorpHospitality?{" "}
+        New to Lufer.ai?{" "}
         <Link href="/signup" className="text-link underline-offset-2 hover:underline">
           Apply for an account
         </Link>

@@ -764,9 +764,106 @@ html:has(.landing) {
   }
 }
 
+@utility landing-btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-meta);
+}
+/* On plum: a quiet outline that keeps coral the only filled action. */
+@utility landing-btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--color-linen) 25%, transparent);
+  color: var(--color-linen);
+  &:hover {
+    background: color-mix(in srgb, var(--color-linen) 8%, transparent);
+  }
+}
+
+@layer components {
+  /* Sticky bar: linen glass, hairline appears once content scrolls under it. */
+  .landing-header {
+    background: color-mix(in srgb, var(--color-linen) 82%, transparent);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-sand) 70%, transparent);
+  }
+
+  /* Warm wash behind the hero: coral and gold radials over linen, plus a faint grid. */
+  .landing-hero {
+    background:
+      radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-coral) 16%, transparent), transparent 60%),
+      radial-gradient(40rem 26rem at 0% 20%, color-mix(in srgb, var(--color-gold) 18%, transparent), transparent 60%);
+  }
+  .landing-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+  }
+
+  /* Coral highlighter under a phrase in the headline. */
+  .landing-underline {
+    background: linear-gradient(transparent 62%, color-mix(in srgb, var(--color-coral) 30%, transparent) 62%);
+    padding-inline: 0.05em;
+  }
+
+  .landing-glow {
+    position: absolute;
+    inset: 8% -6% -4% 8%;
+    border-radius: 2rem;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-coral) 35%, transparent), transparent);
+    filter: blur(40px);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .landing-glow-cta {
+    inset: -40% 20% 40% 20%;
+    opacity: 0.45;
+  }
+
+  .landing-float {
+    animation: landing-float 6s ease-in-out infinite;
+  }
+  .landing-float-delayed {
+    animation: landing-float 7s ease-in-out 1.5s infinite;
+  }
+
+  /* Plum band (finance, closing CTA) inside the always-light landing. */
+  .landing-dark {
+    color-scheme: dark;
+    background:
+      radial-gradient(50rem 24rem at 100% 0%, color-mix(in srgb, var(--color-coral) 14%, transparent), transparent 60%),
+      var(--color-plum);
+  }
+
+  .landing-faq summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+html:has(.landing) {
+  scroll-behavior: smooth;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
   .landing *,
   .landing *::after {
+    animation: none !important;
     transition-duration: 0.001ms !important;
   }
 }
