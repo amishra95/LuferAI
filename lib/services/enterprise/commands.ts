@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { approvalSnapshot, scheduleApproverNotifications } from "@/lib/approvals/whatsapp";
 import type { Member } from "@/lib/auth/session";
 import { decideApproval, listApprovals, listPortalUsers } from "@/lib/data";
 import { publishApproval } from "@/lib/telemetry/live";
@@ -92,12 +93,14 @@ export async function runApprovalCommand(member: Member, companyId: string, cmd:
     case "decide": {
       const scope = await decisionScope(member, companyId, cmd.approvalId);
       const [approval] = (await listApprovals({ tenantId: companyId })).filter((a) => a.id === cmd.approvalId);
+      const before = await approvalSnapshot(companyId, cmd.approvalId);
       try {
         await decideApproval(cmd.approvalId, scope, cmd.decision, cmd.note?.trim() || undefined);
       } catch (err) {
         // decideApproval's messages are written for users ("Waiting for tier-1 sign-off from …").
         throw new GovernanceError(err instanceof Error ? err.message : "Could not record the decision.", 409);
       }
+      if (before && cmd.decision === "APPROVED") scheduleApproverNotifications(before.tenantId, before.subject, before.notified);
       await publishApproval(cmd.approvalId, approval?.booking_id ?? approval?.catalog_order_id ?? "", cmd.decision).catch((err) => console.error("governance: publish failed", err));
       return { action: "decide", approvalId: cmd.approvalId, decision: cmd.decision };
     }

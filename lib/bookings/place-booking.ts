@@ -13,6 +13,7 @@ import {
   PoAllocationError,
 } from "@/lib/data";
 import { assignApprovers, signOffPhrase } from "@/lib/approvals/route";
+import { scheduleApproverNotifications } from "@/lib/approvals/whatsapp";
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
@@ -241,6 +242,8 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
       // (the venue's host hears it too; PENDING_APPROVAL stays off their inbox until signed off).
       void publishBooking(booking.id, venue!.id, initialStatus(approvals.length), "request", company.id);
       if (approvals.length) {
+        // The first step's approver gets [Approve] / [Reject] on WhatsApp when it's set up.
+        scheduleApproverNotifications(company.id, { bookingId: booking.id });
         return {
           status: "success",
           message: `Booking submitted — ${signOffPhrase(approvals.length)}.`,
