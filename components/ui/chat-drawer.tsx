@@ -88,7 +88,7 @@ function ChatDrawerPanel({ config }: { config: ChatDrawerConfig }) {
       )}
     >
       <header className="border-line flex shrink-0 items-center gap-3 border-b px-4 py-3 sm:px-5">
-        <span aria-hidden className="bg-graphite text-emerald grid size-8 shrink-0 place-items-center rounded-full">
+        <span aria-hidden className="bg-plum text-coral grid size-8 shrink-0 place-items-center rounded-full">
           <Sparkles className="size-4" />
         </span>
         <div className="min-w-0 flex-1">

@@ -6,8 +6,8 @@ import { TOOL_META, toolName, toolPhase, toolResultSummary, type LuferToolPart }
 import { cn } from "@/lib/utils";
 
 const PHASE_STYLE = {
-  // Pending: a graphite-light pill (light text via .on-graphite) with a pulsing gold dot.
-  running: "on-graphite bg-graphite-light border-graphite-light",
+  // Pending: a plum-light pill (light text via .on-plum) with a pulsing gold dot.
+  running: "on-plum bg-plum-light border-plum-light",
   done: "border-line bg-surface hover:border-line-strong",
   error: "border-rose/25 bg-rose/[0.06] text-rose",
   denied: "border-line bg-surface text-fg-subtle",

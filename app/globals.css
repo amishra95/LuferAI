@@ -5,40 +5,40 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 /*
- * Graphite: the one source of truth for colour, type and shape.
+ * Velvet Night: the one source of truth for colour, type and shape.
  * Components use the semantic names (canvas, surface, fg, line, sage, warn,
- * rose…); this file maps them onto the palette for light, dark and graphite
- * (.on-graphite) contexts. No component should carry a hex value.
+ * rose…); this file maps them onto the palette for light, dark and plum
+ * (.on-plum) contexts. No component should carry a hex value.
  *
- *   graphite  brand ink: logo, headings, dark bands   emerald  primary action and the one accent
- *   gold      highlights: top pick, savings, rewards   mint     success: available, confirmed
- *   linen     app background (warm neutral)            ink      text
+ *   plum     brand: header, nav, logo, hero          coral   primary action, one per screen
+ *   gold     highlights: top pick, savings, rewards  mint    success: available, confirmed
+ *   linen    app background                          ink     text
  *
  * Type: Plus Jakarta Sans for UI (tabular digits for figures), Fraunces for
  * display headings, Geist Mono for code only.
  */
 @theme {
   /* Palette ------------------------------------------------------------ */
-  --color-graphite: #1a1d21;
-  --color-graphite-light: #2a2e35;
-  --color-emerald: #047857;
-  --color-emerald-hover: #065f46;
-  /* White on emerald is 5.5:1 (AA). */
-  --color-on-emerald: #ffffff;
+  --color-plum: #2a1b3d;
+  --color-plum-light: #3a2a50;
+  --color-coral: #ff6b4a;
+  --color-coral-hover: #e85a3a;
+  /* White on coral is 2.8:1 (fails WCAG AA); ink is 6.3:1. */
+  --color-on-coral: #1a1523;
   --color-gold: #f2c14e;
   --color-gold-soft: #fdf1d3;
   --color-gold-ink: #8a5a00;
   --color-mint: #3dd6b5;
   --color-mint-soft: #e3f9f3;
   --color-mint-ink: #0b6b57;
-  --color-emerald-soft: color-mix(in srgb, var(--color-emerald) 9%, var(--color-white));
-  --color-emerald-ink: #047857; /* emerald as text: 5.1:1 on linen, 4.8:1 on emerald-soft */
-  --color-linen: #f8f7f4;
+  --color-coral-soft: color-mix(in srgb, var(--color-coral) 12%, var(--color-white));
+  --color-coral-ink: #b8401f; /* coral as text: 5.1:1 on linen, 4.9:1 on coral-soft */
+  --color-linen: #faf6f0;
   --color-white: #ffffff;
-  --color-sand: #e7e5df; /* card borders on light */
-  --color-ink: #111316;
-  --color-ink-muted: #6b7078;
-  --color-on-graphite-muted: #a9afb8;
+  --color-sand: #ece4d8; /* card borders on light */
+  --color-ink: #1a1523;
+  --color-ink-muted: #6b6275;
+  --color-on-plum-muted: #c9beda;
   --color-error: #e5484d;
   /* Error as text or a filled button: #e5484d alone is 3.6:1 on linen. */
   --color-error-ink: color-mix(in srgb, var(--color-error) 80%, var(--color-ink));
@@ -49,20 +49,20 @@
   --color-canvas: var(--color-linen); /* app background */
   --color-elevated: var(--color-white); /* popovers, menus, toasts */
   --color-surface: var(--color-white); /* cards, panels, inputs */
-  --color-surface-raised: color-mix(in srgb, var(--color-graphite) 7%, var(--color-white)); /* selected rows/chips */
-  --color-surface-hover: color-mix(in srgb, var(--color-graphite) 4%, var(--color-white)); /* row and item hover */
+  --color-surface-raised: color-mix(in srgb, var(--color-plum) 7%, var(--color-white)); /* selected rows/chips */
+  --color-surface-hover: color-mix(in srgb, var(--color-plum) 4%, var(--color-white)); /* row and item hover */
   --color-line: var(--color-sand);
   --color-line-strong: color-mix(in srgb, var(--color-sand) 75%, var(--color-ink-muted)); /* inputs, outlined buttons */
-  /* Outer edge of cards, table frames and side panels: a hairline just darker than the line (20% graphite-light in dark). */
-  --color-frame: color-mix(in srgb, var(--color-sand) 90%, var(--color-ink-muted));
+  /* Outer edge of cards, table frames and side panels: plum-light at 30% (20% in dark). */
+  --color-frame: color-mix(in srgb, var(--color-plum-light) 30%, transparent);
   --color-fg: var(--color-ink);
   --color-fg-muted: color-mix(in srgb, var(--color-ink) 60%, var(--color-ink-muted));
   --color-fg-subtle: var(--color-ink-muted);
   --color-fg-faint: var(--color-ink-muted);
-  --color-link: var(--color-graphite);
-  --color-focus: var(--color-graphite);
+  --color-link: var(--color-plum);
+  --color-focus: var(--color-plum);
   /* Selected chip / segment / step / switch-on. */
-  --color-selected: var(--color-graphite);
+  --color-selected: var(--color-plum);
   --color-on-selected: var(--color-linen);
   /* Status as text/icons (AA on cards); fills use mint / gold / error. */
   --color-sage: var(--color-mint-ink);
@@ -94,7 +94,7 @@
   --radius-badge: 9999px; /* badges, status pills, step indicators */
   --radius-tile: 6px; /* monogram tile, key caps */
   --radius-container: 24px;
-  --shadow-card: 0 1px 2px rgb(17 19 22 / 0.04);
+  --shadow-card: 0 1px 2px rgb(26 21 35 / 0.04);
 }
 
 @theme inline {
@@ -134,24 +134,24 @@
   --radius-2xl: var(--radius-container);
 }
 
-/* Dark: ink canvas, graphite cards, graphite-light borders. Emerald, gold and mint stay. */
+/* Dark: ink canvas, plum cards, plum-light borders. Coral, gold and mint stay. */
 @media (prefers-color-scheme: dark) {
   :root {
     --color-canvas: var(--color-ink);
-    --color-elevated: var(--color-graphite);
-    --color-surface: var(--color-graphite);
-    --color-surface-raised: var(--color-graphite-light);
-    --color-surface-hover: color-mix(in srgb, var(--color-graphite-light) 55%, var(--color-graphite));
-    --color-line: var(--color-graphite-light);
-    --color-line-strong: color-mix(in srgb, var(--color-graphite-light) 70%, var(--color-on-graphite-muted));
-    --color-frame: color-mix(in srgb, var(--color-graphite-light) 20%, transparent);
+    --color-elevated: var(--color-plum);
+    --color-surface: var(--color-plum);
+    --color-surface-raised: var(--color-plum-light);
+    --color-surface-hover: color-mix(in srgb, var(--color-plum-light) 55%, var(--color-plum));
+    --color-line: var(--color-plum-light);
+    --color-line-strong: color-mix(in srgb, var(--color-plum-light) 70%, var(--color-on-plum-muted));
+    --color-frame: color-mix(in srgb, var(--color-plum-light) 20%, transparent);
     --color-fg: var(--color-linen);
-    --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-graphite-muted));
-    --color-fg-subtle: var(--color-on-graphite-muted);
-    --color-fg-faint: var(--color-on-graphite-muted);
-    --color-link: var(--color-on-graphite-muted);
+    --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-plum-muted));
+    --color-fg-subtle: var(--color-on-plum-muted);
+    --color-fg-faint: var(--color-on-plum-muted);
+    --color-link: var(--color-on-plum-muted);
     --color-focus: var(--color-gold);
-    --color-selected: var(--color-on-graphite-muted);
+    --color-selected: var(--color-on-plum-muted);
     --color-on-selected: var(--color-ink);
     --color-sage: var(--color-mint);
     --color-warn: var(--color-gold);
@@ -164,37 +164,37 @@
 }
 
 /*
- * Graphite brand areas (header, nav, hero): the same semantic names, remapped so
- * anything inside reads correctly on graphite without per-component colours.
+ * Plum brand areas (header, nav, hero): the same semantic names, remapped so
+ * anything inside reads correctly on plum without per-component colours.
  */
 @layer base {
-  .on-graphite {
-    --color-canvas: var(--color-graphite);
-    --color-elevated: var(--color-graphite-light);
-    --color-surface: var(--color-graphite-light);
-    --color-surface-raised: var(--color-graphite-light);
-    --color-surface-hover: color-mix(in srgb, var(--color-graphite-light) 60%, var(--color-graphite));
-    --color-line: var(--color-graphite-light);
-    --color-line-strong: color-mix(in srgb, var(--color-graphite-light) 65%, var(--color-on-graphite-muted));
+  .on-plum {
+    --color-canvas: var(--color-plum);
+    --color-elevated: var(--color-plum-light);
+    --color-surface: var(--color-plum-light);
+    --color-surface-raised: var(--color-plum-light);
+    --color-surface-hover: color-mix(in srgb, var(--color-plum-light) 60%, var(--color-plum));
+    --color-line: var(--color-plum-light);
+    --color-line-strong: color-mix(in srgb, var(--color-plum-light) 65%, var(--color-on-plum-muted));
     --color-fg: var(--color-linen);
-    --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-graphite-muted));
-    --color-fg-subtle: var(--color-on-graphite-muted);
-    --color-fg-faint: var(--color-on-graphite-muted);
-    --color-link: var(--color-on-graphite-muted);
+    --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-plum-muted));
+    --color-fg-subtle: var(--color-on-plum-muted);
+    --color-fg-faint: var(--color-on-plum-muted);
+    --color-link: var(--color-on-plum-muted);
     --color-focus: var(--color-gold);
     --color-selected: var(--color-gold);
     --color-on-selected: var(--color-ink);
     --color-sage: var(--color-mint);
     --color-warn: var(--color-gold);
     --color-rose: color-mix(in srgb, var(--color-error) 70%, var(--color-linen));
-    background-color: var(--color-graphite);
+    background-color: var(--color-plum);
     color: var(--color-fg);
   }
 }
 
-/* shadcn tokens on the palette. Repeated on .on-graphite so they re-resolve there. */
+/* shadcn tokens on the palette. Repeated on .on-plum so they re-resolve there. */
 :root,
-.on-graphite {
+.on-plum {
   --radius: var(--radius-control);
   --background: var(--color-canvas);
   --foreground: var(--color-fg);
@@ -202,8 +202,8 @@
   --card-foreground: var(--color-fg);
   --popover: var(--color-elevated);
   --popover-foreground: var(--color-fg);
-  --primary: var(--color-emerald);
-  --primary-foreground: var(--color-on-emerald);
+  --primary: var(--color-coral);
+  --primary-foreground: var(--color-on-coral);
   --secondary: var(--color-surface-raised);
   --secondary-foreground: var(--color-fg);
   --muted: var(--color-surface-raised);
@@ -216,11 +216,11 @@
   --ring: var(--color-focus);
   --success: var(--color-sage);
   --warning: var(--color-warn);
-  --brand: var(--color-graphite);
-  /* Chart series: graphite first, then muted tones (series are always labelled); error for failures. */
-  --chart-1: var(--color-graphite);
+  --brand: var(--color-plum);
+  /* Chart series: plum first, then muted tones (series are always labelled); error for failures. */
+  --chart-1: var(--color-plum);
   --chart-2: var(--color-ink-muted);
-  --chart-3: var(--color-on-graphite-muted);
+  --chart-3: var(--color-on-plum-muted);
   --chart-critical: var(--color-error);
 }
 
@@ -237,7 +237,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --chart-1: var(--color-on-graphite-muted);
+    --chart-1: var(--color-on-plum-muted);
     --chart-2: var(--color-gold);
     --chart-3: var(--color-mint);
   }
@@ -303,12 +303,12 @@
 }
 .venue-marker:hover,
 .venue-marker:focus-visible {
-  border-color: var(--color-graphite);
+  border-color: var(--color-plum);
   outline: none;
 }
 .venue-marker[data-selected="true"] {
-  background: var(--color-graphite);
-  border-color: var(--color-graphite);
+  background: var(--color-plum);
+  border-color: var(--color-plum);
   color: var(--color-linen);
   z-index: 1;
 }
@@ -340,11 +340,11 @@
 }
 .venue-marker[data-tone]:hover,
 .venue-marker[data-tone]:focus-visible {
-  border-color: var(--color-graphite);
+  border-color: var(--color-plum);
 }
-/* Selected keeps its tone on the dot; the linen ring separates it from the graphite fill. */
+/* Selected keeps its tone on the dot; the linen ring separates it from the plum fill. */
 .venue-marker[data-tone][data-selected="true"] {
-  border-color: var(--color-graphite);
+  border-color: var(--color-plum);
 }
 .venue-marker[data-tone][data-selected="true"]::before {
   box-shadow: 0 0 0 1.5px var(--color-linen);
@@ -352,7 +352,7 @@
 .office-marker {
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-badge);
-  border: 1.5px dashed var(--color-graphite);
+  border: 1.5px dashed var(--color-plum);
   background: var(--color-canvas);
   color: var(--color-fg);
   font: 600 11px/1.2 var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
@@ -402,9 +402,9 @@ html:has(.lufer) {
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--color-graphite) 18%, transparent);
+    background: color-mix(in srgb, var(--color-plum) 18%, transparent);
   }
-  .on-graphite ::selection {
+  .on-plum ::selection {
     background: color-mix(in srgb, var(--color-gold) 30%, transparent);
   }
 
@@ -414,7 +414,7 @@ html:has(.lufer) {
   }
 }
 
-/* Card: white surface (graphite in dark), 1px frame border, 14px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
+/* Card: white surface (plum in dark), 1px frame border, 14px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
 @utility panel {
   background: var(--color-surface);
   border: 1px solid var(--color-frame);
@@ -422,7 +422,7 @@ html:has(.lufer) {
   box-shadow: var(--shadow-card);
 }
 
-/* A clickable card (venue cards, pickers): border steps up on hover, graphite when selected. */
+/* A clickable card (venue cards, pickers): border steps up on hover, plum when selected. */
 @utility panel-interactive {
   background: var(--color-surface);
   border: 1px solid var(--color-frame);
@@ -556,19 +556,19 @@ html:has(.lufer) {
   }
 }
 
-/* Emerald: the one primary action on a screen (Book, Confirm, Send). White text, 5.5:1. */
+/* Coral: the one primary action on a screen (Book, Confirm, Send). */
 @utility btn-primary {
-  background: var(--color-emerald);
-  border-color: var(--color-emerald);
-  color: var(--color-on-emerald);
+  background: var(--color-coral);
+  border-color: var(--color-coral);
+  color: var(--color-on-coral);
   &:hover {
-    background: var(--color-emerald-hover);
-    border-color: var(--color-emerald-hover);
-    color: var(--color-on-emerald);
+    background: var(--color-coral-hover);
+    border-color: var(--color-coral-hover);
+    color: var(--color-on-coral);
   }
 }
 
-/* Secondary emphasis on a repeated or competing action (list rows, extra forms): graphite outline. */
+/* Secondary emphasis on a repeated or competing action (list rows, extra forms): plum outline. */
 @utility btn-secondary {
   border-color: var(--color-link);
   color: var(--color-link);
@@ -698,13 +698,13 @@ html:has(.lufer) {
 
 /*
  * Editorial linen: the landing stays light in every OS theme, so it uses the
- * palette directly (linen, graphite, sand, emerald) rather than the semantic roles.
+ * palette directly (linen, plum, sand, coral) rather than the semantic roles.
  */
 @layer base {
   .landing {
     color-scheme: light;
     background: var(--color-linen);
-    color: var(--color-graphite);
+    color: var(--color-plum);
   }
 }
 
@@ -718,7 +718,7 @@ html:has(.landing) {
   backdrop-filter: blur(8px);
   border: 1px solid var(--color-sand);
   border-radius: 1rem;
-  box-shadow: 0 1px 2px rgb(17 19 22 / 0.05);
+  box-shadow: 0 1px 2px rgb(42 27 61 / 0.05);
   transition:
     box-shadow 300ms,
     transform 300ms,
@@ -726,14 +726,14 @@ html:has(.landing) {
   &:hover,
   &:has(:focus-visible) {
     transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--color-emerald) 35%, var(--color-sand));
+    border-color: color-mix(in srgb, var(--color-coral) 35%, var(--color-sand));
     box-shadow:
-      0 4px 6px -1px rgb(17 19 22 / 0.08),
-      0 2px 4px -2px rgb(17 19 22 / 0.06);
+      0 4px 6px -1px rgb(42 27 61 / 0.08),
+      0 2px 4px -2px rgb(42 27 61 / 0.06);
   }
 }
 
-/* Pill CTAs: white on emerald (5.5:1). */
+/* Pill CTAs. Coral carries ink text: white on coral is 2.8:1 and fails WCAG AA. */
 @utility landing-btn {
   display: inline-flex;
   align-items: center;
@@ -749,18 +749,18 @@ html:has(.landing) {
     border-color 150ms;
 }
 @utility landing-btn-primary {
-  background: var(--color-emerald);
-  color: var(--color-on-emerald);
-  box-shadow: 0 1px 2px rgb(17 19 22 / 0.08);
+  background: var(--color-coral);
+  color: var(--color-on-coral);
+  box-shadow: 0 1px 2px rgb(42 27 61 / 0.08);
   &:hover {
-    background: var(--color-emerald-hover);
+    background: var(--color-coral-hover);
   }
 }
 @utility landing-btn-outline {
-  border: 1px solid color-mix(in srgb, var(--color-graphite) 20%, transparent);
-  color: var(--color-graphite);
+  border: 1px solid color-mix(in srgb, var(--color-plum) 20%, transparent);
+  color: var(--color-plum);
   &:hover {
-    background: color-mix(in srgb, var(--color-graphite) 5%, transparent);
+    background: color-mix(in srgb, var(--color-plum) 5%, transparent);
   }
 }
 
@@ -768,7 +768,7 @@ html:has(.landing) {
   padding: 0.5rem 1rem;
   font-size: var(--text-meta);
 }
-/* On graphite: a quiet outline that keeps emerald the only filled action. */
+/* On plum: a quiet outline that keeps coral the only filled action. */
 @utility landing-btn-ghost {
   border: 1px solid color-mix(in srgb, var(--color-linen) 25%, transparent);
   color: var(--color-linen);
@@ -785,10 +785,11 @@ html:has(.landing) {
     border-bottom: 1px solid color-mix(in srgb, var(--color-sand) 70%, transparent);
   }
 
-  /* Quiet wash behind the hero: one emerald radial over linen, plus a faint grid. */
+  /* Warm wash behind the hero: coral and gold radials over linen, plus a faint grid. */
   .landing-hero {
     background:
-      radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-emerald) 9%, transparent), transparent 60%);
+      radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-coral) 16%, transparent), transparent 60%),
+      radial-gradient(40rem 26rem at 0% 20%, color-mix(in srgb, var(--color-gold) 18%, transparent), transparent 60%);
   }
   .landing-hero::before {
     content: "";
@@ -796,15 +797,15 @@ html:has(.landing) {
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(color-mix(in srgb, var(--color-graphite) 5%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--color-graphite) 5%, transparent) 1px, transparent 1px);
+      linear-gradient(color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
   }
 
-  /* Emerald highlighter under a phrase in the headline. */
+  /* Coral highlighter under a phrase in the headline. */
   .landing-underline {
-    background: linear-gradient(transparent 64%, color-mix(in srgb, var(--color-emerald) 16%, transparent) 64%);
+    background: linear-gradient(transparent 62%, color-mix(in srgb, var(--color-coral) 30%, transparent) 62%);
     padding-inline: 0.05em;
   }
 
@@ -812,7 +813,7 @@ html:has(.landing) {
     position: absolute;
     inset: 8% -6% -4% 8%;
     border-radius: 2rem;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-emerald) 35%, transparent), transparent);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-coral) 35%, transparent), transparent);
     filter: blur(40px);
     opacity: 0.6;
     pointer-events: none;
@@ -829,12 +830,12 @@ html:has(.landing) {
     animation: landing-float 7s ease-in-out 1.5s infinite;
   }
 
-  /* Graphite band (finance, closing CTA) inside the always-light landing. */
+  /* Plum band (finance, closing CTA) inside the always-light landing. */
   .landing-dark {
     color-scheme: dark;
     background:
-      radial-gradient(50rem 24rem at 100% 0%, color-mix(in srgb, var(--color-emerald) 14%, transparent), transparent 60%),
-      var(--color-graphite);
+      radial-gradient(50rem 24rem at 100% 0%, color-mix(in srgb, var(--color-coral) 14%, transparent), transparent 60%),
+      var(--color-plum);
   }
 
   .landing-faq summary::-webkit-details-marker {
@@ -864,18 +865,5 @@ html:has(.landing) {
   .landing *::after {
     animation: none !important;
     transition-duration: 0.001ms !important;
-  }
-}
-
-/* Sign-in / sign-up brand panel: a faint dot grid fading out from the top. */
-@layer components {
-  .auth-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(color-mix(in srgb, var(--color-linen) 9%, transparent) 1px, transparent 1px);
-    background-size: 22px 22px;
-    mask-image: linear-gradient(to bottom, black, transparent 75%);
   }
 }
