@@ -32,10 +32,18 @@ export function extractWhatsAppMessages(payload: unknown): WhatsAppInbound[] {
 
 /** Sends a text reply through the WhatsApp Cloud API. Throws with Meta's error message on failure. */
 export async function sendWhatsAppText(to: string, body: string): Promise<void> {
+  await sendWhatsAppMessageObject(to, { type: "text", text: { body: body.slice(0, 4096), preview_url: false } });
+}
+
+/**
+ * Sends any Cloud API message (text, interactive, template) to `to` (digits,
+ * no +). Throws with Meta's error message on failure.
+ */
+export async function sendWhatsAppMessageObject(to: string, message: { type: string } & Record<string, unknown>): Promise<void> {
   const res = await fetch(`https://graph.facebook.com/${graphVersion()}/${env("WHATSAPP_PHONE_NUMBER_ID")}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${env("WHATSAPP_ACCESS_TOKEN")}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: body.slice(0, 4096), preview_url: false } }),
+    body: JSON.stringify({ messaging_product: "whatsapp", to, ...message }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {

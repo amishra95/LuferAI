@@ -3,6 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { requirePortal, type Member } from "@/lib/auth/session";
+import { approvalSnapshot, scheduleApproverNotifications } from "@/lib/approvals/whatsapp";
 import { lockOwner, placeBookingRequest } from "@/lib/bookings/place-booking";
 import { budgetCapError } from "@/lib/bookings/event-details";
 import { bookingFormInput, validateBookingForm, type BookingFormField } from "@/lib/bookings/request-schema";
@@ -283,12 +284,15 @@ export async function approveEventSpend(approvalId: string, decision: "APPROVED"
       if (!approvalId || (decision !== "APPROVED" && decision !== "REJECTED")) throw new ActionError("Invalid approval action.");
       const scope = await approvalScope(member, approvalId);
       const [approval] = (await listApprovals({ tenantId: scope.tenantId })).filter((a) => a.id === approvalId);
+      const before = await approvalSnapshot(scope.tenantId, approvalId);
       try {
         await decideApproval(approvalId, scope, decision, note?.trim().slice(0, 500) || undefined);
       } catch (err) {
         // decideApproval's messages are written for users ("Waiting for tier-1 sign-off from …").
         throw new ActionError(err instanceof Error ? err.message : "Could not record the decision.");
       }
+      // An approval may have made it the next step's turn: they hear about it on WhatsApp.
+      if (before && decision === "APPROVED") scheduleApproverNotifications(before.tenantId, before.subject, before.notified);
       revalidateBookingViews();
       revalidatePath("/partner");
       refresh();

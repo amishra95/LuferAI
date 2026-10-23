@@ -24,6 +24,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, pricingForVenues } from "@/lib/venues/pricing-store";
 import { notifyEscalation } from "@/lib/escalations/notify";
+import { sendQuoteLinks } from "@/lib/vendor/quote-service";
 import { openEscalations, supersedeEscalations, SYSTEM, type Actor, type NewEscalation } from "@/lib/escalations/store";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
 
@@ -125,7 +126,7 @@ export async function broadcastRfp(input: {
   const { requirements: req } = input;
 
   const [{ data: company }, { data: venues }, { data: packages }, { data: cards }] = await Promise.all([
-    db.from("companies").select("id, gstin").eq("id", input.companyId).single(),
+    db.from("companies").select("id, gstin, legal_name").eq("id", input.companyId).single(),
     db.from("venues").select("*").eq("is_active", true),
     db.from("venue_menu_packages").select("*").eq("is_active", true),
     db.from("corporate_rate_cards").select("*").eq("tenant_id", input.companyId),
@@ -265,8 +266,15 @@ export async function broadcastRfp(input: {
   tracer.annotate({ rfp: rfp.id.slice(0, 8), partySize: req.party_size, budgetPerHead: req.budget_per_head_inr, outcomes });
 
   if (rows.length > 0) {
-    const { data: inserted, error: insertError } = await db.from("rfp_responses").insert(rows).select("id, venue_id");
+    const { data: inserted, error: insertError } = await db.from("rfp_responses").insert(rows).select("id, venue_id, status, per_head_inr");
     if (insertError) throw insertError;
+    // Each venue gets a no-login link to adjust or decline (lib/vendor). Escalated venues hear
+    // about their held-back counter from the escalation alert instead, and declines were their own rules.
+    const escalated = new Set(escalations.map((e) => e.venueId));
+    sendQuoteLinks(
+      { companyName: company.legal_name, partySize: req.party_size, eventDate: req.event_date ?? null },
+      inserted.filter((r) => r.status !== "declined" && !escalated.has(r.venue_id))
+    );
     // Held-back counters go to the venue's escalation queue (lib/escalations), and people are told.
     const responseFor = new Map(inserted.map((r) => [r.venue_id, r.id]));
     const opened = await openEscalations(

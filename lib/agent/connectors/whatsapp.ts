@@ -19,7 +19,14 @@ export function whatsAppProvider(): WhatsAppProvider | null {
   return null;
 }
 
-async function sendViaTwilio(to: string, body: string): Promise<string> {
+const sendViaTwilio = (to: string, body: string) => sendTwilioWhatsApp(to, { Body: body });
+
+/**
+ * Sends a Twilio WhatsApp message to `to` (+E.164): `Body` for text, or
+ * `ContentSid` + `ContentVariables` for a Content template (quick-reply
+ * buttons). Returns the message SID; throws with Twilio's message on failure.
+ */
+export async function sendTwilioWhatsApp(to: string, fields: Record<string, string>): Promise<string> {
   const sid = env("TWILIO_ACCOUNT_SID");
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
     method: "POST",
@@ -27,7 +34,7 @@ async function sendViaTwilio(to: string, body: string): Promise<string> {
       Authorization: `Basic ${Buffer.from(`${sid}:${env("TWILIO_AUTH_TOKEN")}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ From: `whatsapp:${env("TWILIO_WHATSAPP_FROM")}`, To: `whatsapp:${to}`, Body: body }),
+    body: new URLSearchParams({ From: `whatsapp:${env("TWILIO_WHATSAPP_FROM")}`, To: `whatsapp:${to}`, ...fields }),
     signal: AbortSignal.timeout(10_000),
   });
   const json = (await res.json().catch(() => null)) as { sid?: string; message?: string } | null;
@@ -35,9 +42,12 @@ async function sendViaTwilio(to: string, body: string): Promise<string> {
   return json?.sid ?? "";
 }
 
-/** Sends `body` to `to` (+E.164). Throws with the provider's message on failure. */
-export async function sendWhatsAppMessage(to: string, body: string): Promise<{ provider: WhatsAppProvider; messageId: string | null }> {
-  const provider = whatsAppProvider();
+/**
+ * Sends `body` to `to` (+E.164), through `via` when given (e.g. the provider a
+ * message came in on), else the configured one. Throws with the provider's message on failure.
+ */
+export async function sendWhatsAppMessage(to: string, body: string, via?: WhatsAppProvider): Promise<{ provider: WhatsAppProvider; messageId: string | null }> {
+  const provider = via ?? whatsAppProvider();
   if (!provider) throw new Error("WhatsApp isn't configured: set the Meta Cloud API or Twilio credentials.");
   if (provider === "meta") {
     // Meta takes the number without the leading +.

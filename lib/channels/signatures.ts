@@ -37,6 +37,19 @@ export function verifySlackSignature(
   return safeEqual(signature, expected);
 }
 
+/**
+ * Twilio signs the full callback URL followed by each POST parameter's name
+ * and value, sorted by name: X-Twilio-Signature = base64(HMAC-SHA1(auth token)).
+ * `url` must be exactly the URL configured in Twilio (scheme, host, path, query).
+ */
+export function verifyTwilioSignature(url: string, params: URLSearchParams, header: string | null, authToken: string): boolean {
+  if (!header || !authToken || !url) return false;
+  const signed = [...params.entries()]
+    .sort(([a, x], [b, y]) => (a === b ? (x < y ? -1 : x > y ? 1 : 0) : a < b ? -1 : 1))
+    .reduce((acc, [k, v]) => acc + k + v, url);
+  return safeEqual(header, createHmac("sha1", authToken).update(signed, "utf8").digest("base64"));
+}
+
 /** Constant-time compare for Meta's GET verification token. */
 export function tokensMatch(given: string | null, expected: string): boolean {
   return Boolean(given && expected) && safeEqual(given!, expected);
