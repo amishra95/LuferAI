@@ -60,6 +60,7 @@ export type Company = Tables<"companies">;
 export type Venue = Tables<"venues">;
 export type Booking = Tables<"bookings">;
 export type VenueOnboardingRequest = Tables<"venue_onboarding_requests">;
+export type SignupApplication = Tables<"signup_applications">;
 export type CorporatePolicy = Tables<"corporate_policies">;
 export type ApprovalChain = Tables<"approval_chains">;
 export type BookingApproval = Tables<"booking_approvals">;

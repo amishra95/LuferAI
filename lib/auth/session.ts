@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
+import type { CorporateRole, PortalRole, SignupApplication } from "@/lib/supabase/database.types";
+import { isApplicationStatus, landingFor, type ApplicationStatus } from "./onboarding";
 import { partnerCan, type PartnerPermission, type PartnerRole } from "./partner-rbac";
 import { canAccess, canAccessWorkspace, homeFor, type Portal, type WorkspaceRoute } from "./roles";
 
@@ -67,13 +68,39 @@ export const getCurrentMember = cache(async (): Promise<Member | null> => {
 });
 
 /**
+ * The signed-in user's signup application, or null when signed out or they
+ * never applied. Read with their own session: RLS lets an applicant read only
+ * their own application. Deduped per request.
+ */
+export const currentApplication = cache(async (): Promise<SignupApplication | null> => {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) return null;
+  const { data: row } = await supabase.from("signup_applications").select("*").eq("user_id", data.claims.sub).maybeSingle();
+  return row;
+});
+
+/** Its status (lib/auth/onboarding.ts), for the guards. */
+export const currentApplicationStatus = cache(async (): Promise<ApplicationStatus | null> => {
+  const row = await currentApplication();
+  return isApplicationStatus(row?.status) ? row.status : null;
+});
+
+/** Where a guard sends someone without a portal role: applicants as landingFor says, everyone else to sign in. */
+async function signedOutOrApplicant(path: string): Promise<string> {
+  const status = await currentApplicationStatus();
+  return status ? landingFor(null, status) : `/login?next=${encodeURIComponent(path)}`;
+}
+
+/**
  * Authoritative portal check for layouts, pages and server actions. middleware.ts
  * does the same check first, but it must not be the only gate (and server actions
  * can be invoked independently of the page that renders them).
  */
 export async function requirePortal(portal: Portal): Promise<Member> {
   const member = await getCurrentMember();
-  if (!member) redirect(`/login?next=${encodeURIComponent(portal)}`);
+  if (!member) redirect(await signedOutOrApplicant(portal));
   if (!canAccess(member.role, portal)) redirect(homeFor(member.role));
   return member;
 }
@@ -81,7 +108,7 @@ export async function requirePortal(portal: Portal): Promise<Member> {
 /** Authoritative check for workspace areas (settings, agents, chat, …) and their server actions. */
 export async function requireWorkspace(route: WorkspaceRoute): Promise<Member> {
   const member = await getCurrentMember();
-  if (!member) redirect(`/login?next=${encodeURIComponent(route)}`);
+  if (!member) redirect(await signedOutOrApplicant(route));
   if (!canAccessWorkspace(member.role, member.corporateRole, route)) redirect(homeFor(member.role));
   return member;
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { LoginForm } from "./_components/login-form";
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
-  no_access: "Your account isn't linked to a portal yet. Ask a platform admin to grant access.",
+  no_access: "Your account isn't linked to a portal yet. Apply for an account below, or ask a platform admin to grant access.",
   link_invalid: "That sign-in link is invalid or has expired. Request a new one.",
   oauth_failed: "Google sign-in couldn't be started. Please try again.",
   auth_unconfigured: "Sign-in is unavailable: Supabase isn't configured (see .env.example).",
@@ -44,6 +45,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <LoginForm next={next ?? ""} />
         </CardContent>
       </Card>
+      <p className="text-fg-subtle mt-4 text-center text-meta">
+        New to CorpHospitality?{" "}
+        <Link href="/signup" className="text-link underline-offset-2 hover:underline">
+          Apply for an account
+        </Link>
+      </p>
     </main>
   );
 }

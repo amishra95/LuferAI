@@ -2930,6 +2930,93 @@ export type Database = {
           },
         ]
       }
+      signup_applications: {
+        Row: {
+          account_type: string
+          city: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          email: string
+          full_name: string
+          gstin: string | null
+          id: string
+          job_title: string | null
+          message: string | null
+          partner_id: string | null
+          partner_role: string | null
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          venue_website: string | null
+        }
+        Insert: {
+          account_type: string
+          city?: string | null
+          company_id?: string | null
+          company_name: string
+          created_at?: string
+          email: string
+          full_name: string
+          gstin?: string | null
+          id?: string
+          job_title?: string | null
+          message?: string | null
+          partner_id?: string | null
+          partner_role?: string | null
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          venue_website?: string | null
+        }
+        Update: {
+          account_type?: string
+          city?: string | null
+          company_id?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          gstin?: string | null
+          id?: string
+          job_title?: string | null
+          message?: string | null
+          partner_id?: string | null
+          partner_role?: string | null
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          venue_website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_applications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signup_applications_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_invoice_documents: {
         Row: {
           attempts: number
@@ -3769,6 +3856,38 @@ export type Database = {
       }
       current_venue_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      decide_signup_application: {
+        Args: { p_application_id: string; p_decision: string; p_reason?: string; p_reviewer: string }
+        Returns: {
+          account_type: string
+          city: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          email: string
+          full_name: string
+          gstin: string | null
+          id: string
+          job_title: string | null
+          message: string | null
+          partner_id: string | null
+          partner_role: string | null
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          venue_website: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "signup_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       escalate_booking_approval: {
         Args: { p_approval_id: string; p_reason?: string }
         Returns: string
