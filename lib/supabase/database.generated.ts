@@ -3366,6 +3366,83 @@ export type Database = {
           },
         ]
       }
+      venue_inquiries: {
+        Row: {
+          budget_per_head_inr: number | null
+          company_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          date_available: boolean | null
+          event_date: string | null
+          id: string
+          last_message_at: string
+          messages: Json
+          notes: string | null
+          occasion: string | null
+          party_size: number | null
+          qualified_at: string | null
+          referred_venue_ids: string[]
+          status: string
+          token_sha256: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          budget_per_head_inr?: number | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          date_available?: boolean | null
+          event_date?: string | null
+          id?: string
+          last_message_at?: string
+          messages?: Json
+          notes?: string | null
+          occasion?: string | null
+          party_size?: number | null
+          qualified_at?: string | null
+          referred_venue_ids?: string[]
+          status?: string
+          token_sha256: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          budget_per_head_inr?: number | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          date_available?: boolean | null
+          event_date?: string | null
+          id?: string
+          last_message_at?: string
+          messages?: Json
+          notes?: string | null
+          occasion?: string | null
+          party_size?: number | null
+          qualified_at?: string | null
+          referred_venue_ids?: string[]
+          status?: string
+          token_sha256?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_inquiries_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_menu_packages: {
         Row: {
           created_at: string

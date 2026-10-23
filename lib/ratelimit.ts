@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Sliding-window limiter for /api/ai/* and other routes that call a model (invoice OCR):
+ * Sliding-window limiter for /api/ai/* and other routes that call a model (invoice OCR, venue inquiries):
  * 10 requests per minute per user (or per IP when signed out). Applied centrally in
  * middleware.ts so every AI route is covered.
  *
@@ -19,7 +19,7 @@ const ratelimit =
     : null;
 
 export function isAiApiPath(pathname: string): boolean {
-  return pathname === "/api/ai" || pathname.startsWith("/api/ai/") || pathname === "/api/finance/ocr-reconcile";
+  return pathname === "/api/ai" || pathname.startsWith("/api/ai/") || pathname === "/api/finance/ocr-reconcile" || pathname === "/api/inquiries";
 }
 
 /** Client IP from the platform proxy headers (Vercel sets x-forwarded-for / x-real-ip). */

@@ -31,7 +31,12 @@ import { cn, formatDate, formatINR } from "@/lib/utils";
 import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { RateCardPill } from "@/components/portal/pills";
 import { activeHolds } from "@/lib/approvals/service";
+import { siteUrl } from "@/lib/site-url";
+import { listInquiries } from "@/lib/venues/inquiry-store";
 import { EventBrief } from "./_components/event-brief";
+import { InquiryInbox } from "./_components/inquiry-inbox";
+import { AccountBook } from "./_components/account-book";
+import { accountOpportunities, venueAccounts } from "@/lib/venues/accounts";
 import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-forms";
 import { GuardrailsForm, NegotiatorDrawer } from "./_components/negotiator-drawer";
 import { PlanAck } from "./_components/plan-ack";
@@ -42,8 +47,8 @@ import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respond
 const monthLabel = (ym: string) =>
   new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
-type Tab = "requests" | "briefs" | "pricing" | "payouts";
-const TABS: Tab[] = ["requests", "briefs", "pricing", "payouts"];
+type Tab = "requests" | "inquiries" | "accounts" | "briefs" | "pricing" | "payouts";
+const TABS: Tab[] = ["requests", "inquiries", "accounts", "briefs", "pricing", "payouts"];
 
 export default async function PropertyPage({ searchParams }: PageProps<"/property">) {
   const member = await requirePortal("/property");
@@ -90,6 +95,15 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   // Clients' signed-off event plans, shown under each brief.
   const plans = await listEventPlans([...incoming, ...upcoming].map((b) => b.id));
   const payouts = computeMonthlyPayouts(bookings);
+  // Leads from the venue's AI inquiry agent (before migration 20261104000000 there are none).
+  const inquiries = await listInquiries(venue.id).catch((err) => {
+    console.error("property: could not load inquiries", err);
+    return [];
+  });
+  const readyToQuote = inquiries.filter((i) => i.status === "qualified").length;
+  // The venue's corporate book of business, and the next step with each client.
+  const accounts = venueAccounts(bookings, today);
+  const opportunities = accountOpportunities(accounts, today);
 
   const href = (t: Tab) => {
     const q = new URLSearchParams();
@@ -140,6 +154,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         {(
           [
             { key: "requests", label: "Requests & Holds" },
+            { key: "inquiries", label: "Inquiries" },
+            { key: "accounts", label: "Accounts" },
             { key: "briefs", label: "Event Briefs" },
             { key: "pricing", label: "Pricing" },
             { key: "payouts", label: "Payouts & History" },
@@ -166,6 +182,16 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Badge variant="secondary" title={`${holdsByDate.length} active date hold${holdsByDate.length === 1 ? "" : "s"}`}>
                 <Lock className="size-2.5" aria-hidden /> {holdsByDate.length}
                 <span className="sr-only"> on hold</span>
+              </Badge>
+            ) : null}
+            {t.key === "inquiries" && readyToQuote > 0 ? (
+              <Badge variant="warning" title={`${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} ready for your quote`}>
+                {readyToQuote}
+              </Badge>
+            ) : null}
+            {t.key === "accounts" && opportunities.length > 0 ? (
+              <Badge variant="secondary" title={`${opportunities.length} suggested next step${opportunities.length === 1 ? "" : "s"}`}>
+                {opportunities.length}
               </Badge>
             ) : null}
             {t.key === "briefs" && incoming.length + upcoming.length > 0 ? <Badge variant="secondary">{incoming.length + upcoming.length}</Badge> : null}
@@ -415,6 +441,20 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             </Card>
           </div>
         )
+      ) : tab === "inquiries" ? (
+        <InquiryInbox
+          venueId={venue.id}
+          venueName={venue.name}
+          link={`${siteUrl("http://localhost:3000")}/inquire/${venue.id}`}
+          inquiries={inquiries}
+          names={new Map(allVenues.map((v) => [v.id, v.name]))}
+        />
+      ) : tab === "accounts" ? (
+        <AccountBook
+          accounts={accounts}
+          opportunities={opportunities}
+          quote={{ venueId: venue.id, companies, packages: packages.filter((p) => p.is_active), today, disabledReason: live ? undefined : "Direct quotes need the Supabase data source." }}
+        />
       ) : tab === "briefs" ? (
         incoming.length + upcoming.length === 0 ? (
           <EmptyState

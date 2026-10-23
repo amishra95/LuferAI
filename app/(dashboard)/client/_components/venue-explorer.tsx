@@ -14,6 +14,7 @@ import { dietaryLabel } from "@/lib/quotes";
 import { cn, formatINR } from "@/lib/utils";
 import { distanceKm, formatOfficeDistance, officeDistanceLabel, POLICY_TONE, venuePolicyStatus, type OfficeLocation, type VenueCardRules } from "@/lib/venues/discovery";
 import type { VenueOption as SearchOption, VenueSearchFilters } from "@/lib/ai/venue-sourcing";
+import type { VenueSignals } from "@/lib/venues/signals";
 import { AiVenueSearch } from "./ai-venue-search";
 import { EventRequestForm, type VenuePrefill } from "./event-request-form";
 import { VenueCardBody } from "./venue-picker";
@@ -36,6 +37,7 @@ export function VenueExplorer({
   policy = null,
   office = null,
   officeDistances = null,
+  signals = {},
 }: {
   venues: CatalogVenue[];
   company: { id: string; gstin: string };
@@ -51,6 +53,8 @@ export function VenueExplorer({
    * range. null = not available, so badges are computed here instead.
    */
   officeDistances?: Record<string, number> | null;
+  /** Coworker and response-time signals by venue id (lib/venues/signals.ts). */
+  signals?: Record<string, VenueSignals>;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -141,6 +145,7 @@ export function VenueExplorer({
                       venue={v}
                       policy={policy ? fit.get(v.id) : undefined}
                       distance={distanceLabel(venues[i])}
+                      signals={signals[v.id]}
                       indicator={
                         <ArrowUpRight
                           aria-hidden

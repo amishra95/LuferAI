@@ -144,6 +144,8 @@ export function DirectQuote({
   today,
   disabledReason,
   size = "default",
+  defaultCompanyId,
+  label = "Create direct quote",
 }: {
   venueId: string;
   companies: { id: string; name: string }[];
@@ -151,6 +153,9 @@ export function DirectQuote({
   today: string;
   disabledReason?: string;
   size?: "default" | "sm";
+  /** Pre-selects the client (e.g. from an account's suggested next step). */
+  defaultCompanyId?: string;
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createDirectQuoteAction, IDLE);
@@ -161,7 +166,7 @@ export function DirectQuote({
     return (
       <div className="flex flex-col items-start gap-1.5">
         <Button type="button" variant="outline" size={size} onClick={() => setOpen(true)} disabled={Boolean(reason)} title={reason}>
-          <FileSignature aria-hidden /> Create direct quote
+          <FileSignature aria-hidden /> {label}
         </Button>
         {reason ? <span className="text-fg-subtle max-w-72 text-caption">{reason}</span> : <Feedback state={state} />}
       </div>
@@ -173,7 +178,7 @@ export function DirectQuote({
       <h3 className="label-mono sm:col-span-2">Direct quote</h3>
       <label className="grid gap-1 text-meta sm:col-span-2">
         <span className="text-fg-subtle">Client</span>
-        <NativeSelect name="company_id" required defaultValue="">
+        <NativeSelect name="company_id" required defaultValue={defaultCompanyId ?? ""}>
           <option value="" disabled>
             Choose a client
           </option>
