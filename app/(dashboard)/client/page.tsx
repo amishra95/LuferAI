@@ -73,6 +73,8 @@ import { DiscoveryPanel } from "./_components/discovery-panel";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
+import { venueSignals } from "@/lib/venues/signals";
+import { venueResponseHours } from "@/lib/venues/signals-store";
 import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
@@ -114,7 +116,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const [catalogItems, catalogOrders] =
     tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
   const orderSettlements = await listOrderSettlements(catalogOrders);
-  const [payments, holds, rfps, queue, guestCounts, depositRate, contracts] = await Promise.all([
+  const [payments, holds, rfps, queue, guestCounts, depositRate, contracts, responseHours] = await Promise.all([
     latestPayments(bookings.map((b) => b.id)),
     activeHolds(bookings.map((b) => b.id)),
     live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
@@ -123,8 +125,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     // Venues may set their own deposit (/property → Pricing); checkout charges the same rate.
     live ? depositRatesForVenues(bookings.map((b) => b.venue_id)) : Promise.resolve(() => DEPOSIT_RATE),
     contractsForBookings(bookings.map((b) => b.id)),
+    venueResponseHours(),
   ]);
   const itc = computeItcSummary(bookings);
+  // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
+  const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, responseHours));
   // The concierge (/api/chat) needs a model and the workspace agent switched on.
   await syncAgentConfigs();
   const workspaceAgent = getAgent("workspace-agent");
@@ -499,6 +504,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 }
                 office={office}
                 officeDistances={officeDistances}
+                signals={signals}
               />
             </div>
           ) : null}

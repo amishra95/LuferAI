@@ -1,12 +1,21 @@
 "use client";
 
 import { useId, useState } from "react";
-import { AlertTriangle, BadgePercent, Check, DoorClosed, MapPin, Search, Users } from "lucide-react";
+import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
 import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenuePolicyStatus } from "@/lib/venues/discovery";
+import { signalLabels, type VenueSignals } from "@/lib/venues/signals";
+
+const SIGNAL_ICON = { favorite: Heart, coworkers: Users, you: UserCheck, fast: Timer } as const;
+const SIGNAL_TITLE = {
+  favorite: "One of your company's most-booked venues this year",
+  coworkers: "Colleagues at your company booked here this year",
+  you: "You booked here this year",
+  fast: "Typical time for this venue to accept a request, across companies",
+} as const;
 
 export interface VenuePickerOption {
   id: string;
@@ -43,6 +52,7 @@ export function VenueCardBody({
   metaId,
   policy,
   distance,
+  signals,
 }: {
   venue: VenuePickerOption;
   /** Guests entered so far; 0 hides the fit hint. */
@@ -54,8 +64,11 @@ export function VenueCardBody({
   policy?: VenuePolicyStatus;
   /** e.g. "1.8 km from HQ" (officeDistanceLabel). */
   distance?: string | null;
+  /** "Booked by 3 coworkers", "Company favorite"… (lib/venues/signals.ts). */
+  signals?: VenueSignals;
 }) {
   const tooSmall = guests > 0 && guests > v.capacity_max;
+  const social = signalLabels(signals);
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -106,6 +119,19 @@ export function VenueCardBody({
           )
         ) : null}
       </div>
+
+      {social.length ? (
+        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Signals">
+          {social.map(({ key, label }) => {
+            const Icon = SIGNAL_ICON[key];
+            return (
+              <li key={key} title={SIGNAL_TITLE[key]} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
+                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current")} aria-hidden /> {label}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
 
       {v.rate_card_label || v.dietary?.length || policy || distance ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
