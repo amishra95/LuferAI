@@ -62,7 +62,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber, liveHolds, contractCompanies, inquiries] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -79,27 +79,27 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         })
       : Promise.resolve({ open: [], recent: [], ready: false }),
     live ? venueAlertNumber(venue.id) : Promise.resolve(null),
+    listLiveHolds(venue.id),
+    // Clients that confirm by signed contract: the venue countersigns instead of approving.
+    listCompanies().then((cs) => new Set(cs.filter((c) => c.contracts_required).map((c) => c.id))),
+    // Leads from the venue's AI inquiry agent (before migration 20261104000000 there are none).
+    listInquiries(venue.id).catch((err) => {
+      console.error("property: could not load inquiries", err);
+      return [];
+    }),
   ]);
   const platform = platformState.settings;
   const pricing = venuePricing.pricing;
   const incoming = bookings.filter((b) => b.status === "PENDING");
-  const [holds, liveHolds, contracts, contractCompanies] = await Promise.all([
+  const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
+  const [holds, contracts, plans] = await Promise.all([
     activeHolds(incoming.map((b) => b.id)),
-    listLiveHolds(venue.id),
     contractsForBookings(bookings.map((b) => b.id)),
-    // Clients that confirm by signed contract: the venue countersigns instead of approving.
-    listCompanies().then((cs) => new Set(cs.filter((c) => c.contracts_required).map((c) => c.id))),
+    // Clients' signed-off event plans, shown under each brief.
+    listEventPlans([...incoming, ...upcoming].map((b) => b.id)),
   ]);
   const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
-  const upcoming = bookings.filter((b) => b.status === "CONFIRMED");
-  // Clients' signed-off event plans, shown under each brief.
-  const plans = await listEventPlans([...incoming, ...upcoming].map((b) => b.id));
   const payouts = computeMonthlyPayouts(bookings);
-  // Leads from the venue's AI inquiry agent (before migration 20261104000000 there are none).
-  const inquiries = await listInquiries(venue.id).catch((err) => {
-    console.error("property: could not load inquiries", err);
-    return [];
-  });
   const readyToQuote = inquiries.filter((i) => i.status === "qualified").length;
   // The venue's corporate book of business, and the next step with each client.
   const accounts = venueAccounts(bookings, today);

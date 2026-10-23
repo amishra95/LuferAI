@@ -102,55 +102,57 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   if (!company) notFound();
 
   const live = dataSource() === "supabase";
-  const [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments, policy] = await Promise.all([
-    listBookings({ companyId: company.id }),
-    getVenueCatalog(company.id),
-    listPortalUsers({ companyId: company.id }),
-    listApprovals({ tenantId: company.id }),
-    listExpenseExports({ tenantId: company.id }),
-    listPurchaseOrders({ tenantId: company.id }),
-    listPoAllocations({ tenantId: company.id }),
-    listDepartments({ companyIds: [company.id] }),
-    getCorporatePolicy(company.id),
+  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : tab === "settlement" ? "settlement" : "bookings";
+  const today = todayInIndia();
+  const office = officeOf(company);
+  // Only employees can request. Whether this one may is known once `users` loads,
+  // so their venue search and saved phone load alongside and are dropped if not.
+  const employee = member.role === "CLIENT";
+
+  // Round trip 1: everything that needs only the company.
+  const [
+    [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments, policy],
+    [catalogItems, catalogOrders],
+    [rfps, queue, responseHours, spendLimit, nearby, savedPhone],
+  ] = await Promise.all([
+    Promise.all([
+      listBookings({ companyId: company.id }),
+      getVenueCatalog(company.id),
+      listPortalUsers({ companyId: company.id }),
+      listApprovals({ tenantId: company.id }),
+      listExpenseExports({ tenantId: company.id }),
+      listPurchaseOrders({ tenantId: company.id }),
+      listPoAllocations({ tenantId: company.id }),
+      listDepartments({ companyIds: [company.id] }),
+      getCorporatePolicy(company.id),
+    ]),
+    activeTab === "catalog"
+      ? Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })])
+      : activeTab === "pos"
+        ? Promise.all([[], listCatalogOrders({ tenantId: company.id })])
+        : Promise.all([[], []]),
+    Promise.all([
+      live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
+      approvalQueue(member, company.id),
+      venueResponseHours(),
+      // This month's committed spend against the limit: the figure the approval policy checks.
+      activeTab === "bookings" ? spendLimitFor(company.id, today) : Promise.resolve(null),
+      // Office distances for the venue cards, from PostGIS (null: computed in the explorer).
+      employee && office ? searchVenuesSpatial({ ...office, radiusMeters: MAX_BADGE_KM * 1000 }) : Promise.resolve(null),
+      employee ? getUserPhone(member.userId) : Promise.resolve(null),
+      // The concierge (/api/chat) needs a model and the workspace agent switched on.
+      syncAgentConfigs(),
+    ]),
   ]);
-  const [catalogItems, catalogOrders] =
-    tab === "catalog" ? await Promise.all([listCatalogItems(), listCatalogOrders({ tenantId: company.id })]) : tab === "pos" ? [[], await listCatalogOrders({ tenantId: company.id })] : [[], []];
-  const orderSettlements = await listOrderSettlements(catalogOrders);
-  const [payments, holds, rfps, queue, guestCounts, depositRate, contracts, responseHours] = await Promise.all([
-    latestPayments(bookings.map((b) => b.id)),
-    activeHolds(bookings.map((b) => b.id)),
-    live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
-    approvalQueue(member, company.id),
-    countEventAttendees(bookings.map((b) => b.id)),
-    // Venues may set their own deposit (/property → Pricing); checkout charges the same rate.
-    live ? depositRatesForVenues(bookings.map((b) => b.venue_id)) : Promise.resolve(() => DEPOSIT_RATE),
-    contractsForBookings(bookings.map((b) => b.id)),
-    venueResponseHours(),
-  ]);
-  const itc = computeItcSummary(bookings);
-  // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
-  const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, responseHours));
-  // The concierge (/api/chat) needs a model and the workspace agent switched on.
-  await syncAgentConfigs();
-  const workspaceAgent = getAgent("workspace-agent");
-  const concierge = !getLanguageModel({ backend: workspaceAgent?.model })
-    ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
-    : workspaceAgent?.enabled === false
-      ? { ready: false, reason: "The concierge is switched off on the Agents page." }
-      : { ready: true, reason: undefined };
-  const canPay = paymentsEnabled();
 
   // The signed-in employee and their corporate role. Admins have none here: they
   // browse read-only and decide approvals on the Approvals page.
   const user = member.role === "CLIENT" ? users.find((u) => u.id === member.userId) : undefined;
   const role = user?.role ?? null;
   const canRequest = role === "ORGANIZER" || role === "APPROVER";
-  // Office distances for the venue cards, from PostGIS (null: computed in the explorer).
-  const office = officeOf(company);
-  const nearby = canRequest && office ? await searchVenuesSpatial({ ...office, radiusMeters: MAX_BADGE_KM * 1000 }) : null;
-  const officeDistances = nearby && Object.fromEntries(nearby.venues.map((v) => [v.id, v.distanceMeters]));
+  const officeDistances = canRequest && nearby ? Object.fromEntries(nearby.venues.map((v) => [v.id, v.distanceMeters])) : null;
   // Prefills the request form's mobile with the one they gave last time.
-  const requesterPhone = canRequest && user ? await getUserPhone(user.id) : null;
+  const requesterPhone = canRequest ? savedPhone : null;
 
   // Open sign-offs: bookings still waiting, with all their tiers (decided and pending).
   const openBookingIds = new Set(bookings.filter((b) => b.status === "PENDING_APPROVAL").map((b) => b.id));
@@ -159,10 +161,34 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     approvals: allApprovals.filter((a) => a.booking_id === bookingId).sort((a, b) => (a.tier ?? 1) - (b.tier ?? 1)),
   }));
   const threadAnchor = (s: SignOff) => s.approvals[0]?.id;
-  const comments = await listApprovalComments(
-    signOffs.map(threadAnchor).filter((id): id is string => Boolean(id)),
-    company.id
-  );
+  const bookingIds = bookings.map((b) => b.id);
+
+  // Round trip 2: everything that needs the bookings.
+  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements] = await Promise.all([
+    listOrderSettlements(catalogOrders),
+    latestPayments(bookingIds),
+    activeHolds(bookingIds),
+    countEventAttendees(bookingIds),
+    // Venues may set their own deposit (/property → Pricing); checkout charges the same rate.
+    live ? depositRatesForVenues(bookings.map((b) => b.venue_id)) : Promise.resolve(() => DEPOSIT_RATE),
+    contractsForBookings(bookingIds),
+    listApprovalComments(signOffs.map(threadAnchor).filter((id): id is string => Boolean(id)), company.id),
+    // Settlement: confirmed bookings onwards, most recent event first (loaded only on that tab).
+    activeTab === "settlement"
+      ? settlementsFor(company.id, bookings.filter((b) => ["CONFIRMED", "COMPLETED", "SETTLED"].includes(b.status)).sort((a, b) => b.event_date.localeCompare(a.event_date)))
+      : Promise.resolve([]),
+  ]);
+  const itc = computeItcSummary(bookings);
+  // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
+  const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, responseHours));
+  const workspaceAgent = getAgent("workspace-agent");
+  const concierge = !getLanguageModel({ backend: workspaceAgent?.model })
+    ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
+    : workspaceAgent?.enabled === false
+      ? { ready: false, reason: "The concierge is switched off on the Agents page." }
+      : { ready: true, reason: undefined };
+  const canPay = paymentsEnabled();
+
   const myTurn = (s: SignOff) =>
     role === "APPROVER" &&
     s.approvals.find(
@@ -173,12 +199,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     );
   const waitingOnMe = signOffs.filter((s) => myTurn(s)).length;
 
-  const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : tab === "settlement" ? "settlement" : "bookings";
-  // Settlement: confirmed bookings onwards, most recent event first (loaded only on that tab).
-  const settlements =
-    activeTab === "settlement"
-      ? await settlementsFor(company.id, bookings.filter((b) => ["CONFIRMED", "COMPLETED", "SETTLED"].includes(b.status)).sort((a, b) => b.event_date.localeCompare(a.event_date)))
-      : [];
   // Approvers manage their company's POs; admins any company's.
   const canManagePos = member.role === "ADMIN" || role === "APPROVER";
   const openPos = pos.filter((p) => p.status === "open").length;
@@ -190,13 +210,62 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     return q.size ? `/client?${q}` : "/client";
   };
   const approvalsHref = member.role === "ADMIN" ? `/client/approvals?company=${company.id}` : "/client/approvals";
-  // This month's committed spend against the limit: the figure the approval policy checks.
-  const today = todayInIndia();
-  const spendLimit = activeTab === "bookings" ? await spendLimitFor(company.id, today) : null;
   // Suggestions for the cost centre editor: the company's codes in use.
   const costCentres = [...new Set(bookings.map((b) => b.cost_center).filter((c): c is string => Boolean(c)))].sort();
   // "Browse marketplace" from an empty catalogue: the venue marketplace this viewer can use.
   const marketplaceHref = canRequest ? `${href({})}#venues-heading` : member.role === "ADMIN" ? "/venues" : null;
+
+  // Open quotes are the next decision to make, so they lead the page (proposals-first,
+  // the way buyers compare venues); once decided they drop back below the bookings.
+  const openRfps = rfps.filter(({ rfp }) => rfp.status === "open").length;
+  const quotesFirst = openRfps > 0;
+  const rfpSection = (
+    <section className={cn("grid gap-4", quotesFirst ? "mb-10" : "mt-10")} aria-labelledby="rfp-heading">
+      <div>
+        <h2 id="rfp-heading" className="text-fg text-body font-semibold tracking-tight">
+          {quotesFirst ? `Quotes to review (${openRfps})` : "RFP comparisons"}
+        </h2>
+        <p className="text-fg-subtle text-meta">Instant quotes from your packages and rate card; venues can counter-offer.</p>
+      </div>
+      {rfps.map(({ rfp, markdown, columns }) =>
+        rfp.origin === "venue" && columns[0] ? (
+          <Card key={rfp.id} className="gap-3">
+            <CardHeader className="flex flex-row flex-wrap items-center gap-2">
+              <CardTitle className="text-body">Direct quote from {columns[0].venue.name}</CardTitle>
+              <Badge variant={rfp.status === "open" ? "warning" : "secondary"}>{rfp.status === "open" ? "Open" : rfp.status === "awarded" ? "Booked" : "Closed"}</Badge>
+              <CardDescription className="flex-1 text-right">{formatDate(rfp.created_at.slice(0, 10))}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DirectQuoteCard
+                responseId={columns[0].response_id ?? ""}
+                venueName={columns[0].venue.name}
+                neighborhood={columns[0].venue.neighborhood}
+                eventDate={rfp.event_date}
+                partySize={rfp.party_size}
+                perHead={columns[0].per_head_inr}
+                packageName={columns[0].package_name}
+                invoiceTotal={columns[0].price?.invoice.invoice_total ?? null}
+                notes={columns[0].notes}
+                status={rfp.status}
+                canBook={canRequest}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+        <Card key={rfp.id} className="gap-3">
+          <CardHeader className="flex flex-row flex-wrap items-center gap-2">
+            <CardTitle className="text-body">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
+            <CardDescription className="line-clamp-1 flex-1">{rfp.brief}</CardDescription>
+            <CopyButton text={markdown} label="Copy Markdown" />
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <MarkdownMatrix markdown={markdown} />
+          </CardContent>
+        </Card>
+        )
+      )}
+    </section>
+  );
 
   return (
     <PortalShell
@@ -477,6 +546,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             />
           </section>
 
+          {quotesFirst ? rfpSection : null}
+
           {spendLimit ? <SpendLimitMeter committed={spendLimit.month_to_date} limit={spendLimit.monthly_limit} month={MONTH.format(new Date(`${today}T12:00:00+05:30`))} className="-mt-6 mb-10" /> : null}
 
           {canRequest ? (
@@ -714,53 +785,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
             </CardContent>
           </Card>
 
-          {rfps.length > 0 ? (
-            <section className="mt-10 grid gap-4" aria-labelledby="rfp-heading">
-              <div>
-                <h2 id="rfp-heading" className="text-fg text-body font-semibold tracking-tight">
-                  RFP comparisons
-                </h2>
-                <p className="text-fg-subtle text-meta">Instant quotes from your packages and rate card; venues can counter-offer.</p>
-              </div>
-              {rfps.map(({ rfp, markdown, columns }) =>
-                rfp.origin === "venue" && columns[0] ? (
-                  <Card key={rfp.id} className="gap-3">
-                    <CardHeader className="flex flex-row flex-wrap items-center gap-2">
-                      <CardTitle className="text-body">Direct quote from {columns[0].venue.name}</CardTitle>
-                      <Badge variant={rfp.status === "open" ? "warning" : "secondary"}>{rfp.status === "open" ? "Open" : rfp.status === "awarded" ? "Booked" : "Closed"}</Badge>
-                      <CardDescription className="flex-1 text-right">{formatDate(rfp.created_at.slice(0, 10))}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <DirectQuoteCard
-                        responseId={columns[0].response_id ?? ""}
-                        venueName={columns[0].venue.name}
-                        neighborhood={columns[0].venue.neighborhood}
-                        eventDate={rfp.event_date}
-                        partySize={rfp.party_size}
-                        perHead={columns[0].per_head_inr}
-                        packageName={columns[0].package_name}
-                        invoiceTotal={columns[0].price?.invoice.invoice_total ?? null}
-                        notes={columns[0].notes}
-                        status={rfp.status}
-                        canBook={canRequest}
-                      />
-                    </CardContent>
-                  </Card>
-                ) : (
-                <Card key={rfp.id} className="gap-3">
-                  <CardHeader className="flex flex-row flex-wrap items-center gap-2">
-                    <CardTitle className="text-body">{formatDate(rfp.created_at.slice(0, 10))}</CardTitle>
-                    <CardDescription className="line-clamp-1 flex-1">{rfp.brief}</CardDescription>
-                    <CopyButton text={markdown} label="Copy Markdown" />
-                  </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <MarkdownMatrix markdown={markdown} />
-                  </CardContent>
-                </Card>
-                )
-              )}
-            </section>
-          ) : null}
+          {rfps.length > 0 && !quotesFirst ? rfpSection : null}
         </>
       )}
     </PortalShell>
