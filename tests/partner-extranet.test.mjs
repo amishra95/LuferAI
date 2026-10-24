@@ -75,6 +75,21 @@ test("listing input is trimmed, coerced and bounded like the database", () => {
   assert.deepEqual(Object.keys(errors).sort(), ["area", "capacity", "min_spend_inr", "name", "ref"]);
 });
 
+test("listing coordinates are optional, paired and in range", () => {
+  const base = { ref: "BVX-200", name: "Garden Hall", area: "Jayanagar", city: "Bengaluru", capacity: "120", min_spend_inr: "0" };
+  const none = listingSchema.safeParse({ ...base, latitude: "", longitude: "" });
+  assert.equal(none.data.latitude, null);
+  assert.equal(none.data.longitude, null);
+  const pinned = listingSchema.safeParse({ ...base, latitude: "12.9250", longitude: "77.5938" });
+  assert.deepEqual([pinned.data.latitude, pinned.data.longitude], [12.925, 77.5938]);
+
+  const half = listingSchema.safeParse({ ...base, latitude: "12.9250", longitude: "" });
+  assert.equal(half.success, false);
+  assert.deepEqual(Object.keys(fieldErrorsOf(half.error)), ["longitude"]);
+  const outOfRange = listingSchema.safeParse({ ...base, latitude: "91", longitude: "181" });
+  assert.deepEqual(Object.keys(fieldErrorsOf(outOfRange.error)).sort(), ["latitude", "longitude"]);
+});
+
 test("rate cards need a positive rate and an end on or after the start", () => {
   const base = { partner_venue_id: "0b9a4c6e-1f2d-4e3a-9b8c-7d6e5f4a3b2c", label: "Weekday", per_head_inr: "1800", min_guests: "1", valid_from: "2026-11-01" };
   assert.equal(rateCardSchema.safeParse(base).data.valid_to, null);

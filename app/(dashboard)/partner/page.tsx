@@ -209,7 +209,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                               <div className="mt-3">
                                 <ListingForm
                                   partnerId={formPartnerId}
-                                  listing={{ ...l, min_spend_inr: Number(l.min_spend_inr) }}
+                                  listing={{ ...l, min_spend_inr: Number(l.min_spend_inr), latitude: l.latitude == null ? null : Number(l.latitude), longitude: l.longitude == null ? null : Number(l.longitude) }}
                                 />
                               </div>
                             </details>
@@ -292,7 +292,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                     <details>
                       <summary className="text-fg cursor-pointer text-meta hover:underline">Edit details</summary>
                       <div className="mt-3">
-                        <ListingForm partnerId={formPartnerId} listing={{ ...selected, min_spend_inr: Number(selected.min_spend_inr) }} />
+                        <ListingForm partnerId={formPartnerId} listing={{ ...selected, min_spend_inr: Number(selected.min_spend_inr), latitude: selected.latitude == null ? null : Number(selected.latitude), longitude: selected.longitude == null ? null : Number(selected.longitude) }} />
                       </div>
                     </details>
                   </CardContent>

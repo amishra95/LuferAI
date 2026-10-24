@@ -5,7 +5,7 @@ import { validateExpense } from "../lib/bookings/expense.ts";
 import { buildExpenseReceipt, RECEIPT_SCHEMA } from "../lib/finance/receipt.ts";
 import { calculateGst, computeGstinChecksum } from "../lib/gst-engine.ts";
 import { evaluateBookingPolicy } from "../lib/policies/evaluate-booking-policy.ts";
-import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, partnerToDirectory } from "../lib/venues/partner-network.ts";
+import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, partnerFeedSchema, partnerToDirectory } from "../lib/venues/partner-network.ts";
 import { applyVenueQuery, parseVenueQuery, withoutCommission } from "../lib/venues/query.ts";
 
 const NIMBUS = "29AABCN4821K1ZA"; // Karnataka registration
@@ -101,7 +101,19 @@ test("partner listings map to non-bookable directory rows tagged with their supp
     assert.equal(r.bookable, false);
     assert.equal(r.supplier, "Bengaluru Venue Exchange");
     assert.match(r.id, /^bvx:/);
+    // Demo listings are pinned on the venue map, in Bengaluru.
+    assert.ok(r.latitude > 12.8 && r.latitude < 13.2, r.name);
+    assert.ok(r.longitude > 77.4 && r.longitude < 77.8, r.name);
   }
+});
+
+test("partner feed coordinates are optional and only used as a pair", () => {
+  const listing = { ref: "X-1", name: "Hall", area: "Jayanagar", city: "Bengaluru", capacity: 50, min_spend_inr: 0 };
+  const network = { id: "x", name: "X" };
+  const [none, half, both] = partnerToDirectory(network, partnerFeedSchema.parse([listing, { ...listing, ref: "X-2", latitude: 12.93 }, { ...listing, ref: "X-3", latitude: 12.93, longitude: 77.58 }]));
+  assert.deepEqual([none.latitude, none.longitude], [null, null]);
+  assert.deepEqual([half.latitude, half.longitude], [null, null]);
+  assert.deepEqual([both.latitude, both.longitude], [12.93, 77.58]);
 });
 
 test("a slow partner network times out to an empty, flagged result", async () => {

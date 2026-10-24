@@ -300,6 +300,9 @@ export interface ExtranetListing {
   capacity: number;
   minSpendInr: number;
   privateDining: boolean;
+  /** For the venue map; null when the partner hasn't set a location. */
+  latitude: number | null;
+  longitude: number | null;
   /** Cheapest per-head rate active today, if the partner published one. */
   fromPerHeadInr: number | null;
 }
@@ -327,6 +330,8 @@ export async function listExtranetListings(): Promise<ExtranetListing[]> {
     capacity: v.capacity,
     minSpendInr: Number(v.min_spend_inr),
     privateDining: v.private_dining,
+    latitude: v.latitude == null ? null : Number(v.latitude),
+    longitude: v.longitude == null ? null : Number(v.longitude),
     fromPerHeadInr: fromPerHead(windows, v.id, today),
   }));
 }
