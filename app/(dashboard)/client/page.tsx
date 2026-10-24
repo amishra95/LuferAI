@@ -8,6 +8,7 @@ import { HoldCountdown } from "@/components/portal/hold-countdown";
 import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
 import { RateCardPill } from "@/components/portal/pills";
 import { StatCard } from "@/components/portal/stat-card";
+import { NavBadges } from "@/components/dashboard/nav-badges";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
@@ -313,6 +314,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       }
     >
       <ChatCompanyScope company={{ id: company.id, name: company.legal_name }} />
+      <NavBadges
+        badges={{
+          ...(signOffs.length ? { "/client?tab=signoffs": waitingOnMe > 0 ? { label: `${waitingOnMe} for you`, tone: "warning" } : { label: String(signOffs.length) } } : {}),
+          ...(queue.length ? { "/client/approvals": { label: String(queue.length), tone: "warning", title: `${queue.length} awaiting your approval` } } : {}),
+          ...(openPos ? { "/client?tab=pos": { label: String(openPos), title: `${openPos} open purchase order${openPos === 1 ? "" : "s"}` } } : {}),
+        }}
+      />
       {companies.length > 1 ? (
         <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2" aria-label="Switch company (admin)">
           <span className="label-mono mr-1">Viewing</span>
@@ -351,7 +359,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </p>
       ) : null}
 
-      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none]" aria-label="Client portal sections">
+      {/* Phones only: on wider screens these sections are in the sidebar. */}
+      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none] md:hidden" aria-label="Client portal sections">
         {(
           [
             { key: "bookings", label: "Bookings", count: 0 },

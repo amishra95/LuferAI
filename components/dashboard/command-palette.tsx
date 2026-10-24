@@ -6,7 +6,7 @@ import { Bot, CalendarDays, Play, Power, CornerDownLeft, Eraser, History, LogOut
 
 import { signOut } from "@/app/login/actions";
 import { runAgentTest, updateAgentConfig } from "@/app/(dashboard)/agents/actions";
-import { NAV_SECTIONS } from "@/components/dashboard/nav-config";
+import { ALL_NAV_ITEMS, SIDES } from "@/components/dashboard/nav-config";
 import { useVenueSync } from "@/components/venues/use-venue-sync";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
@@ -215,11 +215,15 @@ export function CommandPalette({
   const items = useMemo(() => {
     const q = query.trim();
     const allowed = new Set(allowedHrefs);
-    const nav: Item[] = NAV_SECTIONS.flatMap((s) =>
-      s.items
-        .filter((i) => allowed.has(i.href))
-        .map((i) => ({ id: `nav:${i.href}`, group: "Go to" as const, title: i.label, subtitle: i.href, keywords: `${s.title ?? ""} ${i.href}`, icon: i.icon, run: () => go(i.href) }))
-    );
+    const nav: Item[] = ALL_NAV_ITEMS.filter((i) => allowed.has(i.href.split("?")[0]) && (!i.gated || allowed.has(i.href))).map((i) => ({
+      id: `nav:${i.href}`,
+      group: "Go to" as const,
+      title: i.label,
+      subtitle: [SIDES[i.side].label, i.section].filter(Boolean).join(" · "),
+      keywords: `${i.section ?? ""} ${SIDES[i.side].label} ${i.href}`,
+      icon: i.icon,
+      run: () => go(i.href),
+    }));
 
     const venueItems: Item[] = venues.map((v) => ({
       id: `venue:${v.id}`,

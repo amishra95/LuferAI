@@ -7,18 +7,49 @@ import { LogOut, Menu, Search } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
 
-import { crumbHref, segmentLabel } from "@/components/dashboard/nav-config";
-import { Monogram } from "@/components/dashboard/sidebar";
-import type { SystemMode } from "@/types/navigation";
+import { SIDES, crumbHref, segmentLabel, sideHome } from "@/components/dashboard/nav-config";
+import { Monogram, SIDE_ACCENT } from "@/components/dashboard/sidebar";
+import { cn } from "@/lib/utils";
+import type { Side, SystemMode } from "@/types/navigation";
+
+const SIDE_SHORT: Record<Side, string> = { company: "Company", venue: "Venue", operator: "Operator" };
+
+/** Admins see every side; this switches which one the sidebar shows. */
+function ViewAs({ side, sides, allowedHrefs }: { side: Side; sides: Side[]; allowedHrefs: string[] }) {
+  return (
+    <nav aria-label="View as" className="border-line hidden items-center gap-0.5 rounded-md border p-0.5 md:inline-flex">
+      <span className="text-fg-subtle px-1.5 text-caption">View as</span>
+      {sides.map((s) => (
+        <Link
+          key={s}
+          href={sideHome(s, allowedHrefs)}
+          aria-current={s === side ? "true" : undefined}
+          title={SIDES[s].label}
+          className={cn("inline-flex h-6 items-center gap-1.5 rounded px-2 text-caption transition-colors", s === side ? "bg-surface-raised text-fg" : "text-fg-subtle hover:text-fg")}
+        >
+          <span aria-hidden className={cn("size-1.5 rounded-full", SIDE_ACCENT[s])} />
+          {SIDE_SHORT[s]}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 export function Header({
   workspaceName,
+  side,
+  sides,
+  allowedHrefs,
   system,
   account,
   onOpenMobileNav,
   onOpenPalette,
 }: {
   workspaceName: string;
+  side: Side;
+  /** Sides this user can view; more than one (admins) shows the View as switcher. */
+  sides: Side[];
+  allowedHrefs: string[];
   system: SystemMode;
   /** The signed-in user, or null when signed out / auth isn't configured. */
   account: { email: string | null; role?: string } | null;
@@ -42,7 +73,7 @@ export function Header({
       <nav aria-label="Breadcrumb" className="min-w-0">
         <ol className="flex items-center gap-2 text-meta">
           <li className="hidden sm:block">
-            <Link href="/dashboard" className="text-fg-subtle hover:text-fg transition-colors">
+            <Link href={sideHome(side, allowedHrefs)} className="text-fg-subtle hover:text-fg transition-colors">
               {workspaceName}
             </Link>
           </li>
@@ -70,12 +101,15 @@ export function Header({
         </ol>
       </nav>
 
+      <div className="ml-auto" />
+      {sides.length > 1 ? <ViewAs side={side} sides={sides} allowedHrefs={allowedHrefs} /> : null}
+
       <button
         type="button"
         onClick={onOpenPalette}
         aria-label="Search (⌘K)"
         aria-keyshortcuts="Meta+K Control+K"
-        className="btn btn-ghost text-fg-subtle ml-auto h-8 gap-2 px-2 sm:px-2.5"
+        className="btn btn-ghost text-fg-subtle h-8 gap-2 px-2 sm:px-2.5"
       >
         <Search className="size-4" aria-hidden />
         <span className="hidden text-meta sm:inline">Search</span>
