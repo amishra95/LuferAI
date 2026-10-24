@@ -359,8 +359,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </p>
       ) : null}
 
-      {/* Phones only: on wider screens these sections are in the sidebar. */}
-      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none] md:hidden" aria-label="Client portal sections">
+      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none]" aria-label="Client portal sections">
         {(
           [
             { key: "bookings", label: "Bookings", count: 0 },

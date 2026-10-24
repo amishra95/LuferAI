@@ -134,8 +134,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         <StatCard label="Your role" value={roleLabel} hint={can.has("rates.edit") ? "Can edit listings and rates" : "Read-only, can pause listings"} icon={can.has("team.manage") ? Users : Building} />
       </section>
 
-      {/* Phones only: on wider screens these sections are in the sidebar. */}
-      <nav className="border-line mb-6 flex gap-1 overflow-x-auto border-b md:hidden" aria-label="Partner sections">
+      <nav className="border-line mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Partner sections">
         {visibleTabs.map((t) => (
           <Link
             key={t.key}

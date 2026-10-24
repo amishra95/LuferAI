@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { isItemActive, sideForPath, sideForRole, sideHome, sideSections, visibleSides } from "../components/dashboard/nav-config.ts";
+import { allSides, isItemActive, sideForPath, sideForRole, sideHome, sideSections, visibleSides } from "../components/dashboard/nav-config.ts";
 
 const hrefs = (side, allowed) => sideSections(side, allowed).flatMap((s) => s.items.map((i) => i.href));
 
@@ -44,6 +44,18 @@ test("admins can view every side", () => {
   assert.deepEqual(visibleSides(admin), ["company", "venue", "operator"]);
   assert.equal(sideHome("venue", admin), "/property");
   assert.equal(sideHome("operator", admin), "/dashboard");
+});
+
+test("admins get every side in one sidebar, each page listed once", () => {
+  const admin = ["/client", "/property", "/partner", "/admin", "/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts", "/client/approvals", "/admin/approvals", "/admin/managers", "/admin/analytics", "/partner?tab=payouts", "/partner?tab=team", "/partner?tab=activity"];
+  const groups = allSides(visibleSides(admin), admin);
+  assert.deepEqual(groups.map((g) => g.side), ["operator", "company", "venue"]);
+  const all = groups.flatMap((g) => g.sections.flatMap((s) => s.items.map((i) => i.href)));
+  assert.equal(new Set(all).size, all.length, "no page twice");
+  // Every portal and page from before is reachable.
+  for (const h of ["/client", "/client/approvals", "/governance", "/property", "/partner", "/admin", "/admin/approvals", "/admin/managers", "/admin/analytics", "/dashboard", "/chat", "/agents", "/venues", "/settings", "/contracts"]) {
+    assert.ok(all.includes(h), h);
+  }
 });
 
 test("the item for the current section is highlighted, tabs included", () => {

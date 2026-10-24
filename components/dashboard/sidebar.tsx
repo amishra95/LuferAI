@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 import { useNavBadges } from "@/components/dashboard/nav-badges";
-import { SIDES, isItemActive, sideHome, sideSections } from "@/components/dashboard/nav-config";
+import { SIDES, allSides, isItemActive, sideHome, sideSections } from "@/components/dashboard/nav-config";
 import { cn } from "@/lib/utils";
 import type { Side } from "@/types/navigation";
 
@@ -28,13 +28,14 @@ export function Monogram({ name, className }: { name: string; className?: string
 }
 
 /**
- * The navigation for one side of the marketplace (company, venue or
- * operator): only that side's items, under its label, with the counts the
- * current page reports (nav-badges.tsx).
+ * The navigation: company and venue users get their own side's items under
+ * its label; admins get every side, one group each. Items carry the counts
+ * the current page reports (nav-badges.tsx).
  */
 export function Sidebar({
   workspaceName,
   side,
+  sides,
   allowedHrefs,
   collapsed,
   onToggle,
@@ -44,6 +45,8 @@ export function Sidebar({
 }: {
   workspaceName: string;
   side: Side;
+  /** Every side this user may see; more than one (admins) lists them all. */
+  sides: Side[];
   allowedHrefs: string[];
   collapsed: boolean;
   /** Omit to hide the collapse control (e.g. inside the mobile drawer). */
@@ -56,8 +59,8 @@ export function Sidebar({
   const pathname = usePathname();
   const tab = useSearchParams().get("tab");
   const badges = useNavBadges();
-  const sections = sideSections(side, allowedHrefs);
-  const hrefs = sections.flatMap((s) => s.items.map((i) => i.href));
+  const groups = sides.length > 1 ? allSides(sides, allowedHrefs) : [{ side, sections: sideSections(side, allowedHrefs) }];
+  const hrefs = groups.flatMap((g) => g.sections.flatMap((s) => s.items.map((i) => i.href)));
   return (
     <aside
       className={cn(
@@ -86,78 +89,81 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Which side of the marketplace this is. */}
-      {collapsed ? (
-        <span className={cn("mx-auto mb-1 block size-1.5 rounded-full", SIDE_ACCENT[side])} title={SIDES[side].label} aria-label={SIDES[side].label} role="img" />
-      ) : (
-        <p className="text-fg-muted mx-4 mb-1 flex items-center gap-2 text-caption font-medium">
-          <span aria-hidden className={cn("size-1.5 rounded-full", SIDE_ACCENT[side])} />
-          {SIDES[side].label}
-        </p>
-      )}
-
-      <nav className="flex-1 overflow-y-auto px-2.5 pt-2 pb-4" aria-label={SIDES[side].label}>
-        {sections.map((section, i) => (
-          <div key={section.title ?? i} className={cn(i > 0 && "mt-5")}>
-            {section.title &&
-              (collapsed ? (
-                <div className="border-line mx-3 mb-3 border-t" aria-hidden />
-              ) : (
-                <p className="label-mono mb-1.5 px-2.5">{section.title}</p>
-              ))}
-            {!section.title && i > 0 && collapsed ? <div className="border-line mx-3 mb-3 border-t" aria-hidden /> : null}
-            <ul className="space-y-px">
-              {section.items.map(({ href, label, icon: Icon }) => {
-                const active = isItemActive(href, pathname, tab, hrefs);
-                const badge = badges[href];
-                return (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      onClick={onNavigate}
-                      title={collapsed ? (badge ? `${label} (${badge.label})` : label) : badge?.title}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-meta font-medium transition-[color,background-color,box-shadow,transform] duration-150",
-                        collapsed && "justify-center px-0",
-                        active ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
-                      )}
-                    >
-                      {/* The side's colour marks the current page. */}
-                      {active && <span aria-hidden className={cn("absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full", SIDE_ACCENT[side])} />}
-                      <Icon
-                        className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
-                        strokeWidth={1.75}
-                        aria-hidden
-                      />
-                      {collapsed ? (
-                        <>
-                          <span className="sr-only">
-                            {label}
-                            {badge ? ` (${badge.label})` : ""}
-                          </span>
-                          {badge ? <span aria-hidden className={cn("absolute top-1.5 right-2 size-1.5 rounded-full", badge.tone === "warning" ? "bg-gold" : "bg-fg-subtle")} /> : null}
-                        </>
-                      ) : (
-                        <>
-                          <span className="truncate">{label}</span>
-                          {badge ? (
-                            <span
-                              className={cn(
-                                "ml-auto shrink-0 rounded-full px-1.5 font-mono text-[11px] leading-[18px] tabular-nums",
-                                badge.tone === "warning" ? "bg-gold text-plum" : "bg-surface-raised text-fg-muted"
-                              )}
-                            >
-                              {badge.label}
-                            </span>
-                          ) : null}
-                        </>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+      <nav className="flex-1 overflow-y-auto px-2.5 pt-1 pb-4" aria-label="Navigation">
+        {groups.map(({ side: groupSide, sections }, g) => (
+          <div key={groupSide} className={cn(g > 0 && "border-line mt-5 border-t pt-4")}>
+            {/* Which side of the marketplace these items are for. */}
+            {collapsed ? (
+              <span className={cn("mx-auto mb-2 block size-1.5 rounded-full", SIDE_ACCENT[groupSide])} title={SIDES[groupSide].label} aria-label={SIDES[groupSide].label} role="img" />
+            ) : (
+              <p className={cn("mb-2 flex items-center gap-2 px-2.5", groups.length > 1 ? "text-fg text-meta font-semibold" : "text-fg-muted text-caption font-medium")}>
+                <span aria-hidden className={cn("size-1.5 rounded-full", SIDE_ACCENT[groupSide])} />
+                {SIDES[groupSide].label}
+              </p>
+            )}
+            {sections.map((section, i) => (
+              <div key={section.title ?? i} className={cn(i > 0 && "mt-4")}>
+                {section.title &&
+                  (collapsed ? (
+                    <div className="border-line mx-3 mb-3 border-t" aria-hidden />
+                  ) : (
+                    <p className="label-mono mb-1.5 px-2.5">{section.title}</p>
+                  ))}
+                {!section.title && i > 0 && collapsed ? <div className="border-line mx-3 mb-3 border-t" aria-hidden /> : null}
+                <ul className="space-y-px">
+                  {section.items.map(({ href, label, icon: Icon }) => {
+                    const active = isItemActive(href, pathname, tab, hrefs);
+                    const badge = badges[href];
+                    return (
+                      <li key={href}>
+                        <Link
+                          href={href}
+                          onClick={onNavigate}
+                          title={collapsed ? (badge ? `${label} (${badge.label})` : label) : badge?.title}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-meta font-medium transition-[color,background-color,box-shadow,transform] duration-150",
+                            collapsed && "justify-center px-0",
+                            active ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
+                          )}
+                        >
+                          {/* The side's colour marks the current page. */}
+                          {active && <span aria-hidden className={cn("absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full", SIDE_ACCENT[groupSide])} />}
+                          <Icon
+                            className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
+                            strokeWidth={1.75}
+                            aria-hidden
+                          />
+                          {collapsed ? (
+                            <>
+                              <span className="sr-only">
+                                {label}
+                                {badge ? ` (${badge.label})` : ""}
+                              </span>
+                              {badge ? <span aria-hidden className={cn("absolute top-1.5 right-2 size-1.5 rounded-full", badge.tone === "warning" ? "bg-gold" : "bg-fg-subtle")} /> : null}
+                            </>
+                          ) : (
+                            <>
+                              <span className="truncate">{label}</span>
+                              {badge ? (
+                                <span
+                                  className={cn(
+                                    "ml-auto shrink-0 rounded-full px-1.5 font-mono text-[11px] leading-[18px] tabular-nums",
+                                    badge.tone === "warning" ? "bg-gold text-plum" : "bg-surface-raised text-fg-muted"
+                                  )}
+                                >
+                                  {badge.label}
+                                </span>
+                              ) : null}
+                            </>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </div>
         ))}
       </nav>
