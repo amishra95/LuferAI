@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { Drawer } from "@/components/dashboard/drawer";
 import { Header } from "@/components/dashboard/header";
-import { SIDEBAR_COOKIE } from "@/components/dashboard/nav-config";
+import { NavBadgeProvider } from "@/components/dashboard/nav-badges";
+import { SIDEBAR_COOKIE, SIDE_COOKIE, sideForPath, sideForRole, visibleSides } from "@/components/dashboard/nav-config";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ToastProvider } from "@/components/dashboard/toast";
 import { ChatDrawerProvider, type ChatDrawerConfig } from "@/components/ui/chat-drawer";
@@ -14,7 +16,7 @@ import { InspectorSidebar } from "@/components/workspace/inspector-sidebar";
 import { LiveRefresh } from "@/components/workspace/live-refresh";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import type { PortalRole } from "@/lib/supabase/database.types";
-import type { SystemMode } from "@/types/navigation";
+import type { Side, SystemMode } from "@/types/navigation";
 
 export function DashboardShell({
   defaultCollapsed,
@@ -22,6 +24,7 @@ export function DashboardShell({
   system,
   account,
   allowedHrefs,
+  lastSide,
   chat,
   children,
 }: {
@@ -31,6 +34,8 @@ export function DashboardShell({
   account: { email: string | null; role: PortalRole } | null;
   /** Nav items this user may open; the sidebar hides the rest. */
   allowedHrefs: string[];
+  /** The side an admin last viewed (SIDE_COOKIE), for shared pages like /venues. */
+  lastSide: Side | null;
   /** The in-page concierge drawer; null for users who can't use the workspace chat. */
   chat: ChatDrawerConfig | null;
   children: React.ReactNode;
@@ -38,6 +43,15 @@ export function DashboardShell({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // The page's own side; shared pages (/venues, /chat, /contracts) keep the side the viewer is on.
+  const pathname = usePathname();
+  const sides = visibleSides(allowedHrefs);
+  const pathSide = sideForPath(pathname);
+  const wanted = pathSide ?? (account?.role === "ADMIN" ? lastSide : null) ?? sideForRole(account?.role);
+  const side = sides.includes(wanted) ? wanted : (sides[0] ?? "operator");
+  useEffect(() => {
+    if (pathSide && sides.length > 1) document.cookie = `${SIDE_COOKIE}=${pathSide}; path=/; max-age=31536000; samesite=lax`;
+  }, [pathSide, sides.length]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {
@@ -66,15 +80,18 @@ export function DashboardShell({
   const content = (
     <>
       <div className="flex h-dvh overflow-hidden">
-        <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
+        <Sidebar workspaceName={workspaceName} side={side} allowedHrefs={allowedHrefs} collapsed={collapsed} onToggle={toggle} className="hidden md:flex" />
 
         <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" label="Navigation" className="md:hidden">
-          <Sidebar workspaceName={workspaceName} allowedHrefs={allowedHrefs} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+          <Sidebar workspaceName={workspaceName} side={side} allowedHrefs={allowedHrefs} collapsed={false} onNavigate={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
         </Drawer>
 
         <div className="relative flex min-w-0 flex-1 flex-col">
           <Header
             workspaceName={workspaceName}
+            side={side}
+            sides={sides}
+            allowedHrefs={allowedHrefs}
             system={system}
             account={account}
             onOpenMobileNav={() => setMobileOpen(true)}
@@ -103,8 +120,10 @@ export function DashboardShell({
   return (
     <WorkspaceProvider live={live}>
       <ToastProvider>
-        {/* The concierge drawer, for everyone who can use the workspace chat. */}
-        {chat ? <ChatDrawerProvider config={chat}>{content}</ChatDrawerProvider> : content}
+        <NavBadgeProvider>
+          {/* The concierge drawer, for everyone who can use the workspace chat. */}
+          {chat ? <ChatDrawerProvider config={chat}>{content}</ChatDrawerProvider> : content}
+        </NavBadgeProvider>
       </ToastProvider>
     </WorkspaceProvider>
   );

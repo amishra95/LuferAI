@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, FileSignature, Inbox, Lock, Receipt, Tags, Trash2, Unlock, X } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
+import { NavBadges } from "@/components/dashboard/nav-badges";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
@@ -144,13 +145,24 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </div>
       ) : null}
 
-      <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
+      <section className="grid gap-6 sm:grid-cols-3 md:mb-8" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
         <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} hint="Net of commission, before GST pass-through" />
       </section>
 
-      <nav className="border-line mt-8 mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Property workspace sections">
+      <NavBadges
+        badges={{
+          ...(incoming.length + escalations.open.length
+            ? { "/property": { label: String(incoming.length + escalations.open.length), tone: "warning", title: `${incoming.length} request${incoming.length === 1 ? "" : "s"} and ${escalations.open.length} counter-offer${escalations.open.length === 1 ? "" : "s"} waiting for you` } }
+            : {}),
+          ...(readyToQuote ? { "/property?tab=inquiries": { label: String(readyToQuote), tone: "warning", title: `${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} ready for your quote` } } : {}),
+          ...(opportunities.length ? { "/property?tab=accounts": { label: String(opportunities.length), title: `${opportunities.length} suggested next step${opportunities.length === 1 ? "" : "s"}` } } : {}),
+          ...(incoming.length + upcoming.length ? { "/property?tab=briefs": { label: String(incoming.length + upcoming.length) } } : {}),
+        }}
+      />
+      {/* Phones only: on wider screens these sections are in the sidebar. */}
+      <nav className="border-line mt-8 mb-6 flex gap-1 overflow-x-auto border-b md:hidden" aria-label="Property workspace sections">
         {(
           [
             { key: "requests", label: "Requests & Holds" },
