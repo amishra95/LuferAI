@@ -155,7 +155,8 @@ export function VenueMap({
 
   return (
     <div className={cn("relative overflow-hidden rounded-lg border border-line/60", className)}>
-      <div ref={container} className="absolute inset-0" role="region" aria-label="Venue map" />
+      {/* size-full, not just inset-0: maplibre-gl.css (unlayered) sets .maplibregl-map to position: relative, which beats Tailwind's layered .absolute and would collapse the map to 0px tall. */}
+      <div ref={container} className="absolute inset-0 size-full" role="region" aria-label="Venue map" />
       {toned ? (
         <ul className="glass pointer-events-none absolute top-2 left-2 flex gap-3 rounded-md px-2.5 py-1.5 text-caption text-fg-muted" aria-label="Map key">
           <li className="inline-flex items-center gap-1.5">
