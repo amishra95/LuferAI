@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { SIDE_COOKIE, SIDE_ORDER } from "@/components/dashboard/nav-config";
 import { partnerPermissions } from "@/lib/auth/partner-rbac";
 import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
@@ -28,8 +26,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...(canAccess(member.role, "/partner") ? partnerSectionHrefs(member) : []),
       ]
     : [];
-  const sideCookie = (await cookies()).get(SIDE_COOKIE)?.value;
-  const lastSide = SIDE_ORDER.find((s) => s === sideCookie) ?? null;
   // The in-page concierge drawer runs the same workspace chat as /chat, with the same checks.
   let chat = null;
   if (allowedHrefs.includes("/chat")) {
@@ -48,7 +44,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         system={model ? { mode: "live", model: model.modelId } : { mode: "demo" }}
         account={member ? { email: member.email, role: member.role } : null}
         allowedHrefs={allowedHrefs}
-        lastSide={lastSide}
         chat={chat}
       >
         {children}

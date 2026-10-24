@@ -145,7 +145,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </div>
       ) : null}
 
-      <section className="grid gap-6 sm:grid-cols-3 md:mb-8" aria-label="Summary">
+      <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
         <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} hint="Net of commission, before GST pass-through" />
@@ -161,8 +161,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           ...(incoming.length + upcoming.length ? { "/property?tab=briefs": { label: String(incoming.length + upcoming.length) } } : {}),
         }}
       />
-      {/* Phones only: on wider screens these sections are in the sidebar. */}
-      <nav className="border-line mt-8 mb-6 flex gap-1 overflow-x-auto border-b md:hidden" aria-label="Property workspace sections">
+      <nav className="border-line mt-8 mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Property workspace sections">
         {(
           [
             { key: "requests", label: "Requests & Holds" },

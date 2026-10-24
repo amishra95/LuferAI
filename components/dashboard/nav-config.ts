@@ -33,8 +33,8 @@ import type { NavSection, Side } from "@/types/navigation";
  * The app has two sides, like the marketplace it runs: companies that book
  * events, and venues that host them (Lufer.ai's own venues and partner
  * suppliers share the venue side). Lufer.ai staff get a third, Operator.
- * Everyone sees only their own side's sidebar; admins switch sides with
- * "View as" in the header.
+ * Company and venue users see only their own side; admins see every side
+ * in one sidebar (allSides).
  *
  * An item's href may carry ?tab=…: it opens that section of a portal page.
  * gated items need their exact href in the allowed list (partner permissions);
@@ -46,7 +46,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
     sections: [
       {
         items: [
-          { href: "/client", label: "Events", icon: CalendarDays },
+          { href: "/client", label: "Company dashboard", icon: CalendarDays },
           { href: "/venues", label: "Find venues", icon: MapPinned },
           { href: "/chat", label: "Concierge", icon: MessageSquare },
         ],
@@ -194,6 +194,23 @@ export function visibleSides(allowedHrefs: readonly string[]): Side[] {
   return SIDE_ORDER.filter((s) => sideSections(s, allowedHrefs).some((sec) => sec.items.some((i) => sideForPath(pathOf(i.href)) === s)));
 }
 
+/**
+ * Admins: every side in one sidebar, Operator first. A page shared between
+ * sides (/venues, /chat, /contracts) is listed once, under the first side
+ * that has it, so only one item lights up.
+ */
+export function allSides(sides: readonly Side[], allowedHrefs: readonly string[]): { side: Side; sections: NavSection[] }[] {
+  const seen = new Set<string>();
+  return (["operator", "company", "venue"] as const)
+    .filter((side) => sides.includes(side))
+    .map((side) => ({
+      side,
+      sections: sideSections(side, allowedHrefs)
+        .map((s) => ({ ...s, items: s.items.filter((i) => !seen.has(i.href) && seen.add(i.href)) }))
+        .filter((s) => s.items.length > 0),
+    }));
+}
+
 /** Where a side starts for this user: its first item they may open. */
 export function sideHome(side: Side, allowedHrefs: readonly string[]): string {
   return sideSections(side, allowedHrefs)[0]?.items[0]?.href ?? "/";
@@ -216,8 +233,6 @@ export const ALL_NAV_ITEMS = SIDE_ORDER.flatMap((side) => SIDES[side].sections.f
 
 /** Cookie the server layout reads so the sidebar renders collapsed without a flash. */
 export const SIDEBAR_COOKIE = "lufer_sidebar_collapsed";
-/** The side an admin last viewed, so shared pages (/venues, /chat) keep that sidebar. */
-export const SIDE_COOKIE = "lufer_side";
 
 export function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
