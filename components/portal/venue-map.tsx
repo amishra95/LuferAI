@@ -21,10 +21,11 @@ export interface MapVenue {
 const TONE_TEXT = { ok: "in policy", warn: "needs manager approval", error: "needs CFO approval" } as const;
 
 const KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-const STYLE = process.env.NEXT_PUBLIC_MAPTILER_STYLE ?? "dataviz-dark";
+// streets-v2: area names, roads, water and parks, for picking a venue by neighbourhood (dataviz-dark is near-black with almost no labels).
+const STYLE = process.env.NEXT_PUBLIC_MAPTILER_STYLE ?? "streets-v2";
 
 /**
- * Dark vector map of venues (MapLibre + MapTiler). Markers are real buttons, so
+ * Vector street map of venues (MapLibre + MapTiler). Markers are real buttons, so
  * they're keyboard reachable and announce the venue (and its policy fit). The
  * company's office gets its own pin when it's in town. Without
  * NEXT_PUBLIC_MAPTILER_KEY it renders a placeholder; the list stays usable.
