@@ -10,8 +10,9 @@
  * rose…); this file maps them onto the palette for light, dark and plum
  * (.on-plum) contexts. No component should carry a hex value.
  *
- *   plum     brand: header, nav, logo, hero          coral   primary action, one per screen
- *   gold     highlights: top pick, savings, rewards  mint    success: available, confirmed
+ *   plum     brand: header, nav, logo, hero          go      primary action (green), one per screen
+ *   coral    brand accent: logo rule, hero glow      mint    success: available, confirmed
+ *   gold     highlights: top pick, savings, rewards
  *   linen    app background                          ink     text
  *
  * Type: Plus Jakarta Sans for UI (tabular digits for figures), Fraunces for
@@ -25,6 +26,10 @@
   --color-coral-hover: #e85a3a;
   /* White on coral is 2.8:1 (fails WCAG AA); ink is 6.3:1. */
   --color-on-coral: #1a1523;
+  /* Primary actions (emerald-700/800): white on it is 5.5:1 (emerald-600 would be 3.8:1). */
+  --color-go: #047857;
+  --color-go-hover: #065f46;
+  --color-on-go: #ffffff;
   --color-gold: #f2c14e;
   --color-gold-soft: #fdf1d3;
   --color-gold-ink: #8a5a00;
@@ -561,15 +566,15 @@ html:has(.lufer) {
   }
 }
 
-/* Coral: the one primary action on a screen (Book, Confirm, Send). */
+/* Green: the one primary action on a screen (Book, Confirm, Send, Apply). */
 @utility btn-primary {
-  background: var(--color-coral);
-  border-color: var(--color-coral);
-  color: var(--color-on-coral);
+  background: var(--color-go);
+  border-color: var(--color-go);
+  color: var(--color-on-go);
   &:hover {
-    background: var(--color-coral-hover);
-    border-color: var(--color-coral-hover);
-    color: var(--color-on-coral);
+    background: var(--color-go-hover);
+    border-color: var(--color-go-hover);
+    color: var(--color-on-go);
   }
 }
 
@@ -738,7 +743,7 @@ html:has(.landing) {
   }
 }
 
-/* Pill CTAs. Coral carries ink text: white on coral is 2.8:1 and fails WCAG AA. */
+/* Pill CTAs. Green carries white text (5.5:1). */
 @utility landing-btn {
   display: inline-flex;
   align-items: center;
@@ -754,11 +759,11 @@ html:has(.landing) {
     border-color 150ms;
 }
 @utility landing-btn-primary {
-  background: var(--color-coral);
-  color: var(--color-on-coral);
+  background: var(--color-go);
+  color: var(--color-on-go);
   box-shadow: 0 1px 2px rgb(42 27 61 / 0.08);
   &:hover {
-    background: var(--color-coral-hover);
+    background: var(--color-go-hover);
   }
 }
 @utility landing-btn-outline {
@@ -773,7 +778,7 @@ html:has(.landing) {
   padding: 0.5rem 1rem;
   font-size: var(--text-meta);
 }
-/* On plum: a quiet outline that keeps coral the only filled action. */
+/* On plum: a quiet outline that keeps green the only filled action. */
 @utility landing-btn-ghost {
   border: 1px solid color-mix(in srgb, var(--color-linen) 25%, transparent);
   color: var(--color-linen);
