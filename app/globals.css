@@ -306,6 +306,11 @@
   border-color: var(--color-plum);
   outline: none;
 }
+/* Hovered from the list beside the map: raised above its neighbours. */
+.venue-marker[data-hovered="true"] {
+  border-color: var(--color-plum);
+  z-index: 2;
+}
 .venue-marker[data-selected="true"] {
   background: var(--color-plum);
   border-color: var(--color-plum);
