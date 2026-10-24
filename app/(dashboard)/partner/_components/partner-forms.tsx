@@ -75,6 +75,8 @@ export interface ListingValues {
   capacity: number;
   min_spend_inr: number;
   private_dining: boolean;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /**
@@ -112,6 +114,8 @@ export function ListingForm({ partnerId, listing, ratesHref }: { partnerId: stri
           <input type="checkbox" name="private_dining" defaultChecked={listing?.private_dining} className="accent-fg size-4" />
           Private dining room
         </label>
+        <Field id={key} label="Latitude" name="latitude" type="number" min={-90} max={90} step="any" defaultValue={listing?.latitude ?? undefined} placeholder="12.9716" className="font-mono" error={err.latitude} hint="Optional. Pins the listing on the venue map." />
+        <Field id={key} label="Longitude" name="longitude" type="number" min={-180} max={180} step="any" defaultValue={listing?.longitude ?? undefined} placeholder="77.5946" className="font-mono" error={err.longitude} hint="In Google Maps, right-click the venue to copy both." />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>

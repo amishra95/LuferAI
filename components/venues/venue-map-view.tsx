@@ -12,6 +12,8 @@ import { signalLabels, type VenueSignals } from "@/lib/venues/signals";
 
 const SIGNAL_ICON = { favorite: Heart, coworkers: Users, you: UserCheck, fast: Timer } as const;
 
+const isLocated = (v: MapVenue) => v.latitude != null && v.longitude != null;
+
 /** One card beside the map: the pin's data plus what the card shows. */
 export interface MapVenueCard extends MapVenue {
   neighborhood: string;
@@ -32,8 +34,8 @@ export interface MapVenueCard extends MapVenue {
  * beside a sticky map (map on top on phones), like a stay-search page. Hovering
  * a card raises its pin and hovering a pin highlights its card; either one,
  * clicked, opens the venue in the inspector, whose venue is highlighted on
- * both sides. Partner venues have no coordinates, so they're listed but not
- * pinned. actions: per-venue row actions (RFP, book) rendered by the page.
+ * both sides. Venues without coordinates (partners that haven't set one) are
+ * listed under their own heading. actions: per-venue row actions (RFP, book) rendered by the page.
  */
 export function VenueMapView({
   venues,
@@ -48,39 +50,52 @@ export function VenueMapView({
   const selectedId = state.inspecting?.kind === "venue" ? state.inspecting.id : null;
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const cards = useRef(new Map<string, HTMLLIElement>());
-  const pinned = venues.filter((v) => v.latitude != null && v.longitude != null).length;
+  const pinned = venues.filter(isLocated);
+  const unpinned = venues.filter((v) => !isLocated(v));
 
   // A pin picked on the map brings its card into view.
   useEffect(() => {
     if (selectedId) cards.current.get(selectedId)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedId]);
 
+  const card = (v: MapVenueCard) => (
+    <li
+      key={v.id}
+      ref={(el) => {
+        if (el) cards.current.set(v.id, el);
+        else cards.current.delete(v.id);
+      }}
+      onMouseEnter={() => setHoveredId(v.id)}
+      onMouseLeave={() => setHoveredId(null)}
+      data-selected={v.id === selectedId}
+      data-hovered={v.id === hoveredId}
+      className="panel-interactive data-[hovered=true]:border-plum data-[selected=true]:border-plum relative grid gap-2 p-4"
+    >
+      <VenueCard venue={v} onOpen={() => inspect("venue", v.id)} />
+      {actions[v.id] ? <div className="relative -ml-2 flex gap-1">{actions[v.id]}</div> : null}
+    </li>
+  );
+
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       <div className="max-lg:order-last">
         <p className="text-fg-subtle mb-2 font-mono text-caption tabular-nums">
           {venues.length} venue{venues.length === 1 ? "" : "s"}
-          {pinned < venues.length ? ` · ${pinned} on the map` : ""}
+          {unpinned.length ? ` · ${pinned.length} on the map` : ""}
         </p>
-        <ul className="grid content-start gap-2 lg:max-h-[calc(100dvh-14rem)] lg:min-h-[28rem] lg:overflow-y-auto lg:p-1 lg:pr-2" aria-label="Venues on the map">
-          {venues.map((v) => (
-            <li
-              key={v.id}
-              ref={(el) => {
-                if (el) cards.current.set(v.id, el);
-                else cards.current.delete(v.id);
-              }}
-              onMouseEnter={() => setHoveredId(v.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              data-selected={v.id === selectedId}
-              data-hovered={v.id === hoveredId}
-              className="panel-interactive data-[hovered=true]:border-plum data-[selected=true]:border-plum relative grid gap-2 p-4"
-            >
-              <VenueCard venue={v} onOpen={() => inspect("venue", v.id)} />
-              {actions[v.id] ? <div className="relative -ml-2 flex gap-1">{actions[v.id]}</div> : null}
-            </li>
-          ))}
-        </ul>
+        {/* One scroll area: pinned venues first, then any without a location under their own heading. */}
+        <div className="grid content-start gap-4 lg:max-h-[calc(100dvh-14rem)] lg:min-h-[28rem] lg:overflow-y-auto lg:p-1 lg:pr-2">
+          {pinned.length ? <ul className="grid content-start gap-2" aria-label="Venues on the map">{pinned.map(card)}</ul> : null}
+          {unpinned.length ? (
+            <section aria-labelledby="unpinned-heading" className="grid gap-2">
+              <h3 id="unpinned-heading" className="text-fg-subtle flex items-center gap-1.5 text-caption font-medium">
+                <MapPinOff className="size-3.5" aria-hidden />
+                {unpinned.length} venue{unpinned.length === 1 ? "" : "s"} without a location
+              </h3>
+              <ul className="grid content-start gap-2">{unpinned.map(card)}</ul>
+            </section>
+          ) : null}
+        </div>
       </div>
 
       <div className="lg:sticky lg:top-20 lg:self-start">
@@ -100,7 +115,6 @@ export function VenueMapView({
 
 function VenueCard({ venue: v, onOpen }: { venue: MapVenueCard; onOpen: () => void }) {
   const social = signalLabels(v.signals);
-  const located = v.latitude != null && v.longitude != null;
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -131,11 +145,6 @@ function VenueCard({ venue: v, onOpen }: { venue: MapVenueCard; onOpen: () => vo
         {v.distance ? (
           <span className="inline-flex items-center gap-1" title="Straight-line distance">
             <MapPin className="size-3.5" aria-hidden /> {v.distance}
-          </span>
-        ) : null}
-        {!located ? (
-          <span className="text-fg-faint inline-flex items-center gap-1">
-            <MapPinOff className="size-3.5" aria-hidden /> Not on the map
           </span>
         ) : null}
       </div>

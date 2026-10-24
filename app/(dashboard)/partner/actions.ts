@@ -102,6 +102,8 @@ export async function saveListingAction(_prev: PartnerFormState, form: FormData)
       capacity: str(form, "capacity"),
       min_spend_inr: str(form, "min_spend_inr") || "0",
       private_dining: form.get("private_dining") === "on",
+      latitude: str(form, "latitude"),
+      longitude: str(form, "longitude"),
     });
     const id = str(form, "id");
     const listing = id ? await updateListing(partnerId, uuid(id), input) : await createListing(partnerId, input);

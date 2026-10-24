@@ -26,7 +26,7 @@ export interface DirectoryVenue {
   supplier: string | null;
   /** Internal venues book directly; partner venues go through the supplier (quote request). */
   bookable: boolean;
-  /** For the map; partner feeds don't provide coordinates. */
+  /** For the map; null when the source has no location for the venue. */
   latitude?: number | null;
   longitude?: number | null;
 }
@@ -42,6 +42,9 @@ export const partnerFeedSchema = z.array(
     capacity: z.number().int().positive(),
     min_spend_inr: z.number().nonnegative(),
     private_dining: z.boolean().default(false),
+    /** Optional; a venue with only one of the two isn't pinned. */
+    latitude: z.number().min(-90).max(90).nullable().default(null),
+    longitude: z.number().min(-180).max(180).nullable().default(null),
   })
 );
 export type PartnerFeed = z.infer<typeof partnerFeedSchema>;
@@ -68,6 +71,7 @@ export function partnerToDirectory(network: Pick<SupplierNetwork, "id" | "name">
     commission_rate: null,
     supplier: network.name,
     bookable: false,
+    ...(p.latitude != null && p.longitude != null ? { latitude: p.latitude, longitude: p.longitude } : { latitude: null, longitude: null }),
   }));
 }
 
@@ -78,12 +82,12 @@ export const mockPartnerNetwork: SupplierNetwork = {
   async fetchListings() {
     await new Promise((r) => setTimeout(r, 80)); // network-ish latency
     return [
-      { ref: "BVX-101", name: "Lakeview Pavilion", area: "Whitefield", city: "Bengaluru", address: "ITPL Main Road, Whitefield", capacity: 250, min_spend_inr: 150000, private_dining: true },
-      { ref: "BVX-114", name: "The Courtyard at HSR", area: "HSR Layout", city: "Bengaluru", address: "27th Main, Sector 2, HSR Layout", capacity: 90, min_spend_inr: 60000, private_dining: true },
-      { ref: "BVX-122", name: "Indigo Rooftop", area: "MG Road", city: "Bengaluru", address: "Church Street, off MG Road", capacity: 70, min_spend_inr: 45000, private_dining: false },
-      { ref: "BVX-130", name: "Teak & Tandoor", area: "Indiranagar", city: "Bengaluru", address: "12th Main, HAL 2nd Stage", capacity: 45, min_spend_inr: 30000, private_dining: true },
-      { ref: "BVX-145", name: "Brewhouse 17", area: "Koramangala", city: "Bengaluru", address: "5th Block, Koramangala", capacity: 160, min_spend_inr: 80000, private_dining: false },
-      { ref: "BVX-151", name: "Orchid Banquets", area: "Hebbal", city: "Bengaluru", address: "Outer Ring Road, Hebbal", capacity: 400, min_spend_inr: 250000, private_dining: true },
+      { ref: "BVX-101", name: "Lakeview Pavilion", area: "Whitefield", city: "Bengaluru", address: "ITPL Main Road, Whitefield", capacity: 250, min_spend_inr: 150000, private_dining: true, latitude: 12.985500, longitude: 77.730500 },
+      { ref: "BVX-114", name: "The Courtyard at HSR", area: "HSR Layout", city: "Bengaluru", address: "27th Main, Sector 2, HSR Layout", capacity: 90, min_spend_inr: 60000, private_dining: true, latitude: 12.911600, longitude: 77.647400 },
+      { ref: "BVX-122", name: "Indigo Rooftop", area: "MG Road", city: "Bengaluru", address: "Church Street, off MG Road", capacity: 70, min_spend_inr: 45000, private_dining: false, latitude: 12.975000, longitude: 77.605000 },
+      { ref: "BVX-130", name: "Teak & Tandoor", area: "Indiranagar", city: "Bengaluru", address: "12th Main, HAL 2nd Stage", capacity: 45, min_spend_inr: 30000, private_dining: true, latitude: 12.969800, longitude: 77.638300 },
+      { ref: "BVX-145", name: "Brewhouse 17", area: "Koramangala", city: "Bengaluru", address: "5th Block, Koramangala", capacity: 160, min_spend_inr: 80000, private_dining: false, latitude: 12.934300, longitude: 77.619700 },
+      { ref: "BVX-151", name: "Orchid Banquets", area: "Hebbal", city: "Bengaluru", address: "Outer Ring Road, Hebbal", capacity: 400, min_spend_inr: 250000, private_dining: true, latitude: 13.041800, longitude: 77.605400 },
     ];
   },
 };

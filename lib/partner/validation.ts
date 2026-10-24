@@ -10,6 +10,13 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const text = (min: number, max: number, label: string) =>
   z.string().trim().min(min, `${label} needs at least ${min} characters`).max(max, `${label} is at most ${max} characters`);
 
+/** An optional coordinate: blank → null, else a number within ±max. */
+const coordinate = (max: number, label: string) =>
+  z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.coerce.number(`${label} must be a number`).min(-max, `${label} is between -${max} and ${max}`).max(max, `${label} is between -${max} and ${max}`).nullable()
+  ).default(null);
+
 export const listingSchema = z.object({
   ref: z
     .string()
@@ -22,6 +29,12 @@ export const listingSchema = z.object({
   capacity: z.coerce.number().int("Whole guests only").min(1, "At least 1 guest").max(5000, "At most 5,000 guests"),
   min_spend_inr: z.coerce.number().min(0, "Can't be negative").max(1e9, "Too large"),
   private_dining: z.boolean().default(false),
+  /** For the venue map; both or neither (partner_venues_coordinates_paired). */
+  latitude: coordinate(90, "Latitude"),
+  longitude: coordinate(180, "Longitude"),
+}).superRefine((l, ctx) => {
+  if (l.latitude === null && l.longitude !== null) ctx.addIssue({ code: "custom", path: ["latitude"], message: "Add the latitude too, or clear both" });
+  if (l.longitude === null && l.latitude !== null) ctx.addIssue({ code: "custom", path: ["longitude"], message: "Add the longitude too, or clear both" });
 });
 export type ListingInput = z.infer<typeof listingSchema>;
 

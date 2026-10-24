@@ -2342,6 +2342,8 @@ export type Database = {
           city: string
           created_at: string
           id: string
+          latitude: number | null
+          longitude: number | null
           min_spend_inr: number
           name: string
           partner_id: string
@@ -2357,6 +2359,8 @@ export type Database = {
           city?: string
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           min_spend_inr?: number
           name: string
           partner_id: string
@@ -2372,6 +2376,8 @@ export type Database = {
           city?: string
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           min_spend_inr?: number
           name?: string
           partner_id?: string
