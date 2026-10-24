@@ -33,12 +33,18 @@ export function VenueMap({
   venues,
   selectedId,
   onSelect,
+  hoveredId = null,
+  onHover,
   office = null,
   className,
 }: {
   venues: MapVenue[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** A venue hovered elsewhere (e.g. its list card): its pin is raised, without panning. */
+  hoveredId?: string | null;
+  /** Pointer entering (id) or leaving (null) a pin, so a list can highlight the card. */
+  onHover?: (id: string | null) => void;
   office?: OfficeLocation | null;
   className?: string;
 }) {
@@ -47,8 +53,10 @@ export function VenueMap({
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const [failed, setFailed] = useState(false);
   const onSelectRef = useRef(onSelect);
+  const onHoverRef = useRef(onHover);
   useEffect(() => {
     onSelectRef.current = onSelect;
+    onHoverRef.current = onHover;
   });
 
   const placed = venues.filter((v): v is MapVenue & { latitude: number; longitude: number } => v.latitude != null && v.longitude != null);
@@ -90,6 +98,8 @@ export function VenueMap({
         if (v.tone) el.dataset.tone = v.tone;
         el.setAttribute("aria-label", [v.name, v.label, v.tone && TONE_TEXT[v.tone]].filter(Boolean).join(", "));
         el.addEventListener("click", () => onSelectRef.current(v.id));
+        el.addEventListener("mouseenter", () => onHoverRef.current?.(v.id));
+        el.addEventListener("mouseleave", () => onHoverRef.current?.(null));
         markerEls.set(v.id, el);
         new Marker({ element: el, anchor: "bottom" }).setLngLat([v.longitude, v.latitude]).addTo(map);
         bounds.extend([v.longitude, v.latitude]);
@@ -123,6 +133,10 @@ export function VenueMap({
     if (v && mapRef.current) mapRef.current.easeTo({ center: [v.longitude, v.latitude], duration: 400 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, placedKey]);
+
+  useEffect(() => {
+    for (const [id, el] of markers.current) el.setAttribute("data-hovered", String(id === hoveredId));
+  }, [hoveredId, placedKey]);
 
   if (!KEY || failed || placed.length === 0) {
     return (

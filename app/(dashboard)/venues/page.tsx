@@ -7,18 +7,19 @@ import { toVenueOption } from "@/app/(dashboard)/client/_components/venue-option
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
 import { segmentClass } from "@/components/portal/segment";
-import type { MapVenue } from "@/components/portal/venue-map";
-import { VenueMapView } from "@/components/venues/venue-map-view";
+import { VenueMapView, type MapVenueCard } from "@/components/venues/venue-map-view";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
 import { getCurrentMember } from "@/lib/auth/session";
 import { getVenueCatalog } from "@/lib/catalog";
 import { venueEventPrompt } from "@/lib/chat/concierge-link";
-import { dataSource, getCorporatePolicy, listCompanies } from "@/lib/data";
+import { dataSource, getCorporatePolicy, listBookings, listCompanies } from "@/lib/data";
 import { listDirectory, type DirectoryVenue } from "@/lib/venues/directory";
 import { cn, formatINR } from "@/lib/utils";
-import { officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
+import { distanceKm, officeDistanceLabel, officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
+import { venueSignals } from "@/lib/venues/signals";
+import { venueResponseHours } from "@/lib/venues/signals-store";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, withoutCommission, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
@@ -86,20 +87,26 @@ function SortHeader({ column, query }: { column: (typeof COLUMNS)[number]; query
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
 
 /**
- * Map pins for the matches, coloured by the viewer's company policy when they
- * belong to one (admins see plain pins), plus that company's office.
+ * Map view cards and pins for the matches. For a company member: pins and
+ * cards carry the company's policy fit, cards the distance from its office and
+ * coworker signals ("Booked by 3 coworkers"), and the office gets a pin.
+ * Admins see plain pins.
  */
-async function mapData(matches: DirectoryVenue[], companyId: string | null): Promise<{ venues: MapVenue[]; office: OfficeLocation | null }> {
-  const [companies, policy, catalog] = companyId
-    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId)])
-    : [[], null, null];
+async function mapData(matches: DirectoryVenue[], member: { companyId: string | null; userId: string; role: string } | null): Promise<{ venues: MapVenueCard[]; office: OfficeLocation | null }> {
+  const companyId = member?.companyId ?? null;
+  const [companies, policy, catalog, bookings, responseHours] = companyId
+    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId), listBookings({ companyId }), venueResponseHours()])
+    : [[], null, null, [], new Map<string, number>()];
   const company = companies.find((c) => c.id === companyId);
+  const office = company ? officeOf(company) : null;
   const options = new Map((catalog?.venues ?? []).map((v) => [v.id, toVenueOption(v)]));
+  const signals = venueSignals(bookings, member?.role === "CLIENT" ? member.userId : null, responseHours);
   return {
-    office: company ? officeOf(company) : null,
+    office,
     venues: matches.map((v) => {
       const option = options.get(v.id);
-      const fit = company && option ? venuePolicyStatus(policy, option) : null;
+      const located = v.latitude != null && v.longitude != null ? { latitude: v.latitude, longitude: v.longitude } : null;
+      const fit = company && option ? venuePolicyStatus(policy, option, office && located ? distanceKm(office, located) : null) : undefined;
       return {
         id: v.id,
         name: v.name,
@@ -107,6 +114,15 @@ async function mapData(matches: DirectoryVenue[], companyId: string | null): Pro
         longitude: v.longitude ?? null,
         label: compact(option?.min_spend_inr ?? v.min_spend_inr),
         tone: fit ? POLICY_TONE[fit.status] : undefined,
+        neighborhood: v.neighborhood,
+        city: v.city,
+        capacity_max: v.capacity_max,
+        pdr_available: v.pdr_available,
+        tier: v.tier,
+        supplier: v.supplier,
+        distance: officeDistanceLabel(office, { latitude: v.latitude ?? null, longitude: v.longitude ?? null }),
+        policy: fit,
+        signals: signals.get(v.id),
       };
     }),
   };
@@ -121,7 +137,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
   // Row booking actions for admins and client users (the modal decides who can file).
   const canRequest = member?.role === "ADMIN" || member?.role === "CLIENT";
   const { matches, rows, total, page, pageCount } = applyVenueQuery(venues, query);
-  const map = query.view === "map" ? await mapData(matches, member?.companyId ?? null) : null;
+  const map = query.view === "map" ? await mapData(matches, member ?? null) : null;
   const areas = [...new Set(venues.map((v) => v.neighborhood))].sort();
   const source = dataSource();
   const filtered = Boolean(query.q || query.tier || query.area || query.pdr || query.minCapacity);
@@ -202,171 +218,189 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         ))}
       </nav>
 
-      {map && total > 0 ? <VenueMapView venues={map.venues} office={map.office} className="mb-3 h-[45dvh] lg:h-[28rem]" /> : null}
-
       {partners.status === "unavailable" && (
         <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-meta">
           {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
         </p>
       )}
 
-      <section className="panel overflow-hidden">
-        {rows.length === 0 ? (
-          <div className="p-4 sm:p-6">
-            {filtered ? (
-              <EmptyState
-                icon={SearchX}
-                title="No venues match these filters"
-                description={`Try a wider area or a smaller guest count, or clear the filters to see all ${venues.length} venues.`}
-                action={
-                  <Link href="/venues" className="btn">
-                    Clear filters
-                  </Link>
-                }
-              />
-            ) : (
-              <EmptyState
-                icon={Building2}
-                title="The directory is empty"
-                description="Venues appear here once they're onboarded or a partner network is connected."
-              />
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Phones: stacked rows. The full table starts at md. */}
-            <ul className="md:hidden">
-              {rows.map((v) => (
-                <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-fg min-w-0 truncate text-body font-medium">
-                      <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
-                        {v.name}
-                      </InspectButton>
-                    </p>
-                    <p className="text-fg shrink-0 font-mono text-meta tabular-nums">{formatINR(v.min_spend_inr)}</p>
-                  </div>
-                  <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-caption tabular-nums">
-                    <span className="text-fg-muted font-sans text-meta">{v.neighborhood}</span>
-                    <span>{v.capacity_max} guests</span>
-                    <span>{v.pdr_available ? "private room" : "no private room"}</span>
-                    {v.tier === "partner" ? <span>partner · {v.supplier}</span> : admin ? <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span> : null}
-                  </p>
-                  {canRequest ? (
-                    <div className="-ml-2 mt-1.5 flex gap-1">
+      {map && total > 0 ? (
+        <VenueMapView
+          venues={map.venues}
+          office={map.office}
+          actions={
+            canRequest
+              ? Object.fromEntries(
+                  matches.map((v) => [
+                    v.id,
+                    <>
                       <RequestRfp venue={v} />
                       {v.tier === "internal" ? <BookManually venue={v} /> : null}
-                    </div>
-                  ) : null}
-                </InspectableRow>
-              ))}
-            </ul>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[46rem] text-meta">
-                <thead>
-                  <tr className="border-line bg-surface-hover border-b">
-                    {columns.map((c) => (
-                      <th
-                        key={c.label}
-                        scope="col"
-                        aria-sort={c.key && query.sort === c.key ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
-                        className={cn("table-head h-10 px-4 first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
-                      >
-                        <SortHeader column={c} query={query} />
-                      </th>
-                    ))}
-                    {canRequest ? (
-                      <th scope="col" className="w-0 pr-5">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    ) : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((v) => (
-                    <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="group border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
-                      <td className="max-w-80 py-3 pr-4 pl-5">
-                        <p className="text-fg truncate font-medium">
-                          <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
-                            {v.name}
-                          </InspectButton>
-                        </p>
-                        <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
-                          {v.address}
-                        </p>
-                      </td>
-                      <td className="px-4">
-                        <TierBadge venue={v} />
-                      </td>
-                      <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
-                      <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
-                      <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
-                      <td className="px-4 text-center">
-                        {v.pdr_available ? (
-                          <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
-                        ) : (
-                          <span className="text-fg-faint font-mono">–</span>
-                        )}
-                        <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
-                      </td>
-                      {admin ? (
-                        <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
-                          {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
-                        </td>
-                      ) : null}
-                      <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
-                      {canRequest ? (
-                        <td className="pr-5 text-right whitespace-nowrap">
-                          {/* Shown on row hover; always reachable by keyboard (and on touch). */}
-                          <RequestRfp venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
-                          {v.tier === "internal" ? (
-                            <BookManually venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100" />
-                          ) : null}
-                        </td>
-                      ) : null}
-                    </InspectableRow>
-                  ))}
-                </tbody>
-              </table>
+                    </>,
+                  ])
+                )
+              : undefined
+          }
+        />
+      ) : (
+        <section className="panel overflow-hidden">
+          {rows.length === 0 ? (
+            <div className="p-4 sm:p-6">
+              {filtered ? (
+                <EmptyState
+                  icon={SearchX}
+                  title="No venues match these filters"
+                  description={`Try a wider area or a smaller guest count, or clear the filters to see all ${venues.length} venues.`}
+                  action={
+                    <Link href="/venues" className="btn">
+                      Clear filters
+                    </Link>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  icon={Building2}
+                  title="The directory is empty"
+                  description="Venues appear here once they're onboarded or a partner network is connected."
+                />
+              )}
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              {/* Phones: stacked rows. The full table starts at md. */}
+              <ul className="md:hidden">
+                {rows.map((v) => (
+                  <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-fg min-w-0 truncate text-body font-medium">
+                        <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                          {v.name}
+                        </InspectButton>
+                      </p>
+                      <p className="text-fg shrink-0 font-mono text-meta tabular-nums">{formatINR(v.min_spend_inr)}</p>
+                    </div>
+                    <p className="text-fg-subtle mt-1 flex flex-wrap gap-x-3 font-mono text-caption tabular-nums">
+                      <span className="text-fg-muted font-sans text-meta">{v.neighborhood}</span>
+                      <span>{v.capacity_max} guests</span>
+                      <span>{v.pdr_available ? "private room" : "no private room"}</span>
+                      {v.tier === "partner" ? <span>partner · {v.supplier}</span> : admin ? <span>{(Number(v.commission_rate) * 100).toFixed(1)}%</span> : null}
+                    </p>
+                    {canRequest ? (
+                      <div className="-ml-2 mt-1.5 flex gap-1">
+                        <RequestRfp venue={v} />
+                        {v.tier === "internal" ? <BookManually venue={v} /> : null}
+                      </div>
+                    ) : null}
+                  </InspectableRow>
+                ))}
+              </ul>
 
-        <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-caption">
-          <span className="tabular-nums">
-            {first}–{first ? first + rows.length - 1 : 0} of {total}
-            {filtered && <span className="text-fg-subtle"> · filtered from {venues.length}</span>}
-          </span>
-          <nav className="ml-auto flex items-center gap-3" aria-label="Pagination">
-            <span className="flex items-center gap-0.5">
-              <span className="text-fg-subtle mr-1.5 hidden sm:inline">rows</span>
-              {PAGE_SIZES.map((s) => (
-                <Link
-                  key={s}
-                  href={venueHref(query, { size: s, page: 1 })}
-                  scroll={false}
-                  aria-current={s === query.size ? "true" : undefined}
-                  className={cn("hover:text-fg rounded-md px-1.5 py-0.5 transition-colors", s === query.size && "bg-surface-raised text-fg")}
-                >
-                  {s}
-                </Link>
-              ))}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[46rem] text-meta">
+                  <thead>
+                    <tr className="border-line bg-surface-hover border-b">
+                      {columns.map((c) => (
+                        <th
+                          key={c.label}
+                          scope="col"
+                          aria-sort={c.key && query.sort === c.key ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
+                          className={cn("table-head h-10 px-4 first:pl-5 last:pr-5", c.align === "right" ? "text-right" : "text-left", c.className)}
+                        >
+                          <SortHeader column={c} query={query} />
+                        </th>
+                      ))}
+                      {canRequest ? (
+                        <th scope="col" className="w-0 pr-5">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      ) : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((v) => (
+                      <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="group border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
+                        <td className="max-w-80 py-3 pr-4 pl-5">
+                          <p className="text-fg truncate font-medium">
+                            <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                              {v.name}
+                            </InspectButton>
+                          </p>
+                          <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
+                            {v.address}
+                          </p>
+                        </td>
+                        <td className="px-4">
+                          <TierBadge venue={v} />
+                        </td>
+                        <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
+                        <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
+                        <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
+                        <td className="px-4 text-center">
+                          {v.pdr_available ? (
+                            <span className="bg-sage inline-block size-1.5 rounded-full" title="Private dining room" />
+                          ) : (
+                            <span className="text-fg-faint font-mono">–</span>
+                          )}
+                          <span className="sr-only">{v.pdr_available ? "Yes" : "No"}</span>
+                        </td>
+                        {admin ? (
+                          <td className="text-fg-muted px-4 text-right font-mono tabular-nums">
+                            {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
+                          </td>
+                        ) : null}
+                        <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
+                        {canRequest ? (
+                          <td className="pr-5 text-right whitespace-nowrap">
+                            {/* Shown on row hover; always reachable by keyboard (and on touch). */}
+                            <RequestRfp venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" />
+                            {v.tier === "internal" ? (
+                              <BookManually venue={v} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100" />
+                            ) : null}
+                          </td>
+                        ) : null}
+                      </InspectableRow>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          <footer className="border-line text-fg-subtle flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-2.5 font-mono text-caption">
+            <span className="tabular-nums">
+              {first}–{first ? first + rows.length - 1 : 0} of {total}
+              {filtered && <span className="text-fg-subtle"> · filtered from {venues.length}</span>}
             </span>
-            <span className="flex items-center gap-1">
-              <PageLink query={query} page={page - 1} disabled={page <= 1} label="Previous page">
-                <ChevronLeft className="size-3.5" aria-hidden />
-              </PageLink>
-              <span className="text-fg-muted min-w-10 text-center tabular-nums">
-                {page}/{pageCount}
+            <nav className="ml-auto flex items-center gap-3" aria-label="Pagination">
+              <span className="flex items-center gap-0.5">
+                <span className="text-fg-subtle mr-1.5 hidden sm:inline">rows</span>
+                {PAGE_SIZES.map((s) => (
+                  <Link
+                    key={s}
+                    href={venueHref(query, { size: s, page: 1 })}
+                    scroll={false}
+                    aria-current={s === query.size ? "true" : undefined}
+                    className={cn("hover:text-fg rounded-md px-1.5 py-0.5 transition-colors", s === query.size && "bg-surface-raised text-fg")}
+                  >
+                    {s}
+                  </Link>
+                ))}
               </span>
-              <PageLink query={query} page={page + 1} disabled={page >= pageCount} label="Next page">
-                <ChevronRight className="size-3.5" aria-hidden />
-              </PageLink>
-            </span>
-          </nav>
-        </footer>
-      </section>
+              <span className="flex items-center gap-1">
+                <PageLink query={query} page={page - 1} disabled={page <= 1} label="Previous page">
+                  <ChevronLeft className="size-3.5" aria-hidden />
+                </PageLink>
+                <span className="text-fg-muted min-w-10 text-center tabular-nums">
+                  {page}/{pageCount}
+                </span>
+                <PageLink query={query} page={page + 1} disabled={page >= pageCount} label="Next page">
+                  <ChevronRight className="size-3.5" aria-hidden />
+                </PageLink>
+              </span>
+            </nav>
+          </footer>
+        </section>
+      )}
     </Page>
   );
 }
