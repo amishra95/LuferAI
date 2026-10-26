@@ -26,6 +26,7 @@ import {
 
 import { Logo } from "@/components/brand/logo";
 import { IconTile } from "@/components/landing/icon-tile";
+import { entityName } from "@/lib/legal";
 
 /*
  * Landing sections below the hero. Every claim maps to shipped code (cited
@@ -351,12 +352,20 @@ export function FinalCta() {
   );
 }
 
+// Rooted (/#…) so they also work from the legal pages, which share this footer.
 const FOOTER_LINKS = [
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#finance", label: "For finance" },
-  { href: "#venues", label: "For venues" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#finance", label: "For finance" },
+  { href: "/#venues", label: "For venues" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/login", label: "Sign in" },
+];
+
+const LEGAL_LINKS = [
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/refunds", label: "Cancellations & refunds" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function SiteFooter() {
@@ -374,6 +383,18 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
+      </div>
+      <div className="border-sand border-t">
+        <div className="container-public flex flex-col items-center justify-between gap-3 py-5 sm:flex-row">
+          <p className="text-ink-muted text-caption">© {new Date().getFullYear()} {entityName()}</p>
+          <nav aria-label="Legal" className="text-ink-muted flex flex-wrap justify-center gap-x-5 gap-y-2 text-caption">
+            {LEGAL_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="hover:text-plum">
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
     </footer>
   );
