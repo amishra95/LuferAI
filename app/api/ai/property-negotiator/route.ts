@@ -24,7 +24,7 @@ import { tracer } from "@/lib/tracer";
  * Streaming chat for venue hosts to tune minimum spend and dietary menu packages.
  * Reads run freely; every write is proposed as a tool call the host must approve
  * in the panel. Approvals are HMAC-signed (TOOL_APPROVAL_SECRET) so a modified
- * client can't forge one. Rate-limited by middleware.ts (/api/ai/*).
+ * client can't forge one. Rate-limited by proxy.ts (/api/ai/*).
  */
 export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 

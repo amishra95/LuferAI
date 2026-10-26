@@ -1,7 +1,7 @@
 import type { CorporateRole, PortalRole } from "@/lib/supabase/database.types";
 
 /**
- * Portal RBAC rules, shared by middleware.ts (Edge) and server code — keep this file
+ * Portal RBAC rules, shared by proxy.ts and server code — keep this file
  * free of Node/server-only imports.
  *
  * DB enum `portal_role` → product role:

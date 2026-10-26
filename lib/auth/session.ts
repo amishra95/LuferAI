@@ -94,7 +94,7 @@ async function signedOutOrApplicant(path: string): Promise<string> {
 }
 
 /**
- * Authoritative portal check for layouts, pages and server actions. middleware.ts
+ * Authoritative portal check for layouts, pages and server actions. proxy.ts
  * does the same check first, but it must not be the only gate (and server actions
  * can be invoked independently of the page that renders them).
  */

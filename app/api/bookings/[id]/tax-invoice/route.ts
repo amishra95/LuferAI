@@ -1,5 +1,6 @@
 import { getCurrentMember } from "@/lib/auth/session";
 import { getTaxInvoiceDocument, listBookings } from "@/lib/data";
+import { DOCUMENT_POLICY } from "@/lib/security-headers";
 
 /**
  * GET /api/bookings/<id>/tax-invoice: the booking's GST tax invoice as rendered
@@ -26,7 +27,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "private, no-store",
         // The document is static HTML we generated; nothing in it should run or load.
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+        "Content-Security-Policy": DOCUMENT_POLICY,
         "X-Content-Type-Options": "nosniff",
         "X-Content-SHA256": doc.html_sha256 ?? "",
         ...(download ? { "Content-Disposition": `attachment; filename="${filename}.html"` } : {}),

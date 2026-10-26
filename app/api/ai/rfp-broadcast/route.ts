@@ -20,7 +20,7 @@ import { tracer } from "@/lib/tracer";
  * 3. Returns the side-by-side Markdown comparison matrix; venues can later counter
  *    from /property and the matrix on /client updates.
  *
- * Rate-limited by middleware.ts (/api/ai/*).
+ * Rate-limited by proxy.ts (/api/ai/*).
  */
 export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (Vercel Hobby allows up to 300)
 
