@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 import { ErrorFallback } from "@/components/dashboard/error-boundary";
@@ -9,6 +10,8 @@ import { Page } from "@/components/dashboard/page-header";
 export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error("dashboard page failed", error);
+    // Error boundaries swallow errors, so Sentry's global handlers never see them. No-op without a DSN.
+    Sentry.captureException(error);
   }, [error]);
 
   return (

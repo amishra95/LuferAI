@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Sliding-window limiter for /api/ai/* and other routes that call a model (invoice OCR, venue inquiries):
  * 10 requests per minute per user (or per IP when signed out). Applied centrally in
- * middleware.ts so every AI route is covered.
+ * proxy.ts so every AI route is covered.
  *
  * Without UPSTASH_REDIS_REST_URL / _TOKEN the limiter is disabled and requests pass through.
  */

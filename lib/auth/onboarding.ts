@@ -4,7 +4,7 @@ import { homeFor, type Portal } from "./roles.ts";
 
 /**
  * Self-service signup states and where they send people, shared by
- * middleware.ts (Edge), /auth/callback and the portal guards: keep this file
+ * proxy.ts, /auth/callback and the portal guards: keep this file
  * free of Node/server-only imports.
  *
  *   no portal role, applied          → /signup/pending (received, or not approved)

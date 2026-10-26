@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Admin Portal" };
 export const dynamic = "force-dynamic";
 
 export default async function Layout({ children }: LayoutProps<"/admin">) {
-  // middleware.ts gates first; this is the authoritative check.
+  // proxy.ts gates first; this is the authoritative check.
   await requirePortal("/admin");
   return children;
 }

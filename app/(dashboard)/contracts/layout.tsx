@@ -4,7 +4,7 @@ import { requireWorkspace } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 export default async function Layout({ children }: LayoutProps<"/contracts">) {
-  // middleware.ts gates first; this is the authoritative check. Each contract page checks it's the member's.
+  // proxy.ts gates first; this is the authoritative check. Each contract page checks it's the member's.
   await requireWorkspace("/contracts");
   return children;
 }

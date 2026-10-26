@@ -151,6 +151,13 @@ Safe areas: use `--app-safe-top|right|bottom|left` (or the `pt-safe` / `pb-safe`
 
 Before a store release: Google blocks OAuth inside embedded WebViews (use magic links, or add native sign-in / an in-app browser flow), UPI intent links and payment redirects need testing on real devices, and Apple may reject apps that are only a wrapped website (guideline 4.2) — plan native value such as push notifications.
 
+## Observability & security headers
+
+- **Server errors:** `instrumentation.ts` logs every uncaught server error as one JSON line (`"type":"server_error"`) in the Vercel runtime logs, keyed by `digest`, the "ref …" users see on error pages. Cookies, Authorization, query strings and RSVP/quote tokens are stripped (`lib/observability/error-report.ts`). A Vercel error-anomaly monitor (`vercel monitors ls`) alerts the team owner on 5xx spikes.
+- **Sentry:** server, browser and error-boundary errors go to Sentry once `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are set (install the Sentry integration from the Vercel Marketplace to set them). Events are scrubbed the same way, with no default PII (`lib/observability/sentry.ts`). With `SENTRY_AUTH_TOKEN`, builds upload source maps.
+- **Analytics:** `@vercel/analytics` and `@vercel/speed-insights` are in the root layout; enable them under Project → Analytics / Speed Insights.
+- **Headers:** `lib/security-headers.ts`, applied in `next.config.ts`: HSTS, `X-Frame-Options`, `nosniff`, Referrer and Permissions policies, and an enforced CSP limited to `frame-ancestors` / `base-uri` / `object-src`. The full CSP runs **report-only**; violations are logged as `"type":"csp_violation"` by `/api/csp-report`. Once the logs are quiet, move it to the enforced header. Generated documents (tax invoices, contracts) get a locked-down `DOCUMENT_POLICY`.
+
 ## Next steps
 
 - **Data access:** reads still go through `lib/supabase/admin.ts` (service role) after `requirePortal` checks; moving them to `lib/supabase/server.ts` adds RLS as a second line of defence.
