@@ -61,3 +61,9 @@ test("generated documents get a policy that blocks everything but inline styles"
   assert.deepEqual(d["frame-ancestors"], ["'none'"]);
   assert.deepEqual(DOCUMENT_ROUTES, ["/api/bookings/:id/tax-invoice", "/api/contracts/:id/document"]);
 });
+
+test("the report-only policy allows the Sentry ingest host from the DSN", () => {
+  const d = directives(reportOnlyPolicy({ sentryDsn: "https://key@o123.ingest.us.sentry.io/456" }));
+  assert.ok(d["connect-src"].includes("https://o123.ingest.us.sentry.io"));
+  assert.ok(!directives(reportOnlyPolicy())["connect-src"].some((s) => s.includes("sentry")));
+});

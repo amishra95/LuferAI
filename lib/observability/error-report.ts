@@ -3,7 +3,7 @@
  *
  * Vercel keeps stdout/stderr as runtime logs, so each error is searchable by `digest`:
  * the "ref …" users see on error pages (app/(dashboard)/error.tsx, app/global-error.tsx).
- * Filter logs on `"type":"server_error"` or attach a Log Drain / alert to page on them.
+ * Filter logs on `"type":"server_error"`. Sentry, when configured, gets the same errors (instrumentation.ts).
  *
  * Headers are allow-listed, never copied wholesale: cookies and Authorization carry
  * Supabase sessions and API tokens, and Referer can be an RSVP link.
@@ -11,6 +11,8 @@
  * No server-only imports or path aliases, so tests can import it directly
  * (tests/error-report.test.mjs).
  */
+
+import { safePath } from "./redact.ts";
 
 export interface RequestInfo {
   path: string;
@@ -28,15 +30,6 @@ export interface ErrorContext {
 
 const SAFE_HEADERS = ["user-agent", "x-vercel-id", "x-vercel-ip-country", "x-forwarded-host"];
 const MAX_STACK = 4_000;
-
-/** Path segments that are bearer secrets: guest RSVP links (/rsvp/<token>) and vendor quote links (/quote/<token>). */
-const TOKEN_PATH = /^\/(rsvp|quote)\/[^/]+/;
-
-/** Drops query strings (OAuth codes and the like) and masks token path segments. */
-export function safePath(path: string): string {
-  const i = path.indexOf("?");
-  return (i === -1 ? path : path.slice(0, i)).replace(TOKEN_PATH, "/$1/[token]");
-}
 
 export function buildErrorReport(error: unknown, request: RequestInfo, context: ErrorContext, now: Date = new Date()) {
   const err = error instanceof Error ? error : null;

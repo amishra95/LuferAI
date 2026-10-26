@@ -5,7 +5,7 @@
  * - Enforced: only directives that can't break a page — no framing (clickjacking),
  *   no <base> hijack, no plugins.
  * - Report-only: the full allow-list (Supabase REST + Realtime, MapTiler, Razorpay
- *   Checkout, Vercel Analytics). Violations are POSTed to /api/csp-report and logged,
+ *   Checkout, Vercel Analytics, Sentry). Violations are POSTed to /api/csp-report and logged,
  *   so the list can be tuned from real traffic before it is enforced. To enforce it,
  *   move `reportOnlyPolicy` into the Content-Security-Policy header.
  *
@@ -22,6 +22,8 @@
 export interface SecurityHeaderOptions {
   /** NEXT_PUBLIC_SUPABASE_URL: REST/Auth/Storage over https, Realtime over wss. */
   supabaseUrl?: string;
+  /** NEXT_PUBLIC_SENTRY_DSN: the browser SDK posts events to this DSN's ingest host. */
+  sentryDsn?: string;
   /** `next dev`: allows eval (React Refresh) and the HMR websocket, and skips HSTS. */
   dev?: boolean;
 }
@@ -59,8 +61,9 @@ export function enforcedPolicy(): string {
   });
 }
 
-export function reportOnlyPolicy({ supabaseUrl, dev = false }: SecurityHeaderOptions = {}): string {
+export function reportOnlyPolicy({ supabaseUrl, sentryDsn, dev = false }: SecurityHeaderOptions = {}): string {
   const supabase = originOf(supabaseUrl);
+  const sentry = originOf(sentryDsn);
   const supabaseWs = supabase?.replace(/^http/, "ws");
   return policy({
     "default-src": ["'self'"],
@@ -75,6 +78,7 @@ export function reportOnlyPolicy({ supabaseUrl, dev = false }: SecurityHeaderOpt
       "https://api.maptiler.com",
       ...RAZORPAY,
       "https://lumberjack.razorpay.com",
+      ...(sentry ? [sentry] : []),
       ...(dev ? ["ws:", "https://va.vercel-scripts.com"] : []),
     ],
     // maplibre-gl decodes tiles in a blob: worker.

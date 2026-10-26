@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { safePath } from "@/lib/observability/error-report";
+import { safeUrl } from "@/lib/observability/redact";
 
 /**
  * Receives Content-Security-Policy-Report-Only violations (lib/security-headers.ts) and
@@ -10,14 +10,9 @@ import { safePath } from "@/lib/observability/error-report";
  */
 const MAX_BODY = 8_192;
 
-/** Path only, with RSVP / quote tokens masked. */
+/** No query string, and RSVP / quote tokens masked. */
 function pageOf(uri: unknown): string | undefined {
-  if (typeof uri !== "string") return undefined;
-  try {
-    return safePath(new URL(uri).pathname);
-  } catch {
-    return undefined;
-  }
+  return typeof uri === "string" ? safeUrl(uri) : undefined;
 }
 
 export async function POST(request: NextRequest) {

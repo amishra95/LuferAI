@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 /**
@@ -10,6 +11,8 @@ import { useEffect } from "react";
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error("root layout failed", error);
+    // Error boundaries swallow errors, so Sentry's global handlers never see them. No-op without a DSN.
+    Sentry.captureException(error);
   }, [error]);
 
   return (
