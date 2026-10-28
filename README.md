@@ -145,6 +145,18 @@ All GSTINs are synthetic but pass checksum validation.
 
 Five Bengaluru venues (Indiranagar ×2, Koramangala ×2, UB City) and three onboarding requests are also seeded.
 
+## Procurement punchout (cXML, migration `…20261109000000_cxml_punchout`)
+
+Buyers on Coupa, SAP Ariba or any cXML 1.2 procurement system can shop the Lufer.ai catalogue from inside a requisition:
+
+1. An admin opens `/governance?company=<id>` → **Procurement punchout**, enters the buyer system's Sender identity, and gives the buyer the one-time shared secret plus the Setup URL (`/api/punchout/setup`) and Order URL (`/api/punchout/order`).
+2. The buyer's system sends a `PunchOutSetupRequest`; the employee lands on `/punchout/<token>` (2 hours, no Lufer.ai sign-in), fills a cart, and **Send to procurement** posts a `PunchOutOrderMessage` back to their requisition.
+3. The approved PO arrives as an `OrderRequest`. Each line is matched to its cart (item, session, INR price, quantity); fully matched POs show as *Matched to cart*, others as *Needs review*, under the same panel. Retries with the same payloadID get the same answer.
+
+Logic: `lib/punchout/cxml.ts` (pure parsing/building; DTD internals and entities are refused) and `lib/punchout/store.ts`. Optional `PUNCHOUT_SUPPLIER_IDENTITY` sets our identity on returned carts (default `lufer.ai`). Tests: `tests/punchout.test.mjs`.
+
+
+
 ## Native apps (Capacitor)
 
 iOS and Android shells live in `ios/` and `android/` (`appId` `com.luferai.app`). The app uses middleware, Server Components, Server Actions and API routes, so it can't be statically exported: the native WebView loads the **deployed site** from `CAP_SERVER_URL`, and `capacitor-shell/` only bundles the offline and "not configured" pages.
