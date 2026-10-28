@@ -29,6 +29,8 @@ export interface DirectoryVenue {
   /** For the map; null when the source has no location for the venue. */
   latitude?: number | null;
   longitude?: number | null;
+  /** Cover photo URL; null or absent when the venue has none. */
+  photo_url?: string | null;
 }
 
 /** What a supplier network's directory feed must provide per venue. */

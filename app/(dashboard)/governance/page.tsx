@@ -9,6 +9,8 @@ import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
 import { PunchoutConnections } from "@/components/governance/punchout-connections";
 import { RequestBoard } from "@/components/governance/request-board";
 import { RuleManager } from "@/components/governance/rule-manager";
+import { SsoConnections } from "@/components/governance/sso-connections";
+import { listSsoConnections } from "@/lib/auth/sso-store";
 import { requireWorkspace } from "@/lib/auth/session";
 import { dataSource, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
 import { budgetTone } from "@/lib/procurement/po-ledger";
@@ -37,13 +39,17 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
     return { connections: [], orders: [], ready: false };
   });
 
-  const [users, departments, hierarchy, { rules, ready }, budgets, requests] = await Promise.all([
+  const [users, departments, hierarchy, { rules, ready }, budgets, requests, sso] = await Promise.all([
     listPortalUsers({ companyId: company.id }),
     listDepartments({ companyIds: [company.id] }),
     getHierarchy(company.id),
     listRules(company.id),
     listBudgets(company.id),
     listApprovalRequests(company.id),
+    listSsoConnections(company.id).catch((err) => {
+      console.error("governance: could not load SSO connections", err);
+      return { connections: [], ready: false };
+    }),
   ]);
 
   const canManage = canManageGovernance(member);
@@ -129,6 +135,13 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         companyId={member.role === "ADMIN" ? company.id : null}
         required={company.contracts_required}
         canManage={canManage && dataSource() === "supabase"}
+      />
+
+      <SsoConnections
+        companyId={member.role === "ADMIN" ? company.id : null}
+        connections={sso.connections}
+        canManage={member.role === "ADMIN"}
+        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !sso.ready ? "needs migration 20261108000000" : null}
       />
 
       <RequestBoard

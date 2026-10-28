@@ -107,6 +107,16 @@ The transfer is the invoice total less the platform commission (per partner, sna
 - Logic: `lib/marketplace/settlement.ts` (pure: maths, step planner, reconciliation) and `lib/marketplace/service.ts` (Route calls, idempotent `syncOrderSettlement`). Tests: `tests/marketplace-settlement.test.mjs`, `tests/rls.test.mjs`.
 - **Tax review:** confirm the TCS schedule, the commission SAC and the TCS period rule with a tax advisor before going live.
 
+## Enterprise SSO (migration `…20261108000000_company_sso_connections`)
+
+Companies can sign employees in through their own identity provider (SAML: Okta, Entra ID, Google Workspace). Needs Supabase Auth's SSO (Pro plan).
+
+1. Register the provider in Supabase: `npx supabase sso add --type saml --metadata-url <IdP metadata URL> --domains acme.com --project-ref <ref>`. The IdP needs Supabase's ACS URL and entity ID (`npx supabase sso info --project-ref <ref>`).
+2. Copy the provider id from `npx supabase sso list`, then in `/governance?company=<id>` → **Single sign-on**, connect the domain with that id and the role new employees get.
+3. Employees choose **Continue with company SSO** on `/login`. Their first sign-in creates their membership (no application to approve), only when the session came from that domain's own provider (`lib/auth/sso.ts`).
+
+
+
 ## GST engine (`lib/gst-engine.ts`)
 
 ```ts

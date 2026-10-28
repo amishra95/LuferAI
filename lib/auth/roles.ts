@@ -50,7 +50,7 @@ export function homeFor(role: PortalRole): Portal {
  * Governance is "client" to view; changing it is checked per action. "party"
  * areas (contracts) also admit venue managers; records are checked per page.
  */
-export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts"] as const;
+export const WORKSPACE_ROUTES = ["/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/control-tower", "/contracts"] as const;
 export type WorkspaceRoute = (typeof WORKSPACE_ROUTES)[number];
 
 const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client" | "party"> = {
@@ -62,6 +62,8 @@ const WORKSPACE_ACCESS: Record<WorkspaceRoute, "admin" | "booker" | "client" | "
   // Every client role sees its company's approval rules and budgets; only Approvers change them
   // (lib/services/enterprise/access.ts).
   "/governance": "client",
+  // Every client role (Finance viewers above all) sees its company's requests, policy outcomes and payments.
+  "/control-tower": "client",
   // A booking's company and its venue (each contract page checks it's theirs).
   "/contracts": "party",
 };

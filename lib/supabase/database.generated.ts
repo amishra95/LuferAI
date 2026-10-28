@@ -1189,6 +1189,39 @@ export type Database = {
           },
         ]
       }
+      company_sso_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          default_role: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled: boolean
+          id: string
+          sso_provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain?: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_events: {
         Row: {
           action: string
@@ -3763,6 +3796,42 @@ export type Database = {
           },
         ]
       }
+      venue_reviews: {
+        Row: {
+          author_id: string | null
+          booking_id: string
+          comment: string | null
+          company_id: string
+          created_at: string
+          id: string
+          rating: number
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          booking_id: string
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          author_id?: string | null
+          booking_id?: string
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string
@@ -3782,6 +3851,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available: boolean
+          photos: string[]
           private_suites: Json
           seating_layouts: Json
           serves_alcohol: boolean
@@ -3806,6 +3876,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3830,6 +3901,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
