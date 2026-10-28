@@ -1,6 +1,6 @@
 /**
  * Federated partner directory: venues listed by external supplier networks,
- * shown alongside Lufer.ai's own (internal) properties. Pure: no server
+ * shown alongside Lufer's own (internal) properties. Pure: no server
  * imports, so tests can exercise the mapping and fallback logic.
  */
 import { z } from "zod";

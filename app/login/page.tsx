@@ -34,7 +34,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <AuthShell>
       <Card>
         <CardHeader>
-          <CardTitle>Sign in to Lufer.ai</CardTitle>
+          <CardTitle>Sign in to Lufer</CardTitle>
           <CardDescription>Use your work Google account or get a one-time link by email.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </CardContent>
       </Card>
       <p className="text-fg-subtle text-center text-meta">
-        New to Lufer.ai?{" "}
+        New to Lufer?{" "}
         <Link href="/signup" className="text-link underline-offset-2 hover:underline">
           Apply for an account
         </Link>

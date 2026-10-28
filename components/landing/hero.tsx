@@ -17,7 +17,7 @@ export function SiteHeader() {
   return (
     <header className="landing-header sticky top-0 z-40 pt-[var(--app-safe-top)]">
       <div className="container-public flex items-center justify-between gap-4 py-3">
-        <Link href="/" aria-label="Lufer.ai home" className="rounded-md">
+        <Link href="/" aria-label="Lufer home" className="rounded-md">
           <Logo size="sm" tagline={false} />
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1 text-meta font-medium">

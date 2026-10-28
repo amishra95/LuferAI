@@ -11,7 +11,7 @@ import { formatDate, formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Sample workspace",
-  description: "See how Lufer.ai books corporate events: venue search, spend policy checks, GST invoices with input tax credit, and what finance sees. Sample data, no account needed.",
+  description: "See how Lufer books corporate events: venue search, spend policy checks, GST invoices with input tax credit, and what finance sees. Sample data, no account needed.",
 };
 
 const shortName = (legal: string) => legal.replace(/ Private Limited$/, "");

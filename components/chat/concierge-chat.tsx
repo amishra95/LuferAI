@@ -35,7 +35,7 @@ const STATE_LABEL: Record<ToolPart["state"], string> = {
 };
 
 /**
- * Test harness for the LuferAI Concierge (/api/agent/chat): streams text, shows
+ * Test harness for the Lufer Concierge (/api/agent/chat): streams text, shows
  * each tool call with its input and output, and asks for approval before
  * createInvoiceAndPayment runs.
  */
@@ -63,7 +63,7 @@ export function ConciergeChat() {
     // Fills the space under the header, like /chat: messages scroll, the composer stays anchored below.
     <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
       <header className="border-frame shrink-0 border-b px-4 py-3 sm:px-6">
-        <h1 className="text-fg font-display text-section font-semibold">LuferAI Concierge · test</h1>
+        <h1 className="text-fg font-display text-section font-semibold">Lufer Concierge · test</h1>
         <p className="text-fg-subtle text-caption">{model ?? "Gemini"} · up to 5 steps · team availability is mocked</p>
       </header>
 

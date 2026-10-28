@@ -14,7 +14,7 @@ import { governedCompany } from "@/lib/services/enterprise/access";
  */
 async function punchoutScope(companyId: string | null) {
   const member = await requireWorkspace("/governance");
-  if (member.role !== "ADMIN") throw new ActionError("Only Lufer.ai admins can change PunchOut connections.");
+  if (member.role !== "ADMIN") throw new ActionError("Only Lufer admins can change PunchOut connections.");
   const company = governedCompany(member, companyId);
   if (!company) throw new ActionError("Choose a company first.");
   return company;

@@ -152,7 +152,7 @@ export function createEnterpriseTools({ member, origin }: { member: Member; orig
     sendSlackApprovalRequest: tool({
       description:
         "Ask the booking's current approver to review it, in the company's Slack approvals channel. Use when a booking is waiting for internal approval " +
-        "(a payment or card tool returned needsApproval). The approver decides in LuferAI; this only notifies them.",
+        "(a payment or card tool returned needsApproval). The approver decides in Lufer; this only notifies them.",
       inputSchema: z.object({ bookingId: uuid, note: z.string().trim().max(300).nullish().describe("Optional context from the requester.") }),
       execute: async ({ bookingId, note }) => {
         const refused = clientOnly();
@@ -249,7 +249,7 @@ export function createEnterpriseTools({ member, origin }: { member: Member; orig
             // Consent is the user's approval of this exact call (HMAC-signed by the route).
             consent: true,
             ip: null,
-            userAgent: "LuferAI Concierge (signature approved in chat)",
+            userAgent: "Lufer Concierge (signature approved in chat)",
           });
           return { ok: true as const, contractId, status, url: `${origin}/contracts/${contractId}` };
         } catch (err) {

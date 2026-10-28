@@ -16,7 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function setPayoutTermsAction(partnerId: string, input: { accountId: string; commissionPercent: number }): Promise<ActionResult<{ accountStatus: string | null }>> {
   return serverDispatch("partner/setPayoutTerms", async () => {
     const member = await requirePortal("/partner");
-    if (member.role !== "ADMIN") throw new ActionError("Only Lufer.ai admins change payout terms.");
+    if (member.role !== "ADMIN") throw new ActionError("Only Lufer admins change payout terms.");
     const pct = Number(input.commissionPercent);
     if (!Number.isFinite(pct) || pct < 0 || pct > 50) throw new ActionError("Commission is between 0% and 50%.");
     const rate = Math.round(pct * 100) / 10_000;

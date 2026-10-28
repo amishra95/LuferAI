@@ -71,12 +71,12 @@ export function Sidebar({
     >
       <div className={cn("flex h-14 shrink-0 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
         <Link href={sideHome(side, allowedHrefs)} onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
-          {collapsed || workspaceName !== "Lufer.ai" ? <Monogram name={workspaceName} /> : null}
+          {collapsed || workspaceName !== "Lufer" ? <Monogram name={workspaceName} /> : null}
           {/* The default workspace name gets the brand wordmark; a renamed workspace shows as typed. */}
           {!collapsed &&
-            (workspaceName === "Lufer.ai" ? (
+            (workspaceName === "Lufer" ? (
               <span className="font-display text-fg text-[1.3rem] leading-none font-semibold tracking-tight">
-                Lufer<span className="text-coral font-sans text-[0.6em]">.ai</span>
+                Lufer
               </span>
             ) : (
               <span className="text-fg truncate text-body font-semibold tracking-tight">{workspaceName}</span>

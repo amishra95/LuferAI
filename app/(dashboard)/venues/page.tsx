@@ -52,7 +52,7 @@ function RequestRfp({ venue, className }: { venue: { name: string; neighborhood:
   );
 }
 
-/** Row action for Lufer.ai venues: the manual booking modal with the venue pre-selected. */
+/** Row action for Lufer venues: the manual booking modal with the venue pre-selected. */
 function BookManually({ venue, className }: { venue: { id: string; name: string }; className?: string }) {
   return (
     <ManualBookingModal
@@ -150,7 +150,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
     <Page>
       <PageHeader
         title="Venues"
-        description={admin ? "Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
+        description={admin ? "Lufer's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
         badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
       />
 
@@ -174,7 +174,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
           <span className="sr-only">Directory tier</span>
           <select name="tier" defaultValue={query.tier} className="field">
             <option value="">All tiers</option>
-            <option value="internal">Lufer.ai venues</option>
+            <option value="internal">Lufer venues</option>
             <option value="partner">Partner network</option>
           </select>
         </label>
@@ -223,7 +223,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
 
       {partners.status === "unavailable" && (
         <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-meta">
-          {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
+          {partners.network} is unavailable right now ({partners.error}). Showing Lufer venues only.
         </p>
       )}
 
@@ -433,8 +433,8 @@ function PageLink({ query, page, disabled, label, children }: { query: VenueQuer
 function TierBadge({ venue }: { venue: { tier: "internal" | "partner"; supplier: string | null } }) {
   if (venue.tier === "internal") {
     return (
-      <span className="pill" title="Lufer.ai venue: book directly">
-        <span className="bg-fg size-1.5 rounded-full" aria-hidden /> Lufer.ai
+      <span className="pill" title="Lufer venue: book directly">
+        <span className="bg-fg size-1.5 rounded-full" aria-hidden /> Lufer
       </span>
     );
   }

@@ -252,7 +252,7 @@ export function Comparison() {
               <th scope="col" className="text-ink-muted p-4 font-medium">
                 <span className="sr-only">Capability</span>
               </th>
-              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer.ai</th>
+              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Event agency</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Email & spreadsheets</th>
             </tr>

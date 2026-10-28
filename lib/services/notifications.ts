@@ -92,9 +92,9 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
     const signIn = new URL("/login", siteUrl("http://localhost:3000")).toString();
     const portal = app.account_type === "partner" ? "partner portal" : "company portal";
     const approved = app.status === "active";
-    const subject = approved ? "Your Lufer.ai account is approved" : "Your Lufer.ai application";
+    const subject = approved ? "Your Lufer account is approved" : "Your Lufer application";
     const lines = approved
-      ? [`Hi ${first},`, "", `Your account is approved. Sign in to open your ${portal}:`, signIn, "", "— Lufer.ai"]
+      ? [`Hi ${first},`, "", `Your account is approved. Sign in to open your ${portal}:`, signIn, "", "— Lufer"]
       : [
           `Hi ${first},`,
           "",
@@ -102,11 +102,11 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
           ...(app.rejection_reason ? ["", `Reason: ${app.rejection_reason}`] : []),
           "",
           "If you think this is a mistake, reply to this email.",
-          "— Lufer.ai",
+          "— Lufer",
         ];
     const text = lines.join("\n");
     const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${lines
-      .map((l) => (l === signIn ? `<p><a href="${escHtml(signIn)}">Sign in to Lufer.ai</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
+      .map((l) => (l === signIn ? `<p><a href="${escHtml(signIn)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
       .join("")}</body></html>`;
     return await sendEmail({ to: app.email, subject, text, html });
   } catch (err) {

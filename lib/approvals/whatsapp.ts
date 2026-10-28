@@ -206,12 +206,12 @@ const refused = (reply: ApprovalReply, provider: WhatsAppProvider, message: stri
 export async function decideFromWhatsApp(reply: ApprovalReply, provider: WhatsAppProvider): Promise<ApprovalReplyOutcome> {
   const button = parseApprovalButton(reply.buttonId);
   const secret = approvalSecret();
-  const invalid = "this button isn't valid any more. Open Lufer.ai to decide.";
+  const invalid = "this button isn't valid any more. Open Lufer to decide.";
   if (!button || !secret) return refused(reply, provider, invalid);
 
   // Who pressed it: only approvals assigned to the user this number is linked to are looked at.
   const link = await channelStore().findLink("whatsapp", reply.from);
-  if (!link) return refused(reply, provider, "this number isn't linked to a Lufer.ai approver. Ask your admin to link it in Settings → Channels, or decide in Lufer.ai.");
+  if (!link) return refused(reply, provider, "this number isn't linked to a Lufer approver. Ask your admin to link it in Settings → Channels, or decide in Lufer.");
 
   const approval = (await listApprovals({ tenantId: link.companyId, approverId: link.userId })).find((a) => a.id === button.approvalId);
   // Someone else's approval, an unknown ID and a bad MAC read the same, so a guessed ID learns nothing.

@@ -252,7 +252,7 @@ export function orderMessage(input: {
   return envelope(
     input.payloadId,
     input.timestamp,
-    `<Header><From>${cred(input.fromIdentity)}</From><To>${cred(input.toIdentity)}</To><Sender>${cred(input.fromIdentity)}<UserAgent>Lufer.ai</UserAgent></Sender></Header>` +
+    `<Header><From>${cred(input.fromIdentity)}</From><To>${cred(input.toIdentity)}</To><Sender>${cred(input.fromIdentity)}<UserAgent>Lufer</UserAgent></Sender></Header>` +
       `<Message><PunchOutOrderMessage><BuyerCookie>${xmlEscape(input.buyerCookie)}</BuyerCookie>` +
       `<PunchOutOrderMessageHeader operationAllowed="edit"><Total><Money currency="INR">${total.toFixed(2)}</Money></Total></PunchOutOrderMessageHeader>${items}</PunchOutOrderMessage></Message>`
   );
@@ -276,8 +276,8 @@ export function matchOrderToCart(order: OrderRequest, carts: ReadonlyMap<string,
     const base = { lineNumber: l.lineNumber, itemId: l.supplierPartId, quantity: l.quantity };
     const fail = (issue: string): LineCheck => ({ ...base, ok: false, issue });
     const cart = l.auxiliaryId ? carts.get(l.auxiliaryId) : undefined;
-    if (!cart) return fail("Not from a Lufer.ai punchout session for this buyer.");
-    if (l.currency && l.currency !== "INR") return fail(`Priced in ${l.currency}; Lufer.ai invoices in INR.`);
+    if (!cart) return fail("Not from a Lufer punchout session for this buyer.");
+    if (l.currency && l.currency !== "INR") return fail(`Priced in ${l.currency}; Lufer invoices in INR.`);
     const line = cart.find((c) => c.itemId === l.supplierPartId);
     if (!line) return fail("Not in the cart.");
     if (Math.round(l.unitPrice * 100) !== Math.round(line.unitPrice * 100)) return fail(`Unit price ₹${l.unitPrice.toFixed(2)} differs from the cart's ₹${line.unitPrice.toFixed(2)}.`);

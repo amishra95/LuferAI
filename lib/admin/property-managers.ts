@@ -117,7 +117,7 @@ export async function addPropertyManager(input: ManagerInput, redirectTo: string
   if (lookupError) throw lookupError;
   if (existing) {
     throw new ManagerError(
-      existing.role === "PROPERTY" ? "They already manage a venue: change their venue in the list instead." : "That person already has a Lufer.ai account with another role.",
+      existing.role === "PROPERTY" ? "They already manage a venue: change their venue in the list instead." : "That person already has a Lufer account with another role.",
       "email"
     );
   }

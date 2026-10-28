@@ -61,7 +61,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <CardContent className="text-fg-subtle py-8 text-center text-meta">
             {isAdmin
               ? "No partners yet. Create a row in the partners table, then invite its first Owner from the Team tab."
-              : "Your partner account isn't set up yet. Ask your Lufer.ai contact to finish onboarding."}
+              : "Your partner account isn't set up yet. Ask your Lufer contact to finish onboarding."}
           </CardContent>
         </Card>
       </PortalShell>
@@ -102,7 +102,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
   const justCreated = Boolean(selected) && created === "1";
   const shownRates = selected ? rates.filter((r) => r.partner_venue_id === selected.id) : rates;
   const listingName = new Map(listings.map((l) => [l.id, l.name]));
-  const roleLabel = isAdmin ? "Lufer.ai admin" : member.partnerRole ? PARTNER_ROLE_LABEL[member.partnerRole] : "";
+  const roleLabel = isAdmin ? "Lufer admin" : member.partnerRole ? PARTNER_ROLE_LABEL[member.partnerRole] : "";
 
   return (
     <PortalShell
@@ -156,7 +156,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card>
             <CardHeader>
               <CardTitle>Listings</CardTitle>
-              <CardDescription>Active listings appear in Lufer.ai venue search as partner venues. Paused ones are hidden.</CardDescription>
+              <CardDescription>Active listings appear in Lufer venue search as partner venues. Paused ones are hidden.</CardDescription>
             </CardHeader>
             <CardContent>
               {listings.length === 0 ? (
@@ -164,7 +164,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   compact
                   icon={Store}
                   title="No listings yet"
-                  description={canAddListing ? "Add your first venue, then publish a rate card so Lufer.ai search can price it for corporate buyers." : "An Owner or Manager adds this partner's venues."}
+                  description={canAddListing ? "Add your first venue, then publish a rate card so Lufer search can price it for corporate buyers." : "An Owner or Manager adds this partner's venues."}
                   action={
                     canAddListing ? (
                       <Link href="#add-listing" className="btn btn-secondary h-8 px-3 text-meta">
@@ -240,7 +240,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             <Card id="add-listing" className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Add a listing</CardTitle>
-                <CardDescription>Publish a venue to Lufer.ai corporate buyers. After adding it you&apos;ll set its first rate, so search can price it.</CardDescription>
+                <CardDescription>Publish a venue to Lufer corporate buyers. After adding it you&apos;ll set its first rate, so search can price it.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ListingForm partnerId={formPartnerId} ratesHref={href("rates")} />
@@ -262,7 +262,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   <CheckCircle2 className="text-sage size-5 shrink-0" aria-hidden />
                   <div className="min-w-0 flex-1">
                     <p className="text-fg text-body font-medium">{selected.name} is live</p>
-                    <p className="text-fg-subtle text-meta">Publish its first rate card so Lufer.ai search can price it for corporate buyers.</p>
+                    <p className="text-fg-subtle text-meta">Publish its first rate card so Lufer search can price it for corporate buyers.</p>
                   </div>
                   {can.has("rates.edit") ? (
                     <Link href="#rate-form" className="btn btn-secondary h-8 px-3 text-meta">
@@ -508,7 +508,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card id="invite" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Invite someone</CardTitle>
-              <CardDescription>New addresses get a sign-in invitation; existing Lufer.ai users without another organisation are added directly.</CardDescription>
+              <CardDescription>New addresses get a sign-in invitation; existing Lufer users without another organisation are added directly.</CardDescription>
             </CardHeader>
             <CardContent>
               <InviteForm partnerId={formPartnerId} />

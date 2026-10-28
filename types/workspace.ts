@@ -27,7 +27,7 @@ export interface AgentDetail {
   recentRuns: RunDetail[];
 }
 
-/** The corporate profile of a Lufer.ai venue (partner listings don't carry one). */
+/** The corporate profile of a Lufer venue (partner listings don't carry one). */
 export interface VenueProfileInfo {
   minSpendPerHead: number;
   suites: PrivateSuite[];

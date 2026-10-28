@@ -78,7 +78,7 @@ function ChatDrawerPanel({ config }: { config: ChatDrawerConfig }) {
       tabIndex={-1}
       role="dialog"
       aria-modal="false"
-      aria-label="LuferAI Concierge"
+      aria-label="Lufer Concierge"
       aria-hidden={!open}
       inert={!open}
       className={cn(
@@ -92,7 +92,7 @@ function ChatDrawerPanel({ config }: { config: ChatDrawerConfig }) {
           <Sparkles className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-fg text-card-title font-semibold">LuferAI Concierge</p>
+          <p className="text-fg text-card-title font-semibold">Lufer Concierge</p>
           {company ? (
             <p className="text-fg-subtle flex items-center gap-1 truncate text-caption">
               <Building2 className="size-3 shrink-0" aria-hidden /> {company.name}

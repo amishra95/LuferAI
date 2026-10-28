@@ -49,7 +49,7 @@ export default async function PendingPage() {
           <CardTitle>{rejected ? "We couldn't approve this application" : "Application received"}</CardTitle>
           <CardDescription>
             {rejected
-              ? "Your account wasn't approved. If you think that's a mistake, reply to the email you received or contact support@lufer.ai."
+              ? "Your account wasn't approved. If you think that's a mistake, reply to the email you received or contact support@lufer.app."
               : `Thanks, ${application.full_name.split(" ")[0]}. Our team reviews every account, usually within one working day. We'll email ${application.email} when you're approved, and you'll go straight to your ${application.account_type === "partner" ? "partner" : "company"} portal when you next sign in.`}
           </CardDescription>
         </CardHeader>

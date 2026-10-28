@@ -17,7 +17,7 @@ export async function returnCartAction(token: string, lines: { itemId: string; q
     if (save) await saveCart(token, lines.slice(0, 100));
     const session = await returnCart(token);
     const cxml = orderMessage({
-      payloadId: `${Date.now()}.${randomUUID()}@lufer.ai`,
+      payloadId: `${Date.now()}.${randomUUID()}@lufer.app`,
       timestamp: new Date().toISOString(),
       buyerCookie: session.buyerCookie,
       sessionId: session.sessionId,

@@ -164,7 +164,7 @@ export function tallyNarration(r: ExpenseReceipt): string {
     `SAC ${r.tax.sac_code}`,
     `ITC: ${r.tax.itc_status.replace(/_/g, " ")}`,
     ...(r.expense.project_code ? [`Project ${r.expense.project_code}`] : []),
-    `Lufer.ai ${tallyBillRef(r)}`,
+    `Lufer ${tallyBillRef(r)}`,
   ].join(" · ");
 }
 
