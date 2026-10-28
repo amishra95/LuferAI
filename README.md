@@ -117,6 +117,8 @@ Companies can sign employees in through their own identity provider (SAML: Okta,
 
 
 
+## GST engine (`lib/gst-engine.ts`)
+
 ```ts
 import { calculateGst } from "@/lib/gst-engine";
 
