@@ -25,6 +25,7 @@ import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
+import { listVenueReviews } from "@/lib/venues/review-store";
 import { listEscalations, venueAlertNumber } from "@/lib/escalations/store";
 import { EscalationQueue } from "@/components/escalations/escalation-queue";
 import { parseCancellationTerms } from "@/lib/venues/profile";
@@ -42,9 +43,8 @@ import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-form
 import { GuardrailsForm, NegotiatorDrawer } from "./_components/negotiator-drawer";
 import { PlanAck } from "./_components/plan-ack";
 import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_components/pricing-forms";
-import { ReviewList } from "./_components/review-list";
-import { listVenueReviews } from "@/lib/venues/review-store";
 import { RateCalendar } from "./_components/rate-calendar";
+import { ReviewList } from "./_components/review-list";
 import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
 
 const monthLabel = (ym: string) =>
