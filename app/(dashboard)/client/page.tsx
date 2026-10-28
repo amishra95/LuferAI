@@ -75,6 +75,9 @@ import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
+import { reviewsForBookings, venueRatingMap } from "@/lib/venues/review-store";
+import { REVIEWABLE_STATUSES } from "@/lib/venues/reviews";
+import { ReviewSheet } from "./_components/review-sheet";
 import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
@@ -116,7 +119,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const [
     [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments, policy],
     [catalogItems, catalogOrders],
-    [rfps, queue, responseHours, spendLimit, nearby, savedPhone],
+    [rfps, queue, responseHours, ratings, spendLimit, nearby, savedPhone],
   ] = await Promise.all([
     Promise.all([
       listBookings({ companyId: company.id }),
@@ -138,6 +141,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       live ? listRfps({ companyId: company.id }) : Promise.resolve([]),
       approvalQueue(member, company.id),
       venueResponseHours(),
+      venueRatingMap(),
       // This month's committed spend against the limit: the figure the approval policy checks.
       activeTab === "bookings" ? spendLimitFor(company.id, today) : Promise.resolve(null),
       // Office distances for the venue cards, from PostGIS (null: computed in the explorer).
@@ -167,7 +171,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const bookingIds = bookings.map((b) => b.id);
 
   // Round trip 2: everything that needs the bookings.
-  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements] = await Promise.all([
+  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements, reviews] = await Promise.all([
     listOrderSettlements(catalogOrders),
     latestPayments(bookingIds),
     activeHolds(bookingIds),
@@ -180,10 +184,15 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     activeTab === "settlement"
       ? settlementsFor(company.id, bookings.filter((b) => ["CONFIRMED", "COMPLETED", "SETTLED"].includes(b.status)).sort((a, b) => b.event_date.localeCompare(a.event_date)))
       : Promise.resolve([]),
+    // The company's own reviews of completed events (before migration 20261107000000: none).
+    reviewsForBookings(bookings.filter((b) => REVIEWABLE_STATUSES.has(b.status)).map((b) => b.id)).catch((err) => {
+      console.error("client: could not load reviews", err);
+      return new Map<string, { rating: number; comment: string | null }>();
+    }),
   ]);
   const itc = computeItcSummary(bookings);
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
-  const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, responseHours));
+  const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, { responseHours, ratings }));
   const workspaceAgent = getAgent("workspace-agent");
   const concierge = !getLanguageModel({ backend: workspaceAgent?.model })
     ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
@@ -754,6 +763,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                             <Link href={`/client/events/${b.id}`} className="text-fg-subtle hover:text-fg relative z-10 mt-1.5 inline-flex items-center gap-1 text-caption underline-offset-2 hover:underline">
                               <Receipt className="size-3" aria-hidden /> Voucher &amp; invoice
                             </Link>
+                          ) : null}
+                          {live && member.role === "CLIENT" && REVIEWABLE_STATUSES.has(b.status) ? (
+                            <div>
+                              <ReviewSheet bookingId={b.id} venueName={b.venue.name} existing={reviews.get(b.id) ?? null} className="relative z-10 mt-1.5" />
+                            </div>
                           ) : null}
                           {hold && (b.status === "PENDING" || b.status === "PENDING_APPROVAL") ? (
                             <HoldCountdown createdAt={hold.holdStart} expiresAt={hold.expiresAt} className="mt-2 max-w-48" />

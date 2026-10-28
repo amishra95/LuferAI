@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Timer, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Star, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
 import { matchScore } from "@/lib/search/match";
@@ -9,9 +9,10 @@ import { cn, formatINR } from "@/lib/utils";
 import type { VenuePolicyStatus } from "@/lib/venues/discovery";
 import { signalLabels, type VenueSignals } from "@/lib/venues/signals";
 
-const SIGNAL_ICON = { favorite: Heart, coworkers: Users, you: UserCheck, fast: Timer } as const;
+const SIGNAL_ICON = { favorite: Heart, rated: Star, coworkers: Users, you: UserCheck, fast: Timer } as const;
 const SIGNAL_TITLE = {
   favorite: "One of your company's most-booked venues this year",
+  rated: "Average rating from companies' reviews after their events",
   coworkers: "Colleagues at your company booked here this year",
   you: "You booked here this year",
   fast: "Typical time for this venue to accept a request, across companies",
@@ -126,7 +127,7 @@ export function VenueCardBody({
             const Icon = SIGNAL_ICON[key];
             return (
               <li key={key} title={SIGNAL_TITLE[key]} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
-                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current")} aria-hidden /> {label}
+                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current", key === "rated" && "text-gold-ink fill-current")} aria-hidden /> {label}
               </li>
             );
           })}

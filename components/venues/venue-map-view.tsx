@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DoorClosed, Heart, MapPin, MapPinOff, Timer, UserCheck, Users } from "lucide-react";
+import { DoorClosed, Heart, MapPin, MapPinOff, Star, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
 import { VenueMap, type MapVenue } from "@/components/portal/venue-map";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { OfficeLocation, VenuePolicyStatus } from "@/lib/venues/discovery";
 import { signalLabels, type VenueSignals } from "@/lib/venues/signals";
 
-const SIGNAL_ICON = { favorite: Heart, coworkers: Users, you: UserCheck, fast: Timer } as const;
+const SIGNAL_ICON = { favorite: Heart, rated: Star, coworkers: Users, you: UserCheck, fast: Timer } as const;
 
 const isLocated = (v: MapVenue) => v.latitude != null && v.longitude != null;
 
@@ -156,7 +156,7 @@ function VenueCard({ venue: v, onOpen }: { venue: MapVenueCard; onOpen: () => vo
             const Icon = SIGNAL_ICON[key];
             return (
               <span key={key} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
-                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current")} aria-hidden /> {label}
+                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current", key === "rated" && "text-gold-ink fill-current")} aria-hidden /> {label}
               </span>
             );
           })}
