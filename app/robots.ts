@@ -6,7 +6,7 @@ import { siteUrl } from "@/lib/site-url";
 export default function robots(): MetadataRoute.Robots {
   const base = siteUrl("http://localhost:3000");
   return {
-    rules: { userAgent: "*", allow: ["/", "/signup", "/login", "/inquire/"], disallow: ["/api/", "/admin", "/client", "/property", "/partner", "/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts", "/quote/", "/rsvp/"] },
+    rules: { userAgent: "*", allow: ["/", "/demo", "/signup", "/login", "/inquire/"], disallow: ["/api/", "/admin", "/client", "/property", "/partner", "/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts", "/quote/", "/rsvp/"] },
     sitemap: `${base}/sitemap.xml`,
   };
 }
