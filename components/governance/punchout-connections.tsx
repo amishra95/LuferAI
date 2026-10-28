@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Copy, Loader2, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
-import { createPunchoutConnectionAction, updatePunchoutConnectionAction } from "@/app/(dashboard)/governance/actions";
+import { createPunchoutConnectionAction, updatePunchoutConnectionAction } from "@/app/(dashboard)/governance/punchout-actions";
 import { SectionLabel } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
