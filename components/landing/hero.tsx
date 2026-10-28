@@ -9,6 +9,7 @@ const NAV = [
   { href: "#finance", label: "For finance" },
   { href: "#venues", label: "For venues" },
   { href: "#faq", label: "FAQ" },
+  { href: "/demo", label: "Sample workspace" },
 ];
 
 // Sticky, blurred over linen; the coral CTA is the one primary action on every screen.

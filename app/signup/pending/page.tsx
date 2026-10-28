@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Clock, LogOut, XCircle } from "lucide-react";
 
@@ -67,6 +68,15 @@ export default async function PendingPage() {
               </div>
             ))}
           </dl>
+          {!rejected ? (
+            <p className="text-fg-muted text-body">
+              While you wait,{" "}
+              <Link href="/demo" className="text-link underline-offset-2 hover:underline">
+                explore a sample workspace
+              </Link>{" "}
+              to see how requests, policy checks and GST invoices work.
+            </p>
+          ) : null}
           <form action={signOut}>
             <Button type="submit" variant="ghost" className="justify-self-start">
               <LogOut className="size-4" aria-hidden /> Sign out
