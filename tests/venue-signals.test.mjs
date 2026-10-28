@@ -25,7 +25,7 @@ const ME = "user-me";
 const booking = (venue_id, requested_by, { status = "CONFIRMED", ago = 10 } = {}) => ({ venue_id, requested_by, status, event_date: daysAgo(ago).slice(0, 10), created_at: daysAgo(ago) });
 
 test("coworkers: distinct colleagues who booked here, not counting the viewer", () => {
-  const s = venueSignals([booking("v1", "asha"), booking("v1", "asha"), booking("v1", "ravi"), booking("v1", ME)], ME, new Map(), NOW).get("v1");
+  const s = venueSignals([booking("v1", "asha"), booking("v1", "asha"), booking("v1", "ravi"), booking("v1", ME)], ME, {}, NOW).get("v1");
   assert.equal(s.coworkers, 2);
   assert.equal(s.youBooked, true);
   // Four bookings also make it a company favorite.
@@ -37,21 +37,21 @@ test("only bookings that went ahead, in the last year, count", () => {
   const s = venueSignals(
     [booking("v1", "asha", { status: "CANCELLED" }), booking("v1", "ravi", { status: "PENDING_APPROVAL" }), booking("v1", "meera", { ago: 400 }), booking("v1", "dev", { status: "SETTLED" }), booking("v1", "kai", { status: "COMPLETED" })],
     ME,
-    new Map(),
+    {},
     NOW
   ).get("v1");
   assert.equal(s.coworkers, 2);
 });
 
 test("bookings without a recorded requester count for favorites but not as coworkers", () => {
-  const s = venueSignals([booking("v1", null), booking("v1", null), booking("v1", null)], ME, new Map(), NOW).get("v1");
+  const s = venueSignals([booking("v1", null), booking("v1", null), booking("v1", null)], ME, {}, NOW).get("v1");
   assert.deepEqual([s.coworkers, s.companyFavorite], [0, true]);
 });
 
 test("company favorites: the top venues with enough bookings, most booked first, recent wins ties", () => {
   assert.equal(FAVORITE_MIN_BOOKINGS, 3);
   const many = (venue, n, ago = 10) => Array.from({ length: n }, (_, i) => booking(venue, `u${i}`, { ago: ago + i }));
-  const signals = venueSignals([...many("a", 6), ...many("b", 5), ...many("c", 4, 50), ...many("d", 4, 5), ...many("e", 2)], ME, new Map(), NOW);
+  const signals = venueSignals([...many("a", 6), ...many("b", 5), ...many("c", 4, 50), ...many("d", 4, 5), ...many("e", 2)], ME, {}, NOW);
   const favorites = [...signals].filter(([, s]) => s.companyFavorite).map(([v]) => v).sort();
   // a (6), b (5), then d beats c on recency; e has too few.
   assert.deepEqual(favorites, ["a", "b", "d"]);
@@ -59,7 +59,7 @@ test("company favorites: the top venues with enough bookings, most booked first,
 });
 
 test("a signed-in admin (no viewer) sees coworker counts without 'you'", () => {
-  const s = venueSignals([booking("v1", "asha"), booking("v1", ME)], null, new Map(), NOW).get("v1");
+  const s = venueSignals([booking("v1", "asha"), booking("v1", ME)], null, {}, NOW).get("v1");
   assert.deepEqual([s.coworkers, s.youBooked], [2, false]);
 });
 
@@ -85,7 +85,7 @@ test("response times ignore impossible and old samples", () => {
 });
 
 test("only quick venues get the badge, even with no bookings by the company", () => {
-  const signals = venueSignals([], ME, new Map([["quick", 2], ["slow", FAST_RESPONSE_HOURS + 1]]), NOW);
+  const signals = venueSignals([], ME, { responseHours: new Map([["quick", 2], ["slow", FAST_RESPONSE_HOURS + 1]]) }, NOW);
   assert.deepEqual(signalLabels(signals.get("quick")), [{ key: "fast", label: "Usually confirms within 2 h" }]);
   assert.deepEqual(signalLabels(signals.get("slow")), []);
   assert.deepEqual(signalLabels(undefined), []);

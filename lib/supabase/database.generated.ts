@@ -3634,6 +3634,42 @@ export type Database = {
           },
         ]
       }
+      venue_reviews: {
+        Row: {
+          author_id: string | null
+          booking_id: string
+          comment: string | null
+          company_id: string
+          created_at: string
+          id: string
+          rating: number
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          booking_id: string
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          author_id?: string | null
+          booking_id?: string
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string
@@ -3653,6 +3689,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available: boolean
+          photos: string[]
           private_suites: Json
           seating_layouts: Json
           serves_alcohol: boolean
@@ -3677,6 +3714,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3701,6 +3739,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
