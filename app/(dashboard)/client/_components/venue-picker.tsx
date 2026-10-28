@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
+import { VenuePhoto } from "@/components/venues/venue-photo";
 import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenuePolicyStatus } from "@/lib/venues/discovery";
@@ -32,6 +33,8 @@ export interface VenuePickerOption {
   rate_card_label: string | null;
   /** Dietary options across the venue's packages, already labelled. */
   dietary?: string[];
+  /** Cover photo URL; null or absent when the venue has none. */
+  photo_url?: string | null;
 }
 
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
@@ -71,6 +74,7 @@ export function VenueCardBody({
   const social = signalLabels(signals);
   return (
     <>
+      {v.photo_url ? <VenuePhoto url={v.photo_url} className="-mx-5 -mt-5 mb-1 aspect-[16/9] w-[calc(100%+2.5rem)] max-w-none rounded-t-[inherit]" /> : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-fg line-clamp-2 text-body leading-snug font-medium">{v.name}</p>

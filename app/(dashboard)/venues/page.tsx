@@ -8,6 +8,7 @@ import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header
 import { EmptyState } from "@/components/portal/empty-state";
 import { segmentClass } from "@/components/portal/segment";
 import { VenueMapView, type MapVenueCard } from "@/components/venues/venue-map-view";
+import { VenuePhoto } from "@/components/venues/venue-photo";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
@@ -123,6 +124,7 @@ async function mapData(matches: DirectoryVenue[], member: { companyId: string | 
         distance: officeDistanceLabel(office, { latitude: v.latitude ?? null, longitude: v.longitude ?? null }),
         policy: fit,
         signals: signals.get(v.id),
+        photo_url: v.photo_url ?? null,
       };
     }),
   };
@@ -271,8 +273,9 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
               <ul className="md:hidden">
                 {rows.map((v) => (
                   <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-fg min-w-0 truncate text-body font-medium">
+                    <div className="flex items-center justify-between gap-3">
+                      <VenuePhoto url={v.photo_url} className="size-10 shrink-0 rounded-md" />
+                      <p className="text-fg min-w-0 flex-1 truncate text-body font-medium">
                         <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
                           {v.name}
                         </InspectButton>
@@ -320,14 +323,19 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     {rows.map((v) => (
                       <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="group border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
                         <td className="max-w-80 py-3 pr-4 pl-5">
-                          <p className="text-fg truncate font-medium">
-                            <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
-                              {v.name}
-                            </InspectButton>
-                          </p>
-                          <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
-                            {v.address}
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <VenuePhoto url={v.photo_url} className="size-10 shrink-0 rounded-md" />
+                            <div className="min-w-0">
+                              <p className="text-fg truncate font-medium">
+                                <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                                  {v.name}
+                                </InspectButton>
+                              </p>
+                              <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
+                                {v.address}
+                              </p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4">
                           <TierBadge venue={v} />
