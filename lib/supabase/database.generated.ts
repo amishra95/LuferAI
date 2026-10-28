@@ -3653,6 +3653,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available: boolean
+          photos: string[]
           private_suites: Json
           seating_layouts: Json
           serves_alcohol: boolean
@@ -3677,6 +3678,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3701,6 +3703,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
