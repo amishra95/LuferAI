@@ -5,6 +5,8 @@ import { isApplicationStatus, landingFor } from "@/lib/auth/onboarding";
 import { canAccess, homeFor, portalFor, safeNextPath } from "@/lib/auth/roles";
 import { parseSignupInput } from "@/lib/auth/signup-input";
 import { createSignupApplication, getSignupApplication } from "@/lib/data";
+import { ssoProviderOf } from "@/lib/auth/sso";
+import { provisionSsoUser } from "@/lib/auth/sso-store";
 import { isAuthConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +16,8 @@ import { createClient } from "@/lib/supabase/server";
  * - ?token_hash=…&type=…    magic links opened on another device; needs the email template
  *                           to link to {{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email
  *
- * Members go to their portal. Someone without a portal role who signed up at
+ * Members go to their portal. A first sign-in through a company's SSO
+ * provider joins that company (lib/auth/sso.ts). Someone without a portal role who signed up at
  * /signup has their application recorded here, now that the link proved the
  * email is theirs (the form's details ride in the new user's metadata), and
  * goes to /signup/pending until an admin approves it.
@@ -47,11 +50,20 @@ export async function GET(request: NextRequest) {
 
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub ?? "";
-  const { data: member } = await supabase
+  let { data: member } = await supabase
     .from("platform_users")
     .select("role")
     .eq("user_id", userId)
     .maybeSingle();
+  // First SSO sign-in from a company's connected identity provider: join that company.
+  if (!member && ssoProviderOf(claims?.claims.app_metadata)) {
+    const { data } = await supabase.auth.getUser();
+    if (data.user && (await provisionSsoUser(data.user)).provision) {
+      // Memberships ride in the token (custom_access_token_hook): reissue it so the portals let them in.
+      await supabase.auth.refreshSession();
+      member = { role: "CLIENT" };
+    }
+  }
   if (!member) return NextResponse.redirect(new URL(await applicantLanding(supabase, userId), request.url));
 
   // Honour ?next only if this role may open it; otherwise go to the role's own portal.
