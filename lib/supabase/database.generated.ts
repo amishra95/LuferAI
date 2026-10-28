@@ -1189,6 +1189,39 @@ export type Database = {
           },
         ]
       }
+      company_sso_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          default_role: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled: boolean
+          id: string
+          sso_provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain?: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_events: {
         Row: {
           action: string
