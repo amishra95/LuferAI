@@ -8,6 +8,9 @@ import { ContractRequirement } from "@/components/governance/contract-requiremen
 import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
 import { RequestBoard } from "@/components/governance/request-board";
 import { RuleManager } from "@/components/governance/rule-manager";
+import { PunchoutConnections } from "@/components/governance/punchout-connections";
+import { listPunchoutConnections } from "@/lib/punchout/store";
+import { siteUrl } from "@/lib/site-url";
 import { requireWorkspace } from "@/lib/auth/session";
 import { dataSource, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
 import { budgetTone } from "@/lib/procurement/po-ledger";
@@ -29,14 +32,19 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
   const company = typeof companyParam === "string" ? companies.find((c) => c.id === companyParam) : companies[0];
   if (!company) notFound();
 
-  const [users, departments, hierarchy, { rules, ready }, budgets, requests] = await Promise.all([
+  const [users, departments, hierarchy, { rules, ready }, budgets, requests, punchout] = await Promise.all([
     listPortalUsers({ companyId: company.id }),
     listDepartments({ companyIds: [company.id] }),
     getHierarchy(company.id),
     listRules(company.id),
     listBudgets(company.id),
     listApprovalRequests(company.id),
+    listPunchoutConnections(company.id).catch((err) => {
+      console.error("governance: could not load punchout connections", err);
+      return { connections: [], orders: [], ready: false };
+    }),
   ]);
+  const site = siteUrl("https://lufer-ai.vercel.app");
 
   const canManage = canManageGovernance(member);
   const now = new Date();
@@ -119,6 +127,15 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         companyId={member.role === "ADMIN" ? company.id : null}
         required={company.contracts_required}
         canManage={canManage && dataSource() === "supabase"}
+      />
+
+      <PunchoutConnections
+        companyId={member.role === "ADMIN" ? company.id : null}
+        connections={punchout.connections}
+        orders={punchout.orders}
+        endpoints={{ setup: `${site}/api/punchout/setup`, order: `${site}/api/punchout/order` }}
+        canManage={member.role === "ADMIN"}
+        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !punchout.ready ? "needs migration 20261109000000" : null}
       />
 
       <RequestBoard
