@@ -8,7 +8,11 @@
  * the last year. Coworker signals come from the viewer's own company's
  * bookings; response times are a cross-company median per venue, published
  * only once there are enough of them that no single booking shows through.
+ * Ratings are the cross-company review average (lib/venues/reviews.ts), on
+ * the same terms.
  */
+
+import { isTopRated, ratingLabel, type VenueRating } from "./reviews.ts";
 
 /** Bookings that went ahead: requested, accepted by the venue, and not cancelled. */
 export const BOOKED_STATUSES: ReadonlySet<string> = new Set(["CONFIRMED", "COMPLETED", "SETTLED"]);
@@ -31,6 +35,16 @@ export interface VenueSignals {
   companyFavorite: boolean;
   /** Median hours from a request reaching the venue to its acceptance, when quick and well sampled. */
   confirmsWithinHours: number | null;
+  /** Review average across companies, once well sampled; null without one. */
+  rating: VenueRating | null;
+}
+
+/** Signals that come from every company, not just the viewer's. */
+export interface CrossCompanySignals {
+  /** Median hours to confirm (venueResponseMedians). */
+  responseHours?: ReadonlyMap<string, number>;
+  /** Review averages (venueRatings). */
+  ratings?: ReadonlyMap<string, VenueRating>;
 }
 
 export interface SignalBooking {
@@ -46,13 +60,13 @@ const DAY_MS = 86_400_000;
 const inWindow = (b: SignalBooking, now: number) => BOOKED_STATUSES.has(b.status) && now - new Date(b.created_at).getTime() <= SIGNAL_WINDOW_DAYS * DAY_MS;
 
 /**
- * Per venue, from the viewer's company's bookings. `responseHours` is the
- * cross-company median from venueResponseMedians; venues without one get null.
+ * Per venue, from the viewer's company's bookings, plus the cross-company
+ * response times and ratings; venues without one get null for it.
  */
 export function venueSignals(
   bookings: readonly SignalBooking[],
   viewerId: string | null,
-  responseHours: ReadonlyMap<string, number> = new Map(),
+  { responseHours = new Map(), ratings = new Map() }: CrossCompanySignals = {},
   now = Date.now()
 ): Map<string, VenueSignals> {
   const recent = bookings.filter((b) => inWindow(b, now));
@@ -69,7 +83,7 @@ export function venueSignals(
   );
 
   const out = new Map<string, VenueSignals>();
-  for (const venueId of new Set([...byVenue.keys(), ...responseHours.keys()])) {
+  for (const venueId of new Set([...byVenue.keys(), ...responseHours.keys(), ...ratings.keys()])) {
     const list = byVenue.get(venueId) ?? [];
     const people = new Set(list.map((b) => b.requested_by).filter((id): id is string => Boolean(id)));
     const youBooked = Boolean(viewerId && people.has(viewerId));
@@ -80,6 +94,7 @@ export function venueSignals(
       youBooked,
       companyFavorite: favorites.has(venueId),
       confirmsWithinHours: hours != null && hours <= FAST_RESPONSE_HOURS ? hours : null,
+      rating: ratings.get(venueId) ?? null,
     });
   }
   return out;
@@ -116,11 +131,14 @@ export function venueResponseMedians(samples: readonly ResponseSample[], now = D
   return out;
 }
 
+export type SignalKey = "favorite" | "rated" | "coworkers" | "you" | "fast";
+
 /** The badge texts for a venue, most persuasive first. */
-export function signalLabels(s: VenueSignals | undefined): { key: "favorite" | "coworkers" | "you" | "fast"; label: string }[] {
+export function signalLabels(s: VenueSignals | undefined): { key: SignalKey; label: string }[] {
   if (!s) return [];
-  const out: { key: "favorite" | "coworkers" | "you" | "fast"; label: string }[] = [];
+  const out: { key: SignalKey; label: string }[] = [];
   if (s.companyFavorite) out.push({ key: "favorite", label: "Company favorite" });
+  if (s.rating) out.push({ key: "rated", label: `${isTopRated(s.rating) ? "Top rated · " : ""}${ratingLabel(s.rating)}` });
   if (s.coworkers > 0) out.push({ key: "coworkers", label: s.coworkers === 1 ? "Booked by a coworker" : `Booked by ${s.coworkers} coworkers` });
   if (s.youBooked) out.push({ key: "you", label: "You've booked here" });
   if (s.confirmsWithinHours != null) out.push({ key: "fast", label: `Usually confirms within ${s.confirmsWithinHours} h` });

@@ -1189,6 +1189,39 @@ export type Database = {
           },
         ]
       }
+      company_sso_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          default_role: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled: boolean
+          id: string
+          sso_provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain?: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_events: {
         Row: {
           action: string
@@ -2705,6 +2738,135 @@ export type Database = {
           },
         ]
       }
+      punchout_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          sender_identity: string
+          shared_secret_sha256: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          sender_identity: string
+          shared_secret_sha256: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          sender_identity?: string
+          shared_secret_sha256?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      punchout_orders: {
+        Row: {
+          company_id: string
+          connection_id: string
+          created_at: string
+          id: string
+          lines: Json
+          order_date: string | null
+          order_id: string
+          order_type: string
+          payload_id: string
+          status: string
+          total_inr: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          connection_id: string
+          created_at?: string
+          id?: string
+          lines: Json
+          order_date?: string | null
+          order_id: string
+          order_type?: string
+          payload_id: string
+          status: string
+          total_inr?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          connection_id?: string
+          created_at?: string
+          id?: string
+          lines?: Json
+          order_date?: string | null
+          order_id?: string
+          order_type?: string
+          payload_id?: string
+          status?: string
+          total_inr?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      punchout_sessions: {
+        Row: {
+          browser_form_post: string
+          buyer_cookie: string
+          cart: Json
+          company_id: string
+          connection_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          operation: string
+          returned_at: string | null
+          token_sha256: string
+          updated_at: string
+          user_email: string | null
+          user_name: string | null
+        }
+        Insert: {
+          browser_form_post: string
+          buyer_cookie: string
+          cart?: Json
+          company_id: string
+          connection_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          operation?: string
+          returned_at?: string | null
+          token_sha256: string
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          browser_form_post?: string
+          buyer_cookie?: string
+          cart?: Json
+          company_id?: string
+          connection_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          operation?: string
+          returned_at?: string | null
+          token_sha256?: string
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       purchase_orders: {
         Row: {
           amount_inr: number
@@ -3634,6 +3796,42 @@ export type Database = {
           },
         ]
       }
+      venue_reviews: {
+        Row: {
+          author_id: string | null
+          booking_id: string
+          comment: string | null
+          company_id: string
+          created_at: string
+          id: string
+          rating: number
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          booking_id: string
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          author_id?: string | null
+          booking_id?: string
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string
@@ -3653,6 +3851,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available: boolean
+          photos: string[]
           private_suites: Json
           seating_layouts: Json
           serves_alcohol: boolean
@@ -3677,6 +3876,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3701,6 +3901,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean

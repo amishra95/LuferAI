@@ -7,6 +7,7 @@ import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/
 import { governedCompany } from "@/lib/services/enterprise/access";
 import { ApprovalCommand, BudgetCommand, runApprovalCommand, runBudgetCommand, type ApprovalCommandResult, type BudgetCommandResult } from "@/lib/services/enterprise/commands";
 import { GovernanceError } from "@/lib/services/enterprise/governanceStore";
+import { addSsoConnection, removeSsoConnection, setSsoConnectionEnabled, SsoError } from "@/lib/auth/sso-store";
 
 /**
  * /governance actions: the same commands as POST /api/enterprise/approvals and
@@ -52,5 +53,39 @@ export async function budgetCommandAction(companyId: string | null, input: Budge
     const result = await runBudgetCommand(member, company, parsed.data).catch(asAction);
     revalidateGovernance();
     return result;
+  });
+}
+
+/**
+ * Enterprise SSO connections (lib/auth/sso-store.ts). Platform admins only:
+ * the SAML provider is registered in Supabase Auth first, and its id links here.
+ */
+async function ssoScope(companyId: string | null) {
+  const { member, company } = await scope(companyId);
+  if (member.role !== "ADMIN") throw new ActionError("Only Lufer.ai admins can change single sign-on.");
+  return company;
+}
+
+const asSsoAction = (err: unknown): never => {
+  if (err instanceof SsoError) throw new ActionError(err.message);
+  throw err;
+};
+
+export async function addSsoConnectionAction(companyId: string | null, input: { domain: string; providerId: string; defaultRole: string }): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("governance/sso-add", async () => {
+    const company = await ssoScope(companyId);
+    await addSsoConnection({ companyId: company, ...input }).catch(asSsoAction);
+    revalidatePath("/governance");
+    return { ok: true as const };
+  });
+}
+
+export async function updateSsoConnectionAction(companyId: string | null, input: { id: string; change: "enable" | "disable" | "remove" }): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("governance/sso-update", async () => {
+    const company = await ssoScope(companyId);
+    if (input.change === "remove") await removeSsoConnection(company, input.id);
+    else await setSsoConnectionEnabled(company, input.id, input.change === "enable");
+    revalidatePath("/governance");
+    return { ok: true as const };
   });
 }

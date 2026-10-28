@@ -13,6 +13,7 @@ import {
   MapPinned,
   MessageSquare,
   MessagesSquare,
+  Radar,
   Package,
   Receipt,
   Settings,
@@ -61,6 +62,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
       {
         title: "Spend",
         items: [
+          { href: "/control-tower", label: "Control Tower", icon: Radar },
           { href: "/client?tab=catalog", label: "Catalogue", icon: ShoppingBag },
           { href: "/client?tab=pos", label: "Purchase orders", icon: FileText },
           { href: "/client?tab=settlement", label: "Settlement", icon: Receipt },

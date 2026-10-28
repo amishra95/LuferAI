@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeNextPath } from "@/lib/auth/roles";
+import { emailDomain } from "@/lib/auth/sso";
 import { siteUrl } from "@/lib/site-url";
 import { isAuthConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -54,6 +55,30 @@ export async function signInWithGoogle(formData: FormData) {
   });
   if (error) logAuthError("signInWithOAuth", error);
   if (error || !data.url) redirect("/login?error=oauth_failed");
+  redirect(data.url);
+}
+
+export interface SsoState {
+  status: "idle" | "error";
+  message?: string;
+}
+
+/**
+ * Enterprise SSO: sends the browser to the identity provider Supabase has for
+ * the email's domain (SAML, set up per company). First sign-ins are given a
+ * membership in /auth/callback when the domain is connected to a company.
+ */
+export async function signInWithSso(_prev: SsoState, formData: FormData): Promise<SsoState> {
+  const domain = emailDomain(String(formData.get("email") ?? ""));
+  const next = safeNextPath(String(formData.get("next") ?? ""));
+  if (!domain) return { status: "error", message: "Enter your work email address." };
+  if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithSSO({ domain, options: { redirectTo: await callbackUrl(next) } });
+  if (error || !data?.url) {
+    if (error) logAuthError("signInWithSSO", error);
+    return { status: "error", message: `Single sign-on isn't set up for ${domain}. Use an email link instead, or ask your IT team.` };
+  }
   redirect(data.url);
 }
 
