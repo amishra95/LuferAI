@@ -75,7 +75,7 @@ const companies: Company[] = [
 ];
 
 /** Venue profile columns (seed.sql "Venue profiles"); every venue has them, most seeds set a few. */
-type VenueProfile = Pick<Venue, "min_spend_per_head_inr" | "private_suites" | "seating_layouts" | "serves_alcohol" | "entertainment" | "cancellation_terms">;
+type VenueProfile = Pick<Venue, "min_spend_per_head_inr" | "private_suites" | "seating_layouts" | "serves_alcohol" | "entertainment" | "cancellation_terms" | "photos">;
 
 export const VENUE_PROFILE_DEFAULTS: VenueProfile = {
   min_spend_per_head_inr: 0,
@@ -84,6 +84,7 @@ export const VENUE_PROFILE_DEFAULTS: VenueProfile = {
   serves_alcohol: true,
   entertainment: [],
   cancellation_terms: [],
+  photos: [],
 };
 
 const venue = (v: Omit<Venue, "state_code" | "city" | "is_active" | "created_at" | "updated_at" | keyof VenueProfile> & Partial<VenueProfile>): Venue => ({
