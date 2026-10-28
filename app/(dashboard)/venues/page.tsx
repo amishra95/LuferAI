@@ -21,6 +21,7 @@ import { cn, formatINR } from "@/lib/utils";
 import { distanceKm, officeDistanceLabel, officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
+import { venueRatingMap } from "@/lib/venues/review-store";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, withoutCommission, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
@@ -95,13 +96,13 @@ const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString(
  */
 async function mapData(matches: DirectoryVenue[], member: { companyId: string | null; userId: string; role: string } | null): Promise<{ venues: MapVenueCard[]; office: OfficeLocation | null }> {
   const companyId = member?.companyId ?? null;
-  const [companies, policy, catalog, bookings, responseHours] = companyId
-    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId), listBookings({ companyId }), venueResponseHours()])
-    : [[], null, null, [], new Map<string, number>()];
+  const [companies, policy, catalog, bookings, responseHours, ratings] = companyId
+    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId), listBookings({ companyId }), venueResponseHours(), venueRatingMap()])
+    : [[], null, null, [], new Map<string, number>(), new Map()];
   const company = companies.find((c) => c.id === companyId);
   const office = company ? officeOf(company) : null;
   const options = new Map((catalog?.venues ?? []).map((v) => [v.id, toVenueOption(v)]));
-  const signals = venueSignals(bookings, member?.role === "CLIENT" ? member.userId : null, responseHours);
+  const signals = venueSignals(bookings, member?.role === "CLIENT" ? member.userId : null, { responseHours, ratings });
   return {
     office,
     venues: matches.map((v) => {

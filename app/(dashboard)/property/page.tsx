@@ -25,6 +25,7 @@ import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
+import { listVenueReviews } from "@/lib/venues/review-store";
 import { listEscalations, venueAlertNumber } from "@/lib/escalations/store";
 import { EscalationQueue } from "@/components/escalations/escalation-queue";
 import { parseCancellationTerms } from "@/lib/venues/profile";
@@ -45,6 +46,7 @@ import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_comp
 import { PhotoManager } from "./_components/photo-manager";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { RateCalendar } from "./_components/rate-calendar";
+import { ReviewList } from "./_components/review-list";
 import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
 
 const monthLabel = (ym: string) =>
@@ -65,7 +67,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber, liveHolds, contractCompanies, inquiries] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber, liveHolds, contractCompanies, inquiries, reviews] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -88,6 +90,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
     // Leads from the venue's AI inquiry agent (before migration 20261104000000 there are none).
     listInquiries(venue.id).catch((err) => {
       console.error("property: could not load inquiries", err);
+      return [];
+    }),
+    // Clients' reviews after their events (before migration 20261107000000 there are none).
+    listVenueReviews(venue.id).catch((err) => {
+      console.error("property: could not load reviews", err);
       return [];
     }),
   ]);
@@ -463,11 +470,14 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           names={new Map(allVenues.map((v) => [v.id, v.name]))}
         />
       ) : tab === "accounts" ? (
-        <AccountBook
-          accounts={accounts}
-          opportunities={opportunities}
-          quote={{ venueId: venue.id, companies, packages: packages.filter((p) => p.is_active), today, disabledReason: live ? undefined : "Direct quotes need the Supabase data source." }}
-        />
+        <div className="grid gap-6">
+          <ReviewList reviews={reviews} />
+          <AccountBook
+            accounts={accounts}
+            opportunities={opportunities}
+            quote={{ venueId: venue.id, companies, packages: packages.filter((p) => p.is_active), today, disabledReason: live ? undefined : "Direct quotes need the Supabase data source." }}
+          />
+        </div>
       ) : tab === "briefs" ? (
         incoming.length + upcoming.length === 0 ? (
           <EmptyState
