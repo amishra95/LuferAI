@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { DoorClosed, Heart, MapPin, MapPinOff, Star, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
+import { VenuePhoto } from "@/components/venues/venue-photo";
 import { VenueMap, type MapVenue } from "@/components/portal/venue-map";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ export interface MapVenueCard extends MapVenue {
   /** The viewer's company policy fit; undefined for admins. */
   policy?: VenuePolicyStatus;
   signals?: VenueSignals;
+  /** Cover photo URL, or null. */
+  photo_url?: string | null;
 }
 
 /**
@@ -117,6 +120,7 @@ function VenueCard({ venue: v, onOpen }: { venue: MapVenueCard; onOpen: () => vo
   const social = signalLabels(v.signals);
   return (
     <>
+      {v.photo_url ? <VenuePhoto url={v.photo_url} className="aspect-[16/9] w-full rounded-md" /> : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {/* The stretched button makes the whole card open the venue; actions sit above it. */}

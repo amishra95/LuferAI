@@ -43,6 +43,8 @@ import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-form
 import { GuardrailsForm, NegotiatorDrawer } from "./_components/negotiator-drawer";
 import { PlanAck } from "./_components/plan-ack";
 import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_components/pricing-forms";
+import { PhotoManager } from "./_components/photo-manager";
+import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { RateCalendar } from "./_components/rate-calendar";
 import { ReviewList } from "./_components/review-list";
 import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
@@ -175,7 +177,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             { key: "inquiries", label: "Inquiries" },
             { key: "accounts", label: "Accounts" },
             { key: "briefs", label: "Event Briefs" },
-            { key: "pricing", label: "Pricing" },
+            { key: "pricing", label: "Listing & pricing" },
             { key: "payouts", label: "Payouts & History" },
           ] as const
         ).map((t) => (
@@ -533,6 +535,21 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         ) : (
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
             <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Photos</CardTitle>
+                  <CardDescription>Shown on your venue card and listing. The first photo is the cover.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PhotoManager
+                    key={`photos-${venue.id}`}
+                    venueId={venue.id}
+                    venueName={venue.name}
+                    photos={(venue.photos ?? []).flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))}
+                  />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>
