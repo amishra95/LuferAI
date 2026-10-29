@@ -2,6 +2,7 @@ import "server-only";
 
 import { listVenues } from "@/lib/data";
 import { listExtranetListings } from "@/lib/partner/service";
+import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, type DirectoryVenue, type PartnerStatus } from "@/lib/venues/partner-network";
 
 export type { DirectoryVenue, PartnerStatus, VenueTier } from "@/lib/venues/partner-network";
@@ -40,7 +41,7 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
 }
 
 /**
- * Two-tier directory: Lufer.ai's own properties, plus partner listings from the
+ * Two-tier directory: Lufer's own properties, plus partner listings from the
  * federated supplier feed and from the /partner extranet.
  */
 export async function listDirectory(): Promise<{ venues: DirectoryVenue[]; partners: PartnerStatus }> {
@@ -65,6 +66,7 @@ export async function listDirectory(): Promise<{ venues: DirectoryVenue[]; partn
     bookable: true,
     latitude: v.latitude != null ? Number(v.latitude) : null,
     longitude: v.longitude != null ? Number(v.longitude) : null,
+    photo_url: venuePhotoUrls(v.photos)[0] ?? null,
   }));
   return { venues: [...own, ...partner.venues, ...extranet], partners: partner.status };
 }

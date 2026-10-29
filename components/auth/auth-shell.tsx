@@ -15,9 +15,9 @@ const POINTS = [
 
 function Wordmark({ className }: { className?: string }) {
   return (
-    <Link href="/" aria-label="Lufer.ai home" className={className}>
+    <Link href="/" aria-label="Lufer home" className={className}>
       <span className="font-display text-[1.6rem] leading-none font-semibold tracking-tight">
-        Lufer<span className="text-coral font-sans text-[0.6em]">.ai</span>
+        Lufer
       </span>
     </Link>
   );

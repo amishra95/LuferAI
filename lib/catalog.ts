@@ -5,6 +5,7 @@ import { todayInIndia } from "@/lib/gst-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Department } from "@/lib/supabase/database.types";
+import { venuePhotoUrls } from "@/lib/venues/photo-store";
 
 export interface CatalogVenue {
   id: string;
@@ -18,6 +19,8 @@ export interface CatalogVenue {
   pdr_available: boolean;
   latitude: number | null;
   longitude: number | null;
+  /** Cover photo URL, or null. */
+  photo_url: string | null;
   /** The company's corporate rate card here today, summarised for a badge (null = list pricing). */
   rate_card: { label: string; minSpendOverride: number | null } | null;
   packages: { id: string; name: string; per_head_inr: number; dietary_tags: string[]; description: string | null }[];
@@ -44,7 +47,7 @@ export async function getVenueCatalog(companyId: string): Promise<{ venues: Cata
   const venues = await listVenues();
   if (dataSource() !== "supabase") {
     return {
-      venues: venues.map((v) => ({ ...v, min_spend_inr: Number(v.min_spend_inr), latitude: v.latitude, longitude: v.longitude, rate_card: null, packages: [] })),
+      venues: venues.map((v) => ({ ...v, min_spend_inr: Number(v.min_spend_inr), latitude: v.latitude, longitude: v.longitude, photo_url: venuePhotoUrls(v.photos)[0] ?? null, rate_card: null, packages: [] })),
       departments: await listDepartments({ companyIds: [companyId] }),
     };
   }
@@ -70,6 +73,7 @@ export async function getVenueCatalog(companyId: string): Promise<{ venues: Cata
       pdr_available: v.pdr_available,
       latitude: v.latitude != null ? Number(v.latitude) : null,
       longitude: v.longitude != null ? Number(v.longitude) : null,
+      photo_url: venuePhotoUrls(v.photos)[0] ?? null,
       rate_card: summariseRateCard((cards ?? []).find((c) => c.venue_id === v.id && isRateCardActive(c, today)) ?? null),
       packages: (packages ?? [])
         .filter((p) => p.venue_id === v.id)

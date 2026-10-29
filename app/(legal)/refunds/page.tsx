@@ -6,7 +6,7 @@ import { LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Cancellation & Refund Policy",
-  description: "How cancellations, deposits and refunds work for bookings and orders on Lufer.ai.",
+  description: "How cancellations, deposits and refunds work for bookings and orders on Lufer.",
   alternates: { canonical: "/refunds" },
 };
 

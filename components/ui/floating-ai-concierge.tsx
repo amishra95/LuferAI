@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const noSubscribe = () => () => {};
 
 /*
- * Floating "Ask LuferAI Concierge" pill, bottom-right on every dashboard page
+ * Floating "Ask Lufer Concierge" pill, bottom-right on every dashboard page
  * except the chat itself. Toggles the in-page concierge drawer
  * (components/ui/chat-drawer.tsx); ⌘J / Ctrl+J does the same from anywhere.
  * ⌘K stays the command palette.
@@ -44,7 +44,7 @@ export function FloatingAiConcierge() {
     <button
       type="button"
       onClick={drawer.toggleChatDrawer}
-      aria-label="Ask LuferAI Concierge"
+      aria-label="Ask Lufer Concierge"
       aria-haspopup="dialog"
       aria-expanded={false}
       aria-keyshortcuts="Meta+J Control+J"
@@ -54,7 +54,7 @@ export function FloatingAiConcierge() {
       )}
     >
       <Sparkles className="text-coral size-5 shrink-0 sm:size-4" aria-hidden />
-      <span className="hidden text-meta font-medium sm:inline">Ask LuferAI Concierge…</span>
+      <span className="hidden text-meta font-medium sm:inline">Ask Lufer Concierge…</span>
       <kbd className="border-plum-light text-on-plum-muted hidden rounded-tile border px-1.5 text-caption sm:inline">{mod}J</kbd>
     </button>
   );

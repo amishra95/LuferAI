@@ -48,7 +48,7 @@ function systemPromptFor(agent: AgentRecord): string {
   const base =
     agent.id === "workspace-agent"
       ? WORKSPACE_AGENT_SYSTEM
-      : `You are the Lufer.ai ${agent.name.toLowerCase()} for a corporate hospitality platform in Bengaluru, India: ${agent.description} ` +
+      : `You are the Lufer ${agent.name.toLowerCase()} for a corporate hospitality platform in Bengaluru, India: ${agent.description} ` +
         "Use the tools to answer; never invent venues, prices or totals. Amounts are INR. Answer concisely in Markdown.";
   return base + instructionsSuffix(agent.instructions);
 }

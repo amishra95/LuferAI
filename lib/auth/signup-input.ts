@@ -44,7 +44,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const text = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
 const optional = (v: unknown, max: number) => text(v).slice(0, max) || null;
 
-/** "lufer.ai/acts" → "https://lufer.ai/acts"; null when it isn't an http(s) URL with a host. */
+/** "lufer.app/acts" → "https://lufer.app/acts"; null when it isn't an http(s) URL with a host. */
 export function normalizeWebsite(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;

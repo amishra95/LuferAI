@@ -5,7 +5,7 @@ import { entityName, LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Contact us",
-  description: "How to reach Lufer.ai for support, privacy requests and grievances.",
+  description: "How to reach Lufer for support, privacy requests and grievances.",
   alternates: { canonical: "/contact" },
 };
 

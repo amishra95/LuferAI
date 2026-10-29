@@ -8,6 +8,7 @@ import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header
 import { EmptyState } from "@/components/portal/empty-state";
 import { segmentClass } from "@/components/portal/segment";
 import { VenueMapView, type MapVenueCard } from "@/components/venues/venue-map-view";
+import { VenuePhoto } from "@/components/venues/venue-photo";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
@@ -20,6 +21,7 @@ import { cn, formatINR } from "@/lib/utils";
 import { distanceKm, officeDistanceLabel, officeOf, POLICY_TONE, venuePolicyStatus, type OfficeLocation } from "@/lib/venues/discovery";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
+import { venueRatingMap } from "@/lib/venues/review-store";
 import { applyVenueQuery, PAGE_SIZES, parseVenueQuery, venueHref, withoutCommission, type VenueQuery, type VenueSortKey } from "@/lib/venues/query";
 
 export const metadata: Metadata = { title: "Venues" };
@@ -50,7 +52,7 @@ function RequestRfp({ venue, className }: { venue: { name: string; neighborhood:
   );
 }
 
-/** Row action for Lufer.ai venues: the manual booking modal with the venue pre-selected. */
+/** Row action for Lufer venues: the manual booking modal with the venue pre-selected. */
 function BookManually({ venue, className }: { venue: { id: string; name: string }; className?: string }) {
   return (
     <ManualBookingModal
@@ -94,13 +96,13 @@ const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString(
  */
 async function mapData(matches: DirectoryVenue[], member: { companyId: string | null; userId: string; role: string } | null): Promise<{ venues: MapVenueCard[]; office: OfficeLocation | null }> {
   const companyId = member?.companyId ?? null;
-  const [companies, policy, catalog, bookings, responseHours] = companyId
-    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId), listBookings({ companyId }), venueResponseHours()])
-    : [[], null, null, [], new Map<string, number>()];
+  const [companies, policy, catalog, bookings, responseHours, ratings] = companyId
+    ? await Promise.all([listCompanies(), getCorporatePolicy(companyId), getVenueCatalog(companyId), listBookings({ companyId }), venueResponseHours(), venueRatingMap()])
+    : [[], null, null, [], new Map<string, number>(), new Map()];
   const company = companies.find((c) => c.id === companyId);
   const office = company ? officeOf(company) : null;
   const options = new Map((catalog?.venues ?? []).map((v) => [v.id, toVenueOption(v)]));
-  const signals = venueSignals(bookings, member?.role === "CLIENT" ? member.userId : null, responseHours);
+  const signals = venueSignals(bookings, member?.role === "CLIENT" ? member.userId : null, { responseHours, ratings });
   return {
     office,
     venues: matches.map((v) => {
@@ -123,6 +125,7 @@ async function mapData(matches: DirectoryVenue[], member: { companyId: string | 
         distance: officeDistanceLabel(office, { latitude: v.latitude ?? null, longitude: v.longitude ?? null }),
         policy: fit,
         signals: signals.get(v.id),
+        photo_url: v.photo_url ?? null,
       };
     }),
   };
@@ -147,7 +150,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
     <Page>
       <PageHeader
         title="Venues"
-        description={admin ? "Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
+        description={admin ? "Lufer's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
         badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
       />
 
@@ -171,7 +174,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
           <span className="sr-only">Directory tier</span>
           <select name="tier" defaultValue={query.tier} className="field">
             <option value="">All tiers</option>
-            <option value="internal">Lufer.ai venues</option>
+            <option value="internal">Lufer venues</option>
             <option value="partner">Partner network</option>
           </select>
         </label>
@@ -220,7 +223,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
 
       {partners.status === "unavailable" && (
         <p role="status" className="border-line bg-surface text-fg-subtle mb-3 rounded-lg border px-4 py-2.5 text-meta">
-          {partners.network} is unavailable right now ({partners.error}). Showing Lufer.ai venues only.
+          {partners.network} is unavailable right now ({partners.error}). Showing Lufer venues only.
         </p>
       )}
 
@@ -271,8 +274,9 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
               <ul className="md:hidden">
                 {rows.map((v) => (
                   <InspectableRow key={v.id} kind="venue" id={v.id} className="border-line hover:bg-surface-hover border-b px-4 py-3.5 last:border-b-0">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-fg min-w-0 truncate text-body font-medium">
+                    <div className="flex items-center justify-between gap-3">
+                      <VenuePhoto url={v.photo_url} className="size-10 shrink-0 rounded-md" />
+                      <p className="text-fg min-w-0 flex-1 truncate text-body font-medium">
                         <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
                           {v.name}
                         </InspectButton>
@@ -320,14 +324,19 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                     {rows.map((v) => (
                       <InspectableRow as="tr" key={v.id} kind="venue" id={v.id} className="group border-line hover:bg-surface-hover border-b transition-colors last:border-b-0">
                         <td className="max-w-80 py-3 pr-4 pl-5">
-                          <p className="text-fg truncate font-medium">
-                            <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
-                              {v.name}
-                            </InspectButton>
-                          </p>
-                          <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
-                            {v.address}
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <VenuePhoto url={v.photo_url} className="size-10 shrink-0 rounded-md" />
+                            <div className="min-w-0">
+                              <p className="text-fg truncate font-medium">
+                                <InspectButton kind="venue" id={v.id} label={v.name} className="block truncate">
+                                  {v.name}
+                                </InspectButton>
+                              </p>
+                              <p className="text-fg-subtle mt-0.5 truncate text-caption" title={v.address}>
+                                {v.address}
+                              </p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4">
                           <TierBadge venue={v} />
@@ -424,8 +433,8 @@ function PageLink({ query, page, disabled, label, children }: { query: VenueQuer
 function TierBadge({ venue }: { venue: { tier: "internal" | "partner"; supplier: string | null } }) {
   if (venue.tier === "internal") {
     return (
-      <span className="pill" title="Lufer.ai venue: book directly">
-        <span className="bg-fg size-1.5 rounded-full" aria-hidden /> Lufer.ai
+      <span className="pill" title="Lufer venue: book directly">
+        <span className="bg-fg size-1.5 rounded-full" aria-hidden /> Lufer
       </span>
     );
   }

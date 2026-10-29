@@ -10,17 +10,17 @@
 export const PENDING = null;
 
 export const LEGAL = {
-  brand: "Lufer.ai",
+  brand: "Lufer",
   /** Registered company name, e.g. "Lufer Technologies Private Limited". */
   legalEntity: PENDING as string | null,
   /** Registered office address. */
   registeredAddress: PENDING as string | null,
   /** CIN, if incorporated. */
   cin: PENDING as string | null,
-  supportEmail: "support@lufer.ai",
-  privacyEmail: "privacy@lufer.ai",
+  supportEmail: "support@lufer.app",
+  privacyEmail: "privacy@lufer.app",
   /** Grievance Officer under the DPDP Act 2023 and the IT Rules 2021. */
-  grievanceOfficer: { name: PENDING as string | null, email: "grievance@lufer.ai" },
+  grievanceOfficer: { name: PENDING as string | null, email: "grievance@lufer.app" },
   /** Courts with jurisdiction under the Terms. */
   jurisdictionCity: "Bengaluru",
   lastUpdated: "26 October 2026",

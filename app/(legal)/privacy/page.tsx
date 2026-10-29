@@ -6,7 +6,7 @@ import { entityName, LEGAL, PROCESSORS } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Lufer.ai collects, uses and protects personal data under India's Digital Personal Data Protection Act, 2023.",
+  description: "How Lufer collects, uses and protects personal data under India's Digital Personal Data Protection Act, 2023.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
     >
       <h2>1. Who is responsible</h2>
       <p>
-        {us} is the Data Fiduciary for personal data processed through lufer.ai and our apps. Registered office: <Detail value={LEGAL.registeredAddress} label="Registered address" />.
+        {us} is the Data Fiduciary for personal data processed through lufer.app and our apps. Registered office: <Detail value={LEGAL.registeredAddress} label="Registered address" />.
         Questions about this policy: <a href={`mailto:${LEGAL.privacyEmail}`}>{LEGAL.privacyEmail}</a>.
       </p>
       <p>

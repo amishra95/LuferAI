@@ -6,7 +6,7 @@ import { entityName, LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The terms for companies, venues and partners using the Lufer.ai corporate events marketplace.",
+  description: "The terms for companies, venues and partners using the Lufer corporate events marketplace.",
   alternates: { canonical: "/terms" },
 };
 
@@ -17,7 +17,7 @@ export default function TermsPage() {
       title="Terms of Service"
       intro={
         <p>
-          These terms are an agreement between you and {us} (&ldquo;{LEGAL.brand}&rdquo;, &ldquo;we&rdquo;) for the use of lufer.ai, our apps and related
+          These terms are an agreement between you and {us} (&ldquo;{LEGAL.brand}&rdquo;, &ldquo;we&rdquo;) for the use of lufer.app, our apps and related
           services (the &ldquo;Service&rdquo;). If you accept them for a company, you confirm you&apos;re authorised to bind it. Please also read our{" "}
           <Link href="/privacy">Privacy Policy</Link> and <Link href="/refunds">Cancellation &amp; Refund Policy</Link>.
         </p>

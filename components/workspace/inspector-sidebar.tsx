@@ -410,7 +410,7 @@ function RetryTest({ agentId }: { agentId: string }) {
 /**
  * The venue's booking actions (admins and every client role): plan it with the
  * concierge (drawer, pre-filled brief), or book it by hand (the manual booking
- * modal, venue pre-selected; Lufer.ai venues only, partner listings quote via their network).
+ * modal, venue pre-selected; Lufer venues only, partner listings quote via their network).
  */
 function VenueBookingActions({ entity, className }: { entity: VenueDetail; className?: string }) {
   const { venue } = entity;
@@ -440,7 +440,7 @@ function VenueBody({ entity, sync }: { entity: VenueDetail; sync: Extract<Teleme
   const { venue } = entity;
   return (
     <>
-      <Title aside={<span className="pill">{venue.tier === "internal" ? "Lufer.ai" : "partner"}</span>}>
+      <Title aside={<span className="pill">{venue.tier === "internal" ? "Lufer" : "partner"}</span>}>
         <p className="text-fg text-body font-semibold tracking-[-0.01em]">{venue.name}</p>
         <p className="text-fg-subtle mt-0.5 text-meta">{venue.address || `${venue.neighborhood}, ${venue.city}`}</p>
       </Title>
