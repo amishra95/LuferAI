@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
 
@@ -109,6 +110,17 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
         Apply and confirm my email
       </Button>
+      <p className="text-fg-subtle text-caption">
+        By applying you agree to our{" "}
+        <Link href="/terms" target="_blank" className="text-link underline underline-offset-2">
+          Terms of Service
+        </Link>{" "}
+        and confirm you&apos;ve read our{" "}
+        <Link href="/privacy" target="_blank" className="text-link underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </form>
   );
 }
