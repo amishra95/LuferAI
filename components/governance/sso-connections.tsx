@@ -16,7 +16,7 @@ const ROLE_LABEL = { ORGANIZER: "Organizer", APPROVER: "Approver", FINANCE_VIEWE
 /**
  * The company's single sign-on domains: employees on a connected domain sign
  * in through the company's identity provider and join as `default_role` the
- * first time. Lufer.ai admins connect them after registering the SAML
+ * first time. Lufer admins connect them after registering the SAML
  * provider in Supabase Auth; the company's own users see them read-only.
  */
 export function SsoConnections({
@@ -88,7 +88,7 @@ export function SsoConnections({
             ))}
           </ul>
         ) : (
-          <p className="text-fg-subtle text-meta">No domains connected. {canManage ? "" : "Ask Lufer.ai support to set up SSO for your company."}</p>
+          <p className="text-fg-subtle text-meta">No domains connected. {canManage ? "" : "Ask Lufer support to set up SSO for your company."}</p>
         )}
 
         {canManage && !unavailable ? (

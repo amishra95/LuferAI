@@ -270,7 +270,7 @@ test("an unlinked number can't decide, even with a genuine button", async () => 
   await metaPress({ from: "919800000000", buttonId: button(STEP1, "APPROVED", ARJUN) });
   assert.equal((await approvalById(STEP1)).status, "PENDING");
   await waitFor(() => textsTo("919800000000").length === 1, "refusal");
-  assert.match(textsTo("919800000000")[0], /isn't linked to a Lufer\.ai approver/);
+  assert.match(textsTo("919800000000")[0], /isn't linked to a Lufer approver/);
 });
 
 test("a forwarded button pressed by another approver is refused", async () => {

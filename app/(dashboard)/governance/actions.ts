@@ -62,7 +62,7 @@ export async function budgetCommandAction(companyId: string | null, input: Budge
  */
 async function ssoScope(companyId: string | null) {
   const { member, company } = await scope(companyId);
-  if (member.role !== "ADMIN") throw new ActionError("Only Lufer.ai admins can change single sign-on.");
+  if (member.role !== "ADMIN") throw new ActionError("Only Lufer admins can change single sign-on.");
   return company;
 }
 

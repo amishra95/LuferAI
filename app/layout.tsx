@@ -29,14 +29,14 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl("http://localhost:3000")),
   title: {
-    default: "Lufer.ai — Corporate events & hospitality for India",
-    template: "%s · Lufer.ai",
+    default: "Lufer — Corporate events & hospitality for India",
+    template: "%s · Lufer",
   },
   description: DESCRIPTION,
-  applicationName: "Lufer.ai",
+  applicationName: "Lufer",
   keywords: ["corporate events India", "team offsite", "venue booking", "corporate hospitality", "GST invoice", "SAC 998596", "event procurement"],
-  openGraph: { type: "website", siteName: "Lufer.ai", locale: "en_IN", title: "Lufer.ai — Corporate events & hospitality for India", description: DESCRIPTION },
-  twitter: { card: "summary_large_image", title: "Lufer.ai — Corporate events & hospitality for India", description: DESCRIPTION },
+  openGraph: { type: "website", siteName: "Lufer", locale: "en_IN", title: "Lufer — Corporate events & hospitality for India", description: DESCRIPTION },
+  twitter: { card: "summary_large_image", title: "Lufer — Corporate events & hospitality for India", description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

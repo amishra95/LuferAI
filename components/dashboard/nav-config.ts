@@ -32,8 +32,8 @@ import type { NavSection, Side } from "@/types/navigation";
 
 /**
  * The app has two sides, like the marketplace it runs: companies that book
- * events, and venues that host them (Lufer.ai's own venues and partner
- * suppliers share the venue side). Lufer.ai staff get a third, Operator.
+ * events, and venues that host them (Lufer's own venues and partner
+ * suppliers share the venue side). Lufer staff get a third, Operator.
  * Company and venue users see only their own side; admins see every side
  * in one sidebar (allSides).
  *
@@ -80,7 +80,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
   venue: {
     label: "For venues",
     sections: [
-      // Lufer.ai's own venues (property managers).
+      // Lufer's own venues (property managers).
       {
         title: "Bookings",
         items: [

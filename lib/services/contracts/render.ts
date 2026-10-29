@@ -86,7 +86,7 @@ export function exportWithCertificate(contract: { document_html: string; documen
     ["Document SHA-256", contract.document_sha256],
     ["Integrity", intact ? "The document above matches this fingerprint." : "WARNING: the stored document does not match its fingerprint."],
     ["Status", contract.status.replace("_", " ")],
-    ["Signed via", contract.provider === "dropbox_sign" ? "Dropbox Sign" : "Lufer.ai in-app signature"],
+    ["Signed via", contract.provider === "dropbox_sign" ? "Dropbox Sign" : "Lufer in-app signature"],
   ];
   const signed = signatures
     .slice()

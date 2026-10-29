@@ -45,7 +45,7 @@ export interface IcsEvent {
 }
 
 const IST_OFFSET_MIN = 330;
-const PRODID = "-//LuferAI//Event Workspace//EN";
+const PRODID = "-//Lufer//Event Workspace//EN";
 
 /** IST date + time → UTC basic format, e.g. 20261120T133000Z. */
 export function istToUtcStamp(date: string, time: string, addDays = 0): string {

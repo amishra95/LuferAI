@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const root = await readCxml(request);
     const connection = await authenticate(senderOf(root));
     const order = await receiveOrder(connection, parseOrderRequest(root));
-    const note = order.status === "received" ? `Order ${order.order_id} received.` : `Order ${order.order_id} received; some lines need review by Lufer.ai.`;
+    const note = order.status === "received" ? `Order ${order.order_id} received.` : `Order ${order.order_id} received; some lines need review by Lufer.`;
     return xmlResponse(statusResponse(payloadId(), timestamp(), 200, note));
   } catch (err) {
     return cxmlFailure("api/punchout/order", err);

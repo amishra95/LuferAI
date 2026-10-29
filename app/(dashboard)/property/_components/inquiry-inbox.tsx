@@ -49,7 +49,7 @@ export function InquiryInbox({ venueId, venueName, link, inquiries, names }: { v
           </CardTitle>
           <CardDescription>
             Put it on your website, Instagram bio and email signature. An AI assistant answers from {venueName}&apos;s own details, checks your calendar, and collects what you need to quote. When
-            you&apos;re booked out, it suggests other venues on Lufer.ai, so the client stays in the network.
+            you&apos;re booked out, it suggests other venues on Lufer, so the client stays in the network.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">

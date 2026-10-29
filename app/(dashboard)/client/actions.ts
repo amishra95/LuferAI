@@ -159,7 +159,7 @@ export async function submitBookingRequest(
   if (member.role === "ADMIN") {
     const onBehalf = (await listPortalUsers({ companyId })).find((u) => u.id === userId);
     if (!onBehalf) return { status: "error", message: "Choose who this request is filed for." };
-    notes = [`Filed by a Lufer.ai admin${member.email ? ` (${member.email})` : ""} on behalf of ${onBehalf.name}.`, notes].filter(Boolean).join("\n\n");
+    notes = [`Filed by a Lufer admin${member.email ? ` (${member.email})` : ""} on behalf of ${onBehalf.name}.`, notes].filter(Boolean).join("\n\n");
   }
 
   const result = await placeBookingRequest({

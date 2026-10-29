@@ -41,7 +41,7 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
 }
 
 /**
- * Two-tier directory: Lufer.ai's own properties, plus partner listings from the
+ * Two-tier directory: Lufer's own properties, plus partner listings from the
  * federated supplier feed and from the /partner extranet.
  */
 export async function listDirectory(): Promise<{ venues: DirectoryVenue[]; partners: PartnerStatus }> {

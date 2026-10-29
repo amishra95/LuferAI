@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { CxmlError, MAX_CXML_BYTES, parseCxml, statusResponse } from "@/lib/punchout/cxml";
 
-export const payloadId = () => `${Date.now()}.${randomUUID()}@lufer.ai`;
+export const payloadId = () => `${Date.now()}.${randomUUID()}@lufer.app`;
 export const timestamp = () => new Date().toISOString();
 
 export const xmlResponse = (body: string, status = 200) =>

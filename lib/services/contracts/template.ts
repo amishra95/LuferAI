@@ -49,7 +49,7 @@ export function sections(t: ContractTerms): Section[] {
       blocks: [
         {
           kind: "p",
-          text: `This Venue Services Agreement (the "Agreement") is made between ${t.client.legalName}, GSTIN ${t.client.billingGstin ?? t.client.gstin} (the "Client"), and ${t.venue.legalName}, ${t.venue.address ? `${t.venue.address}, ` : ""}${t.venue.neighborhood}, ${t.venue.city}, GSTIN ${t.venue.gstin} (the "Venue"), for the event booked on the Lufer.ai platform under reference ${t.bookingId}.`,
+          text: `This Venue Services Agreement (the "Agreement") is made between ${t.client.legalName}, GSTIN ${t.client.billingGstin ?? t.client.gstin} (the "Client"), and ${t.venue.legalName}, ${t.venue.address ? `${t.venue.address}, ` : ""}${t.venue.neighborhood}, ${t.venue.city}, GSTIN ${t.venue.gstin} (the "Venue"), for the event booked on the Lufer platform under reference ${t.bookingId}.`,
         },
       ],
     },

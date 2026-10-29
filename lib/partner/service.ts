@@ -82,7 +82,7 @@ export async function listAudit(partnerId: string, limit = 50): Promise<(Partner
     .limit(limit);
   if (error) throw error;
   const emails = await emailsFor(data.map((d) => d.actor_id).filter((id): id is string => Boolean(id)));
-  return data.map((d) => ({ ...d, actor: (d.actor_id && emails.get(d.actor_id)) || "Lufer.ai admin" }));
+  return data.map((d) => ({ ...d, actor: (d.actor_id && emails.get(d.actor_id)) || "Lufer admin" }));
 }
 
 // ----------------------------------------------------------------------------
@@ -273,7 +273,7 @@ export async function inviteMember(partnerId: string, email: string, partnerRole
   if (lookupError) throw lookupError;
   if (existing) {
     throw new PartnerError(
-      existing.partner_id === partnerId ? "They're already on your team." : "That person already has a Lufer.ai account for another organisation.",
+      existing.partner_id === partnerId ? "They're already on your team." : "That person already has a Lufer account for another organisation.",
       "email"
     );
   }

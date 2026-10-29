@@ -21,7 +21,7 @@ const ORDER_STATUS: Record<string, { label: string; variant: "success" | "warnin
 
 /**
  * cXML PunchOut: the company's procurement systems (Coupa, SAP Ariba…) that
- * open the Lufer.ai catalogue from a requisition, and the purchase orders
+ * open the Lufer catalogue from a requisition, and the purchase orders
  * they've sent. Admins create connections; the shared secret shows once.
  */
 export function PunchoutConnections({
@@ -70,7 +70,7 @@ export function PunchoutConnections({
           <ShoppingCart className="text-fg-subtle mt-0.5 size-5 shrink-0" aria-hidden />
           <div className="text-fg-subtle grid gap-1 text-meta leading-5">
             <p>
-              Employees open the Lufer.ai catalogue from a requisition in Coupa, SAP Ariba or any cXML procurement system, fill a cart, and send it back for approval. The approved purchase order
+              Employees open the Lufer catalogue from a requisition in Coupa, SAP Ariba or any cXML procurement system, fill a cart, and send it back for approval. The approved purchase order
               returns here, matched to the cart. {unavailable ? `Unavailable: ${unavailable}.` : null}
             </p>
             <p>
@@ -118,7 +118,7 @@ export function PunchoutConnections({
             ))}
           </ul>
         ) : (
-          <p className="text-fg-subtle text-meta">No procurement system connected.{canManage ? "" : " Ask Lufer.ai support to set up punchout."}</p>
+          <p className="text-fg-subtle text-meta">No procurement system connected.{canManage ? "" : " Ask Lufer support to set up punchout."}</p>
         )}
 
         {canManage && !unavailable ? (

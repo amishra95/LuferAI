@@ -72,7 +72,7 @@ export function PartnerPayouts({
         <CardHeader>
           <CardTitle>Payout account</CardTitle>
           <CardDescription>
-            Buyers pay Lufer.ai; your share is transferred to your Razorpay Route linked account when you confirm, held until you mark the order delivered, then settled to your bank on
+            Buyers pay Lufer; your share is transferred to your Razorpay Route linked account when you confirm, held until you mark the order delivered, then settled to your bank on
             Razorpay&apos;s schedule. Commission: {Math.round(Number(partner.commission_rate) * 10_000) / 100}% of the pre-GST value, plus 18% GST on it.
           </CardDescription>
         </CardHeader>
@@ -84,7 +84,7 @@ export function PartnerPayouts({
               Connected: {partner.razorpay_account_id.slice(0, 8)}…{partner.razorpay_account_id.slice(-4)}
             </p>
           ) : (
-            <p className="text-warn text-meta">Not connected yet. Paid orders wait until your Lufer.ai contact connects your Razorpay linked account.</p>
+            <p className="text-warn text-meta">Not connected yet. Paid orders wait until your Lufer contact connects your Razorpay linked account.</p>
           )}
         </CardContent>
       </Card>
@@ -160,7 +160,7 @@ export function PartnerPayouts({
         <CardHeader>
           <CardTitle>TCS collected (Section 52)</CardTitle>
           <CardDescription>
-            Reported by Lufer.ai in GSTR-8 for each month; it appears in your GSTR-2X for you to accept and claim as credit. Returns are deducted in the month they happen.
+            Reported by Lufer in GSTR-8 for each month; it appears in your GSTR-2X for you to accept and claim as credit. Returns are deducted in the month they happen.
             {isAdmin ? (
               <>
                 {" "}

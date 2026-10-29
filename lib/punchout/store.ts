@@ -13,7 +13,7 @@ export type PunchoutOrder = Tables<"punchout_orders">;
 /** How long a punchout start page stays valid. */
 const SESSION_HOURS = 2;
 /** Our cXML identity on the cart we send back. */
-export const supplierIdentity = () => (process.env.PUNCHOUT_SUPPLIER_IDENTITY ?? "").trim() || "lufer.ai";
+export const supplierIdentity = () => (process.env.PUNCHOUT_SUPPLIER_IDENTITY ?? "").trim() || "lufer.app";
 
 /** A reason an admin or shopper sees. */
 export class PunchoutError extends Error {}
