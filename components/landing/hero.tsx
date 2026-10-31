@@ -63,7 +63,7 @@ export function Hero() {
             <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
               Plan your first event <ArrowRight className="size-4" aria-hidden />
             </Link>
-            <Link href="/signup?type=partner" className="landing-btn landing-btn-outline w-full sm:w-auto">
+            <Link href="/signup?type=venue" className="landing-btn landing-btn-outline w-full sm:w-auto">
               List your venue
             </Link>
           </div>

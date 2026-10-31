@@ -58,8 +58,8 @@ const TABS: Tab[] = ["requests", "inquiries", "accounts", "briefs", "pricing", "
 export default async function PropertyPage({ searchParams }: PageProps<"/property">) {
   const member = await requirePortal("/property");
   const { venue: venueParam, tab: tabParam } = await searchParams;
-  const allVenues = await listVenues();
-  // Property managers are pinned to their own venue; admins may switch via ?venue=<id>.
+  const allVenues = await listVenues({ includeUnlisted: true });
+  // Property managers are pinned to their own venue, listed or not; admins may switch via ?venue=<id>.
   const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
   if (!venue) notFound();
@@ -152,6 +152,17 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             </Link>
           ))}
         </div>
+      ) : null}
+
+      {!venue.is_active ? (
+        <p role="note" className="badge-warn mb-8 rounded-md px-4 py-3 text-body">
+          {member.role === "ADMIN" ? "Unlisted: companies can't find or book this venue until you publish it from Account approvals." : "Your venue isn't listed yet. We're verifying it, usually within one working day; meanwhile, add photos, pricing and packages so it's ready when companies find it."}{" "}
+          {member.role === "ADMIN" ? null : (
+            <Link href="/property/welcome" className="text-link underline-offset-2 hover:underline">
+              Setup checklist
+            </Link>
+          )}
+        </p>
       ) : null}
 
       <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">

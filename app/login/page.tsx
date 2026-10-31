@@ -11,7 +11,7 @@ import { LoginForm } from "./_components/login-form";
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
-  no_access: "Your account isn't linked to a portal yet. Apply for an account below, or ask a platform admin to grant access.",
+  no_access: "Your account isn't linked to a portal yet. Create an account below, or ask a platform admin to grant access.",
   link_invalid: "That sign-in link is invalid or has expired. Request a new one.",
   oauth_failed: "Google sign-in couldn't be started. Please try again.",
   auth_unconfigured: "Sign-in is unavailable: Supabase isn't configured (see .env.example).",
@@ -49,7 +49,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <p className="text-fg-subtle text-center text-meta">
         New to Lufer?{" "}
         <Link href="/signup" className="text-link underline-offset-2 hover:underline">
-          Apply for an account
+          Create an account
         </Link>
       </p>
     </AuthShell>

@@ -13,11 +13,18 @@ import { formatDate } from "@/lib/utils";
 import { signOut } from "../../login/actions";
 
 export const metadata: Metadata = { title: "Application received" };
+
+const TYPE: Record<string, { account: string; org: string; portal: string }> = {
+  enterprise: { account: "Enterprise", org: "Company", portal: "company" },
+  venue: { account: "Venue", org: "Venue", portal: "venue" },
+  partner: { account: "Partner", org: "Business", portal: "partner" },
+};
 export const dynamic = "force-dynamic";
 
 /**
- * The waiting room for applicants without portal access: their application
- * as submitted, and what happens next (or why it wasn't approved). Members go
+ * The waiting room for applicants without portal access (those joining a
+ * company or venue already on Lufer, which an admin decides): their
+ * application as submitted, and what happens next (or why it wasn't approved). Members go
  * to their portal; people who never applied, to "no access".
  */
 export default async function PendingPage() {
@@ -30,8 +37,8 @@ export default async function PendingPage() {
 
   const rejected = application.status === "rejected";
   const details: [string, string][] = [
-    ["Account", application.account_type === "partner" ? "Partner" : "Enterprise"],
-    [application.account_type === "partner" ? "Business" : "Company", application.company_name],
+    ["Account", TYPE[application.account_type]?.account ?? "Enterprise"],
+    [TYPE[application.account_type]?.org ?? "Company", application.company_name],
     ...(application.partner_role ? [["Offers", PARTNER_KIND_LABEL[application.partner_role as PartnerKind] ?? application.partner_role] as [string, string]] : []),
     ...(application.venue_website ? [["Website", application.venue_website] as [string, string]] : []),
     ...(application.gstin ? [["GSTIN", application.gstin] as [string, string]] : []),
@@ -50,7 +57,7 @@ export default async function PendingPage() {
           <CardDescription>
             {rejected
               ? "Your account wasn't approved. If you think that's a mistake, reply to the email you received or contact support@lufer.app."
-              : `Thanks, ${application.full_name.split(" ")[0]}. Our team reviews every account, usually within one working day. We'll email ${application.email} when you're approved, and you'll go straight to your ${application.account_type === "partner" ? "partner" : "company"} portal when you next sign in.`}
+              : `Thanks, ${application.full_name.split(" ")[0]}. Our team reviews every account, usually within one working day. We'll email ${application.email} when you're approved, and you'll go straight to your ${TYPE[application.account_type]?.portal ?? "company"} portal when you next sign in.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

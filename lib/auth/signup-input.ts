@@ -6,7 +6,7 @@
  */
 import { validateGstin } from "../gst-engine.ts";
 import { normalizePhone } from "../phone.ts";
-import type { AccountType } from "./onboarding.ts";
+import { isAccountType, type AccountType } from "./onboarding.ts";
 
 export const PARTNER_KINDS = ["entertainment", "experiences", "catering", "decor", "av_production", "gifting", "other"] as const;
 export type PartnerKind = (typeof PARTNER_KINDS)[number];
@@ -30,12 +30,16 @@ export interface SignupInput {
   job_title: string | null;
   city: string | null;
   message: string | null;
-  /** Enterprise: required (its invoices are raised on it). Partner: optional. */
+  /** Enterprise and venue: required (invoices are raised on it). Partner: optional. */
   gstin: string | null;
-  /** Partner: their website, portfolio or showreel. */
+  /** Partner: their website, portfolio or showreel (required). Venue: its website (optional). */
   venue_website: string | null;
   /** Partner: what they offer. */
   partner_role: PartnerKind | null;
+  /** Venue (required for one, null otherwise): the neighbourhood, street address and most guests it seats. `city` is required too. */
+  venue_area: string | null;
+  venue_address: string | null;
+  venue_capacity: number | null;
 }
 
 export type SignupField = Exclude<keyof SignupInput, "account_type">;
@@ -59,15 +63,16 @@ export function normalizeWebsite(raw: string): string | null {
 
 export function parseSignupInput(raw: Record<string, unknown>): { ok: true; value: SignupInput } | { ok: false; errors: Partial<Record<SignupField | "account_type", string>> } {
   const errors: Partial<Record<SignupField | "account_type", string>> = {};
-  const accountType = raw.account_type === "enterprise" || raw.account_type === "partner" ? raw.account_type : null;
-  if (!accountType) errors.account_type = "Choose enterprise or partner.";
+  const accountType = isAccountType(raw.account_type) ? raw.account_type : null;
+  if (!accountType) errors.account_type = "Choose a company, venue or partner account.";
 
   const email = text(raw.email).toLowerCase();
   if (!EMAIL.test(email) || email.length > 254) errors.email = "Enter a valid work email.";
   const fullName = text(raw.full_name);
   if (fullName.length < 2 || fullName.length > 120) errors.full_name = "Enter your full name.";
   const company = text(raw.company_name);
-  if (company.length < 2 || company.length > 120) errors.company_name = accountType === "partner" ? "Enter your business or stage name." : "Enter your company's legal name.";
+  if (company.length < 2 || company.length > 120)
+    errors.company_name = accountType === "partner" ? "Enter your business or stage name." : accountType === "venue" ? "Enter your venue's name." : "Enter your company's legal name.";
 
   const phoneRaw = text(raw.phone);
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
@@ -81,6 +86,8 @@ export function parseSignupInput(raw: Record<string, unknown>): { ok: true; valu
     else errors.gstin = "That GSTIN isn't valid. Check the 15 characters.";
   } else if (accountType === "enterprise") {
     errors.gstin = "Enter your company's GSTIN: invoices are raised on it.";
+  } else if (accountType === "venue") {
+    errors.gstin = "Enter your venue's GSTIN: bookings are invoiced on it.";
   }
 
   let website: string | null = null;
@@ -90,6 +97,24 @@ export function parseSignupInput(raw: Record<string, unknown>): { ok: true; valu
     if (!website) errors.venue_website = "Add your website, portfolio or showreel link.";
     kind = (PARTNER_KINDS as readonly string[]).includes(String(raw.partner_role)) ? (raw.partner_role as PartnerKind) : null;
     if (!kind) errors.partner_role = "Choose what you offer.";
+  }
+
+  let area: string | null = null;
+  let address: string | null = null;
+  let capacity: number | null = null;
+  const city = optional(raw.city, 80);
+  if (accountType === "venue") {
+    const websiteRaw = text(raw.venue_website);
+    website = websiteRaw ? normalizeWebsite(websiteRaw) : null;
+    if (websiteRaw && !website) errors.venue_website = "That doesn't look like a website address.";
+    if (!city || city.length < 2) errors.city = "Enter the city your venue is in.";
+    area = text(raw.venue_area);
+    if (area.length < 2 || area.length > 80) errors.venue_area = "Enter the area, e.g. Indiranagar.";
+    address = text(raw.venue_address);
+    if (address.length < 5 || address.length > 300) errors.venue_address = "Enter the venue's street address.";
+    const seats = Number(text(raw.venue_capacity));
+    capacity = Number.isInteger(seats) && seats >= 1 && seats <= 100000 ? seats : null;
+    if (!capacity) errors.venue_capacity = "Enter the most guests you can host, e.g. 120.";
   }
 
   const message = optional(raw.message, 1000);
@@ -103,11 +128,14 @@ export function parseSignupInput(raw: Record<string, unknown>): { ok: true; valu
       company_name: company,
       phone: phone || null,
       job_title: optional(raw.job_title, 120),
-      city: optional(raw.city, 80),
+      city,
       message,
       gstin,
       venue_website: website,
       partner_role: kind,
+      venue_area: area,
+      venue_address: address,
+      venue_capacity: capacity,
     },
   };
 }

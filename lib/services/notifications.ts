@@ -90,7 +90,7 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
   try {
     const first = app.full_name.split(" ")[0];
     const signIn = new URL("/login", siteUrl("http://localhost:3000")).toString();
-    const portal = app.account_type === "partner" ? "partner portal" : "company portal";
+    const portal = app.account_type === "partner" ? "partner portal" : app.account_type === "venue" ? "venue portal" : "company portal";
     const approved = app.status === "active";
     const subject = approved ? "Your Lufer account is approved" : "Your Lufer application";
     const lines = approved
