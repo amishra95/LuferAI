@@ -16,9 +16,9 @@ export interface SignupState {
 
 /**
  * Sends the applicant a magic link that creates their account. The form's
- * details go in the new user's metadata; /auth/callback records the
- * application once the link proves the email is theirs. Nothing grants
- * access: that's an admin's approval (/admin/approvals).
+ * details go in the new user's metadata; /auth/callback records and
+ * activates the application once the link proves the email is theirs.
+ * Nothing grants access before then.
  *
  * An address that already has an account gets an ordinary sign-in link
  * (Supabase ignores the metadata then), and the reply is the same either way,
@@ -46,5 +46,5 @@ export async function submitSignup(_prev: SignupState, form: FormData): Promise<
     }
     return { status: "error", message: "We couldn't send the confirmation email. Please try again shortly." };
   }
-  return { status: "sent", message: `Check ${parsed.value.email} and open the link to confirm it's you. We'll review your application once you do.` };
+  return { status: "sent", message: `Check ${parsed.value.email} and open the link to confirm it's you. Your account is ready as soon as you do.` };
 }
