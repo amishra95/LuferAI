@@ -213,7 +213,7 @@ export function ForVenues() {
             title="Win corporate business without the agency in between"
             body="Restaurants, hotels, experience studios, caterers and artists: get structured requests from companies and quote them directly."
           />
-          <Link href="/signup?type=partner" className="landing-btn landing-btn-outline mt-8">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline mt-8">
             List your venue <ArrowRight className="size-4" aria-hidden />
           </Link>
         </div>
@@ -299,7 +299,7 @@ const FAQ = [
   },
   {
     q: "How do we get started?",
-    a: "Apply for an account. We review every application, usually within one working day, and then your team can book straight away.",
+    a: "Create an account and confirm your email: you can start planning straight away. Venues can set up their listing straight away too, and go live once we've verified them, usually within one working day.",
   },
 ];
 
@@ -337,13 +337,13 @@ export function FinalCta() {
           Your next offsite, without the week of emails
         </h2>
         <p className="text-on-plum-muted relative mx-auto mt-4 max-w-xl">
-          Apply in two minutes. We review every account, usually within one working day.
+          Sign up in two minutes and start planning as soon as you confirm your email.
         </p>
         <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
             Plan your first event <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link href="/signup?type=partner" className="landing-btn landing-btn-ghost w-full sm:w-auto">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-ghost w-full sm:w-auto">
             I run a venue
           </Link>
         </div>

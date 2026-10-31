@@ -3120,6 +3120,10 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
           venue_website: string | null
         }
         Insert: {
@@ -3143,6 +3147,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          venue_address?: string | null
+          venue_area?: string | null
+          venue_capacity?: number | null
+          venue_id?: string | null
           venue_website?: string | null
         }
         Update: {
@@ -3166,6 +3174,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          venue_address?: string | null
+          venue_area?: string | null
+          venue_capacity?: number | null
+          venue_id?: string | null
           venue_website?: string | null
         }
         Relationships: [
@@ -3174,6 +3186,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signup_applications_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
           {
@@ -4123,25 +4142,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      budget_hold_status_for: {
-        Args: { subject_status: string }
-        Returns: string
-      }
-      can_join_event_channel: { Args: { topic: string }; Returns: boolean }
-      current_company_id: { Args: never; Returns: string }
-      current_partner_id: { Args: never; Returns: string }
-      current_partner_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["partner_role"]
-      }
-      current_portal_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["portal_role"]
-      }
-      current_venue_id: { Args: never; Returns: string }
-      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
-      decide_signup_application: {
-        Args: { p_application_id: string; p_decision: string; p_reason?: string; p_reviewer: string }
+      activate_signup_application: {
+        Args: { p_application_id: string }
         Returns: {
           account_type: string
           city: string | null
@@ -4163,6 +4165,63 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
+          venue_website: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "signup_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      budget_hold_status_for: {
+        Args: { subject_status: string }
+        Returns: string
+      }
+      can_join_event_channel: { Args: { topic: string }; Returns: boolean }
+      current_company_id: { Args: never; Returns: string }
+      current_partner_id: { Args: never; Returns: string }
+      current_partner_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["partner_role"]
+      }
+      current_portal_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["portal_role"]
+      }
+      current_venue_id: { Args: never; Returns: string }
+      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      decide_signup_application: {
+        Args: { p_application_id: string; p_decision: string; p_reason?: string; p_reviewer: string | null }
+        Returns: {
+          account_type: string
+          city: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          email: string
+          full_name: string
+          gstin: string | null
+          id: string
+          job_title: string | null
+          message: string | null
+          partner_id: string | null
+          partner_role: string | null
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
           venue_website: string | null
         }
         SetofOptions: {

@@ -16,14 +16,14 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 
 import { computeGstinChecksum } from "../../lib/gst-engine.ts";
-import { ACCOUNT_HOME, landingFor, NO_ACCESS_PATH, PENDING_PATH } from "../../lib/auth/onboarding.ts";
+import { ACCOUNT_HOME, landingFor, NO_ACCESS_PATH, PENDING_PATH, WELCOME_PATH } from "../../lib/auth/onboarding.ts";
 import { normalizeWebsite, parseSignupInput } from "../../lib/auth/signup-input.ts";
 import { asUser, createDatabase } from "../support/supabase-pglite.mjs";
 
 const { NextRequest } = await import("next/server");
 const { updateSession } = await import("../../lib/supabase/middleware.ts");
 const { approveUser, rejectUser } = await import("../../app/(dashboard)/admin/approvals/actions.ts");
-const { createSignupApplication, getSignupApplication, listSignupApplications } = await import("../../lib/data/index.ts");
+const { activateSignupApplication, createSignupApplication, getSignupApplication, listSignupApplications, listVenues, publishVenue } = await import("../../lib/data/index.ts");
 const { mutateDb, readDb } = await import("../../lib/data/local-store.ts");
 const { spendLimitFor } = await import("../../lib/policies/checkBookingPolicy.ts");
 const { evaluateBookingPolicy } = await import("../../lib/policies/evaluate-booking-policy.ts");
@@ -33,6 +33,8 @@ const NEW_CO_GSTIN = gstin("29AAACZ1234Q1Z");
 const NIMBUS_GSTIN = "29AABCN4821K1ZA"; // a seeded customer
 
 const enterprise = (over = {}) => ({ account_type: "enterprise", email: "Asha@Zenith.example", full_name: "  Asha   Rao ", company_name: "Zenith Robotics Pvt Ltd", gstin: NEW_CO_GSTIN, phone: "98450 12345", ...over });
+const VENUE_GSTIN = gstin("29AAFCL7788M1Z");
+const venue = (over = {}) => ({ account_type: "venue", email: "gm@loftbar.example", full_name: "Rohan Das", company_name: "The Loft Bar", gstin: VENUE_GSTIN, city: "Bengaluru", venue_area: "Koramangala", venue_address: "80 Feet Road, Koramangala 4th Block", venue_capacity: "150", ...over });
 const partner = (over = {}) => ({ account_type: "partner", email: "bookings@beatbox.example", full_name: "Kabir Sen", company_name: "Beatbox Collective", partner_role: "entertainment", venue_website: "beatbox.example/showreel", ...over });
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,9 @@ describe("signup form", () => {
       gstin: NEW_CO_GSTIN,
       venue_website: null,
       partner_role: null,
+      venue_area: null,
+      venue_address: null,
+      venue_capacity: null,
     });
   });
 
@@ -79,6 +84,16 @@ describe("signup form", () => {
     assert.match(parseSignupInput(enterprise({ phone: "12345" })).errors.phone, /mobile number/);
   });
 
+  test("a venue needs its GSTIN, city, area, address and capacity; its website is optional", () => {
+    const r = parseSignupInput(venue());
+    assert.equal(r.ok, true);
+    assert.deepEqual([r.value.venue_area, r.value.venue_address, r.value.venue_capacity, r.value.city, r.value.venue_website, r.value.partner_role], ["Koramangala", "80 Feet Road, Koramangala 4th Block", 150, "Bengaluru", null, null]);
+    assert.equal(parseSignupInput(venue({ venue_website: "loftbar.example" })).value.venue_website, "https://loftbar.example/");
+    const bad = parseSignupInput(venue({ gstin: "", city: "", venue_area: "", venue_address: "x", venue_capacity: "0", venue_website: "not a site" }));
+    assert.deepEqual(Object.keys(bad.errors).sort(), ["city", "gstin", "venue_address", "venue_area", "venue_capacity", "venue_website"]);
+    assert.ok(parseSignupInput(venue({ venue_capacity: "12.5" })).errors.venue_capacity);
+  });
+
   test("websites: http(s) only, with a real host", () => {
     assert.equal(normalizeWebsite("http://studio.in"), "http://studio.in/");
     assert.equal(normalizeWebsite("instagram.com/beatbox"), "https://instagram.com/beatbox");
@@ -101,8 +116,9 @@ describe("landing", () => {
     assert.equal(landingFor(null, "active"), NO_ACCESS_PATH);
   });
 
-  test("approved enterprises land on /client, partners on /partner", () => {
-    assert.deepEqual(ACCOUNT_HOME, { enterprise: "/client", partner: "/partner" });
+  test("active enterprises land on /client, venues on /property, partners on /partner; new ones first see a welcome page", () => {
+    assert.deepEqual(ACCOUNT_HOME, { enterprise: "/client", venue: "/property", partner: "/partner" });
+    assert.deepEqual(WELCOME_PATH, { enterprise: "/client/welcome", venue: "/property/welcome", partner: "/partner" });
     assert.equal(landingFor("CLIENT", "active"), ACCOUNT_HOME.enterprise);
     assert.equal(landingFor("PARTNER", "active"), ACCOUNT_HOME.partner);
   });
@@ -454,5 +470,174 @@ describe("migration: signup_applications and decide_signup_application", () => {
       /already has portal access/
     );
     await assert.rejects(service((tx) => decide(tx, ids.enterprise, "approved")), /decision must be active or rejected/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Self-serve activation on the in-memory store
+// ---------------------------------------------------------------------------
+
+describe("self-serve activation", () => {
+  const ASHA = "aaaaaaaa-3333-4000-8000-000000000001";
+  const ROHAN = "aaaaaaaa-3333-4000-8000-000000000002";
+  const NEHA = "aaaaaaaa-3333-4000-8000-000000000003";
+  const COPPER = "aaaaaaaa-3333-4000-8000-000000000004";
+  const KABIR = "aaaaaaaa-3333-4000-8000-000000000005";
+  const COPPER_GSTIN = "29AADCC1904P1ZF"; // a seeded, listed venue
+  const roleOf = async (userId) => (await readDb()).users.find((u) => u.user_id === userId);
+  const activate = async (id, input) => activateSignupApplication((await createSignupApplication(id, parseSignupInput(input).value)).id);
+
+  beforeEach(async () => {
+    await mutateDb((db) => {
+      const ids = new Set([ASHA, ROHAN, NEHA, COPPER, KABIR]);
+      db.signupApplications = [];
+      db.users = db.users.filter((u) => !ids.has(u.user_id));
+      db.companies = db.companies.filter((c) => c.gstin !== NEW_CO_GSTIN);
+      db.venues = db.venues.filter((v) => v.gstin !== VENUE_GSTIN);
+      db.partners = db.partners.filter((p) => !p.slug.startsWith("beatbox-collective"));
+    });
+  });
+
+  test("a new company is active at once: its company exists and the applicant is its Approver", async () => {
+    const app = await activate(ASHA, enterprise());
+    assert.equal(app.status, "active");
+    assert.equal(app.reviewed_by, null, "self-serve: no reviewer");
+    const user = await roleOf(ASHA);
+    assert.deepEqual([user.role, user.company_id, user.corporate_role], ["CLIENT", app.company_id, "APPROVER"]);
+  });
+
+  test("a new venue is active at once, with its venue unlisted until an admin publishes it", async () => {
+    const app = await activate(ROHAN, venue());
+    assert.equal(app.status, "active");
+    const user = await roleOf(ROHAN);
+    assert.deepEqual([user.role, user.venue_id], ["PROPERTY", app.venue_id]);
+    const created = (await readDb()).venues.find((v) => v.id === app.venue_id);
+    assert.deepEqual([created.name, created.city, created.neighborhood, created.capacity_max, created.gstin, created.is_active], ["The Loft Bar", "Bengaluru", "Koramangala", 150, VENUE_GSTIN, false]);
+    // Companies can't find it; its manager (and admins) can.
+    assert.equal((await listVenues()).some((v) => v.id === app.venue_id), false);
+    assert.equal((await listVenues({ includeUnlisted: true })).some((v) => v.id === app.venue_id), true);
+    await publishVenue(app.venue_id);
+    assert.equal((await listVenues()).some((v) => v.id === app.venue_id), true);
+  });
+
+  test("a partner is active at once, as OWNER of a new organisation", async () => {
+    const app = await activate(KABIR, partner());
+    assert.equal(app.status, "active");
+    assert.equal((await roleOf(KABIR)).partner_role, "OWNER");
+  });
+
+  test("joining an existing company or venue waits for an admin", async () => {
+    const joiner = await activate(NEHA, enterprise({ email: "neha@nimbus.example", full_name: "Neha Iyer", company_name: "Nimbus", gstin: NIMBUS_GSTIN }));
+    assert.equal(joiner.status, "pending_approval");
+    assert.equal(await roleOf(NEHA), undefined);
+    const copper = await activate(COPPER, venue({ email: "x@copper.example", company_name: "Copper Courtyard", gstin: COPPER_GSTIN }));
+    assert.equal(copper.status, "pending_approval");
+    assert.equal(await roleOf(COPPER), undefined);
+  });
+
+  test("activating again changes nothing", async () => {
+    const first = await activate(ASHA, enterprise());
+    const again = await activateSignupApplication(first.id);
+    assert.deepEqual(again, first);
+    assert.equal((await readDb()).users.filter((u) => u.user_id === ASHA).length, 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. Migration 20261110000000 in Postgres
+// ---------------------------------------------------------------------------
+
+describe("migration: self-serve activation and venue signups", () => {
+  const ADMIN = "00000000-0000-4000-8000-0000000000ad";
+  const NEW_CO = "aaaaaaaa-4444-4000-8000-000000000001";
+  const NEW_VENUE = "aaaaaaaa-4444-4000-8000-000000000002";
+  const JOINER = "aaaaaaaa-4444-4000-8000-000000000003";
+  const VENUE_JOINER = "aaaaaaaa-4444-4000-8000-000000000004";
+  let db;
+  const ids = {};
+  let seededVenueGstin;
+
+  before(async () => {
+    db = await createDatabase();
+    seededVenueGstin = (await db.query("select gstin from public.venues where is_active limit 1")).rows[0].gstin;
+    for (const id of [ADMIN, NEW_CO, NEW_VENUE, JOINER, VENUE_JOINER]) await db.query("insert into auth.users (id, email) values ($1, $2)", [id, `${id}@x.example`]);
+    await db.query("insert into public.platform_users (user_id, role) values ($1, 'ADMIN')", [ADMIN]);
+    const insert = async (userId, cols) => {
+      const keys = ["user_id", ...Object.keys(cols)];
+      const { rows } = await db.query(`insert into public.signup_applications (${keys.join(", ")}) values (${keys.map((_, i) => `$${i + 1}`).join(", ")}) returning id`, [userId, ...Object.values(cols)]);
+      return rows[0].id;
+    };
+    const venueCols = { email: "gm@loftbar.example", full_name: "Rohan Das", account_type: "venue", company_name: "The Loft Bar", gstin: VENUE_GSTIN, city: "Bengaluru", venue_area: "Koramangala", venue_address: "80 Feet Road, Koramangala", venue_capacity: 150 };
+    ids.company = await insert(NEW_CO, { email: "asha@zenith.example", full_name: "Asha Rao", account_type: "enterprise", company_name: "Zenith Robotics", gstin: NEW_CO_GSTIN });
+    ids.venue = await insert(NEW_VENUE, venueCols);
+    ids.joiner = await insert(JOINER, { email: "neha@nimbus.example", full_name: "Neha Iyer", account_type: "enterprise", company_name: "Nimbus", gstin: NIMBUS_GSTIN });
+    ids.venueJoiner = await insert(VENUE_JOINER, { ...venueCols, email: "x@copper.example", gstin: seededVenueGstin });
+  });
+
+  const as = (sub, fn) => asUser(db, { claims: { sub } }, fn);
+  const service = (fn) => asUser(db, { role: "service_role" }, fn);
+  const activate = (tx, id) => tx.query("select * from public.activate_signup_application($1)", [id]);
+  // asUser rolls back; these activations must persist for the tests after them.
+  const activateAndKeep = async (id) => (await db.query("select * from public.activate_signup_application($1)", [id])).rows[0];
+
+  test("a venue application needs its location and capacity", async () => {
+    await assert.rejects(
+      db.query("insert into public.signup_applications (user_id, email, full_name, account_type, company_name, gstin) values ($1, 'a@b.co', 'Me Me', 'venue', 'My Bar', $2)", [ADMIN, VENUE_GSTIN]),
+      /signup_applications_venue_details/
+    );
+  });
+
+  test("only the service role can activate", async () => {
+    await assert.rejects(as(NEW_CO, (tx) => activate(tx, ids.company)), /permission denied/);
+  });
+
+  test("a new company activates without a reviewer: company, Approver membership", async () => {
+    const app = await activateAndKeep(ids.company);
+    const out = { app, member: (await db.query("select role, company_id, corporate_role from public.platform_users where user_id = $1", [NEW_CO])).rows[0] };
+    assert.equal(out.app.status, "active");
+    assert.equal(out.app.reviewed_by, null);
+    assert.ok(out.app.reviewed_at);
+    assert.deepEqual(out.member, { role: "CLIENT", company_id: out.app.company_id, corporate_role: "APPROVER" });
+  });
+
+  test("a new venue activates: an unlisted venue and a PROPERTY membership; companies can't see it, its manager can", async () => {
+    const app = await activateAndKeep(ids.venue);
+    assert.equal(app.status, "active");
+    const v = (await db.query("select name, city, neighborhood, address, capacity_max, is_active from public.venues where id = $1", [app.venue_id])).rows[0];
+    assert.deepEqual(v, { name: "The Loft Bar", city: "Bengaluru", neighborhood: "Koramangala", address: "80 Feet Road, Koramangala", capacity_max: 150, is_active: false });
+    const member = (await db.query("select role, venue_id from public.platform_users where user_id = $1", [NEW_VENUE])).rows[0];
+    assert.deepEqual(member, { role: "PROPERTY", venue_id: app.venue_id });
+    assert.equal(await as(NEW_CO, async (tx) => (await tx.query("select count(*)::int n from public.venues where id = $1", [app.venue_id])).rows[0].n), 0);
+    assert.equal(await as(NEW_VENUE, async (tx) => (await tx.query("select count(*)::int n from public.venues where id = $1", [app.venue_id])).rows[0].n), 1);
+  });
+
+  test("a venue manager can edit their venue, but not list it, change its commission or GSTIN; an admin can", async () => {
+    const { venue_id } = (await db.query("select venue_id from public.platform_users where user_id = $1", [NEW_VENUE])).rows[0];
+    const n = await as(NEW_VENUE, async (tx) => (await tx.query("update public.venues set capacity_max = 160 where id = $1", [venue_id])).affectedRows);
+    assert.equal(n, 1);
+    for (const set of ["is_active = true", "commission_rate = 0", `gstin = '${NEW_CO_GSTIN}'`]) {
+      await assert.rejects(as(NEW_VENUE, (tx) => tx.query(`update public.venues set ${set} where id = $1`, [venue_id])), /Only Lufer admins/, set);
+    }
+    await as(ADMIN, (tx) => tx.query("update public.venues set is_active = true where id = $1", [venue_id]));
+  });
+
+  test("joining an existing company or venue stays pending for an admin, with no membership", async () => {
+    const out = await service(async (tx) => [(await activate(tx, ids.joiner)).rows[0].status, (await activate(tx, ids.venueJoiner)).rows[0].status]);
+    assert.deepEqual(out, ["pending_approval", "pending_approval"]);
+    const n = (await db.query("select count(*)::int n from public.platform_users where user_id = any($1)", [[JOINER, VENUE_JOINER]])).rows[0].n;
+    assert.equal(n, 0);
+  });
+
+  test("an admin can't approve a second venue with a listed venue's GSTIN", async () => {
+    await assert.rejects(
+      service((tx) => tx.query("select * from public.decide_signup_application($1, 'active', $2)", [ids.venueJoiner, ADMIN])),
+      /already on Lufer/
+    );
+  });
+
+  test("activating an active application returns it unchanged", async () => {
+    const app = await activateAndKeep(ids.company);
+    assert.equal(app.status, "active");
+    assert.equal((await db.query("select count(*)::int n from public.platform_users where user_id = $1", [NEW_CO])).rows[0].n, 1);
   });
 });
