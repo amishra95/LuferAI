@@ -114,3 +114,35 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
     return { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Emails a company's monthly statement summary to its primary contact, with a
+ * link to the full statement in the portal. Never throws.
+ */
+export async function notifyMonthlyStatement(s: {
+  number: string;
+  label: string;
+  month: string;
+  companyId: string;
+  bookingCount: number;
+  vendorCount: number;
+  total: number;
+  due: number;
+}): Promise<NotifyOutcome> {
+  try {
+    const company = (await listCompanies()).find((c) => c.id === s.companyId);
+    if (!company?.primary_contact_email) return { status: "skipped", reason: "No primary contact for the company." };
+    const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
+    const url = new URL(`/client/statements?month=${s.month}`, siteUrl("http://localhost:3000")).toString();
+    const summary = `${s.bookingCount} booking${s.bookingCount === 1 ? "" : "s"} across ${s.vendorCount} vendor${s.vendorCount === 1 ? "" : "s"}. Total ${inr.format(s.total)} including GST; balance due ${inr.format(s.due)}.`;
+    const subject = `Your Lufer statement for ${s.label} (${s.number})`;
+    const text = `Your statement for ${s.label} is ready.\n\n${summary}\n\nView, print or download the CSV: ${url}\n\nEach line references the vendor's own GST tax invoice, which is what you claim input tax credit against.`;
+    const html = `<p>Your statement for <strong>${escHtml(s.label)}</strong> is ready.</p><p>${escHtml(summary)}</p><p><a href="${escHtml(url)}">View, print or download the CSV</a></p><p style="color:#57534e;font-size:12px">Each line references the vendor's own GST tax invoice, which is what you claim input tax credit against.</p>`;
+    const outcome = await sendEmail({ to: company.primary_contact_email, subject, text, html });
+    if (outcome.status !== "sent") console.warn(`notify: statement email for ${s.number} ${outcome.status}:`, "reason" in outcome ? outcome.reason : outcome.error);
+    return outcome;
+  } catch (err) {
+    console.error("notify: monthly statement failed", err);
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
