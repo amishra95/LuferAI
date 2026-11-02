@@ -15,6 +15,7 @@ import {
   MessageSquare,
   MessagesSquare,
   Radar,
+  TrendingUp,
   Package,
   Receipt,
   Settings,
@@ -68,6 +69,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
           { href: "/client?tab=pos", label: "Purchase orders", icon: FileText },
           { href: "/client?tab=settlement", label: "Settlement", icon: Receipt },
           { href: "/client/statements", label: "Monthly statements", icon: FileSpreadsheet },
+          { href: "/client/roi", label: "Entertainment ROI", icon: TrendingUp },
         ],
       },
       {
@@ -247,6 +249,7 @@ const PATH_LABEL: Record<string, string> = {
   "/client": "Company",
   "/client/approvals": "To approve",
   "/client/statements": "Monthly statements",
+  "/client/roi": "Entertainment ROI",
   "/property": "Venue",
   "/partner": "Supplier",
   "/admin": "Operator",
