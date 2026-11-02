@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FileSignature,
   FileText,
+  FileSpreadsheet,
   Inbox,
   Landmark,
   LayoutDashboard,
@@ -67,6 +68,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
           { href: "/client?tab=catalog", label: "Catalogue", icon: ShoppingBag },
           { href: "/client?tab=pos", label: "Purchase orders", icon: FileText },
           { href: "/client?tab=settlement", label: "Settlement", icon: Receipt },
+          { href: "/client/statements", label: "Monthly statements", icon: FileSpreadsheet },
           { href: "/client/roi", label: "Entertainment ROI", icon: TrendingUp },
         ],
       },
@@ -246,6 +248,7 @@ export function isActive(pathname: string, href: string): boolean {
 const PATH_LABEL: Record<string, string> = {
   "/client": "Company",
   "/client/approvals": "To approve",
+  "/client/statements": "Monthly statements",
   "/client/roi": "Entertainment ROI",
   "/property": "Venue",
   "/partner": "Supplier",
