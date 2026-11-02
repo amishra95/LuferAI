@@ -592,6 +592,7 @@ export type Database = {
           commission_rate: number
           company_id: string
           cost_center: string | null
+          crm_deal_id: string | null
           created_at: string
           department_id: string | null
           entertainment: string[]
@@ -629,6 +630,7 @@ export type Database = {
           commission_rate: number
           company_id: string
           cost_center?: string | null
+          crm_deal_id?: string | null
           created_at?: string
           department_id?: string | null
           entertainment?: string[]
@@ -666,6 +668,7 @@ export type Database = {
           commission_rate?: number
           company_id?: string
           cost_center?: string | null
+          crm_deal_id?: string | null
           created_at?: string
           department_id?: string | null
           entertainment?: string[]
@@ -1502,6 +1505,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crm_deals: {
+        Row: {
+          account_name: string | null
+          amount_inr: number
+          closed_on: string | null
+          company_id: string
+          created_at: string
+          external_id: string
+          id: string
+          name: string
+          owner_email: string | null
+          provider: string
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          amount_inr?: number
+          closed_on?: string | null
+          company_id: string
+          created_at?: string
+          external_id: string
+          id?: string
+          name: string
+          owner_email?: string | null
+          provider?: string
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          amount_inr?: number
+          closed_on?: string | null
+          company_id?: string
+          created_at?: string
+          external_id?: string
+          id?: string
+          name?: string
+          owner_email?: string | null
+          provider?: string
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       corporate_rate_cards: {
         Row: {

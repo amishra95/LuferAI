@@ -193,6 +193,9 @@ const venues: Venue[] = [
 /** Bookings not yet reviewed for input tax credit (migration 20261101120000). */
 export const BOOKING_ITC_DEFAULTS = { itc_decision: null, itc_decided_by: null, itc_decided_at: null, itc_note: null } satisfies Partial<Booking>;
 
+/** bookings.crm_deal_id (20261111000000_crm_deals.sql): deals are Supabase-only, so local bookings never link one. */
+export const BOOKING_CRM_DEFAULTS = { crm_deal_id: null } satisfies Partial<Booking>;
+
 export const BOOKING_POLICY_DEFAULTS = { event_type: null, event_start_time: null, policy_status: null, policy_violation_reasons: [] } satisfies Partial<Booking>;
 
 const bookings: Booking[] = [
@@ -221,6 +224,7 @@ const bookings: Booking[] = [
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
+    ...BOOKING_CRM_DEFAULTS,
     status: "CONFIRMED",
     event_date: "2026-10-16",
     notes: "Q3 engineering offsite dinner, PDR required",
@@ -252,6 +256,7 @@ const bookings: Booking[] = [
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
+    ...BOOKING_CRM_DEFAULTS,
     status: "COMPLETED",
     event_date: "2026-09-18",
     notes: "Bengaluru LP roadshow cocktail evening",
@@ -283,6 +288,7 @@ const bookings: Booking[] = [
     expense_reference: null,
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
+    ...BOOKING_CRM_DEFAULTS,
     status: "PENDING",
     event_date: "2026-11-06",
     notes: "Annual sales kickoff, live music preferred",
@@ -648,7 +654,7 @@ export function backfillDefaults(db: MockDb): MockDb {
     b.entertainment ??= [];
     b.settled_at ??= null;
     b.expense_reference ??= null;
-    for (const [k, d] of Object.entries({ ...BOOKING_POLICY_DEFAULTS, ...BOOKING_ITC_DEFAULTS })) (b as Record<string, unknown>)[k] ??= structuredClone(d);
+    for (const [k, d] of Object.entries({ ...BOOKING_POLICY_DEFAULTS, ...BOOKING_ITC_DEFAULTS, ...BOOKING_CRM_DEFAULTS })) (b as Record<string, unknown>)[k] ??= structuredClone(d);
   }
   for (const e of db.expenseExports) {
     e.provider ??= "webhook";

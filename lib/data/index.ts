@@ -40,7 +40,7 @@ import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policie
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
-import { BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
+import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 
 /**
@@ -432,6 +432,7 @@ export async function createBookingRequest(
       id: crypto.randomUUID(),
       ...row,
       ...BOOKING_ITC_DEFAULTS,
+      ...BOOKING_CRM_DEFAULTS,
       total_amount_inr: total,
       sac_code: "998596",
       gst_type: mockGstType(db, input.company_id, input.venue_id, row.billing_gstin),
