@@ -107,7 +107,7 @@ test("a voucher has Tally's header fields: type, date, reference, party, GSTINs 
   ]) {
     assert.ok(xml.includes(t), t);
   }
-  assert.match(xml, /<NARRATION>Corporate event at The Copper Courtyard, Bengaluru · 2026-11-06, 40 guests · SAC 998596 · ITC: eligible · Project Q4-OFFSITE · Lufer\.ai LUF-BBBBBBBB<\/NARRATION>/);
+  assert.match(xml, /<NARRATION>Corporate event at The Copper Courtyard, Bengaluru · 2026-11-06, 40 guests · SAC 998596 · ITC: eligible · Project Q4-OFFSITE · Lufer LUF-BBBBBBBB<\/NARRATION>/);
 });
 
 test("debits are negative with ISDEEMEDPOSITIVE Yes; the party credit is bill-wise and the expense carries its cost centre", () => {

@@ -41,7 +41,7 @@ export async function openCheckout(
     order_id: checkout.orderId,
     amount: checkout.amountPaise,
     currency: checkout.currency,
-    name: "Lufer.ai",
+    name: "Lufer",
     description,
     config: checkout.config,
     notes: checkout.notes,

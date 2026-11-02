@@ -26,6 +26,7 @@ import {
 
 import { Logo } from "@/components/brand/logo";
 import { IconTile } from "@/components/landing/icon-tile";
+import { entityName } from "@/lib/legal";
 
 /*
  * Landing sections below the hero. Every claim maps to shipped code (cited
@@ -212,7 +213,7 @@ export function ForVenues() {
             title="Win corporate business without the agency in between"
             body="Restaurants, hotels, experience studios, caterers and artists: get structured requests from companies and quote them directly."
           />
-          <Link href="/signup?type=partner" className="landing-btn landing-btn-outline mt-8">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline mt-8">
             List your venue <ArrowRight className="size-4" aria-hidden />
           </Link>
         </div>
@@ -252,7 +253,7 @@ export function Comparison() {
               <th scope="col" className="text-ink-muted p-4 font-medium">
                 <span className="sr-only">Capability</span>
               </th>
-              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer.ai</th>
+              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Event agency</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Email & spreadsheets</th>
             </tr>
@@ -298,7 +299,7 @@ const FAQ = [
   },
   {
     q: "How do we get started?",
-    a: "Apply for an account. We review every application, usually within one working day, and then your team can book straight away.",
+    a: "Create an account and confirm your email: you can start planning straight away. Venues can set up their listing straight away too, and go live once we've verified them, usually within one working day.",
   },
 ];
 
@@ -336,13 +337,13 @@ export function FinalCta() {
           Your next offsite, without the week of emails
         </h2>
         <p className="text-on-plum-muted relative mx-auto mt-4 max-w-xl">
-          Apply in two minutes. We review every account, usually within one working day.
+          Sign up in two minutes and start planning as soon as you confirm your email.
         </p>
         <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
             Plan your first event <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link href="/signup?type=partner" className="landing-btn landing-btn-ghost w-full sm:w-auto">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-ghost w-full sm:w-auto">
             I run a venue
           </Link>
         </div>
@@ -351,12 +352,20 @@ export function FinalCta() {
   );
 }
 
+// Rooted (/#…) so they also work from the legal pages, which share this footer.
 const FOOTER_LINKS = [
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#finance", label: "For finance" },
-  { href: "#venues", label: "For venues" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#finance", label: "For finance" },
+  { href: "/#venues", label: "For venues" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/login", label: "Sign in" },
+];
+
+const LEGAL_LINKS = [
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/refunds", label: "Cancellations & refunds" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function SiteFooter() {
@@ -374,6 +383,18 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
+      </div>
+      <div className="border-sand border-t">
+        <div className="container-public flex flex-col items-center justify-between gap-3 py-5 sm:flex-row">
+          <p className="text-ink-muted text-caption">© {new Date().getFullYear()} {entityName()}</p>
+          <nav aria-label="Legal" className="text-ink-muted flex flex-wrap justify-center gap-x-5 gap-y-2 text-caption">
+            {LEGAL_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="hover:text-plum">
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
     </footer>
   );

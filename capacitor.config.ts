@@ -20,7 +20,7 @@ const plum = "#2A1B3D";
 
 const config: CapacitorConfig = {
   appId: "com.luferai.app",
-  appName: "LuferAI",
+  appName: "Lufer",
   webDir: "capacitor-shell",
   backgroundColor: plum,
 

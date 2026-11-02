@@ -70,7 +70,7 @@ export interface BookingContext {
 export function bookingRules(args: CreateBookingInput, ctx: BookingContext, limits = GUARDRAIL_LIMITS.booking): GuardrailDecision {
   const facts = { eventDate: args.eventDate, partySize: args.partySize, bookingsLastHour: ctx.bookingsLastHour };
   if (!ctx.linked) {
-    return deny("not_linked", "This sender isn't linked to a Lufer.ai account, so I can only search. Ask your admin to link you in Settings → Channels.", facts);
+    return deny("not_linked", "This sender isn't linked to a Lufer account, so I can only search. Ask your admin to link you in Settings → Channels.", facts);
   }
   const latest = addDays(ctx.today, limits.maxDaysAhead);
   if (args.eventDate > latest) {

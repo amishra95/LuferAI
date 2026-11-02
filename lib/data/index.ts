@@ -40,7 +40,7 @@ import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policie
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
-import { BOOKING_ITC_DEFAULTS, mockGstType, type MockDb } from "./mock-store";
+import { BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 
 /**
@@ -108,13 +108,37 @@ export async function listCompanies(): Promise<Company[]> {
   return data;
 }
 
-export async function listVenues(): Promise<Venue[]> {
-  if (local()) return (await readDb()).venues.filter((v) => v.is_active).sort((a, b) => a.name.localeCompare(b.name));
-  const { data, error } = await createAdminClient()
-    .from("venues")
-    .select("*")
-    .eq("is_active", true)
-    .order("name");
+/** Listed venues (what companies can book); `includeUnlisted` adds those waiting for an admin to publish them. */
+export async function listVenues({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<Venue[]> {
+  if (local()) return (await readDb()).venues.filter((v) => includeUnlisted || v.is_active).sort((a, b) => a.name.localeCompare(b.name));
+  let query = createAdminClient().from("venues").select("*").order("name");
+  if (!includeUnlisted) query = query.eq("is_active", true);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+/** One venue, listed or not: a manager's own venue before it's published. */
+export async function getVenue(id: string): Promise<Venue | null> {
+  if (local()) return (await readDb()).venues.find((v) => v.id === id) ?? null;
+  const { data, error } = await createAdminClient().from("venues").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Lists a venue for companies to find and book (an admin's call, after checking a self-serve signup). */
+export async function publishVenue(id: string): Promise<Venue | null> {
+  if (local()) {
+    let out: Venue | null = null;
+    await mutateDb((db) => {
+      const v = db.venues.find((x) => x.id === id);
+      if (!v) return;
+      Object.assign(v, { is_active: true, updated_at: new Date().toISOString() });
+      out = { ...v };
+    });
+    return out;
+  }
+  const { data, error } = await createAdminClient().from("venues").update({ is_active: true }).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -2206,7 +2230,7 @@ export async function respondToRsvp(token: string, response: RsvpResponse): Prom
 export class SignupApplicationError extends Error {
   constructor(
     message: string,
-    readonly code: "not_found" | "decided" | "already_member"
+    readonly code: "not_found" | "decided" | "already_member" | "venue_gstin_taken"
   ) {
     super(message);
     this.name = "SignupApplicationError";
@@ -2215,7 +2239,7 @@ export class SignupApplicationError extends Error {
 
 export type NewSignupApplication = Pick<
   SignupApplication,
-  "account_type" | "email" | "full_name" | "company_name" | "phone" | "job_title" | "city" | "message" | "gstin" | "venue_website" | "partner_role"
+  "account_type" | "email" | "full_name" | "company_name" | "phone" | "job_title" | "city" | "message" | "gstin" | "venue_website" | "partner_role" | "venue_area" | "venue_address" | "venue_capacity"
 >;
 
 /**
@@ -2230,7 +2254,7 @@ export async function createSignupApplication(userId: string, input: NewSignupAp
     let row!: SignupApplication;
     await mutateDb((db) => {
       const now = new Date().toISOString();
-      row = { ...input, id: crypto.randomUUID(), user_id: userId, status: "pending_approval", company_id: null, partner_id: null, reviewed_by: null, reviewed_at: null, rejection_reason: null, created_at: now, updated_at: now };
+      row = { ...input, id: crypto.randomUUID(), user_id: userId, status: "pending_approval", company_id: null, partner_id: null, venue_id: null, reviewed_by: null, reviewed_at: null, rejection_reason: null, created_at: now, updated_at: now };
       db.signupApplications.push(row);
     });
     return row;
@@ -2276,9 +2300,11 @@ function partnerSlug(name: string, taken: Set<string>): string {
  * organisation and the applicant's platform_users row in one transaction
  * (decide_signup_application in Supabase; the local branch mirrors it):
  * an enterprise joins the company with its GSTIN (as ORGANIZER) or a new one
- * (as APPROVER); a partner gets a new partner organisation, as OWNER.
+ * (as APPROVER); a venue gets its venue, unlisted until an admin publishes it;
+ * a partner gets a new partner organisation, as OWNER. `reviewerId` is null
+ * when the applicant activated it themselves (activateSignupApplication).
  */
-export async function decideSignupApplication(applicationId: string, decision: "active" | "rejected", reviewerId: string, reason?: string | null): Promise<SignupApplication> {
+export async function decideSignupApplication(applicationId: string, decision: "active" | "rejected", reviewerId: string | null, reason?: string | null): Promise<SignupApplication> {
   if (local()) {
     let out!: SignupApplication;
     await mutateDb((db) => {
@@ -2294,6 +2320,33 @@ export async function decideSignupApplication(applicationId: string, decision: "
       }
       if (db.users.some((u) => u.user_id === app.user_id)) throw new SignupApplicationError("This person already has portal access.", "already_member");
       const user = { user_id: app.user_id, venue_id: null, created_at: now, name: app.full_name };
+      if (app.account_type === "venue") {
+        if (db.venues.some((v) => v.gstin === app.gstin)) throw new SignupApplicationError(VENUE_GSTIN_TAKEN, "venue_gstin_taken");
+        const venue: Venue = {
+          ...structuredClone(VENUE_PROFILE_DEFAULTS),
+          id: crypto.randomUUID(),
+          name: app.company_name.trim(),
+          city: app.city!.trim(),
+          neighborhood: app.venue_area!.trim(),
+          address: app.venue_address!.trim(),
+          gstin: app.gstin!,
+          state_code: app.gstin!.slice(0, 2),
+          capacity_max: app.venue_capacity!,
+          pdr_available: false,
+          min_spend_inr: 0,
+          commission_rate: 0.15,
+          latitude: null,
+          longitude: null,
+          is_active: false,
+          created_at: now,
+          updated_at: now,
+        };
+        db.venues.push(venue);
+        db.users.push({ ...user, role: "PROPERTY", venue_id: venue.id, company_id: null, partner_id: null, partner_role: null, corporate_role: null });
+        Object.assign(app, decided, { status: "active", venue_id: venue.id, company_id: null, partner_id: null, rejection_reason: null });
+        out = { ...app };
+        return;
+      }
       if (app.account_type === "enterprise") {
         let company = db.companies.find((c) => c.gstin === app.gstin);
         const joined = Boolean(company);
@@ -2348,6 +2401,33 @@ export async function decideSignupApplication(applicationId: string, decision: "
   if (error?.hint === "application_not_found") throw new SignupApplicationError(error.message, "not_found");
   if (error?.hint === "application_decided") throw new SignupApplicationError(error.message, "decided");
   if (error?.hint === "already_member") throw new SignupApplicationError(error.message, "already_member");
+  if (error?.hint === "venue_gstin_taken") throw new SignupApplicationError(error.message, "venue_gstin_taken");
+  if (error) throw error;
+  return data as SignupApplication;
+}
+
+const VENUE_GSTIN_TAKEN = "A venue with this GSTIN is already on Lufer. Add this person from Venue managers instead.";
+
+/**
+ * Activates a verified signup without an admin (activate_signup_application;
+ * the local branch mirrors it), unless it would join an existing company or
+ * venue: that one stays pending for an admin. Returns the application as it
+ * now stands; already-decided ones come back unchanged.
+ */
+export async function activateSignupApplication(applicationId: string): Promise<SignupApplication> {
+  if (local()) {
+    const db = await readDb();
+    const app = db.signupApplications.find((a) => a.id === applicationId);
+    if (!app) throw new SignupApplicationError("This application was not found.", "not_found");
+    const needsAdmin =
+      app.status !== "pending_approval" ||
+      db.users.some((u) => u.user_id === app.user_id) ||
+      (app.account_type === "enterprise" && db.companies.some((c) => c.gstin === app.gstin)) ||
+      (app.account_type === "venue" && db.venues.some((v) => v.gstin === app.gstin));
+    return needsAdmin ? app : decideSignupApplication(applicationId, "active", null);
+  }
+  const { data, error } = await createAdminClient().rpc("activate_signup_application", { p_application_id: applicationId });
+  if (error?.hint === "application_not_found") throw new SignupApplicationError(error.message, "not_found");
   if (error) throw error;
   return data as SignupApplication;
 }

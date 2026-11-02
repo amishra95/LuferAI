@@ -25,6 +25,7 @@ import { lowestAllowedPerHead, NO_RULES } from "@/lib/rfp/guardrails";
 import { getNegotiationRules } from "@/lib/rfp/rules-store";
 import { listVenuePackages, listVenueRfps, quoteableCompanies, venueStandardPerHead } from "@/lib/rfp/service";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
+import { listVenueReviews } from "@/lib/venues/review-store";
 import { listEscalations, venueAlertNumber } from "@/lib/escalations/store";
 import { EscalationQueue } from "@/components/escalations/escalation-queue";
 import { parseCancellationTerms } from "@/lib/venues/profile";
@@ -42,7 +43,10 @@ import { BlockDates, DirectQuote, RfpCounterForm } from "./_components/host-form
 import { GuardrailsForm, NegotiatorDrawer } from "./_components/negotiator-drawer";
 import { PlanAck } from "./_components/plan-ack";
 import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_components/pricing-forms";
+import { PhotoManager } from "./_components/photo-manager";
+import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { RateCalendar } from "./_components/rate-calendar";
+import { ReviewList } from "./_components/review-list";
 import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
 
 const monthLabel = (ym: string) =>
@@ -54,8 +58,8 @@ const TABS: Tab[] = ["requests", "inquiries", "accounts", "briefs", "pricing", "
 export default async function PropertyPage({ searchParams }: PageProps<"/property">) {
   const member = await requirePortal("/property");
   const { venue: venueParam, tab: tabParam } = await searchParams;
-  const allVenues = await listVenues();
-  // Property managers are pinned to their own venue; admins may switch via ?venue=<id>.
+  const allVenues = await listVenues({ includeUnlisted: true });
+  // Property managers are pinned to their own venue, listed or not; admins may switch via ?venue=<id>.
   const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
   if (!venue) notFound();
@@ -63,7 +67,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
   const live = dataSource() === "supabase";
   const today = todayInIndia();
-  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber, liveHolds, contractCompanies, inquiries] = await Promise.all([
+  const [bookings, rfpInbox, packages, blocks, blocksReady, guardrails, companies, venuePricing, platformState, escalations, alertNumber, liveHolds, contractCompanies, inquiries, reviews] = await Promise.all([
     listBookings({ venueId: venue.id }),
     live ? listVenueRfps(venue.id) : Promise.resolve([]),
     live ? listVenuePackages(venue.id) : Promise.resolve([]),
@@ -86,6 +90,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
     // Leads from the venue's AI inquiry agent (before migration 20261104000000 there are none).
     listInquiries(venue.id).catch((err) => {
       console.error("property: could not load inquiries", err);
+      return [];
+    }),
+    // Clients' reviews after their events (before migration 20261107000000 there are none).
+    listVenueReviews(venue.id).catch((err) => {
+      console.error("property: could not load reviews", err);
       return [];
     }),
   ]);
@@ -145,6 +154,17 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </div>
       ) : null}
 
+      {!venue.is_active ? (
+        <p role="note" className="badge-warn mb-8 rounded-md px-4 py-3 text-body">
+          {member.role === "ADMIN" ? "Unlisted: companies can't find or book this venue until you publish it from Account approvals." : "Your venue isn't listed yet. We're verifying it, usually within one working day; meanwhile, add photos, pricing and packages so it's ready when companies find it."}{" "}
+          {member.role === "ADMIN" ? null : (
+            <Link href="/property/welcome" className="text-link underline-offset-2 hover:underline">
+              Setup checklist
+            </Link>
+          )}
+        </p>
+      ) : null}
+
       <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
@@ -168,7 +188,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             { key: "inquiries", label: "Inquiries" },
             { key: "accounts", label: "Accounts" },
             { key: "briefs", label: "Event Briefs" },
-            { key: "pricing", label: "Pricing" },
+            { key: "pricing", label: "Listing & pricing" },
             { key: "payouts", label: "Payouts & History" },
           ] as const
         ).map((t) => (
@@ -461,11 +481,14 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           names={new Map(allVenues.map((v) => [v.id, v.name]))}
         />
       ) : tab === "accounts" ? (
-        <AccountBook
-          accounts={accounts}
-          opportunities={opportunities}
-          quote={{ venueId: venue.id, companies, packages: packages.filter((p) => p.is_active), today, disabledReason: live ? undefined : "Direct quotes need the Supabase data source." }}
-        />
+        <div className="grid gap-6">
+          <ReviewList reviews={reviews} />
+          <AccountBook
+            accounts={accounts}
+            opportunities={opportunities}
+            quote={{ venueId: venue.id, companies, packages: packages.filter((p) => p.is_active), today, disabledReason: live ? undefined : "Direct quotes need the Supabase data source." }}
+          />
+        </div>
       ) : tab === "briefs" ? (
         incoming.length + upcoming.length === 0 ? (
           <EmptyState
@@ -523,6 +546,21 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         ) : (
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
             <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Photos</CardTitle>
+                  <CardDescription>Shown on your venue card and listing. The first photo is the cover.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PhotoManager
+                    key={`photos-${venue.id}`}
+                    venueId={venue.id}
+                    venueName={venue.name}
+                    photos={(venue.photos ?? []).flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))}
+                  />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>

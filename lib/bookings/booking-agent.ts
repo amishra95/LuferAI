@@ -21,7 +21,7 @@ import { tracer } from "@/lib/tracer";
  *   negotiate  → the per-head offer that meets the venue's minimums under the
  *                company's rate card, within the requester's ceiling
  *   place      → the booking request (policy decides whether sign-off is needed)
- *   route      → confirm (in policy, Lufer.ai venue, pre-agreed corporate terms),
+ *   route      → confirm (in policy, Lufer venue, pre-agreed corporate terms),
  *                or leave it with the venue / the approval chain
  *
  * Deterministic: no model call, so it runs without an AI key and can't

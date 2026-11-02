@@ -142,7 +142,7 @@ export function decisionReplyText(outcome: { ok: true; decision: ApprovalDecisio
   const next = {
     venue: " It's on its way to the venue.",
     next_approver: " It now goes to the next approver.",
-    cancelled: " The request is cancelled and the requester will see why in Lufer.ai.",
+    cancelled: " The request is cancelled and the requester will see why in Lufer.",
     none: "",
   }[outcome.next];
   return done + next;

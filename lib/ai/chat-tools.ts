@@ -12,7 +12,7 @@ import { listDirectory } from "@/lib/venues/directory";
 const MAX_RESULTS = 6;
 
 /**
- * Searches the two-tier directory: Lufer.ai's own venues (bookable here) and
+ * Searches the two-tier directory: Lufer's own venues (bookable here) and
  * federated partner listings (booked through their supplier). Internal venues
  * rank first; partner results fill the rest. If the partner network is down,
  * internal results still come back with partnerNetwork.status = "unavailable".
@@ -48,7 +48,7 @@ export async function searchVenueCatalogue(filters: VenueSearchFilters) {
 export const searchVenuesTool = tool({
   description:
     "Search the venue directory in Bengaluru by location, guest count, per-head budget (INR, pre-GST) and features. " +
-    "Covers Lufer.ai's own venues (tier internal, bookable here) and partner-network venues (tier partner, booked via their supplier). " +
+    "Covers Lufer's own venues (tier internal, bookable here) and partner-network venues (tier partner, booked via their supplier). " +
     "Returns up to 6 matches with estimated cost.",
   inputSchema: venueSearchSchema,
   execute: searchVenueCatalogue,

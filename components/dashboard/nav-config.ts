@@ -13,6 +13,7 @@ import {
   MapPinned,
   MessageSquare,
   MessagesSquare,
+  Radar,
   Package,
   Receipt,
   Settings,
@@ -31,8 +32,8 @@ import type { NavSection, Side } from "@/types/navigation";
 
 /**
  * The app has two sides, like the marketplace it runs: companies that book
- * events, and venues that host them (Lufer.ai's own venues and partner
- * suppliers share the venue side). Lufer.ai staff get a third, Operator.
+ * events, and venues that host them (Lufer's own venues and partner
+ * suppliers share the venue side). Lufer staff get a third, Operator.
  * Company and venue users see only their own side; admins see every side
  * in one sidebar (allSides).
  *
@@ -61,6 +62,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
       {
         title: "Spend",
         items: [
+          { href: "/control-tower", label: "Control Tower", icon: Radar },
           { href: "/client?tab=catalog", label: "Catalogue", icon: ShoppingBag },
           { href: "/client?tab=pos", label: "Purchase orders", icon: FileText },
           { href: "/client?tab=settlement", label: "Settlement", icon: Receipt },
@@ -78,7 +80,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
   venue: {
     label: "For venues",
     sections: [
-      // Lufer.ai's own venues (property managers).
+      // Lufer's own venues (property managers).
       {
         title: "Bookings",
         items: [

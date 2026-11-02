@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Link preview for WhatsApp, Slack, LinkedIn: plum card, linen wordmark, coral accent.
 // Hex here because ImageResponse can't read CSS variables; mirrors globals.css.
-export const alt = "Lufer.ai: corporate events and hospitality for India";
+export const alt = "Lufer: corporate events and hospitality for India";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -22,7 +22,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", fontSize: 64, fontWeight: 700 }}>
-          Lufer<span style={{ color: "#FF6B4A", fontSize: 36 }}>.ai</span>
+          Lufer
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, maxWidth: 980 }}>

@@ -232,7 +232,7 @@ function notifyVenue(facts: VenueFacts, inquiry: InquiryRow) {
     const who = [inquiry.contact_name, inquiry.company_name].filter(Boolean).join(", ");
     const what = [inquiry.party_size ? `${inquiry.party_size} guests` : null, inquiry.event_date ? formatEventDate(inquiry.event_date) : null, inquiry.budget_per_head_inr ? `₹${inquiry.budget_per_head_inr}/head` : null].filter(Boolean).join(" · ");
     const reach = inquiry.contact_email ?? inquiry.contact_phone ?? "";
-    await sendWhatsAppMessage(to, `New corporate inquiry for ${facts.venue.name}: ${who}. ${what}. Reply to ${reach}, or see it in Lufer.ai: ${siteUrl("http://localhost:3000")}/property?tab=inquiries`);
+    await sendWhatsAppMessage(to, `New corporate inquiry for ${facts.venue.name}: ${who}. ${what}. Reply to ${reach}, or see it in Lufer: ${siteUrl("http://localhost:3000")}/property?tab=inquiries`);
   })().catch((err) => console.error("inquiries: venue alert failed", err));
   try {
     after(work);

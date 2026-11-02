@@ -1,17 +1,19 @@
 "use client";
 
 import { useId, useState } from "react";
-import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Timer, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, BadgePercent, Check, DoorClosed, Heart, MapPin, Search, Star, Timer, UserCheck, Users } from "lucide-react";
 
 import { PolicyBadge } from "@/components/policy/policy-badge";
+import { VenuePhoto } from "@/components/venues/venue-photo";
 import { matchScore } from "@/lib/search/match";
 import { cn, formatINR } from "@/lib/utils";
 import type { VenuePolicyStatus } from "@/lib/venues/discovery";
 import { signalLabels, type VenueSignals } from "@/lib/venues/signals";
 
-const SIGNAL_ICON = { favorite: Heart, coworkers: Users, you: UserCheck, fast: Timer } as const;
+const SIGNAL_ICON = { favorite: Heart, rated: Star, coworkers: Users, you: UserCheck, fast: Timer } as const;
 const SIGNAL_TITLE = {
   favorite: "One of your company's most-booked venues this year",
+  rated: "Average rating from companies' reviews after their events",
   coworkers: "Colleagues at your company booked here this year",
   you: "You booked here this year",
   fast: "Typical time for this venue to accept a request, across companies",
@@ -32,6 +34,8 @@ export interface VenuePickerOption {
   rate_card_label: string | null;
   /** Dietary options across the venue's packages, already labelled. */
   dietary?: string[];
+  /** Cover photo URL; null or absent when the venue has none. */
+  photo_url?: string | null;
 }
 
 const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
@@ -71,6 +75,7 @@ export function VenueCardBody({
   const social = signalLabels(signals);
   return (
     <>
+      {v.photo_url ? <VenuePhoto url={v.photo_url} className="-mx-5 -mt-5 mb-1 aspect-[16/9] w-[calc(100%+2.5rem)] max-w-none rounded-t-[inherit]" /> : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-fg line-clamp-2 text-body leading-snug font-medium">{v.name}</p>
@@ -126,7 +131,7 @@ export function VenueCardBody({
             const Icon = SIGNAL_ICON[key];
             return (
               <li key={key} title={SIGNAL_TITLE[key]} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
-                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current")} aria-hidden /> {label}
+                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current", key === "rated" && "text-gold-ink fill-current")} aria-hidden /> {label}
               </li>
             );
           })}

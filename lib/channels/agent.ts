@@ -120,7 +120,7 @@ async function unknownVenue(venueName: string): Promise<PlaceBookingResult> {
   const partner = matchVenue((await listDirectory()).venues.filter((v) => v.tier === "partner"), venueName);
   if (partner) {
     const supplier = partner.supplier ?? "its supplier network";
-    return { status: "error", message: `${partner.name} is a partner venue listed by ${supplier}. Partner venues are booked through the supplier, so I can't file it here; pick one of Lufer.ai's own venues or ask your admin for a supplier quote.` };
+    return { status: "error", message: `${partner.name} is a partner venue listed by ${supplier}. Partner venues are booked through the supplier, so I can't file it here; pick one of Lufer's own venues or ask your admin for a supplier quote.` };
   }
   return { status: "error", message: `No catalogue venue called "${venueName}".` };
 }
@@ -189,7 +189,7 @@ async function runDeterministic(
     .slice(0, 4)
     .map((v) => `• *${v.name}* (${v.neighborhood}) · up to ${v.capacity} · est. ${formatINR(v.estimatedTotalInr)}${v.tier === "partner" ? ` · partner via ${v.supplier}` : ""}`);
   const when = parsed.date ? ` on ${formatDate(parsed.date)}` : "";
-  const how = link ? `Reply "book <venue>" and I'll use the details above, or add a date, guests and budget.` : "Ask your admin to link this number in Lufer.ai to book directly.";
+  const how = link ? `Reply "book <venue>" and I'll use the details above, or add a date, guests and budget.` : "Ask your admin to link this number in Lufer to book directly.";
   return {
     reply: `Found ${result.total} venue${result.total === 1 ? "" : "s"}${parsed.guests ? ` for ${parsed.guests}` : ""}${when}:\n${lines.join("\n")}\n${how}`,
     status: "replied" as const,
@@ -349,7 +349,7 @@ export async function runChannelAgent(msg: ChannelMessage): Promise<ChannelAgent
   };
 
   if (!agent.enabled) {
-    return finish({ reply: "Lufer.ai isn't taking chat requests right now. Please use the client portal.", status: "ignored", tools: [] });
+    return finish({ reply: "Lufer isn't taking chat requests right now. Please use the client portal.", status: "ignored", tools: [] });
   }
 
   try {

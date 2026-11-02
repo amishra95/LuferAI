@@ -7,15 +7,17 @@ import { homeFor, type Portal } from "./roles.ts";
  * proxy.ts, /auth/callback and the portal guards: keep this file
  * free of Node/server-only imports.
  *
- *   no portal role, applied          → /signup/pending (received, or not approved)
+ *   no portal role, applied          → /signup/pending (an admin must decide, or not approved)
  *   no portal role, never applied    → /login?error=no_access
- *   approved                         → their portal: enterprise /client, partner /partner
+ *   active                           → their portal: enterprise /client, venue /property, partner /partner
  *
- * Approval creates the platform_users row (decide_signup_application), so an
- * approved applicant is routed by their role like everyone else.
+ * Most signups are active the moment their email is verified
+ * (activate_signup_application); those joining an existing company or venue
+ * wait for an admin. Activation creates the platform_users row, so an active
+ * applicant is routed by their role like everyone else.
  */
 
-export const ACCOUNT_TYPES = ["enterprise", "partner"] as const;
+export const ACCOUNT_TYPES = ["enterprise", "venue", "partner"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export const APPLICATION_STATUSES = ["pending_approval", "active", "rejected"] as const;
@@ -26,8 +28,13 @@ export const isApplicationStatus = (v: unknown): v is ApplicationStatus => typeo
 export const PENDING_PATH = "/signup/pending";
 export const NO_ACCESS_PATH = "/login?error=no_access";
 
-/** Each account type's portal once approved. */
-export const ACCOUNT_HOME: Record<AccountType, Portal> = { enterprise: "/client", partner: "/partner" };
+export const isAccountType = (v: unknown): v is AccountType => typeof v === "string" && (ACCOUNT_TYPES as readonly string[]).includes(v);
+
+/** Each account type's portal once active. */
+export const ACCOUNT_HOME: Record<AccountType, Portal> = { enterprise: "/client", venue: "/property", partner: "/partner" };
+
+/** Where a just-activated signup lands first: a welcome page for companies and venues, the portal for partners. */
+export const WELCOME_PATH: Record<AccountType, string> = { enterprise: "/client/welcome", venue: "/property/welcome", partner: "/partner" };
 
 /**
  * Where a signed-in user goes when a page needs a portal role: their role's

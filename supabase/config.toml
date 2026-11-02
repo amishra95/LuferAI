@@ -245,9 +245,15 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Magic links go to /auth/callback with a token_hash so they also work when opened on another device.
+# Hosted project: paste these into Authentication → Emails (Magic Link, Confirm signup); config.toml only drives local Supabase.
 [auth.email.template.magic_link]
-subject = "Your CorpHospitality sign-in link"
+subject = "Your Lufer sign-in link"
 content_path = "./supabase/templates/magic_link.html"
+
+# A new user's first link (signup at /signup), same callback.
+[auth.email.template.confirmation]
+subject = "Confirm your email for Lufer"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

@@ -19,6 +19,7 @@ import { publishBooking } from "@/lib/telemetry/live";
 import { tracer } from "@/lib/tracer";
 import { getVenuePricing, PricingError, saveCancellationTerms, saveMenuPackage, saveMinimumSpend, saveVenuePricing } from "@/lib/venues/pricing-store";
 import { setInquiryStatus } from "@/lib/venues/inquiry-store";
+import { attachVenuePhoto, createPhotoUpload, PhotoError, removeVenuePhoto, setVenueCover } from "@/lib/venues/photo-store";
 
 const INTENT_TO_STATUS: Record<string, BookingStatus> = {
   approve: "CONFIRMED",
@@ -45,7 +46,7 @@ export interface HostFormState {
 
 /** Guardrail and validation messages go to the host; anything else is logged and kept generic. */
 function failure(scope: string, err: unknown): HostFormState {
-  if (err instanceof GuardrailError || err instanceof BlockedDatesUnavailableError || err instanceof PricingError) return { status: "error", message: err.message };
+  if (err instanceof GuardrailError || err instanceof BlockedDatesUnavailableError || err instanceof PricingError || err instanceof PhotoError) return { status: "error", message: err.message };
   if (isMissingColumn(err as { code?: string })) return { status: "error", message: "Direct quotes need database migration 0025. Ask an admin to apply it." };
   if (err instanceof Error && /^(RFP not found|This RFP is closed|Enter a per-head price|Unknown menu package|Guardrails need)/.test(err.message)) return { status: "error", message: err.message };
   console.error(`property: ${scope} failed`, err);
@@ -443,4 +444,53 @@ export async function setInquiryStatusAction(formData: FormData) {
   if (!venueId || !/^[0-9a-f-]{36}$/i.test(id) || !["open", "qualified", "converted", "closed"].includes(status)) throw new Error("Invalid inquiry update");
   await setInquiryStatus(venueId, id, status as "open" | "qualified" | "converted" | "closed");
   revalidatePath("/property");
+}
+
+function revalidateListing() {
+  revalidatePath("/property");
+  revalidatePath("/venues");
+  revalidatePath("/client");
+}
+
+/**
+ * Step 1 of a photo upload: a signed slot for the host's browser to upload to
+ * directly. Only for the acting venue; the type and size are checked again
+ * from the bytes when the photo is attached.
+ */
+export async function startPhotoUploadAction(input: { venueId: string; type: string; size: number }): Promise<{ ok: true; path: string; token: string } | { ok: false; error: string }> {
+  try {
+    const form = new FormData();
+    form.set("venue_id", input.venueId);
+    const { venueId } = await actingVenue(form);
+    if (!venueId) return { ok: false, error: "Choose a venue." };
+    return { ok: true, ...(await createPhotoUpload(venueId, input)) };
+  } catch (err) {
+    const state = failure("start photo upload", err);
+    return { ok: false, error: state.message ?? "Something went wrong. Try again." };
+  }
+}
+
+/** Step 2: adds the uploaded file to the listing. */
+export async function attachPhotoAction(input: { venueId: string; path: string }): Promise<HostFormState> {
+  try {
+    const form = new FormData();
+    form.set("venue_id", input.venueId);
+    const { venueId } = await actingVenue(form);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    await attachVenuePhoto(venueId, input.path);
+    revalidateListing();
+    return { status: "success", message: "Photo added. Clients see it on your listing." };
+  } catch (err) {
+    return failure("attach photo", err);
+  }
+}
+
+/** Removes a photo, or makes it the cover (intent=cover). */
+export async function updatePhotoAction(formData: FormData) {
+  const venueId = await actingVenueId(formData);
+  const ref = String(formData.get("photo") ?? "");
+  if (!venueId || !ref) throw new Error("Invalid photo update");
+  if (formData.get("intent") === "cover") await setVenueCover(venueId, ref);
+  else await removeVenuePhoto(venueId, ref);
+  revalidateListing();
 }

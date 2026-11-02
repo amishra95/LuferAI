@@ -164,7 +164,7 @@ async function createPayment({ bookingId, invoiceId }: { bookingId?: string | nu
 // ----------------------------------------------------------------------------
 
 /**
- * Tools for the LuferAI Concierge (/api/agent/chat), bound to the signed-in
+ * Tools for the Lufer Concierge (/api/agent/chat), bound to the signed-in
  * member. The member and origin come from the session and request, never from
  * the model, so a prompt can't pay another company's invoice: the payments
  * service checks ownership again on every call.
@@ -240,7 +240,7 @@ export function createConciergeTools({ member, origin, memory }: { member: Membe
       execute: async ({ to, summary }) => {
         if (!whatsAppProvider()) return { ok: false as const, error: "WhatsApp isn't configured for this environment." };
         try {
-          return { ok: true as const, ...(await sendWhatsAppMessage(to, `LuferAI booking update\n\n${summary}`)) };
+          return { ok: true as const, ...(await sendWhatsAppMessage(to, `Lufer booking update\n\n${summary}`)) };
         } catch (err) {
           return { ok: false as const, error: err instanceof Error ? err.message : "Send failed" };
         }

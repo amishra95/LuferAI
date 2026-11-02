@@ -24,7 +24,7 @@ export const maxDuration = 300; // Seconds: Gemini agent runs can take minutes (
 const modelId = () => process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 
 // A function, not a constant: "today" must be the request's day, not the server's start-up day.
-const conciergeSystem = () => `You are LuferAI Concierge, the corporate hospitality assistant for LuferAI in Bengaluru.
+const conciergeSystem = () => `You are Lufer Concierge, the corporate hospitality assistant for Lufer in Bengaluru.
 
 How you work:
 1. Break the request into parts: who is attending, when, how many guests, where, budget per head (INR, pre-GST), and what has to be paid.
@@ -61,7 +61,7 @@ function awaitingApproval(step: { toolResults: readonly ({ toolName: string; out
 const Body = z.object({ messages: z.array(z.unknown()).min(1).max(100) }); // shape-checked by safeValidateUIMessages
 
 /**
- * LuferAI Concierge: Gemini (GEMINI_MODEL, default gemini-3.8-flash) with calendar,
+ * Lufer Concierge: Gemini (GEMINI_MODEL, default gemini-3.8-flash) with calendar,
  * venue, inventory, payment, WhatsApp and memory tools (lib/agent/tools.ts), up
  * to 5 steps per turn. Before the model runs, the user's preferences and the
  * past memories closest to their request are added to the system prompt

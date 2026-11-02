@@ -31,6 +31,7 @@ import { evaluateEventPolicy } from "@/lib/policies/checkBookingPolicy";
 import { isEventType, type PolicyCheck, type PolicyStatus } from "@/lib/policies/evaluate-booking-policy";
 import type { VenueOption } from "./_components/event-request-form";
 import { toVenueOption } from "./_components/venue-options";
+import { ReviewError, saveReview } from "@/lib/venues/review-store";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -158,7 +159,7 @@ export async function submitBookingRequest(
   if (member.role === "ADMIN") {
     const onBehalf = (await listPortalUsers({ companyId })).find((u) => u.id === userId);
     if (!onBehalf) return { status: "error", message: "Choose who this request is filed for." };
-    notes = [`Filed by a Lufer.ai admin${member.email ? ` (${member.email})` : ""} on behalf of ${onBehalf.name}.`, notes].filter(Boolean).join("\n\n");
+    notes = [`Filed by a Lufer admin${member.email ? ` (${member.email})` : ""} on behalf of ${onBehalf.name}.`, notes].filter(Boolean).join("\n\n");
   }
 
   const result = await placeBookingRequest({
@@ -687,4 +688,32 @@ export async function releaseCheckoutSlot(venueId: string, eventDate: string, to
   await getSlotLocks()
     .locks.release({ venueId, date: eventDate }, token)
     .catch((err) => console.error("checkout: release failed", err));
+}
+
+export interface ReviewState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+/** Rates a completed event at its venue (one review per booking; saving again replaces it). */
+export async function saveReviewAction(_prev: ReviewState, formData: FormData): Promise<ReviewState> {
+  const member = await requirePortal("/client");
+  if (member.role !== "CLIENT" || !member.companyId) return { status: "error", message: "Only company employees can review an event." };
+  try {
+    await saveReview({
+      bookingId: String(formData.get("booking_id") ?? ""),
+      companyId: member.companyId,
+      authorId: member.userId,
+      rating: formData.get("rating"),
+      comment: formData.get("comment"),
+    });
+  } catch (err) {
+    if (err instanceof ReviewError) return { status: "error", message: err.message };
+    console.error("client: save review failed", err);
+    return { status: "error", message: "Something went wrong. Try again." };
+  }
+  revalidatePath("/client");
+  revalidatePath("/venues");
+  revalidatePath("/property");
+  return { status: "success", message: "Thanks. Your review helps colleagues and other teams choose." };
 }

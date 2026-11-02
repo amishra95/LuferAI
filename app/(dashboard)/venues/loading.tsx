@@ -7,7 +7,7 @@ export default function Loading() {
     <Page>
       <PageHeader
         title="Venues"
-        description="Lufer.ai's own venues plus federated partner listings — the directory the agent's searchVenues tool queries."
+        description="Lufer's own venues plus federated partner listings — the directory the agent's searchVenues tool queries."
       />
       <LoadingRegion label="Loading venues…">
         <div className="mb-3 flex flex-wrap items-center gap-2">

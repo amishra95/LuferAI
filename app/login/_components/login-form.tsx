@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
-import { CheckCircle2, Loader2, Mail } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Building2, CheckCircle2, Loader2, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendMagicLink, signInWithGoogle, type MagicLinkState } from "../actions";
+import { sendMagicLink, signInWithGoogle, signInWithSso, type MagicLinkState, type SsoState } from "../actions";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
+  const [sso, ssoAction, ssoPending] = useActionState<SsoState, FormData>(signInWithSso, { status: "idle" });
+  const [ssoOpen, setSsoOpen] = useState(false);
 
   return (
     <div className="grid gap-6">
@@ -19,6 +21,25 @@ export function LoginForm({ next }: { next: string }) {
           Continue with Google
         </Button>
       </form>
+
+      {ssoOpen ? (
+        <form action={ssoAction} className="grid gap-2">
+          <input type="hidden" name="next" value={next} />
+          <Label htmlFor="sso-email">Work email for single sign-on</Label>
+          <div className="flex gap-2">
+            <Input id="sso-email" name="email" type="email" autoComplete="email" required autoFocus aria-invalid={sso.status === "error"} />
+            <Button type="submit" variant="outline" disabled={ssoPending}>
+              {ssoPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+              Continue
+            </Button>
+          </div>
+          {sso.status === "error" ? <p className="text-destructive text-caption">{sso.message}</p> : null}
+        </form>
+      ) : (
+        <Button type="button" variant="outline" className="-mt-3 w-full" onClick={() => setSsoOpen(true)}>
+          <Building2 className="size-4" aria-hidden /> Continue with company SSO
+        </Button>
+      )}
 
       <div className="text-muted-foreground flex items-center gap-3 text-caption">
         <span className="bg-border h-px flex-1" />

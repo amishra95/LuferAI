@@ -15,6 +15,7 @@ export const toVenueOption = (v: CatalogVenue): VenueOption => ({
   capacity_max: v.capacity_max,
   min_spend_inr: v.rate_card?.minSpendOverride ?? v.min_spend_inr,
   pdr_available: v.pdr_available,
+  photo_url: v.photo_url,
   from_per_head_inr: fromPrice(v),
   rate_card_label: v.rate_card?.label ?? null,
   dietary: [...new Set(v.packages.flatMap((p) => p.dietary_tags))].map(dietaryLabel),

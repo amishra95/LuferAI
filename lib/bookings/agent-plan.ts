@@ -136,7 +136,7 @@ export type Routing = "confirm" | "venue" | "approval";
 
 /**
  * Whether the agent may confirm on its own. Only an in-policy booking at a
- * Lufer.ai venue where the company has negotiated terms: the venue agreed those
+ * Lufer venue where the company has negotiated terms: the venue agreed those
  * corporate terms in advance. Anything needing sign-off goes to the approval
  * chain; everything else is sent to the venue to accept.
  */

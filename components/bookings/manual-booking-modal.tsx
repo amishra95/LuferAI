@@ -164,7 +164,7 @@ export function ManualBookingModal({
                       )}
                     </div>
                     <p className="text-fg-subtle text-caption sm:col-span-2">
-                      Policy and approvals run as this person; the venue sees that a Lufer.ai admin filed it.
+                      Policy and approvals run as this person; the venue sees that a Lufer admin filed it.
                     </p>
                   </fieldset>
                 ) : null}

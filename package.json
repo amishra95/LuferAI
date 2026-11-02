@@ -38,6 +38,7 @@
     "ai": "^7.0.127",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.11.2",
     "geist": "^1.7.2",
     "lucide-react": "^1.51.0",
     "maplibre-gl": "^6.12.0",

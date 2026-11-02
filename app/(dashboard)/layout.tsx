@@ -9,7 +9,7 @@ import { getCurrentMember } from "@/lib/auth/session";
 import { getPreferences } from "@/lib/settings/preferences";
 
 export const metadata: Metadata = {
-  title: { default: "Dashboard", template: "%s · Lufer.ai" },
+  title: { default: "Dashboard", template: "%s · Lufer" },
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

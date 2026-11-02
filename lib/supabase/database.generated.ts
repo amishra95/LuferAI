@@ -1189,6 +1189,39 @@ export type Database = {
           },
         ]
       }
+      company_sso_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          default_role: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled: boolean
+          id: string
+          sso_provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["corporate_role"]
+          domain?: string
+          enabled?: boolean
+          id?: string
+          sso_provider_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_events: {
         Row: {
           action: string
@@ -2705,6 +2738,135 @@ export type Database = {
           },
         ]
       }
+      punchout_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          sender_identity: string
+          shared_secret_sha256: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          sender_identity: string
+          shared_secret_sha256: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          sender_identity?: string
+          shared_secret_sha256?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      punchout_orders: {
+        Row: {
+          company_id: string
+          connection_id: string
+          created_at: string
+          id: string
+          lines: Json
+          order_date: string | null
+          order_id: string
+          order_type: string
+          payload_id: string
+          status: string
+          total_inr: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          connection_id: string
+          created_at?: string
+          id?: string
+          lines: Json
+          order_date?: string | null
+          order_id: string
+          order_type?: string
+          payload_id: string
+          status: string
+          total_inr?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          connection_id?: string
+          created_at?: string
+          id?: string
+          lines?: Json
+          order_date?: string | null
+          order_id?: string
+          order_type?: string
+          payload_id?: string
+          status?: string
+          total_inr?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      punchout_sessions: {
+        Row: {
+          browser_form_post: string
+          buyer_cookie: string
+          cart: Json
+          company_id: string
+          connection_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          operation: string
+          returned_at: string | null
+          token_sha256: string
+          updated_at: string
+          user_email: string | null
+          user_name: string | null
+        }
+        Insert: {
+          browser_form_post: string
+          buyer_cookie: string
+          cart?: Json
+          company_id: string
+          connection_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          operation?: string
+          returned_at?: string | null
+          token_sha256: string
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          browser_form_post?: string
+          buyer_cookie?: string
+          cart?: Json
+          company_id?: string
+          connection_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          operation?: string
+          returned_at?: string | null
+          token_sha256?: string
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       purchase_orders: {
         Row: {
           amount_inr: number
@@ -2958,6 +3120,10 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
           venue_website: string | null
         }
         Insert: {
@@ -2981,6 +3147,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          venue_address?: string | null
+          venue_area?: string | null
+          venue_capacity?: number | null
+          venue_id?: string | null
           venue_website?: string | null
         }
         Update: {
@@ -3004,6 +3174,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          venue_address?: string | null
+          venue_area?: string | null
+          venue_capacity?: number | null
+          venue_id?: string | null
           venue_website?: string | null
         }
         Relationships: [
@@ -3012,6 +3186,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signup_applications_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
           {
@@ -3634,6 +3815,42 @@ export type Database = {
           },
         ]
       }
+      venue_reviews: {
+        Row: {
+          author_id: string | null
+          booking_id: string
+          comment: string | null
+          company_id: string
+          created_at: string
+          id: string
+          rating: number
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          booking_id: string
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          author_id?: string | null
+          booking_id?: string
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string
@@ -3653,6 +3870,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available: boolean
+          photos: string[]
           private_suites: Json
           seating_layouts: Json
           serves_alcohol: boolean
@@ -3677,6 +3895,7 @@ export type Database = {
           name: string
           neighborhood: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3701,6 +3920,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           pdr_available?: boolean
+          photos?: string[]
           private_suites?: Json
           seating_layouts?: Json
           serves_alcohol?: boolean
@@ -3922,25 +4142,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      budget_hold_status_for: {
-        Args: { subject_status: string }
-        Returns: string
-      }
-      can_join_event_channel: { Args: { topic: string }; Returns: boolean }
-      current_company_id: { Args: never; Returns: string }
-      current_partner_id: { Args: never; Returns: string }
-      current_partner_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["partner_role"]
-      }
-      current_portal_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["portal_role"]
-      }
-      current_venue_id: { Args: never; Returns: string }
-      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
-      decide_signup_application: {
-        Args: { p_application_id: string; p_decision: string; p_reason?: string; p_reviewer: string }
+      activate_signup_application: {
+        Args: { p_application_id: string }
         Returns: {
           account_type: string
           city: string | null
@@ -3962,6 +4165,63 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
+          venue_website: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "signup_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      budget_hold_status_for: {
+        Args: { subject_status: string }
+        Returns: string
+      }
+      can_join_event_channel: { Args: { topic: string }; Returns: boolean }
+      current_company_id: { Args: never; Returns: string }
+      current_partner_id: { Args: never; Returns: string }
+      current_partner_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["partner_role"]
+      }
+      current_portal_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["portal_role"]
+      }
+      current_venue_id: { Args: never; Returns: string }
+      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      decide_signup_application: {
+        Args: { p_application_id: string; p_decision: string; p_reason?: string; p_reviewer: string | null }
+        Returns: {
+          account_type: string
+          city: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          email: string
+          full_name: string
+          gstin: string | null
+          id: string
+          job_title: string | null
+          message: string | null
+          partner_id: string | null
+          partner_role: string | null
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          venue_address: string | null
+          venue_area: string | null
+          venue_capacity: number | null
+          venue_id: string | null
           venue_website: string | null
         }
         SetofOptions: {

@@ -6,8 +6,11 @@ import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header
 import { BudgetManager } from "@/components/governance/budget-manager";
 import { ContractRequirement } from "@/components/governance/contract-requirement";
 import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
+import { PunchoutConnections } from "@/components/governance/punchout-connections";
 import { RequestBoard } from "@/components/governance/request-board";
 import { RuleManager } from "@/components/governance/rule-manager";
+import { SsoConnections } from "@/components/governance/sso-connections";
+import { listSsoConnections } from "@/lib/auth/sso-store";
 import { requireWorkspace } from "@/lib/auth/session";
 import { dataSource, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
 import { budgetTone } from "@/lib/procurement/po-ledger";
@@ -15,6 +18,8 @@ import { canManageGovernance } from "@/lib/services/enterprise/access";
 import { isOverdue, levelsNeeded } from "@/lib/services/enterprise/approvalEngine";
 import { getHierarchy, listApprovalRequests, listBudgets, listRules } from "@/lib/services/enterprise/governanceStore";
 import { cn } from "@/lib/utils";
+import { listPunchoutConnections } from "@/lib/punchout/store";
+import { siteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = { title: "Governance" };
 
@@ -28,17 +33,28 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
   const companies = member.role === "ADMIN" ? all : all.filter((c) => c.id === member.companyId);
   const company = typeof companyParam === "string" ? companies.find((c) => c.id === companyParam) : companies[0];
   if (!company) notFound();
+  // Runs alongside the loads below.
+  const punchoutLoad = listPunchoutConnections(company.id).catch((err) => {
+    console.error("governance: could not load punchout connections", err);
+    return { connections: [], orders: [], ready: false };
+  });
 
-  const [users, departments, hierarchy, { rules, ready }, budgets, requests] = await Promise.all([
+  const [users, departments, hierarchy, { rules, ready }, budgets, requests, sso] = await Promise.all([
     listPortalUsers({ companyId: company.id }),
     listDepartments({ companyIds: [company.id] }),
     getHierarchy(company.id),
     listRules(company.id),
     listBudgets(company.id),
     listApprovalRequests(company.id),
+    listSsoConnections(company.id).catch((err) => {
+      console.error("governance: could not load SSO connections", err);
+      return { connections: [], ready: false };
+    }),
   ]);
 
   const canManage = canManageGovernance(member);
+  const punchout = await punchoutLoad;
+  const site = siteUrl("https://lufer-ai.vercel.app");
   const now = new Date();
   const pending = requests.filter((r) => r.outcome === "pending");
   const overdue = pending.filter((r) => r.steps.some((s) => isOverdue(s.approval, now))).length;
@@ -121,12 +137,28 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         canManage={canManage && dataSource() === "supabase"}
       />
 
+      <SsoConnections
+        companyId={member.role === "ADMIN" ? company.id : null}
+        connections={sso.connections}
+        canManage={member.role === "ADMIN"}
+        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !sso.ready ? "needs migration 20261108000000" : null}
+      />
+
       <RequestBoard
         companyId={member.role === "ADMIN" ? company.id : null}
         pending={pending}
         recent={requests.filter((r) => r.outcome !== "pending").slice(0, 8)}
         canEscalate={canManage && dataSource() === "supabase"}
         now={now.toISOString()}
+      />
+
+      <PunchoutConnections
+        companyId={member.role === "ADMIN" ? company.id : null}
+        connections={punchout.connections}
+        orders={punchout.orders}
+        endpoints={{ setup: `${site}/api/punchout/setup`, order: `${site}/api/punchout/order` }}
+        canManage={member.role === "ADMIN"}
+        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !punchout.ready ? "needs migration 20261109000000" : null}
       />
     </Page>
   );
