@@ -26,6 +26,7 @@ import {
 
 import { Logo } from "@/components/brand/logo";
 import { IconTile } from "@/components/landing/icon-tile";
+import { ProductPreview } from "@/components/landing/product-preview";
 import { entityName } from "@/lib/legal";
 
 /*
@@ -97,6 +98,9 @@ export function Workflow() {
         title="From “we need a venue” to a reconciled invoice"
         body="Six steps that usually take a week of emails, calls and spreadsheets, handled in one place."
       />
+      <div className="mt-12 flex justify-center">
+        <ProductPreview />
+      </div>
       <ol className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {STEPS.map(({ icon, title, body }, i) => (
           <li key={title} className="landing-card relative flex flex-col p-6">

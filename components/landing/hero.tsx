@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
-import { ProductPreview } from "@/components/landing/product-preview";
+import { HeroVisual } from "@/components/landing/occasions";
 
 const NAV = [
   { href: "#how-it-works", label: "How it works" },
@@ -77,7 +77,7 @@ export function Hero() {
           </ul>
         </div>
 
-        <ProductPreview />
+        <HeroVisual />
       </div>
     </section>
   );
