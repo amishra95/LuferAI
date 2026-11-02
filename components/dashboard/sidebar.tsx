@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
+import { DiyaMark } from "@/components/brand/logo";
 import { useNavBadges } from "@/components/dashboard/nav-badges";
 import { SIDES, allSides, isItemActive, sideHome, sideSections } from "@/components/dashboard/nav-config";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,7 @@ export function Sidebar({
     >
       <div className={cn("flex h-14 shrink-0 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
         <Link href={sideHome(side, allowedHrefs)} onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
-          {collapsed || workspaceName !== "Lufer" ? <Monogram name={workspaceName} /> : null}
+          {workspaceName === "Lufer" ? <DiyaMark tone="linen" className="size-7" /> : <Monogram name={workspaceName} />}
           {/* The default workspace name gets the brand wordmark; a renamed workspace shows as typed. */}
           {!collapsed &&
             (workspaceName === "Lufer" ? (

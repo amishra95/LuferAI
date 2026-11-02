@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { DIYA_BOWL, DIYA_FLAME } from "@/components/brand/logo";
+
 // Link preview for WhatsApp, Slack, LinkedIn: plum card, linen wordmark, coral accent.
 // Hex here because ImageResponse can't read CSS variables; mirrors globals.css.
 export const alt = "Lufer: corporate events and hospitality for India";
@@ -21,7 +23,11 @@ export default function OpengraphImage() {
           color: "#FAF6F0",
         }}
       >
-        <div style={{ display: "flex", alignItems: "baseline", fontSize: 64, fontWeight: 700 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 64, fontWeight: 700 }}>
+          <svg width="72" height="72" viewBox="0 0 64 64">
+            <path d={DIYA_FLAME} fill="#FF6B4A" />
+            <path d={DIYA_BOWL} fill="#FAF6F0" />
+          </svg>
           Lufer
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
