@@ -5,6 +5,10 @@ import { withWorkflow } from "workflow/next";
 import { DOCUMENT_POLICY, DOCUMENT_ROUTES, securityHeaders } from "./lib/security-headers";
 
 const nextConfig: NextConfig = {
+  // The sample workspace was retired; old links land on the homepage.
+  async redirects() {
+    return [{ source: "/demo", destination: "/", permanent: true }];
+  },
   async headers() {
     return [
       {
