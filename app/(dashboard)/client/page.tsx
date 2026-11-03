@@ -45,7 +45,7 @@ import {
   listPurchaseOrders,
   type ApprovalDetail,
 } from "@/lib/data";
-import { partyStateCode, roundInr, stateName, todayInIndia } from "@/lib/gst-engine";
+import { partyStateCode, roundInr, todayInIndia } from "@/lib/gst-engine";
 import { listOrderSettlements, orderPaymentsEnabled } from "@/lib/marketplace/service";
 import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
 import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
@@ -59,7 +59,6 @@ import { MAX_BADGE_KM, officeOf } from "@/lib/venues/discovery";
 import { searchVenuesSpatial } from "@/lib/actions/venue-search";
 import { spendLimitFor } from "@/lib/policies/checkBookingPolicy";
 import { listRfps } from "@/lib/rfp/service";
-import type { CorporateRole } from "@/lib/supabase/database.types";
 import { cn, formatDate, formatINR } from "@/lib/utils";
 import { ApprovalDecisionForm } from "./_components/approval-decision-form";
 import { ApprovalThread, type ThreadComment } from "./_components/approval-thread";
@@ -81,7 +80,6 @@ import { ReviewSheet } from "./_components/review-sheet";
 import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
-const ROLE_LABEL: Record<CorporateRole, string> = { ORGANIZER: "Organizer", APPROVER: "Approver", FINANCE_VIEWER: "Finance viewer" };
 
 const HOUR = new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" });
 /** Time-of-day greeting in India time. */
@@ -283,16 +281,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     </section>
   );
 
-  // Employees get a greeting; the company, GSTIN and role sit quietly underneath.
+  // Employees get a greeting; everyone else sees the company name.
   const firstName = user?.name.split(/[\s@]/)[0];
   const title = user && firstName ? `${greeting()}, ${firstName[0].toUpperCase()}${firstName.slice(1)}` : company.legal_name;
-  const subtitle = [user ? company.legal_name : null, `GSTIN ${company.gstin}`, stateName(partyStateCode(company)), role ? ROLE_LABEL[role] : null].filter(Boolean).join(" · ");
 
   return (
     <PortalShell
       portal="/client"
       title={title}
-      subtitle={subtitle}
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">
           {queue.length > 0 ? (
@@ -440,14 +436,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   <CardTitle className="flex items-center gap-2">
                     <Eye className="size-4" aria-hidden /> Expense receipts
                   </CardTitle>
-                  <CardDescription>
-                    Structured receipts exported to finance when a venue confirms a booking.
-                    {canRequest ? "" : " You have read-only access; ask an Organizer to request events."}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {exports.length === 0 ? (
-                    <EmptyState compact icon={Receipt} title="No receipts yet" description="A structured receipt goes to your finance system when a venue confirms a booking; it'll be listed here." />
+                    <EmptyState compact icon={Receipt} title="No receipts yet" />
                   ) : (
                     <Table>
                       <TableHeader>
@@ -490,7 +482,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>GST ITC savings</CardTitle>
-                  <CardDescription>18% GST on SAC 998596 is claimable as input tax credit.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ItcCalculator eligible={itc.eligible} pendingReview={itc.pendingReview} awaitingInvoice={itc.awaitingInvoice} blocked={itc.blocked} committedSpend={itc.committedSpend} />
@@ -500,7 +491,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           {settlements.length ? (
             settlements.map((s) => <SettlementCard key={s.bookingId} view={s} canAct={member.role === "ADMIN" || role === "APPROVER"} />)
           ) : (
-            <EmptyState compact icon={Receipt} title="Nothing to settle yet" description="Bookings appear here once a venue confirms them." />
+            <EmptyState compact icon={Receipt} title="Nothing to settle yet" />
           )}
         </section>
       ) : activeTab === "pos" ? (
@@ -644,13 +635,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   }}
                 />
               ) : (
-                <StatCard label="Committed spend" icon={Wallet} value={formatINR(itc.committedSpend)} hint="All bookings, before GST" />
+                <StatCard label="Committed spend" icon={Wallet} value={formatINR(itc.committedSpend)} />
               )}
               <StatCard
                 label="GST to reclaim"
                 icon={Receipt}
                 value={formatINR(itc.eligible)}
-                hint={itc.pendingReview > 0 ? `${formatINR(itc.pendingReview)} awaiting finance review` : "Input tax credit on your invoices"}
+                hint={itc.pendingReview > 0 ? `${formatINR(itc.pendingReview)} awaiting finance review` : undefined}
               />
             </div>
           </section>
@@ -690,7 +681,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Your bookings</CardTitle>
-              <CardDescription>{bookings.length ? `${bookings.length} in total. Open one for its guest list, plan and invoice.` : "Requests and bookings appear here."}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>

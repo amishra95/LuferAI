@@ -13,7 +13,7 @@ import { PARTNER_KIND_LABEL, PARTNER_KINDS, type SignupField } from "@/lib/auth/
 import { submitSignup, type SignupState } from "../actions";
 
 /** Required fields get an asterisk; optional ones are left unmarked. */
-function Field({ id, label, required, error, hint, children }: { id: SignupField; label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode }) {
+function Field({ id, label, required, error, children }: { id: SignupField; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>
@@ -29,8 +29,6 @@ function Field({ id, label, required, error, hint, children }: { id: SignupField
         <p id={`${id}-error`} className="text-destructive text-caption">
           {error}
         </p>
-      ) : hint ? (
-        <p className="text-fg-subtle text-caption">{hint}</p>
       ) : null}
     </div>
   );
@@ -40,7 +38,8 @@ const COMPANY_LABEL: Record<AccountType, string> = { enterprise: "Company (legal
 
 /**
  * One form for every account type: a venue also gives where it is and how many
- * it seats; a partner, what they offer and a link to their work.
+ * it seats; a partner, what they offer and a link to their work. Only what an
+ * account needs to open; the rest (role, notes) belongs in settings later.
  */
 export function SignupForm({ accountType }: { accountType: AccountType }) {
   const [state, action, pending] = useActionState<SignupState, FormData>(submitSignup, { status: "idle" });
@@ -86,7 +85,7 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field id="venue_website" label="Website or portfolio" required error={e.venue_website} hint="Your site, showreel or Instagram.">
+          <Field id="venue_website" label="Website or portfolio" required error={e.venue_website}>
             <Input id="venue_website" name="venue_website" inputMode="url" required placeholder="yourstudio.in" {...invalid("venue_website")} />
           </Field>
         </div>
@@ -117,28 +116,13 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="gstin" label="GSTIN" required={accountType !== "partner"} error={e.gstin} hint={accountType === "partner" ? undefined : "Invoices are raised on it."}>
+        <Field id="gstin" label="GSTIN" required={accountType !== "partner"} error={e.gstin}>
           <Input id="gstin" name="gstin" required={accountType !== "partner"} maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />
         </Field>
         <Field id="phone" label="Mobile" error={e.phone}>
           <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98450 12345" {...invalid("phone")} />
         </Field>
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="job_title" label="Your role" error={e.job_title}>
-          <Input id="job_title" name="job_title" autoComplete="organization-title" maxLength={120} />
-        </Field>
-        {accountType === "venue" ? null : (
-          <Field id="city" label="City" error={e.city}>
-            <Input id="city" name="city" autoComplete="address-level2" maxLength={80} />
-          </Field>
-        )}
-      </div>
-
-      <Field id="message" label="Anything we should know?" error={e.message}>
-        <textarea id="message" name="message" rows={3} maxLength={1000} className="field h-auto py-2" />
-      </Field>
 
       {state.status === "error" && state.message ? (
         <p role="alert" className="text-destructive text-body">

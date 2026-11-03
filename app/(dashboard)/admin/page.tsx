@@ -42,7 +42,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     <PortalShell
       portal="/admin"
       title="Platform overview"
-      subtitle="Marketplace health across every company and venue."
       actions={
         <Link href="/admin/analytics" className="btn">
           <BarChart3 className="size-3.5" aria-hidden />
@@ -91,9 +90,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
       <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key metrics">
         <StatCard label="Total bookings" value={String(m.totalBookings)} hint={`${m.pendingBookings} awaiting venue approval`} icon={CalendarCheck} />
-        <StatCard label="Gross booking value" value={formatINR(m.grossBookingValue)} hint="Pre-GST, excludes cancelled" icon={IndianRupee} />
-        <StatCard label="Commission earned" value={formatINR(m.commissionEarned)} hint="Confirmed + completed bookings" icon={Landmark} />
-        <StatCard label="GST invoiced" value={formatINR(m.gstCollected)} hint="SAC 998596, all live bookings" icon={Receipt} />
+        <StatCard label="Gross booking value" value={formatINR(m.grossBookingValue)} icon={IndianRupee} />
+        <StatCard label="Commission earned" value={formatINR(m.commissionEarned)} icon={Landmark} />
+        <StatCard label="GST invoiced" value={formatINR(m.gstCollected)} icon={Receipt} />
       </section>
 
       <div className="mt-8 grid gap-6">
@@ -145,7 +144,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         <Card>
           <CardHeader>
             <CardTitle>All bookings</CardTitle>
-            <CardDescription>Tax treatment is derived from company vs venue GSTIN state codes.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -187,9 +185,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         <Card id="exports">
           <CardHeader>
             <CardTitle>Expense exports</CardTitle>
-            <CardDescription>
-              Receipts sent to finance on booking confirmation. {process.env.EXPENSE_WEBHOOK_URL ? "Posted to the configured webhook." : "No EXPENSE_WEBHOOK_URL set, so exports are mocked (recorded, not sent)."} Each row keeps the SHA-256 of the exact payload.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -245,9 +240,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         <Card id="approvals">
           <CardHeader>
             <CardTitle>Approval audit</CardTitle>
-            <CardDescription>
-              Every policy sign-off request across the platform, newest first · {approvals.length} shown
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Filter by tenant">

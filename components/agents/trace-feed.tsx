@@ -184,7 +184,6 @@ function NoActivity({ kind }: { kind: KindFilter }) {
         icon={ScrollText}
         compact
         title={what}
-        description="Rows appear as agents run. Traces live in Upstash Redis when it's configured (otherwise in this server's memory, cleared on restart), so a fresh instance starts empty."
         action={
           <>
             <Link href="/client" className="btn h-8 px-3 text-meta">

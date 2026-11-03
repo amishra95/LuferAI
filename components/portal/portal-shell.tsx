@@ -13,14 +13,15 @@ export type PortalKey = Portal | "/client/approvals";
  */
 export async function PortalShell({
   title,
-  subtitle,
+  meta,
   actions,
   children,
 }: {
   /** The portal this page belongs to; the sidebar picks the side from the URL. */
   portal?: PortalKey;
   title: string;
-  subtitle: string;
+  /** Facts about the record on screen (date, venue), never prose. */
+  meta?: string;
   /** Page-level actions shown beside the title (e.g. a drawer trigger). */
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -32,7 +33,7 @@ export async function PortalShell({
     <Page>
       <PageHeader
         title={title}
-        description={subtitle}
+        meta={meta}
         badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
         actions={actions}
       />

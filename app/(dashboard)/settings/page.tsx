@@ -128,7 +128,7 @@ export default async function SettingsPage() {
 
   return (
     <Page width="narrow">
-      <PageHeader title="Settings" description="Model keys, data connections and workspace preferences." />
+      <PageHeader title="Settings" />
 
       <div>
         <Section

@@ -30,7 +30,7 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
 
   if (member.role !== "ADMIN" && !member.canApprove) {
     return (
-      <PortalShell portal="/client/approvals" title="Approvals" subtitle="Bookings outside company policy">
+      <PortalShell portal="/client/approvals" title="Approvals">
         <div className="glass mx-auto grid max-w-md justify-items-center gap-3 rounded-lg p-8 text-center">
           <ClipboardCheck className="size-6 text-fg-subtle" aria-hidden />
           <p className="text-body text-fg-muted">
@@ -58,7 +58,6 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
     <PortalShell
       portal="/client/approvals"
       title="Approvals"
-      subtitle={`${company.legal_name.replace(" Private Limited", "")} · ${queue.length} request${queue.length === 1 ? "" : "s"} awaiting your sign-off`}
     >
       <div className="grid overflow-hidden rounded-lg border border-line/60 bg-surface lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* Queue */}

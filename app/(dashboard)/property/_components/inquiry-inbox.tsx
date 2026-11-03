@@ -4,7 +4,7 @@ import { CopyButton } from "@/components/portal/copy-button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
 import { formatEventDate, missingDetails, type InquiryStatus } from "@/lib/venues/inquiry";
 import type { InquiryRow } from "@/lib/venues/inquiry-store";
@@ -39,7 +39,7 @@ function StatusForm({ inquiry, venueId, status, label, variant = "outline" }: { 
  * conversation. The link at the top is what the venue shares (website,
  * Instagram bio, email signature).
  */
-export function InquiryInbox({ venueId, venueName, link, inquiries, names }: { venueId: string; venueName: string; link: string; inquiries: InquiryRow[]; names: Map<string, string> }) {
+export function InquiryInbox({ venueId, link, inquiries, names }: { venueId: string; link: string; inquiries: InquiryRow[]; names: Map<string, string> }) {
   return (
     <div className="grid gap-6">
       <Card>
@@ -47,10 +47,6 @@ export function InquiryInbox({ venueId, venueName, link, inquiries, names }: { v
           <CardTitle className="flex items-center gap-2">
             <Share2 className="size-4" aria-hidden /> Your inquiry link
           </CardTitle>
-          <CardDescription>
-            Put it on your website, Instagram bio and email signature. An AI assistant answers from {venueName}&apos;s own details, checks your calendar, and collects what you need to quote. When
-            you&apos;re booked out, it suggests other venues on Lufer, so the client stays in the network.
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
           <code className="border-line bg-surface-raised max-w-full truncate rounded-md border px-2 py-1 text-meta">{link}</code>
@@ -62,7 +58,7 @@ export function InquiryInbox({ venueId, venueName, link, inquiries, names }: { v
       </Card>
 
       {inquiries.length === 0 ? (
-        <EmptyState icon={MessageSquare} title="No inquiries yet" description="Share your inquiry link: conversations and leads appear here as they come in." />
+        <EmptyState icon={MessageSquare} title="No inquiries yet" />
       ) : (
         <ul className="grid gap-3">
           {inquiries.map((i) => {

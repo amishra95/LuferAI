@@ -35,7 +35,7 @@ export default async function AccountApprovalsPage() {
     .map(toItem);
 
   return (
-    <PortalShell portal="/admin" title="Account approvals" subtitle="Signups from /signup: venues to publish, and accounts that need a decision.">
+    <PortalShell portal="/admin" title="Account approvals">
       <AdminTabs current="/admin/approvals" />
       <UnlistedVenues venues={unlisted.map((v) => ({ id: v.id, name: v.name, area: `${v.neighborhood}, ${v.city}`, address: v.address, gstin: v.gstin, capacity: v.capacity_max }))} />
       <ApplicationQueue pending={pending} decided={decided} />

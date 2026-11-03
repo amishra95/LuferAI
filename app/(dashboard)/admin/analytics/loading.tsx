@@ -9,7 +9,6 @@ export default function Loading() {
   return (
     <PortalShell
       title="Agent analytics"
-      subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
       actions={
         <div aria-hidden className="flex flex-wrap items-center gap-3">
           <Skeleton className="h-7 w-44 rounded-full" />

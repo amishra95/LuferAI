@@ -71,10 +71,7 @@ export function PartnerPayouts({
       <Card>
         <CardHeader>
           <CardTitle>Payout account</CardTitle>
-          <CardDescription>
-            Buyers pay Lufer; your share is transferred to your Razorpay Route linked account when you confirm, held until you mark the order delivered, then settled to your bank on
-            Razorpay&apos;s schedule. Commission: {Math.round(Number(partner.commission_rate) * 10_000) / 100}% of the pre-GST value, plus 18% GST on it.
-          </CardDescription>
+          <CardDescription>Commission {Math.round(Number(partner.commission_rate) * 10_000) / 100}% + 18% GST</CardDescription>
         </CardHeader>
         <CardContent>
           {isAdmin ? (
@@ -90,15 +87,14 @@ export function PartnerPayouts({
       </Card>
 
       <section className="grid gap-6 sm:grid-cols-3" aria-label="Payout summary">
-        <StatCard label="On hold" value={formatINR(held, true)} hint="Released when you mark orders delivered" icon={Banknote} />
-        <StatCard label="Released" value={formatINR(paid, true)} hint="Settling or in your bank" icon={Landmark} />
-        <StatCard label="TCS credited" value={formatINR(tcsTotal, true)} hint="Section 52, net of returns" icon={Receipt} />
+        <StatCard label="On hold" value={formatINR(held, true)} icon={Banknote} />
+        <StatCard label="Released" value={formatINR(paid, true)} icon={Landmark} />
+        <StatCard label="TCS credited" value={formatINR(tcsTotal, true)} icon={Receipt} />
       </section>
 
       <Card>
         <CardHeader>
           <CardTitle>Payouts</CardTitle>
-          <CardDescription>What the buyer paid, less commission, GST on commission and TCS.</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
@@ -106,7 +102,6 @@ export function PartnerPayouts({
               compact
               icon={Banknote}
               title="No payouts yet"
-              description="A payout starts when you confirm an order the buyer has paid for, and is released when you mark it delivered."
               action={
                 ordersHref ? (
                   <Link href={ordersHref} className="btn btn-primary h-8 px-3 text-meta">
@@ -159,21 +154,17 @@ export function PartnerPayouts({
       <Card>
         <CardHeader>
           <CardTitle>TCS collected (Section 52)</CardTitle>
-          <CardDescription>
-            Reported by Lufer in GSTR-8 for each month; it appears in your GSTR-2X for you to accept and claim as credit. Returns are deducted in the month they happen.
-            {isAdmin ? (
-              <>
-                {" "}
-                <a href="/api/admin/tcs" download className="text-fg underline underline-offset-2">
+          {isAdmin ? (
+            <CardDescription>
+              <a href="/api/admin/tcs" download className="text-fg underline underline-offset-2">
                   Download this month&apos;s GSTR-8 rows (all partners)
                 </a>
-              </>
-            ) : null}
-          </CardDescription>
+            </CardDescription>
+          ) : null}
         </CardHeader>
         <CardContent>
           {byPeriod.length === 0 ? (
-            <EmptyState compact icon={Receipt} title="No TCS collected yet" description="TCS is collected on each paid order and listed here by return period." />
+            <EmptyState compact icon={Receipt} title="No TCS collected yet" />
           ) : (
             <Table>
               <TableHeader>

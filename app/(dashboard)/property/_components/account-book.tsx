@@ -3,7 +3,7 @@ import { Briefcase, CalendarClock, Gift, Repeat, Sparkles, TrendingUp, Undo2 } f
 import { EmptyState } from "@/components/portal/empty-state";
 import { StatCard } from "@/components/portal/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatINR } from "@/lib/utils";
 import { bookSummary, type Account, type AccountStatus, type Opportunity, type OpportunityKind } from "@/lib/venues/accounts";
@@ -27,7 +27,7 @@ type QuoteProps = Omit<React.ComponentProps<typeof DirectQuote>, "defaultCompany
  */
 export function AccountBook({ accounts, opportunities, quote }: { accounts: Account[]; opportunities: Opportunity[]; quote: QuoteProps }) {
   if (accounts.length === 0) {
-    return <EmptyState icon={Briefcase} title="No corporate clients yet" description="Companies appear here once they've booked you, with their history and the next step worth taking." />;
+    return <EmptyState icon={Briefcase} title="No corporate clients yet" />;
   }
   const summary = bookSummary(accounts);
   const quotable = new Set(quote.companies.map((c) => c.id));
@@ -36,14 +36,13 @@ export function AccountBook({ accounts, opportunities, quote }: { accounts: Acco
     <div className="grid gap-6">
       <section className="grid gap-6 sm:grid-cols-3" aria-label="Book of business">
         <StatCard label="Corporate clients" value={String(summary.clients)} hint={`${formatINR(summary.bookedValue)} booked, before GST`} />
-        <StatCard label="Came back" value={`${Math.round(summary.repeatRate * 100)}%`} hint="Clients with two or more events" />
+        <StatCard label="Came back" value={`${Math.round(summary.repeatRate * 100)}%`} />
         <StatCard label="Largest client" value={`${Math.round(summary.topShare * 100)}%`} hint={`of booked value: ${accounts[0].companyName.replace(" Private Limited", "")}`} />
       </section>
 
       <Card>
         <CardHeader>
           <CardTitle>Next steps</CardTitle>
-          <CardDescription>One suggestion per client, the most time-sensitive first: rebookings due by their usual rhythm, events coming up, clients gone quiet.</CardDescription>
         </CardHeader>
         <CardContent>
           {opportunities.length === 0 ? (
@@ -75,7 +74,6 @@ export function AccountBook({ accounts, opportunities, quote }: { accounts: Acco
       <Card>
         <CardHeader>
           <CardTitle>Accounts</CardTitle>
-          <CardDescription>Every company that has booked you, largest first. Values are before GST.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>

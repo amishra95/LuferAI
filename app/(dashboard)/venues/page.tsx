@@ -150,7 +150,6 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
     <Page>
       <PageHeader
         title="Venues"
-        description={admin ? "Lufer's own venues plus federated partner listings — the directory the agent's searchVenues tool queries." : "Restaurants, hotels and spaces that host corporate events. Filter by area and size, then request a quote."}
         badge={admin ? <NoticePill>{source === "mock" ? "mock data" : source}</NoticePill> : undefined}
       />
 
@@ -264,7 +263,6 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                 <EmptyState
                   icon={Building2}
                   title="The directory is empty"
-                  description="Venues appear here once they're onboarded or a partner network is connected."
                 />
               )}
             </div>

@@ -9,14 +9,18 @@ export function Page({ children, width = "default" }: { children: React.ReactNod
   );
 }
 
+/**
+ * Page title. No taglines: the title and the content explain the page.
+ * `meta` is for facts about the record on screen (date, venue, parties), never prose.
+ */
 export function PageHeader({
   title,
-  description,
+  meta,
   badge,
   actions,
 }: {
   title: string;
-  description: string;
+  meta?: string;
   badge?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
@@ -27,7 +31,7 @@ export function PageHeader({
           {title}
           {badge}
         </h1>
-        <p data-slot="page-description" className="text-fg-subtle text-body mt-1">{description}</p>
+        {meta ? <p data-slot="page-meta" className="text-fg-subtle text-body mt-1">{meta}</p> : null}
       </div>
       {actions}
     </div>

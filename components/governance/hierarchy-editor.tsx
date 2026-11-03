@@ -58,7 +58,6 @@ export function HierarchyEditor({
           icon={Network}
           compact
           title="No approvers yet"
-          description="Requests that need sign-off can't be submitted until someone is on the chain. Add an Approver to make them tier 1."
         />
       ) : (
         <ol className="panel divide-line divide-y">

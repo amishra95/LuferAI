@@ -74,7 +74,6 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
     <Page>
       <PageHeader
         title="Governance"
-        description={`Who signs off ${shortName(company.legal_name)}'s spend, in what order, above which amounts, and how much each team can commit per month or quarter.`}
         badge={
           <>
             {unavailable ? <NoticePill>{unavailable}</NoticePill> : null}

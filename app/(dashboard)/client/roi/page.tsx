@@ -6,7 +6,7 @@ import { TrendingUp } from "lucide-react";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
 import { dealRoi } from "@/lib/crm/deals";
@@ -45,14 +45,13 @@ export default async function RoiPage({ searchParams }: PageProps<"/client/roi">
     spendBookings.map((b) => ({ id: b.id, crm_deal_id: dealOf(b), status: b.status, spend_inr: b.invoice.invoice_total })),
   );
   const options = deals.map((d) => ({ id: d.id, label: `${d.name}${d.account_name ? ` · ${d.account_name}` : ""}${d.stage !== "open" ? ` (${STAGE[d.stage].label})` : ""}` }));
-  const shortName = company.legal_name.replace(" Private Limited", "");
 
   return (
-    <PortalShell portal="/client" title="Entertainment ROI" subtitle={`${shortName} · what client entertainment did for sales`}>
+    <PortalShell portal="/client" title="Entertainment ROI">
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Won revenue entertained" value={formatINR(roi.wonRevenue)} hint={`on ${formatINR(roi.wonSpend)} of entertainment`} />
-          <StatCard label="Revenue per ₹1 spent" value={roi.roiMultiple === null ? "—" : `₹${roi.roiMultiple.toLocaleString("en-IN")}`} hint="won revenue ÷ all linked spend" />
+          <StatCard label="Revenue per ₹1 spent" value={roi.roiMultiple === null ? "—" : `₹${roi.roiMultiple.toLocaleString("en-IN")}`} />
           <StatCard label="Open pipeline entertained" value={formatINR(roi.influencedPipeline)} />
           <StatCard label="Win rate" value={pct(roi.winRate)} hint={`vs ${pct(roi.baselineWinRate)} for deals without entertainment`} />
         </div>
@@ -63,9 +62,6 @@ export default async function RoiPage({ searchParams }: PageProps<"/client/roi">
         <Card>
           <CardHeader>
             <CardTitle>Deals</CardTitle>
-            <CardDescription>
-              Import a deals export from Zoho CRM, HubSpot or Salesforce. Re-import any time; existing deals update by their CRM id.
-            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             {!dealsAvailable() ? (
@@ -120,7 +116,6 @@ export default async function RoiPage({ searchParams }: PageProps<"/client/roi">
         <Card>
           <CardHeader>
             <CardTitle>Bookings</CardTitle>
-            <CardDescription>Pick the deal each event entertained for.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             {spendBookings.length === 0 ? (

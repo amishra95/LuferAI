@@ -87,7 +87,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
   return (
     <PortalShell
       title={eventTitle(room)}
-      subtitle={`${formatDate(booking.event_date)} · ${time(workspace.starts_at)}–${time(workspace.ends_at)} IST · ${venueLine(booking.venue)}`}
+      meta={`${formatDate(booking.event_date)} · ${time(workspace.starts_at)}–${time(workspace.ends_at)} IST · ${venueLine(booking.venue)}`}
     >
       <EventRoom bookingId={booking.id} self={{ userId: member.userId, name: displayName(member.email) }} realtime={dataSource() === "supabase"} activity={activity}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -175,7 +175,6 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 Event plan <SectionPresence section="plan" />
                 {planReady ? <PlanStatusBadge plan={plan} /> : null}
               </CardTitle>
-              <CardDescription>Run of show, catering and special requirements. An Approver signs it off; the venue then confirms it on their event brief.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5">
               {planReady && stage === "approved" ? <SignOffTrail plan={plan} approverName={plan.approvedBy ? (people[plan.approvedBy] ?? null) : null} /> : null}
@@ -188,7 +187,6 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
               <CardTitle className="flex flex-wrap items-center gap-3">
                 Guest list <SectionPresence section="guests" />
               </CardTitle>
-              <CardDescription>Each guest gets a personal RSVP link; no account needed. Replies show up here as they arrive.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               {dietary.length ? (
@@ -218,7 +216,6 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 <CardTitle className="flex items-center gap-2">
                   <IndianRupee className="size-4" aria-hidden /> Cost &amp; invoice
                 </CardTitle>
-                <CardDescription>From the booking&apos;s tax invoice (SAC 998596). GST is claimable as input tax credit.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <dl className="grid gap-1.5 text-meta">
@@ -246,7 +243,6 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="size-4" aria-hidden /> Activity
                 </CardTitle>
-                <CardDescription>Your team&apos;s edits and guests&apos; replies, live.</CardDescription>
               </CardHeader>
               <CardContent className="max-h-72 overflow-y-auto">
                 <ActivityTicker />
@@ -275,10 +271,6 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 <CardTitle className="flex flex-wrap items-center gap-3">
                   Calendar invite <SectionPresence section="invite" />
                 </CardTitle>
-                <CardDescription>
-                  An .ics with every guest and their reply, to send from Outlook or Google Calendar. Re-export after changes: calendars update the same event
-                  {workspace.ics_sequence ? ` (revision ${workspace.ics_sequence})` : ""}.
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <a href={`/api/events/${booking.id}/calendar`} download className="btn min-h-11 w-full justify-center sm:min-h-9">
