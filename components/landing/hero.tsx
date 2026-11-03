@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { HeroVisual } from "@/components/landing/occasions";
@@ -37,25 +37,17 @@ export function SiteHeader() {
   );
 }
 
-const PROOF = ["GST invoices under SAC 998596", "Approvals on WhatsApp & Slack", "Exports to Tally Prime & Zoho"];
-
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="landing-hero relative overflow-hidden">
       <div className="container-public grid items-center gap-12 pt-12 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-20 lg:pb-24">
         <div className="text-center lg:text-left">
-          <p className="border-sand text-plum inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1 text-caption font-semibold">
-            <span aria-hidden className="status-dot bg-mint" />
-            Built for Indian companies, GST and all
-          </p>
-
-          <h1 id="hero-title" className="font-display text-plum mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.6rem] lg:leading-[1.05]">
+          <h1 id="hero-title" className="font-display text-plum text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.6rem] lg:leading-[1.05]">
             Team offsites, client dinners and events, <span className="landing-underline">booked in minutes</span>.
           </h1>
 
           <p className="text-ink-muted mx-auto mt-6 max-w-xl text-base text-pretty sm:text-lg lg:mx-0">
-            Describe the event once. Lufer finds venues that fit your policy, gets quotes directly from them, routes
-            approvals to WhatsApp, and hands finance a GST-correct invoice with input tax credit tracked.
+            Venues that fit your policy, quotes direct from them, approvals on WhatsApp and a GST invoice finance can claim.
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
@@ -66,15 +58,6 @@ export function Hero() {
               List your venue
             </Link>
           </div>
-
-          <ul className="text-plum/80 mt-8 flex flex-col items-center gap-x-5 gap-y-2 text-meta sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start" aria-label="Highlights">
-            {PROOF.map((p) => (
-              <li key={p} className="inline-flex items-center gap-1.5">
-                <Check className="text-mint-ink size-4" aria-hidden />
-                {p}
-              </li>
-            ))}
-          </ul>
         </div>
 
         <HeroVisual />

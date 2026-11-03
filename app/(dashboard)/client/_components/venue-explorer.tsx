@@ -118,7 +118,6 @@ export function VenueExplorer({
         <EmptyState
           icon={MapPinned}
           title="No venues in your catalogue yet"
-          description="Venues appear here once they're onboarded for your company. Prices, rate cards and availability show up with them."
         />
       ) : (
         <div className={cn("grid gap-6", view === "map" && "lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]")}>

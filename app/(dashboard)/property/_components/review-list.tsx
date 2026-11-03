@@ -1,9 +1,8 @@
 import { Star } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VenueReview } from "@/lib/supabase/database.types";
 import { formatDate } from "@/lib/utils";
-import { RATING_MIN_REVIEWS } from "@/lib/venues/reviews";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -29,10 +28,6 @@ export function ReviewList({ reviews }: { reviews: (VenueReview & { company_name
             </span>
           ) : null}
         </CardTitle>
-        <CardDescription>
-          What clients said after their events. Your average shows on your venue card once you have {RATING_MIN_REVIEWS} reviews
-          {reviews.length > 0 && reviews.length < RATING_MIN_REVIEWS ? ` (${RATING_MIN_REVIEWS - reviews.length} to go)` : ""}.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         {reviews.length === 0 ? (

@@ -52,7 +52,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <Page>
       <PageHeader
         title="Overview"
-        description="Agent fleet health and booking traffic over the last two hours."
         badge={!isRedisConfigured() && <NoticePill>this instance only</NoticePill>}
         actions={
           <Link href="/chat" className="btn">

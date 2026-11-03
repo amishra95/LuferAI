@@ -32,7 +32,7 @@ export default async function PunchoutPage({ params }: PageProps<"/punchout/[tok
         <Card>
           <CardHeader>
             <CardTitle>This catalogue link has expired</CardTitle>
-            <CardDescription>Punchout links last two hours and work once. Go back to your procurement system and open the Lufer catalogue again.</CardDescription>
+            <CardDescription>Open the Lufer catalogue again from your procurement system.</CardDescription>
           </CardHeader>
         </Card>
       </main>

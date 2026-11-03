@@ -22,7 +22,7 @@ export default async function PropertyManagersPage() {
   }
 
   return (
-    <PortalShell portal="/admin" title="Property managers & venue assignments" subtitle="Who runs each venue's property portal and receives its booking requests.">
+    <PortalShell portal="/admin" title="Property managers & venue assignments">
       <AdminTabs current="/admin/managers" />
       {unavailable ? (
         <p role="note" className="panel text-fg-subtle p-6 text-meta">

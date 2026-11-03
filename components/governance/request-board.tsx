@@ -97,7 +97,7 @@ export function RequestBoard({
         <span id="requests-heading">Approval requests</span>
       </SectionLabel>
       {pending.length === 0 ? (
-        <EmptyState icon={CircleCheck} compact title="Nothing waiting for sign-off" description="Requests that need approval show here with each step's approver, deadline and escalations." />
+        <EmptyState icon={CircleCheck} compact title="Nothing waiting for sign-off" />
       ) : (
         <ul className="panel divide-line divide-y">
           {pending.map((r) => (

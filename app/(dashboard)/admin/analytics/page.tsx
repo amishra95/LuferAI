@@ -77,7 +77,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
     <PortalShell
       portal="/admin"
       title="Agent analytics"
-      subtitle="Runs, reliability, latency and token use across every agent and channel, plus request traces."
       actions={
         <div className="flex flex-wrap items-center gap-3">
           <LiveBadge asOf={asOf} partial={Boolean(loadError)} />
@@ -123,7 +122,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
           headingLevel={2}
           icon={Activity}
           title={`No agent runs in the last ${RANGE_LABEL[range]}`}
-          description="Runs are recorded from workspace chat, WhatsApp and Slack replies, the AI tools in the portals and agent tests."
           action={
             <>
               <Link href="/agents" className="btn btn-primary">
@@ -152,7 +150,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
             <Card>
               <CardHeader>
                 <CardTitle>Median latency</CardTitle>
-                <CardDescription>Time from request to finished run · gaps mean nothing ran</CardDescription>
               </CardHeader>
               <CardContent>
                 <LatencyChart buckets={s.buckets} bucketMs={s.bucketMs} />
@@ -163,7 +160,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>By agent</CardTitle>
-              <CardDescription>Busiest first</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -213,7 +209,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
             <Card>
               <CardHeader>
                 <CardTitle>By channel</CardTitle>
-                <CardDescription>Where requests came from</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -240,7 +235,6 @@ export default async function AgentAnalyticsPage({ searchParams }: PageProps<"/a
             <Card>
               <CardHeader>
                 <CardTitle>Recent failures</CardTitle>
-                <CardDescription>Up to 10, newest first</CardDescription>
               </CardHeader>
               <CardContent>
                 {s.failures.length === 0 ? (

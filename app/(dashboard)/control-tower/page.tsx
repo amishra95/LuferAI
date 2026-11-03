@@ -53,7 +53,6 @@ export default async function ControlTowerPage({ searchParams }: PageProps<"/con
     <Page>
       <PageHeader
         title="Control Tower"
-        description="Every event request in one place: what was spent, whether it was in policy, who signed it off, and whether it's paid. Filter by team, event type, city or period, then export for finance."
         badge={admin && !filters.companyId ? <NoticePill>all companies</NoticePill> : null}
       />
 

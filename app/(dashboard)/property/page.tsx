@@ -10,7 +10,7 @@ import { StatCard } from "@/components/portal/stat-card";
 import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePortal } from "@/lib/auth/session";
 import { blockedDatesReady, computeMonthlyPayouts, dataSource, listBlockedDates, listBookings, listCompanies, listEventPlans, listLiveHolds, listVenues } from "@/lib/data";
@@ -141,7 +141,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       portal="/property"
       actions={live ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} rules={guardrails.rules} rulesReady={guardrails.ready} platformCap={platform.maxDiscountPct} /> : null}
       title={venue.name}
-      subtitle={`${venue.neighborhood}, ${venue.city} · GSTIN ${venue.gstin} · platform commission ${(Number(venue.commission_rate) * 100).toFixed(0)}% · min spend ${formatINR(Number(venue.min_spend_inr))}`}
+      meta={`${venue.neighborhood}, ${venue.city}`}
     >
       {venues.length > 1 ? (
         <div className="-mt-2 mb-8 flex flex-wrap items-center gap-2" aria-label="Switch venue (admin)">
@@ -168,7 +168,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
-        <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} hint="Net of commission, before GST pass-through" />
+        <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} />
       </section>
 
       <NavBadges
@@ -237,7 +237,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <EmptyState
             icon={Inbox}
             title="Nothing needs you right now"
-            description="New booking requests, date holds and RFPs from clients land here. Meanwhile, block dates you can't host, or quote a client you work with."
             action={
               <>
                 {blockDates(true)}
@@ -252,10 +251,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                 <Card id="escalations" className={cn(escalations.open.length > 0 && "border-warn/40")}>
                   <CardHeader>
                     <CardTitle>Counter-offers to review</CardTitle>
-                    <CardDescription>
-                      Automatic counters the platform held back for a person to check: deep discounts or large deals. The client sees your instant quote until you
-                      approve, change the price, or reject.
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <EscalationQueue key={venue.id} open={escalations.open} recent={escalations.recent} ready={escalations.ready} alert={{ venueId: venue.id, number: alertNumber }} />
@@ -265,7 +260,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Incoming requests</CardTitle>
-                  <CardDescription>Approve to confirm the booking with the client, or decline to release the date.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {incoming.length === 0 ? (
@@ -319,10 +313,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <CardTitle>RFP inbox</CardTitle>
-                      <CardDescription>
-                        Clients got an instant quote from your packages and minimum spend. Counter with your own per-head price, decline, or send a client a quote
-                        they didn&apos;t ask for. The client&apos;s rate-card discount and GST apply on top of instant quotes only.
-                      </CardDescription>
                     </div>
                     {directQuote()}
                   </CardHeader>
@@ -385,10 +375,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             <Card>
               <CardHeader>
                 <CardTitle>Inventory holds</CardTitle>
-                <CardDescription>
-                  Dates held for pending requests release automatically when their timer runs out; convert to confirm, or release now. Blocked dates are ones you
-                  marked unavailable: clients can&apos;t request them.
-                </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-5">
                 {blockDates()}
@@ -475,7 +461,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       ) : tab === "inquiries" ? (
         <InquiryInbox
           venueId={venue.id}
-          venueName={venue.name}
           link={`${siteUrl("http://localhost:3000")}/inquire/${venue.id}`}
           inquiries={inquiries}
           names={new Map(allVenues.map((v) => [v.id, v.name]))}
@@ -494,7 +479,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <EmptyState
             icon={ClipboardList}
             title="No upcoming events to brief"
-            description="Briefs are drafted for requests you're considering and confirmed events: run of show, catering and the client's budget limits."
             action={
               <Link href={href("requests")} className="btn h-8 px-3 text-meta">
                 Go to Requests &amp; Holds
@@ -505,10 +489,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <Card>
             <CardHeader>
               <CardTitle>Event briefs</CardTitle>
-              <CardDescription>
-                AI-drafted briefs for upcoming events: run of show, catering and budget limits from the client&apos;s request. Suggestions are marked; confirm them
-                with the client.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="divide-line divide-y">
@@ -541,7 +521,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <EmptyState
             icon={Tags}
             title="Pricing controls need the live database"
-            description="Menu packages, guest-count tiers, the rate calendar and deposit rules are stored in Supabase. Connect it to set them here."
           />
         ) : (
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
@@ -549,7 +528,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Photos</CardTitle>
-                  <CardDescription>Shown on your venue card and listing. The first photo is the cover.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <PhotoManager
@@ -564,7 +542,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>
-                  <CardDescription>The floor every quote is lifted to, and per-head adjustments by party size.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <MinimumSpendForm
@@ -582,10 +559,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Food &amp; beverage packages</CardTitle>
-                  <CardDescription>
-                    What instant quotes offer: the dearest active package that covers every dietary need within the client&apos;s budget. Tiers and the rate calendar
-                    apply on top of these prices.
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="divide-line divide-y">
@@ -606,9 +579,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Rate calendar</CardTitle>
-                  <CardDescription>
-                    Weekend surcharges, peak seasons and high-demand dates multiply every package&apos;s price for events on those days. The largest rate in force applies.
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-5">
                   <RateCalendar today={today} multipliers={pricing.multipliers} blocked={new Set(blocks.map((b) => b.blocked_date))} />
@@ -639,7 +609,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Discount limits</CardTitle>
-                  <CardDescription>Hard limits on every offer: your counters, direct quotes, auto-counters and the AI negotiator. The same settings as the negotiator&apos;s Guardrails tab.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <GuardrailsForm key={`rules-${venue.id}`} venueId={venue.id} rules={guardrails.rules} ready={guardrails.ready} platformCap={platform.maxDiscountPct} />
@@ -649,7 +618,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               <Card>
                 <CardHeader>
                   <CardTitle>Deposit &amp; cancellation</CardTitle>
-                  <CardDescription>What clients pay up front, and what they get back if they cancel.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <TermsForm
@@ -669,7 +637,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         <EmptyState
           icon={Receipt}
           title="No payouts or bookings yet"
-          description="Confirmed and completed events show here by month, with commission and your payout, alongside the full booking history."
           action={
             <Link href={href("requests")} className="btn h-8 px-3 text-meta">
               Go to Requests &amp; Holds
@@ -681,7 +648,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <Card>
             <CardHeader>
               <CardTitle>Monthly payouts</CardTitle>
-              <CardDescription>Confirmed and completed events, by event month.</CardDescription>
             </CardHeader>
             <CardContent>
               {payouts.length === 0 ? (
@@ -720,7 +686,6 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           <Card>
             <CardHeader>
               <CardTitle>Booking history</CardTitle>
-              <CardDescription>Mark confirmed events complete once they&apos;ve taken place to trigger settlement.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>

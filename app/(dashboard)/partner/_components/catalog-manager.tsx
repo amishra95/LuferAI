@@ -59,7 +59,6 @@ export function PartnerCatalog({
             className="m-4"
             icon={Package}
             title="No catalogue items yet"
-            description="List gifting, tickets, merch, team building or dining packages, each with its HSN/SAC code and GST rate, and companies can order them directly."
             action={
               canEdit && !adding ? (
                 <button type="button" onClick={() => setAdding(true)} className="btn btn-secondary h-8 px-3 text-meta">
@@ -434,7 +433,6 @@ export function PartnerOrders({
       <EmptyState
         icon={Inbox}
         title="No orders yet"
-        description="When a company orders from your catalogue, it lands in To confirm. Confirm it to take their payment."
         action={
           catalogHref ? (
             <Link href={catalogHref} className="btn btn-primary h-8 px-3 text-meta">

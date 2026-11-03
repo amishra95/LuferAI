@@ -56,7 +56,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
 
   if (!partner) {
     return (
-      <PortalShell portal="/partner" title="Partner extranet" subtitle="Supplier listings and rate cards">
+      <PortalShell portal="/partner" title="Partner extranet">
         <Card>
           <CardContent className="text-fg-subtle py-8 text-center text-meta">
             {isAdmin
@@ -108,7 +108,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     <PortalShell
       portal="/partner"
       title={partner.name}
-      subtitle={`Partner extranet · ${roleLabel}${partner.status === "suspended" ? " · suspended: listings are hidden from search" : ""}`}
+      meta={partner.status === "suspended" ? "Suspended · hidden from search" : undefined}
       actions={
         canAddListing ? (
           <Link href={`${href("listings")}#add-listing`} className="btn btn-secondary h-8 px-3 text-meta">
@@ -131,7 +131,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
       <section className="mb-6 grid gap-6 sm:grid-cols-3" aria-label="Summary">
         <StatCard label="Live listings" value={String(listings.filter((l) => l.status === "active").length)} hint={`${listings.length} total`} icon={Store} />
         <StatCard label="Rates in effect" value={String(rates.filter((r) => isRateActiveOn(r, today)).length)} hint={`${liveRates.length} current or upcoming`} icon={CalendarRange} />
-        <StatCard label="Your role" value={roleLabel} hint={can.has("rates.edit") ? "Can edit listings and rates" : "Read-only, can pause listings"} icon={can.has("team.manage") ? Users : Building} />
+        <StatCard label="Your role" value={roleLabel} icon={can.has("team.manage") ? Users : Building} />
       </section>
 
       <nav className="border-line mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Partner sections">
@@ -156,7 +156,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card>
             <CardHeader>
               <CardTitle>Listings</CardTitle>
-              <CardDescription>Active listings appear in Lufer venue search as partner venues. Paused ones are hidden.</CardDescription>
             </CardHeader>
             <CardContent>
               {listings.length === 0 ? (
@@ -240,7 +239,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             <Card id="add-listing" className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Add a listing</CardTitle>
-                <CardDescription>Publish a venue to Lufer corporate buyers. After adding it you&apos;ll set its first rate, so search can price it.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ListingForm partnerId={formPartnerId} ratesHref={href("rates")} />
@@ -304,9 +302,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card>
             <CardHeader>
               <CardTitle>{selected ? `Rate cards · ${selected.name}` : "Rate cards"}</CardTitle>
-              <CardDescription>
-                Per-head prices (pre-GST) by listing, date range and group size. Within one group bracket, rates can&apos;t overlap.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               {shownRates.length === 0 ? (
@@ -384,7 +379,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             <Card id="rate-form" className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>{selected ? `Publish a rate for ${selected.name}` : "Publish a rate"}</CardTitle>
-                <CardDescription>To change a price, end the current rate (or delete it) and publish the new one from the next day.</CardDescription>
               </CardHeader>
               <CardContent>
                 <RateCardForm
@@ -463,7 +457,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card>
             <CardHeader>
               <CardTitle>Team</CardTitle>
-              <CardDescription>Owners manage the team; Managers edit listings and rates; Staff can view and pause listings.</CardDescription>
             </CardHeader>
             <CardContent>
               {members.length === 0 ? (
@@ -471,7 +464,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                   compact
                   icon={Users}
                   title="No team members yet"
-                  description="Invite this partner's first Owner. Owners then invite Managers to edit listings and rates, and Staff to pause listings."
                   action={
                     <Link href="#invite" className="btn btn-secondary h-8 px-3 text-meta">
                       <Plus className="size-3.5" aria-hidden /> Invite the first Owner
@@ -508,7 +500,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
           <Card id="invite" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Invite someone</CardTitle>
-              <CardDescription>New addresses get a sign-in invitation; existing Lufer users without another organisation are added directly.</CardDescription>
             </CardHeader>
             <CardContent>
               <InviteForm partnerId={formPartnerId} />
@@ -521,7 +512,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         <Card>
           <CardHeader>
             <CardTitle>Activity</CardTitle>
-            <CardDescription>The last 50 changes to listings, rates and the team.</CardDescription>
           </CardHeader>
           <CardContent>
             {audit.length === 0 ? (
@@ -529,7 +519,6 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
                 compact
                 icon={History}
                 title="No changes yet"
-                description="Every change to listings, rates and the team is recorded here with who made it."
                 action={
                   <Link href={href("listings")} className="btn btn-secondary h-8 px-3 text-meta">
                     <Store className="size-3.5" aria-hidden /> Go to Listings

@@ -89,7 +89,6 @@ export function RuleManager({
           icon={Scale}
           compact
           title="No approval rules"
-          description="Without rules, only corporate policy (approval and high-value thresholds, the monthly limit) decides sign-off. Add a band to require levels of approval above an amount."
         />
       ) : (
         <ul className="panel divide-line divide-y">

@@ -90,8 +90,7 @@ export function Occasions() {
   return (
     <section aria-labelledby="occasions-title" className="section-block container-public">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-coral-ink text-caption font-semibold tracking-wide uppercase">Every kind of occasion</p>
-        <h2 id="occasions-title" className="font-display text-plum mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+        <h2 id="occasions-title" className="font-display text-plum text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           The places your team will remember
         </h2>
         <p className="text-ink-muted mt-4 text-base text-pretty">

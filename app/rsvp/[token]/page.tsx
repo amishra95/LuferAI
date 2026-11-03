@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CalendarPlus, Clock, MapPin } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRsvpInvite } from "@/lib/data";
 import { eventTitle, venueLine } from "@/lib/events/invite";
 import { isRsvpStatus, RSVP_LABEL, rsvpWindow } from "@/lib/events/rsvp";
@@ -31,7 +31,6 @@ export default async function RsvpPage({ params }: PageProps<"/rsvp/[token]">) {
         <CardHeader>
           <p className="text-fg-subtle text-caption font-medium">{booking.company.legal_name} invites you</p>
           <CardTitle className="text-section">{eventTitle(invite)}</CardTitle>
-          <CardDescription>Hi {attendee.name.split(" ")[0]}, let the hosts know if you can make it.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5">
           <dl className="grid gap-2 text-body">

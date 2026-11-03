@@ -53,7 +53,7 @@ export default async function ContractPage({ params, searchParams }: PageProps<"
     <Page>
       <PageHeader
         title={`Contract ${terms.contractNumber}`}
-        description={`${terms.client.legalName} × ${terms.venue.name} · ${formatDate(terms.event.date)} · ${terms.event.partySize} guests · ${formatINR(terms.pricing.invoiceTotal, true)} incl. GST`}
+        meta={`${terms.client.legalName} × ${terms.venue.name} · ${formatDate(terms.event.date)} · ${terms.event.partySize} guests · ${formatINR(terms.pricing.invoiceTotal, true)} incl. GST`}
         badge={
           <>
             <Pill tone={TONE[status]}>{STATUS_LABEL[status]}</Pill>

@@ -220,7 +220,7 @@ export function RateCardForm({
         <Field id="rate" label="Per head (₹, pre-GST)" name="per_head_inr" type="number" min={1} step="1" required error={err.per_head_inr} />
         <Field id="rate" label="Applies from (guests)" name="min_guests" type="number" min={1} max={5000} defaultValue={1} error={err.min_guests} hint="Add a separate rate for larger groups." />
         <Field id="rate" label="Valid from" name="valid_from" type="date" defaultValue={minDate} required error={err.valid_from} />
-        <Field id="rate" label="Valid to" name="valid_to" type="date" error={err.valid_to} hint="Leave blank for open-ended." />
+        <Field id="rate" label="Valid to" name="valid_to" type="date" error={err.valid_to} />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending || listings.length === 0}>

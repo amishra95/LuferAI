@@ -59,7 +59,6 @@ export default async function AgentsPage({ searchParams }: PageProps<"/agents">)
     <Page>
       <PageHeader
         title="Agents"
-        description="Switch agents on, choose their model and tools, inspect their prompts and guardrails, and trace every negotiation, rule check and model call."
         badge={<NoticePill>{`settings in ${store}${isRedisConfigured() ? " · runs in redis" : ""}`}</NoticePill>}
         actions={
           <Inspector

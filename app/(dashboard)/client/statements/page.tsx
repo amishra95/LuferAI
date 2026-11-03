@@ -41,13 +41,11 @@ export default async function StatementsPage({ searchParams }: PageProps<"/clien
   const companyQs = member.role === "ADMIN" ? `&company=${company.id}` : "";
   const fileHref = (format: "csv" | "html") => `/api/finance/statements?month=${month}&format=${format}${companyQs}`;
   const t = statement.totals;
-  const shortName = company.legal_name.replace(" Private Limited", "");
 
   return (
     <PortalShell
       portal="/client"
       title="Monthly statements"
-      subtitle={`${shortName} · one statement for every vendor you booked`}
       actions={
         statement.bookingCount > 0 ? (
           <div className="flex gap-2">

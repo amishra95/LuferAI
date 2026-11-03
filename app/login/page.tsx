@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AuthShell } from "@/components/auth/auth-shell";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canAccess, homeFor, portalFor, safeNextPath } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
 import { LoginForm } from "./_components/login-form";
@@ -11,9 +11,9 @@ import { LoginForm } from "./_components/login-form";
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
-  no_access: "Your account isn't linked to a portal yet. Create an account below, or ask a platform admin to grant access.",
-  link_invalid: "That sign-in link is invalid or has expired. Request a new one.",
-  oauth_failed: "Google sign-in couldn't be started. Please try again.",
+  no_access: "This account has no access yet. Create an account below.",
+  link_invalid: "That link has expired. Request a new one.",
+  oauth_failed: "Google sign-in failed. Try again.",
   auth_unconfigured: "Sign-in is unavailable: Supabase isn't configured (see .env.example).",
 };
 
@@ -35,7 +35,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <Card>
         <CardHeader>
           <CardTitle>Sign in to Lufer</CardTitle>
-          <CardDescription>Use your work Google account or get a one-time link by email.</CardDescription>
         </CardHeader>
         <CardContent>
           {errorMessage ? (

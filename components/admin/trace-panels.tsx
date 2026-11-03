@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, Waypoints } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMs } from "@/lib/telemetry/format";
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
@@ -97,7 +97,6 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
             <Card>
               <CardHeader>
                 <CardTitle>Routes</CardTitle>
-                <CardDescription>Requests, webhooks and workflow steps · a request counts as an error if anything in it failed</CardDescription>
               </CardHeader>
               <CardContent>
                 <StatsTable rows={routes} label="Route" caption="Latency and error rate per route" />
@@ -106,7 +105,6 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
             <Card>
               <CardHeader>
                 <CardTitle>Slowest operations</CardTitle>
-                <CardDescription>Model calls, tools and data work, by p95</CardDescription>
               </CardHeader>
               <CardContent>
                 {operations.length ? (
@@ -121,7 +119,6 @@ export function TracePanels({ summary, rangeLabel, source }: { summary: TraceSum
           <Card>
             <CardHeader>
               <CardTitle>Recent failed traces</CardTitle>
-              <CardDescription>Newest first · bars show when each span ran within its trace</CardDescription>
             </CardHeader>
             <CardContent>
               {failures.length === 0 ? (
