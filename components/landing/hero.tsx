@@ -6,8 +6,8 @@ import { HeroVisual } from "@/components/landing/occasions";
 
 const NAV = [
   { href: "#how-it-works", label: "How it works" },
-  { href: "#finance", label: "For finance" },
-  { href: "#venues", label: "For venues" },
+  { href: "#finance", label: "Finance" },
+  { href: "#venues", label: "Venues" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -40,7 +40,7 @@ export function SiteHeader() {
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="landing-hero relative overflow-hidden">
-      <div className="container-public grid items-center gap-12 pt-12 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-20 lg:pb-24">
+      <div className="container-public grid items-center gap-12 pt-12 pb-8 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-20 lg:pb-12">
         <div className="text-center lg:text-left">
           <h1 id="hero-title" className="font-display text-plum text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.6rem] lg:leading-[1.05]">
             Team offsites, client dinners and events, <span className="landing-underline">booked in minutes</span>.

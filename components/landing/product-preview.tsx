@@ -80,11 +80,6 @@ export function ProductPreview() {
         <p className="bg-mint-soft text-mint-ink mt-2 rounded-lg px-2 py-1 text-[11px] font-semibold">₹17,640 ITC claimable</p>
       </div>
 
-      {/* Floating approval chip */}
-      <div className="border-sand landing-float-delayed absolute -top-5 -left-3 hidden items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-caption font-medium shadow-[0_12px_30px_-14px_rgb(42_27_61/0.45)] sm:flex">
-        <span className="bg-mint grid size-5 place-items-center rounded-full text-[10px] text-white">✓</span>
-        <span className="text-plum">Approved on WhatsApp by Rohan</span>
-      </div>
     </div>
   );
 }

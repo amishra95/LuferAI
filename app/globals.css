@@ -484,9 +484,9 @@ html:has(.lufer) {
 
 /* Vertical rhythm between major blocks of the public site (py-12, py-20 from lg). */
 @utility section-block {
-  padding-block: 3rem;
+  padding-block: 2rem;
   @media (width >= 64rem) {
-    padding-block: 5rem;
+    padding-block: 3rem;
   }
 }
 
