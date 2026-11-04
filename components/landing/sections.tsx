@@ -319,8 +319,8 @@ export function FinalCta() {
 // Rooted (/#…) so they also work from the legal pages, which share this footer.
 const FOOTER_LINKS = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#finance", label: "For finance" },
-  { href: "/#venues", label: "For venues" },
+  { href: "/#finance", label: "Finance" },
+  { href: "/#venues", label: "Venues" },
   { href: "/#faq", label: "FAQ" },
   { href: "/login", label: "Sign in" },
 ];

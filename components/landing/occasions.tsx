@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { Check } from "lucide-react";
 
 /*
  * Landing photography. Self-hosted in public/landing (CSP-friendly, optimised
@@ -28,10 +27,6 @@ export function HeroVisual() {
       </div>
 
       {/* Illustrative: the same booking as the "How it works" preview (40 × ₹2,450, GST at 18%). */}
-      <div aria-hidden className="border-sand absolute top-4 left-4 inline-flex items-center gap-2 rounded-full border bg-white/95 px-3 py-1.5 text-caption font-medium text-plum shadow-lg sm:top-6 sm:left-6 lg:top-10 lg:-left-8">
-        <Check className="bg-mint-soft text-mint-ink size-4 rounded-full p-0.5" strokeWidth={3} />
-        Approved on WhatsApp by Rohan
-      </div>
 
       <div aria-hidden className="border-sand relative mx-3 -mt-14 rounded-2xl border bg-white/95 p-4 shadow-[0_24px_60px_-20px_rgb(42_27_61/0.45)] backdrop-blur sm:mx-6 sm:-mt-16 lg:absolute lg:right-auto lg:bottom-8 lg:-left-10 lg:mx-0 lg:mt-0 lg:w-80">
         <div className="flex items-start justify-between gap-3">
