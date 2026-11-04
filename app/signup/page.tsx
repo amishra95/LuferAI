@@ -38,7 +38,7 @@ const DOORS = [
 }[];
 
 const OFFERS: { type: AccountType; label: string }[] = [
-  { type: "venue", label: "A venue" },
+  { type: "venue", label: "A Venue" },
   { type: "partner", label: "Services" },
 ];
 

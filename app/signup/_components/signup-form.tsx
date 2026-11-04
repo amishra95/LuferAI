@@ -37,8 +37,9 @@ function Field({ id, label, required, error, children }: { id: SignupField; labe
 const COMPANY_LABEL: Record<AccountType, string> = { enterprise: "Company (legal name)", venue: "Venue name", partner: "Business or stage name" };
 
 /**
- * One form for every account type: a venue also gives where it is and how many
- * it seats; a partner, what they offer and a link to their work. Only what an
+ * One form for every account type, in the order name, email, mobile, website,
+ * then the business: a venue also gives where it is and how many it seats; a
+ * partner, what they offer. Only what an
  * account needs to open; the rest (role, notes) belongs in settings later.
  */
 export function SignupForm({ accountType }: { accountType: AccountType }) {
@@ -55,6 +56,13 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
     );
   }
 
+  const gstinRequired = accountType !== "partner";
+  const gstinField = (
+    <Field id="gstin" label="GSTIN" required={gstinRequired} error={e.gstin}>
+      <Input id="gstin" name="gstin" required={gstinRequired} maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />
+    </Field>
+  );
+
   return (
     <form action={action} className="grid gap-4">
       <input type="hidden" name="account_type" value={accountType} />
@@ -67,9 +75,42 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
         </Field>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="phone" label="Mobile" error={e.phone}>
+          <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98450 12345" {...invalid("phone")} />
+        </Field>
+        {accountType === "enterprise" ? gstinField : (
+          <Field id="venue_website" label={accountType === "venue" ? "Website or Instagram" : "Website or portfolio"} required={accountType === "partner"} error={e.venue_website}>
+            <Input id="venue_website" name="venue_website" inputMode="url" required={accountType === "partner"} placeholder={accountType === "venue" ? "yourvenue.in" : "yourstudio.in"} {...invalid("venue_website")} />
+          </Field>
+        )}
+      </div>
+
       <Field id="company_name" label={COMPANY_LABEL[accountType]} required error={e.company_name}>
         <Input id="company_name" name="company_name" autoComplete="organization" required maxLength={120} {...invalid("company_name")} />
       </Field>
+
+      {accountType === "venue" ? (
+        <>
+          <Field id="venue_address" label="Street address" required error={e.venue_address}>
+            <Input id="venue_address" name="venue_address" autoComplete="street-address" required maxLength={300} {...invalid("venue_address")} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="city" label="City" required error={e.city}>
+              <Input id="city" name="city" autoComplete="address-level2" required maxLength={80} placeholder="Bengaluru" {...invalid("city")} />
+            </Field>
+            <Field id="venue_area" label="Area" required error={e.venue_area}>
+              <Input id="venue_area" name="venue_area" required maxLength={80} placeholder="Indiranagar" {...invalid("venue_area")} />
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="venue_capacity" label="Most guests you can host" required error={e.venue_capacity}>
+              <Input id="venue_capacity" name="venue_capacity" type="number" inputMode="numeric" min={1} max={100000} required placeholder="120" {...invalid("venue_capacity")} />
+            </Field>
+            {gstinField}
+          </div>
+        </>
+      ) : null}
 
       {accountType === "partner" ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -85,44 +126,9 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field id="venue_website" label="Website or portfolio" required error={e.venue_website}>
-            <Input id="venue_website" name="venue_website" inputMode="url" required placeholder="yourstudio.in" {...invalid("venue_website")} />
-          </Field>
+          {gstinField}
         </div>
       ) : null}
-
-      {accountType === "venue" ? (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="city" label="City" required error={e.city}>
-              <Input id="city" name="city" autoComplete="address-level2" required maxLength={80} placeholder="Bengaluru" {...invalid("city")} />
-            </Field>
-            <Field id="venue_area" label="Area" required error={e.venue_area}>
-              <Input id="venue_area" name="venue_area" required maxLength={80} placeholder="Indiranagar" {...invalid("venue_area")} />
-            </Field>
-          </div>
-          <Field id="venue_address" label="Street address" required error={e.venue_address}>
-            <Input id="venue_address" name="venue_address" autoComplete="street-address" required maxLength={300} {...invalid("venue_address")} />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="venue_capacity" label="Most guests you can host" required error={e.venue_capacity}>
-              <Input id="venue_capacity" name="venue_capacity" type="number" inputMode="numeric" min={1} max={100000} required placeholder="120" {...invalid("venue_capacity")} />
-            </Field>
-            <Field id="venue_website" label="Website or Instagram" error={e.venue_website}>
-              <Input id="venue_website" name="venue_website" inputMode="url" placeholder="yourvenue.in" {...invalid("venue_website")} />
-            </Field>
-          </div>
-        </>
-      ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="gstin" label="GSTIN" required={accountType !== "partner"} error={e.gstin}>
-          <Input id="gstin" name="gstin" required={accountType !== "partner"} maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />
-        </Field>
-        <Field id="phone" label="Mobile" error={e.phone}>
-          <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98450 12345" {...invalid("phone")} />
-        </Field>
-      </div>
 
       {state.status === "error" && state.message ? (
         <p role="alert" className="text-destructive text-body">
