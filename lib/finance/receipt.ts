@@ -4,6 +4,7 @@
  * `schema`; add fields, never repurpose them.
  */
 import type { TaxInvoicePayload } from "../gst-engine.ts";
+import { listedGstin } from "../venues/gstin.ts";
 import { itcClaimable, itcStatusOf, itcTags, type ItcStatus, type ItcTag } from "./itc.ts";
 
 export const RECEIPT_SCHEMA = "lufer.expense-receipt/v1";
@@ -22,7 +23,7 @@ export interface ReceiptBooking {
   commission_rate: number;
   commission_inr: number;
   company: { id: string; legal_name: string; gstin: string };
-  venue: { id: string; name: string; city: string; gstin: string };
+  venue: { id: string; name: string; city: string; gstin: string | null };
   invoice: TaxInvoicePayload;
   /** Finance's input tax credit decision (bookings.itc_decision); absent/null = not reviewed. */
   itc_decision?: string | null;
@@ -74,7 +75,7 @@ export function buildExpenseReceipt(b: ReceiptBooking, issuedAt: string, event: 
       billed_gstin: b.billing_gstin ?? b.company.gstin,
       place_of_supply: `${inv.place_of_supply.state_code} ${inv.place_of_supply.state_name}`,
     },
-    supplier: { venue_id: b.venue.id, name: b.venue.name, city: b.venue.city, gstin: b.venue.gstin },
+    supplier: { venue_id: b.venue.id, name: b.venue.name, city: b.venue.city, gstin: listedGstin(b.venue) },
     expense: { cost_center: b.cost_center, project_code: b.project_code },
     tax: {
       sac_code: inv.sac.code,

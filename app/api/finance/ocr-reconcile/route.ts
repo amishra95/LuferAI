@@ -9,6 +9,7 @@ import { todayInIndia } from "@/lib/gst-engine";
 import { reconcileInvoice } from "@/lib/finance/invoice-reconcile";
 import { itcStatusOf } from "@/lib/finance/itc";
 import { tracer } from "@/lib/tracer";
+import { listedGstin } from "@/lib/venues/gstin";
 
 /**
  * POST multipart/form-data { file, bookingId } → the venue's invoice read by
@@ -64,7 +65,7 @@ async function handleOcrReconcile(req: Request) {
   }
 
   const billedGstin = booking.billing_gstin ?? booking.company.gstin;
-  const check = reconcileInvoice({ invoice: parsed.invoice, expected: booking.invoice, venueGstin: booking.venue.gstin, billedGstin, today: todayInIndia() });
+  const check = reconcileInvoice({ invoice: parsed.invoice, expected: booking.invoice, venueGstin: listedGstin(booking.venue), billedGstin, today: todayInIndia() });
   tracer.annotate({ booking: booking.id.slice(0, 8), check: check.status, blocking: check.findings.filter((f) => f.severity === "block").length });
 
   return Response.json({

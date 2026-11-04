@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { requirePortal } from "@/lib/auth/session";
-import { decideSignupApplication, getSignupApplication, publishVenue, SignupApplicationError } from "@/lib/data";
+import { decideSignupApplication, getSignupApplication, publishVenue, SignupApplicationError, VenueNeedsGstinError } from "@/lib/data";
 import { notifyApplicationDecision } from "@/lib/services/notifications";
 
 const PORTAL_NAME: Record<string, string> = { enterprise: "client", venue: "property", partner: "partner" };
@@ -66,6 +66,7 @@ export async function publishVenueAction(venueId: string): Promise<DecisionResul
     revalidatePath("/admin/approvals");
     return { ok: true, message: `${venue.name} is live: companies can now find and book it.` };
   } catch (err) {
+    if (err instanceof VenueNeedsGstinError) return { ok: false, error: err.message };
     console.error("admin/approvals: publish venue", err);
     return { ok: false, error: "That didn't work. Try again." };
   }

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { currentApplication, requirePortal } from "@/lib/auth/session";
 import { getVenue } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { GstinForm } from "../_components/gstin-form";
 
 export const metadata: Metadata = { title: "Welcome" };
 
@@ -23,8 +24,10 @@ export default async function PropertyWelcomePage() {
   const first = application?.full_name.split(" ")[0];
 
   const pricing = "/property?tab=pricing";
-  const steps: { done: boolean; title: string; href?: string }[] = [
+  const steps: { done: boolean; title: string; href?: string; form?: React.ReactNode }[] = [
     { done: true, title: "Create your account" },
+    // Optional at signup, needed before listing: bookings are invoiced on it.
+    { done: Boolean(venue.gstin), title: "Add your GSTIN", form: <GstinForm /> },
     { done: venue.photos.length > 0, title: "Add photos", href: pricing },
     { done: Number(venue.min_spend_inr) > 0 || Number(venue.min_spend_per_head_inr) > 0, title: "Set your minimum spend", href: pricing },
     { done: Array.isArray(venue.cancellation_terms) && venue.cancellation_terms.length > 0, title: "Set cancellation terms", href: pricing },
@@ -45,7 +48,8 @@ export default async function PropertyWelcomePage() {
           <CardContent>
             <ol className="grid gap-1">
               {steps.map((s) => (
-                <li key={s.title} className="flex min-h-12 items-center gap-3 rounded-md px-2 py-2">
+                <li key={s.title} className="grid gap-2 rounded-md px-2 py-2">
+                  <div className="flex min-h-8 items-center gap-3">
                   {s.done ? <CheckCircle2 className="text-sage size-5 shrink-0" aria-label="Done" /> : <Circle className="text-fg-faint size-5 shrink-0" aria-label="To do" />}
                   <p className={cn("min-w-0 flex-1 text-body font-medium", s.done && "text-fg-subtle")}>{s.title}</p>
                   {s.href && !s.done ? (
@@ -53,6 +57,8 @@ export default async function PropertyWelcomePage() {
                       Start
                     </Link>
                   ) : null}
+                  </div>
+                  {s.form && !s.done ? s.form : null}
                 </li>
               ))}
             </ol>

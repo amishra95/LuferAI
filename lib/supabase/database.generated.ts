@@ -3908,7 +3908,7 @@ export type Database = {
           commission_rate: number
           created_at: string
           entertainment: string[]
-          gstin: string
+          gstin: string | null
           id: string
           is_active: boolean
           latitude: number | null
@@ -3933,7 +3933,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           entertainment?: string[]
-          gstin: string
+          gstin?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null
@@ -3958,7 +3958,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           entertainment?: string[]
-          gstin?: string
+          gstin?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null

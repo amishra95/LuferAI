@@ -27,6 +27,7 @@ import { notifyEscalation } from "@/lib/escalations/notify";
 import { sendQuoteLinks } from "@/lib/vendor/quote-service";
 import { openEscalations, supersedeEscalations, SYSTEM, type Actor, type NewEscalation } from "@/lib/escalations/store";
 import type { Json, Rfp, RfpResponse, Venue } from "@/lib/supabase/database.types";
+import { listedGstin } from "@/lib/venues/gstin";
 
 /** Most venues a single brief is broadcast to. */
 export const MAX_BROADCAST = 8;
@@ -190,7 +191,7 @@ export async function broadcastRfp(input: {
     // The tier and calendar rule depend on the event, not the package.
     const pricingNote = venuePrice(0).note;
     const quote = quoteVenue(
-      { ...venue, min_spend_inr: Number(venue.min_spend_inr) },
+      { ...venue, gstin: listedGstin(venue), min_spend_inr: Number(venue.min_spend_inr) },
       venuePackages,
       {
         partySize: req.party_size,
@@ -313,7 +314,7 @@ function toColumn(r: ResponseRow, companyGstin: string, depositRate?: number): M
           listAmount: Number(r.list_amount_inr),
           taxableValue: Number(r.taxable_amount_inr ?? r.list_amount_inr),
           companyGstin,
-          venueGstin: r.venue.gstin,
+          venueGstin: listedGstin(r.venue),
         })
       : null,
     notes: r.notes,

@@ -42,6 +42,7 @@ import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
 import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
+import { listedGstin } from "@/lib/venues/gstin";
 
 /**
  * Single data-access layer for all three portals.
@@ -77,7 +78,7 @@ function enrich(
     total_amount: total,
     // Invoices go to the GSTIN being billed (a branch registration may differ from the company's main one).
     company_gstin: b.billing_gstin ?? company.gstin,
-    venue_gstin: venue.gstin,
+    venue_gstin: listedGstin(venue),
     booking_id: b.id,
     invoice_date: b.event_date,
   });
@@ -127,20 +128,55 @@ export async function getVenue(id: string): Promise<Venue | null> {
 }
 
 /** Lists a venue for companies to find and book (an admin's call, after checking a self-serve signup). */
+/** Thrown by publishVenue for a venue that hasn't added its GSTIN: it can't be booked or invoiced without one. */
+export class VenueNeedsGstinError extends Error {
+  constructor(name: string) {
+    super(`${name} hasn't added its GSTIN yet. It can be published once it does.`);
+  }
+}
+
 export async function publishVenue(id: string): Promise<Venue | null> {
   if (local()) {
     let out: Venue | null = null;
     await mutateDb((db) => {
       const v = db.venues.find((x) => x.id === id);
       if (!v) return;
+      if (!v.gstin) throw new VenueNeedsGstinError(v.name);
       Object.assign(v, { is_active: true, updated_at: new Date().toISOString() });
       out = { ...v };
     });
     return out;
   }
-  const { data, error } = await createAdminClient().from("venues").update({ is_active: true }).eq("id", id).select("*").maybeSingle();
+  const db = createAdminClient();
+  const { data: venue, error: readError } = await db.from("venues").select("name, gstin").eq("id", id).maybeSingle();
+  if (readError) throw readError;
+  if (!venue) return null;
+  if (!venue.gstin) throw new VenueNeedsGstinError(venue.name);
+  const { data, error } = await db.from("venues").update({ is_active: true }).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
   return data;
+}
+
+/**
+ * A venue adds its own GSTIN once, if it signed up without one. Changing a
+ * GSTIN that's already set stays with admins (guard_venue_admin_columns).
+ * Returns false when the venue already has one.
+ */
+export async function addVenueGstin(id: string, gstin: string): Promise<boolean> {
+  if (local()) {
+    let added = false;
+    await mutateDb((db) => {
+      const v = db.venues.find((x) => x.id === id);
+      if (v && !v.gstin) {
+        Object.assign(v, { gstin, state_code: gstin.slice(0, 2), updated_at: new Date().toISOString() });
+        added = true;
+      }
+    });
+    return added;
+  }
+  const { data, error } = await createAdminClient().from("venues").update({ gstin }).eq("id", id).is("gstin", null).select("id");
+  if (error) throw error;
+  return (data ?? []).length > 0;
 }
 
 export async function listBookings(filter: { companyId?: string; venueId?: string; ids?: string[] } = {}): Promise<BookingDetail[]> {
@@ -2322,7 +2358,7 @@ export async function decideSignupApplication(applicationId: string, decision: "
       if (db.users.some((u) => u.user_id === app.user_id)) throw new SignupApplicationError("This person already has portal access.", "already_member");
       const user = { user_id: app.user_id, venue_id: null, created_at: now, name: app.full_name };
       if (app.account_type === "venue") {
-        if (db.venues.some((v) => v.gstin === app.gstin)) throw new SignupApplicationError(VENUE_GSTIN_TAKEN, "venue_gstin_taken");
+        if (app.gstin && db.venues.some((v) => v.gstin === app.gstin)) throw new SignupApplicationError(VENUE_GSTIN_TAKEN, "venue_gstin_taken");
         const venue: Venue = {
           ...structuredClone(VENUE_PROFILE_DEFAULTS),
           id: crypto.randomUUID(),
@@ -2330,8 +2366,8 @@ export async function decideSignupApplication(applicationId: string, decision: "
           city: app.city!.trim(),
           neighborhood: app.venue_area!.trim(),
           address: app.venue_address!.trim(),
-          gstin: app.gstin!,
-          state_code: app.gstin!.slice(0, 2),
+          gstin: app.gstin,
+          state_code: app.gstin?.slice(0, 2) ?? null,
           capacity_max: app.venue_capacity!,
           pdr_available: false,
           min_spend_inr: 0,
@@ -2424,7 +2460,7 @@ export async function activateSignupApplication(applicationId: string): Promise<
       app.status !== "pending_approval" ||
       db.users.some((u) => u.user_id === app.user_id) ||
       (app.account_type === "enterprise" && db.companies.some((c) => c.gstin === app.gstin)) ||
-      (app.account_type === "venue" && db.venues.some((v) => v.gstin === app.gstin));
+      (app.account_type === "venue" && app.gstin != null && db.venues.some((v) => v.gstin === app.gstin));
     return needsAdmin ? app : decideSignupApplication(applicationId, "active", null);
   }
   const { data, error } = await createAdminClient().rpc("activate_signup_application", { p_application_id: applicationId });

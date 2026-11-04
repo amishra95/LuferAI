@@ -5,14 +5,14 @@ import { after } from "next/server";
 
 import { requirePortal } from "@/lib/auth/session";
 import { confirmBooking } from "@/lib/bookings/confirm";
-import { acknowledgeEventPlan, addBlockedDates, BlockedDatesUnavailableError, EventWorkspaceError, listBookings, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
+import { acknowledgeEventPlan, addBlockedDates, addVenueGstin, listVenues, BlockedDatesUnavailableError, EventWorkspaceError, listBookings, releaseHold, removeBlockedDate, updateBookingStatus } from "@/lib/data";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { settleDeposit } from "@/lib/payments/service";
 import { parseCancellationRows, parseDepositPct, parseMultiplierForm, parseTierRows, PRICING_LIMITS } from "@/lib/rates/venue-pricing";
 import { parseRules } from "@/lib/rfp/guardrails";
 import { getNegotiationRules, saveNegotiationRules } from "@/lib/rfp/rules-store";
 import { createDirectQuote, GuardrailError, isMissingColumn, respondToRfp } from "@/lib/rfp/service";
-import { todayInIndia } from "@/lib/gst-engine";
+import { todayInIndia, validateGstin } from "@/lib/gst-engine";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 import { notifyVenueAccepted } from "@/lib/services/notifications";
 import { publishBooking } from "@/lib/telemetry/live";
@@ -493,4 +493,25 @@ export async function updatePhotoAction(formData: FormData) {
   if (formData.get("intent") === "cover") await setVenueCover(venueId, ref);
   else await removeVenuePhoto(venueId, ref);
   revalidateListing();
+}
+
+/** A venue that signed up without its GSTIN adds it here, once: it can't be listed before. */
+export async function addVenueGstinAction(_prev: HostFormState, formData: FormData): Promise<HostFormState> {
+  try {
+    const { venueId } = await actingVenue(formData);
+    if (!venueId) return { status: "error", message: "Choose a venue." };
+    const gstin = String(formData.get("gstin") ?? "").replace(/\s/g, "").toUpperCase();
+    if (!validateGstin(gstin).valid) return { status: "error", message: "That GSTIN isn't valid. Check the 15 characters." };
+    // One venue per GSTIN, as at signup: a second location's managers are added by Lufer.
+    if ((await listVenues({ includeUnlisted: true })).some((v) => v.gstin === gstin && v.id !== venueId)) {
+      return { status: "error", message: "A venue with this GSTIN is already on Lufer. Contact us to be added to it." };
+    }
+    if (!(await addVenueGstin(venueId, gstin))) return { status: "error", message: "Your venue already has a GSTIN. Contact us to change it." };
+    revalidatePath("/property");
+    revalidatePath("/property/welcome");
+    revalidatePath("/admin/approvals");
+    return { status: "success", message: "Saved." };
+  } catch (err) {
+    return failure("add GSTIN", err);
+  }
 }

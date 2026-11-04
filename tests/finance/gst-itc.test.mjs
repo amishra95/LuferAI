@@ -57,6 +57,10 @@ test("ITC is never assumed: invoiced bookings wait for finance's review", () => 
   assert.equal(isInvoiced("CONFIRMED"), false);
 });
 
+test("a venue without a GSTIN is never ITC-eligible", () => {
+  assert.equal(itcStatusOf(itc({ venue_gstin: null })), "not_eligible");
+});
+
 test("ITC follows finance's decision; cancelled bookings have none", () => {
   assert.equal(itcStatusOf(itc({ itc_decision: "eligible" })), "eligible");
   assert.equal(itcStatusOf(itc({ itc_decision: "blocked" })), "blocked");
