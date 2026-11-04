@@ -9,6 +9,7 @@
  */
 
 import { escapeHtml, sha256 } from "../services/contracts/render.ts";
+import { listedGstin } from "../venues/gstin.ts";
 
 /** Statuses that belong on a statement: confirmed onwards (as for tax invoices). */
 export const STATEMENT_STATUSES = new Set(["CONFIRMED", "COMPLETED", "SETTLED"]);
@@ -35,7 +36,7 @@ export interface StatementBooking {
   party_size: number;
   cost_center: string | null;
   project_code: string | null;
-  venue: { id: string; name: string; city: string | null; gstin: string };
+  venue: { id: string; name: string; city: string | null; gstin: string | null };
   invoice: {
     invoice_number: string | null;
     gst_type: "CGST_SGST" | "IGST";
@@ -146,7 +147,7 @@ export function buildMonthlyStatement(input: {
     };
     let v = vendors.get(b.venue.id);
     if (!v) {
-      v = { venueId: b.venue.id, name: b.venue.name, city: b.venue.city, gstin: b.venue.gstin, lines: [], taxable: 0, tax: 0, total: 0, due: 0 };
+      v = { venueId: b.venue.id, name: b.venue.name, city: b.venue.city, gstin: listedGstin(b.venue), lines: [], taxable: 0, tax: 0, total: 0, due: 0 };
       vendors.set(b.venue.id, v);
     }
     v.lines.push(line);

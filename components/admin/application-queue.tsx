@@ -196,7 +196,8 @@ export interface UnlistedVenue {
   name: string;
   area: string;
   address: string;
-  gstin: string;
+  /** Null until the venue adds it; it can't be published before then. */
+  gstin: string | null;
   capacity: number;
 }
 
@@ -216,10 +217,10 @@ function UnlistedVenueCard({ v }: { v: UnlistedVenue }) {
         <dt className="text-fg-subtle">Address</dt>
         <dd className="min-w-0 break-words">{v.address}</dd>
         <dt className="text-fg-subtle">GSTIN</dt>
-        <dd className="font-mono">{v.gstin}</dd>
+        {v.gstin ? <dd className="font-mono">{v.gstin}</dd> : <dd className="text-fg-subtle">Not added yet</dd>}
       </dl>
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={pending || done} onClick={() => start(async () => setResult(await publishVenueAction(v.id)))}>
+        <Button disabled={pending || done || !v.gstin} onClick={() => start(async () => setResult(await publishVenueAction(v.id)))}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Globe className="size-4" aria-hidden />}
           Publish
         </Button>

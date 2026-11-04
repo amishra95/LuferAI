@@ -17,6 +17,7 @@ import { afterSignature, canViewContract, canVoid, isOpen, issueRefusal, signing
 import { renderContract } from "./render";
 import { describeSchedule, planInstalments } from "./schedule";
 import { buildContractTerms, istDate, type ContractTerms } from "./terms";
+import { listedGstin } from "@/lib/venues/gstin";
 
 /**
  * Contracts (migration 0031): issuing one from a booking's negotiated terms,
@@ -217,7 +218,7 @@ export async function issueContract(bookingId: string, member: Member): Promise<
   const invoice = calculateGst({
     total_amount: Number(booking.total_amount_inr),
     company_gstin: booking.billing_gstin ?? booking.company!.gstin,
-    venue_gstin: booking.venue!.gstin,
+    venue_gstin: listedGstin(booking.venue!),
     booking_id: booking.id,
     invoice_date: booking.event_date,
   });

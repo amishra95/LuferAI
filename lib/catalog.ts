@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
 import type { Department } from "@/lib/supabase/database.types";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
+import { listedGstin } from "@/lib/venues/gstin";
 
 export interface CatalogVenue {
   id: string;
@@ -47,7 +48,7 @@ export async function getVenueCatalog(companyId: string): Promise<{ venues: Cata
   const venues = await listVenues();
   if (dataSource() !== "supabase") {
     return {
-      venues: venues.map((v) => ({ ...v, min_spend_inr: Number(v.min_spend_inr), latitude: v.latitude, longitude: v.longitude, photo_url: venuePhotoUrls(v.photos)[0] ?? null, rate_card: null, packages: [] })),
+      venues: venues.map((v) => ({ ...v, gstin: listedGstin(v), min_spend_inr: Number(v.min_spend_inr), latitude: v.latitude, longitude: v.longitude, photo_url: venuePhotoUrls(v.photos)[0] ?? null, rate_card: null, packages: [] })),
       departments: await listDepartments({ companyIds: [companyId] }),
     };
   }
@@ -67,7 +68,7 @@ export async function getVenueCatalog(companyId: string): Promise<{ venues: Cata
       neighborhood: v.neighborhood,
       city: v.city,
       address: v.address,
-      gstin: v.gstin,
+      gstin: listedGstin(v),
       capacity_max: v.capacity_max,
       min_spend_inr: Number(v.min_spend_inr),
       pdr_available: v.pdr_available,

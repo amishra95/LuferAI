@@ -56,7 +56,7 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
     );
   }
 
-  const gstinRequired = accountType !== "partner";
+  const gstinRequired = accountType === "enterprise";
   const gstinField = (
     <Field id="gstin" label="GSTIN" required={gstinRequired} error={e.gstin}>
       <Input id="gstin" name="gstin" required={gstinRequired} maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />

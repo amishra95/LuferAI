@@ -34,7 +34,8 @@ export interface ItcInput {
   /** The company's registered GSTIN, and the one the booking is billed to (null = registered). */
   company_gstin: string;
   billed_gstin: string | null;
-  venue_gstin: string;
+  /** The venue's GSTIN; null only for a venue that was never listed, so never eligible. */
+  venue_gstin: string | null;
 }
 
 /**
@@ -45,7 +46,7 @@ export interface ItcInput {
  */
 export function itcStatusOf(b: ItcInput): ItcStatus {
   if (b.status === "CANCELLED") return "not_applicable";
-  if (panOf(b.billed_gstin ?? b.company_gstin) !== panOf(b.company_gstin) || !validateGstin(b.venue_gstin).valid) return "not_eligible";
+  if (panOf(b.billed_gstin ?? b.company_gstin) !== panOf(b.company_gstin) || !validateGstin(b.venue_gstin ?? "").valid) return "not_eligible";
   if (b.itc_decision === "eligible" || b.itc_decision === "blocked") return b.itc_decision;
   return isInvoiced(b.status) ? "review" : "awaiting_invoice";
 }
@@ -83,7 +84,7 @@ export function itcTags(b: ItcInput & { sac_code: string; gst_type: string }): I
   const status = itcStatusOf(b);
   const tags: ItcTag[] = [
     panOf(b.billed_gstin ?? b.company_gstin) === panOf(b.company_gstin) ? "GSTIN_MATCH" : "GSTIN_MISMATCH",
-    validateGstin(b.venue_gstin).valid ? "SUPPLIER_GSTIN_VALID" : "SUPPLIER_GSTIN_INVALID",
+    validateGstin(b.venue_gstin ?? "").valid ? "SUPPLIER_GSTIN_VALID" : "SUPPLIER_GSTIN_INVALID",
   ];
   if (b.sac_code === "998596") tags.push("SAC_998596");
   tags.push(b.gst_type === "IGST" ? "INTER_STATE_IGST" : "INTRA_STATE_CGST_SGST");

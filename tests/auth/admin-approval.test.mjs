@@ -23,7 +23,7 @@ import { asUser, createDatabase } from "../support/supabase-pglite.mjs";
 const { NextRequest } = await import("next/server");
 const { updateSession } = await import("../../lib/supabase/middleware.ts");
 const { approveUser, rejectUser } = await import("../../app/(dashboard)/admin/approvals/actions.ts");
-const { activateSignupApplication, createSignupApplication, getSignupApplication, listSignupApplications, listVenues, publishVenue } = await import("../../lib/data/index.ts");
+const { activateSignupApplication, addVenueGstin, createSignupApplication, getSignupApplication, listSignupApplications, listVenues, publishVenue, VenueNeedsGstinError } = await import("../../lib/data/index.ts");
 const { mutateDb, readDb } = await import("../../lib/data/local-store.ts");
 const { spendLimitFor } = await import("../../lib/policies/checkBookingPolicy.ts");
 const { evaluateBookingPolicy } = await import("../../lib/policies/evaluate-booking-policy.ts");
@@ -84,13 +84,17 @@ describe("signup form", () => {
     assert.match(parseSignupInput(enterprise({ phone: "12345" })).errors.phone, /mobile number/);
   });
 
-  test("a venue needs its GSTIN, city, area, address and capacity; its website is optional", () => {
+  test("a venue needs its city, area, address and capacity; its GSTIN and website are optional", () => {
     const r = parseSignupInput(venue());
     assert.equal(r.ok, true);
     assert.deepEqual([r.value.venue_area, r.value.venue_address, r.value.venue_capacity, r.value.city, r.value.venue_website, r.value.partner_role], ["Koramangala", "80 Feet Road, Koramangala 4th Block", 150, "Bengaluru", null, null]);
     assert.equal(parseSignupInput(venue({ venue_website: "loftbar.example" })).value.venue_website, "https://loftbar.example/");
+    const noGstin = parseSignupInput(venue({ gstin: "" }));
+    assert.equal(noGstin.ok, true);
+    assert.equal(noGstin.value.gstin, null);
+    assert.ok(parseSignupInput(venue({ gstin: "29AAFCL7788M1ZX" })).errors.gstin, "a GSTIN that is given must still be valid");
     const bad = parseSignupInput(venue({ gstin: "", city: "", venue_area: "", venue_address: "x", venue_capacity: "0", venue_website: "not a site" }));
-    assert.deepEqual(Object.keys(bad.errors).sort(), ["city", "gstin", "venue_address", "venue_area", "venue_capacity", "venue_website"]);
+    assert.deepEqual(Object.keys(bad.errors).sort(), ["city", "venue_address", "venue_area", "venue_capacity", "venue_website"]);
     assert.ok(parseSignupInput(venue({ venue_capacity: "12.5" })).errors.venue_capacity);
   });
 
@@ -520,6 +524,18 @@ describe("self-serve activation", () => {
     assert.equal((await listVenues()).some((v) => v.id === app.venue_id), true);
   });
 
+  test("a venue can sign up without its GSTIN, but isn't published until it adds one, once", async () => {
+    const app = await activate(ROHAN, venue({ gstin: "" }));
+    assert.equal(app.status, "active");
+    assert.equal((await readDb()).venues.find((v) => v.id === app.venue_id).gstin, null);
+    await assert.rejects(publishVenue(app.venue_id), VenueNeedsGstinError);
+    assert.equal((await listVenues()).some((v) => v.id === app.venue_id), false);
+    assert.equal(await addVenueGstin(app.venue_id, VENUE_GSTIN), true);
+    assert.equal(await addVenueGstin(app.venue_id, NEW_CO_GSTIN), false, "a GSTIN that's set stays with admins");
+    await publishVenue(app.venue_id);
+    assert.equal((await listVenues()).find((v) => v.id === app.venue_id)?.gstin, VENUE_GSTIN);
+  });
+
   test("a partner is active at once, as OWNER of a new organisation", async () => {
     const app = await activate(KABIR, partner());
     assert.equal(app.status, "active");
@@ -639,5 +655,36 @@ describe("migration: self-serve activation and venue signups", () => {
     const app = await activateAndKeep(ids.company);
     assert.equal(app.status, "active");
     assert.equal((await db.query("select count(*)::int n from public.platform_users where user_id = $1", [NEW_CO])).rows[0].n, 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Migration 20261112000000 in Postgres: a venue's GSTIN before listing
+// ---------------------------------------------------------------------------
+
+describe("migration: venue GSTIN optional until listed", () => {
+  const MANAGER = "aaaaaaaa-5555-4000-8000-000000000001";
+  let db;
+  let venueId;
+
+  before(async () => {
+    db = await createDatabase();
+    await db.query("insert into auth.users (id, email) values ($1, 'gm@nogst.example')", [MANAGER]);
+    const { rows } = await db.query(
+      "insert into public.signup_applications (user_id, email, full_name, account_type, company_name, city, venue_area, venue_address, venue_capacity) values ($1, 'gm@nogst.example', 'Rohan Das', 'venue', 'No GST Bar', 'Bengaluru', 'Koramangala', '80 Feet Road', 90) returning id",
+      [MANAGER]
+    );
+    venueId = (await db.query("select venue_id from public.activate_signup_application($1)", [rows[0].id])).rows[0].venue_id;
+  });
+
+  test("a venue application without a GSTIN activates, with an unlisted venue and no GSTIN", async () => {
+    const v = (await db.query("select gstin, is_active from public.venues where id = $1", [venueId])).rows[0];
+    assert.deepEqual([v.gstin, v.is_active], [null, false]);
+  });
+
+  test("a venue can't be listed without a GSTIN, even by the service role", async () => {
+    await assert.rejects(db.query("update public.venues set is_active = true where id = $1", [venueId]), /venues_listed_have_gstin/);
+    await db.query("update public.venues set gstin = $2 where id = $1", [venueId, VENUE_GSTIN]);
+    await db.query("update public.venues set is_active = true where id = $1", [venueId]);
   });
 });

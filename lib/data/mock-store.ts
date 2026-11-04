@@ -31,6 +31,7 @@ import type {
   VenueOnboardingRequest,
 } from "@/lib/supabase/database.types";
 import { determineGstType } from "@/lib/gst-engine";
+import { listedGstin } from "@/lib/venues/gstin";
 
 /**
  * Mirror of supabase/seed.sql, used when Supabase env vars are not set: seeds the
@@ -91,7 +92,7 @@ const venue = (v: Omit<Venue, "state_code" | "city" | "is_active" | "created_at"
   ...VENUE_PROFILE_DEFAULTS,
   ...v,
   city: "Bengaluru",
-  state_code: v.gstin.slice(0, 2),
+  state_code: listedGstin(v).slice(0, 2),
   is_active: true,
   created_at: ts,
   updated_at: ts,
@@ -669,5 +670,5 @@ export function mockGstType(db: MockDb, companyId: string, venueId: string, bill
   const c = db.companies.find((x) => x.id === companyId);
   const v = db.venues.find((x) => x.id === venueId);
   if (!c || !v) throw new Error("Unknown company or venue");
-  return determineGstType(billingGstin || c.gstin, v.gstin);
+  return determineGstType(billingGstin || c.gstin, listedGstin(v));
 }

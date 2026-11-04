@@ -9,6 +9,7 @@
  */
 
 import type { CancellationTier } from "../../venues/profile.ts";
+import { listedGstin } from "../../venues/gstin.ts";
 
 export interface ContractParty {
   legalName: string;
@@ -109,7 +110,7 @@ export interface TermsInput {
     billing_gstin: string | null;
   };
   company: { legal_name: string; gstin: string; primary_contact_email: string | null };
-  venue: { name: string; neighborhood: string; city: string; address: string | null; gstin: string; min_spend_inr: number; min_spend_per_head_inr: number };
+  venue: { name: string; neighborhood: string; city: string; address: string | null; gstin: string | null; min_spend_inr: number; min_spend_per_head_inr: number };
   /** lib/gst-engine calculateGst for the booking. */
   invoice: {
     taxable_value: number;
@@ -141,7 +142,7 @@ export function buildContractTerms(input: TermsInput): ContractTerms {
     issuedOn: istDate(input.issuedAt),
     bookingId: b.id,
     client: { legalName: company.legal_name, gstin: company.gstin, billingGstin: b.billing_gstin, address: null, email: company.primary_contact_email },
-    venue: { legalName: venue.name, name: venue.name, neighborhood: venue.neighborhood, city: venue.city, gstin: venue.gstin, address: venue.address, email: null },
+    venue: { legalName: venue.name, name: venue.name, neighborhood: venue.neighborhood, city: venue.city, gstin: listedGstin(venue), address: venue.address, email: null },
     event: {
       date: b.event_date,
       partySize: b.party_size,
