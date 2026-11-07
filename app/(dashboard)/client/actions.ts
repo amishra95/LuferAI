@@ -32,6 +32,7 @@ import { isEventType, type PolicyCheck, type PolicyStatus } from "@/lib/policies
 import type { VenueOption } from "./_components/event-request-form";
 import { toVenueOption } from "./_components/venue-options";
 import { ReviewError, saveReview } from "@/lib/venues/review-store";
+import { alertVenueBookingRequest } from "@/lib/venues/alerts";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -309,7 +310,11 @@ export async function approveEventSpend(approvalId: string, decision: "APPROVED"
         await publishApproval(id, bookingId, d);
         if (!bookingStatus || bookingStatus === "PENDING_APPROVAL") return;
         if (subject === "order") await publishOrder(bookingId, venueId, bookingStatus as OrderEventStatus, "approval");
-        else await publishBooking(bookingId, venueId, bookingStatus as BookingStatus, "approval", companyId);
+        else {
+          await publishBooking(bookingId, venueId, bookingStatus as BookingStatus, "approval", companyId);
+          // Last sign-off given: the request is with the venue now.
+          if (bookingStatus === "PENDING") alertVenueBookingRequest(bookingId, venueId);
+        }
       },
     }
   );
@@ -405,12 +410,13 @@ export async function dispatchBookingAgent(request: AgentBookingRequest): Promis
       return outcome;
     },
     {
-      emit: (o) =>
-        o.orderId && o.partnerId
-          ? publishOrder(o.orderId, o.partnerId, o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PLACED", "agent")
-          : o.bookingId && o.venueId
-            ? publishBooking(o.bookingId, o.venueId, o.status === "confirmed" ? "CONFIRMED" : o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PENDING", "agent")
-            : undefined,
+      emit: (o) => {
+        if (o.orderId && o.partnerId) return publishOrder(o.orderId, o.partnerId, o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PLACED", "agent");
+        if (!o.bookingId || !o.venueId) return undefined;
+        const status = o.status === "confirmed" ? "CONFIRMED" : o.status === "awaiting_approval" ? "PENDING_APPROVAL" : "PENDING";
+        if (status === "PENDING") alertVenueBookingRequest(o.bookingId, o.venueId);
+        return publishBooking(o.bookingId, o.venueId, status, "agent");
+      },
     }
   );
 }

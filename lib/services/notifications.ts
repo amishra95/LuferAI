@@ -183,3 +183,12 @@ export async function notifyConciergeRequest(
   if (receipt.status !== "sent") console.warn("notify: concierge receipt not sent", "reason" in receipt ? receipt.reason : receipt.error);
   return { delivered: true };
 }
+
+/** A venue alert (lib/venues/alerts.ts). Never throws. */
+export async function sendVenueAlert(to: string, message: { subject: string; lines: string[] }): Promise<NotifyOutcome> {
+  try {
+    return await sendEmail({ to, subject: message.subject, text: message.lines.join("\n"), html: plainHtml(message.lines) });
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
