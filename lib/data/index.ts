@@ -43,6 +43,7 @@ import { isRedisConfigured, mutateDb, readDb } from "./local-store";
 import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 import { listedGstin } from "@/lib/venues/gstin";
+import { pauseConciergeTwins } from "@/lib/venues/concierge-twins-store";
 
 /**
  * Single data-access layer for all three portals.
@@ -154,6 +155,8 @@ export async function publishVenue(id: string): Promise<Venue | null> {
   if (!venue.gstin) throw new VenueNeedsGstinError(venue.name);
   const { data, error } = await db.from("venues").update({ is_active: true }).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
+  // Live and bookable now: its concierge listing (if Lufer had one) steps aside.
+  if (data) await pauseConciergeTwins(data);
   return data;
 }
 

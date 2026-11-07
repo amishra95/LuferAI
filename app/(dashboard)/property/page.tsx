@@ -62,6 +62,22 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   // Property managers are pinned to their own venue, listed or not; admins may switch via ?venue=<id>.
   const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
+  // Admins before any venue exists: say so, not a 404.
+  if (!venue && member.role === "ADMIN" && venueParam === undefined) {
+    return (
+      <PortalShell portal="/property" title="Venues">
+        <EmptyState
+          icon={Inbox}
+          title="No venues yet"
+          action={
+            <Link href="/admin/new-venue" className="btn h-8 px-3 text-meta">
+              Add a venue
+            </Link>
+          }
+        />
+      </PortalShell>
+    );
+  }
   if (!venue) notFound();
   const tab: Tab = TABS.find((t) => t === tabParam) ?? "requests";
 

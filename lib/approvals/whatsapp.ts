@@ -20,6 +20,7 @@ import { isActionable } from "@/lib/services/enterprise/approvalEngine";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 import type { OrderEventStatus } from "@/lib/telemetry/events";
 import { publishApproval, publishBooking, publishOrder } from "@/lib/telemetry/live";
+import { alertVenueBookingRequest } from "@/lib/venues/alerts";
 
 /**
  * Spend approvals over WhatsApp. When a step becomes the approver's turn they
@@ -266,7 +267,10 @@ export async function followUpApprovalReply(outcome: ApprovalReplyOutcome): Prom
         await publishApproval(d.approvalId, subjectId, d.decision);
         if (!d.status || d.status === "PENDING_APPROVAL") return;
         if ("orderId" in d.subject) await publishOrder(subjectId, d.counterpartyId, d.status as OrderEventStatus, "approval");
-        else await publishBooking(subjectId, d.counterpartyId, d.status as BookingStatus, "approval", d.tenantId);
+        else {
+          await publishBooking(subjectId, d.counterpartyId, d.status as BookingStatus, "approval", d.tenantId);
+          if (d.status === "PENDING") alertVenueBookingRequest(subjectId, d.counterpartyId);
+        }
       })().catch((err) => console.error("approvals: publish failed", err))
     );
     if (d.decision === "APPROVED" && d.status === "PENDING_APPROVAL") jobs.push(notifyApprovers(d.tenantId, d.subject, d.notified));

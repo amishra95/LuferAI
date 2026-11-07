@@ -64,7 +64,9 @@ export function PartnerPayouts({
     <div className="space-y-6">
       {!enabled ? (
         <p role="status" className="border-line text-fg-muted rounded-md border px-4 py-3 text-meta">
-          Online payment and payouts are off in this environment: they need Supabase, Razorpay keys with Route enabled, and PLATFORM_GSTIN.
+          {isAdmin
+            ? "Online payment and payouts are off: they need Razorpay keys with Route enabled and PLATFORM_GSTIN."
+            : "Online payouts aren't switched on yet. Lufer settles with you directly after each event."}
         </p>
       ) : null}
 
