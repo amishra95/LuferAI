@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/portal/empty-state";
 import { segmentClass } from "@/components/portal/segment";
 import { VenueMapView, type MapVenueCard } from "@/components/venues/venue-map-view";
 import { VenuePhoto } from "@/components/venues/venue-photo";
+import { QuoteRequestButton } from "@/components/venues/quote-request-button";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
@@ -141,15 +142,18 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
   // distance and the request form; partner listings below, quoted through the concierge.
   const explorer = await loadVenueExplorer(member ?? null);
   if (explorer) {
-    const partnerVenues = directory.venues.filter((v) => v.tier === "partner");
+    // Listings kept in Lufer (partner_venues), which "Request a quote" can name.
+    const partnerVenues = directory.venues.filter((v) => v.tier === "partner" && v.id.startsWith("extranet:"));
     return (
       <Page>
         <PageHeader title="Venues" />
-        <VenueExplorer {...explorer} heading={partnerVenues.length > 0 ? "Book directly" : null} />
+        {explorer.venues.length > 0 || partnerVenues.length === 0 ? (
+          <VenueExplorer {...explorer} heading={partnerVenues.length > 0 ? "Book directly" : null} />
+        ) : null}
         {partnerVenues.length > 0 ? (
-          <section aria-labelledby="partner-venues-heading" className="mt-12">
-            <h2 id="partner-venues-heading" className="text-fg mb-3 text-body font-semibold tracking-tight">
-              Partner venues
+          <section aria-labelledby="partner-venues-heading" className={explorer.venues.length > 0 ? "mt-12" : undefined}>
+            <h2 id="partner-venues-heading" className={explorer.venues.length > 0 ? "text-fg mb-3 text-body font-semibold tracking-tight" : "sr-only"}>
+              Request a quote
             </h2>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {partnerVenues.map((v) => (
@@ -167,7 +171,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                   <p className="text-fg-subtle text-caption">
                     Up to {v.capacity_max} guests{v.pdr_available ? " · private room" : ""}
                   </p>
-                  <RequestRfp venue={v} className="-ml-2 mt-auto self-start" />
+                  <QuoteRequestButton venue={{ id: v.id.replace(/^extranet:/, ""), name: v.name }} className="mt-auto self-start" />
                 </li>
               ))}
             </ul>

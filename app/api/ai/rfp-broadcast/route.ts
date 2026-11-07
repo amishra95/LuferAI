@@ -5,7 +5,9 @@ import { z } from "zod";
 import { AI_NOT_CONFIGURED, aiCircuitOpen, aiUnavailableResponse, getLanguageModel, isAiUnavailable } from "@/lib/ai/model";
 import { rfpExtractionInstructions } from "@/lib/ai/prompts";
 import { getCurrentMember } from "@/lib/auth/session";
-import { dataSource } from "@/lib/data";
+import { dataSource, listCompanies } from "@/lib/data";
+import { opsBriefEmail, requesterReceipt } from "@/lib/concierge/request";
+import { notifyConciergeRequest } from "@/lib/services/notifications";
 import { todayInIndia } from "@/lib/gst-engine";
 import { broadcastRfp, PolicyBlockedError, RfpRequirements, type BroadcastResult } from "@/lib/rfp/service";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
@@ -95,9 +97,21 @@ async function handleRfpBroadcast(request: NextRequest) {
     throw err;
   }
 
+  // Wizard of Oz: every brief also reaches Lufer's concierge, who covers venues
+  // that can't quote here (partner listings) and briefs nothing matched.
+  const company = (await listCompanies()).find((c) => c.id === companyId);
+  const concierge = await notifyConciergeRequest(
+    opsBriefEmail({ companyName: company?.legal_name ?? companyId, requesterEmail: member.email ?? "unknown" }, parsed.data.brief, result.columns.length),
+    { email: member.email ?? "", ...requesterReceipt("your event") }
+  ).catch((err) => {
+    console.error("rfp-broadcast: concierge notify failed", err);
+    return { delivered: false };
+  });
+
   return NextResponse.json({
     rfpId: result.rfp.id,
     requirements,
+    concierge: concierge.delivered,
     venuesContacted: result.columns.length,
     matrix: result.markdown,
     policy: result.policy,
