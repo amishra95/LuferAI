@@ -1,6 +1,6 @@
 import "server-only";
 
-import { listVenues } from "@/lib/data";
+import { dataSource, listVenues } from "@/lib/data";
 import { listExtranetListings } from "@/lib/partner/service";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, type DirectoryVenue, type PartnerStatus } from "@/lib/venues/partner-network";
@@ -9,9 +9,14 @@ export type { DirectoryVenue, PartnerStatus, VenueTier } from "@/lib/venues/part
 
 const PARTNER_TIMEOUT_MS = 2500;
 
+/**
+ * The federated feed, when one is configured. The demo network only fills
+ * local and mock runs: on live data, companies must never see made-up venues.
+ */
 function partnerNetwork() {
   const url = (process.env.PARTNER_DIRECTORY_URL ?? "").trim();
-  return url ? httpPartnerNetwork(url, (process.env.PARTNER_DIRECTORY_NAME ?? "").trim() || "Partner network") : mockPartnerNetwork;
+  if (url) return httpPartnerNetwork(url, (process.env.PARTNER_DIRECTORY_NAME ?? "").trim() || "Partner network");
+  return dataSource() === "supabase" ? null : mockPartnerNetwork;
 }
 
 /** Listings partners maintain themselves in the /partner extranet. A failure degrades to none. */
@@ -47,7 +52,10 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
 export async function listDirectory(): Promise<{ venues: DirectoryVenue[]; partners: PartnerStatus }> {
   const [internal, partner, extranet] = await Promise.all([
     listVenues(),
-    fetchPartnersWithin(partnerNetwork(), PARTNER_TIMEOUT_MS),
+    (async () => {
+      const network = partnerNetwork();
+      return network ? fetchPartnersWithin(network, PARTNER_TIMEOUT_MS) : { venues: [], status: { network: "Partner network", status: "ok" as const, count: 0 } };
+    })(),
     extranetVenues(),
   ]);
   const own: DirectoryVenue[] = internal.map((v) => ({

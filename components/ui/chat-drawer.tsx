@@ -11,7 +11,8 @@ import { ChatDrawerContext, useChatDrawer, type ChatCompany, type ChatDrawerStat
 import { cn } from "@/lib/utils";
 
 /** What the drawer's chat needs from the server (the same checks /chat makes). */
-export type ChatDrawerConfig = { model: string; offline: boolean; agentEnabled: boolean };
+/** `inspector`: the tool-call inspector, operator detail shown to admins only. */
+export type ChatDrawerConfig = { model: string; offline: boolean; agentEnabled: boolean; inspector: boolean };
 
 /**
  * Holds the drawer state for the dashboard and renders the drawer itself.
@@ -121,6 +122,7 @@ function ChatDrawerPanel({ config }: { config: ChatDrawerConfig }) {
           offline={config.offline}
           agentEnabled={config.agentEnabled}
           defaultInspectorOpen={false}
+          inspector={config.inspector}
           initialDraft={draft.text}
           draftKey={draft.key}
         />

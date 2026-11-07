@@ -41,6 +41,7 @@ export function ChatWorkspace({
   offline: noModel,
   agentEnabled,
   defaultInspectorOpen,
+  inspector: showInspector = true,
   companyName,
   initialDraft = "",
   draftKey,
@@ -52,6 +53,8 @@ export function ChatWorkspace({
   /** The workspace agent is switched off on the Agents page. */
   agentEnabled: boolean;
   defaultInspectorOpen: boolean;
+  /** Offer the tool-call inspector (operator detail; off for company and venue users). */
+  inspector?: boolean;
   /** The company the user came from (/chat?company=…), shown as context. */
   companyName?: string;
   /** Draft for the composer (/chat?prompt=…). */
@@ -102,6 +105,7 @@ export function ChatWorkspace({
 
   function selectTool(id: string | null) {
     setSelectedToolCallId(id);
+    if (!showInspector) return;
     if (id && !inDrawer && window.matchMedia(DESKTOP).matches) setInspectorOpen(true);
     else if (id) setMobileInspector(true);
   }
@@ -243,7 +247,7 @@ export function ChatWorkspace({
                 setSelectedToolCallId(null);
                 clearError();
               }}
-              onToggleInspector={toggleInspector}
+              onToggleInspector={showInspector ? toggleInspector : undefined}
               inspectorOpen={inDrawer ? mobileInspector : inspectorOpen}
               canReset={messages.length > 0}
             />
