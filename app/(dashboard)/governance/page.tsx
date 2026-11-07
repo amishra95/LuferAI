@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { BudgetManager } from "@/components/governance/budget-manager";
+import { CompanySetup } from "@/components/governance/company-setup";
+import { officeAreaKeyOf } from "@/lib/companies/setup";
 import { ContractRequirement } from "@/components/governance/contract-requirement";
 import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
 import { PunchoutConnections } from "@/components/governance/punchout-connections";
@@ -12,7 +14,7 @@ import { RuleManager } from "@/components/governance/rule-manager";
 import { SsoConnections } from "@/components/governance/sso-connections";
 import { listSsoConnections } from "@/lib/auth/sso-store";
 import { requireWorkspace } from "@/lib/auth/session";
-import { dataSource, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
+import { dataSource, getCorporatePolicy, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
 import { budgetTone } from "@/lib/procurement/po-ledger";
 import { canManageGovernance } from "@/lib/services/enterprise/access";
 import { isOverdue, levelsNeeded } from "@/lib/services/enterprise/approvalEngine";
@@ -21,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { listPunchoutConnections } from "@/lib/punchout/store";
 import { siteUrl } from "@/lib/site-url";
 
-export const metadata: Metadata = { title: "Governance" };
+export const metadata: Metadata = { title: "Policies" };
 
 const shortName = (legal: string) => legal.replace(" Private Limited", "");
 
@@ -39,7 +41,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
     return { connections: [], orders: [], ready: false };
   });
 
-  const [users, departments, hierarchy, { rules, ready }, budgets, requests, sso] = await Promise.all([
+  const [users, departments, hierarchy, { rules, ready }, budgets, requests, sso, policy] = await Promise.all([
     listPortalUsers({ companyId: company.id }),
     listDepartments({ companyIds: [company.id] }),
     getHierarchy(company.id),
@@ -50,11 +52,13 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
       console.error("governance: could not load SSO connections", err);
       return { connections: [], ready: false };
     }),
+    getCorporatePolicy(company.id),
   ]);
 
   const canManage = canManageGovernance(member);
   const punchout = await punchoutLoad;
-  const site = siteUrl("https://lufer-ai.vercel.app");
+  const site = siteUrl("https://lufer.app");
+  const admin = member.role === "ADMIN";
   const now = new Date();
   const pending = requests.filter((r) => r.outcome === "pending");
   const overdue = pending.filter((r) => r.steps.some((s) => isOverdue(s.approval, now))).length;
@@ -73,7 +77,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
   return (
     <Page>
       <PageHeader
-        title="Governance"
+        title="Policies"
         badge={
           <>
             {unavailable ? <NoticePill>{unavailable}</NoticePill> : null}
@@ -97,6 +101,20 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         </nav>
       ) : null}
 
+      <CompanySetup
+        companyId={admin ? company.id : null}
+        canManage={canManage && dataSource() === "supabase"}
+        initial={{
+          officeArea: officeAreaKeyOf(company),
+          autoApprovePerHead: policy?.auto_approval_limit_per_head ?? null,
+          managerPerHead: policy?.manager_approval_limit_per_head ?? null,
+          maxPerHead: policy?.max_budget_per_head ?? null,
+          maxDistanceKm: policy?.max_office_distance_km ?? null,
+        }}
+      />
+
+      {/* Counts only once there's something to count. */}
+      {stats.some((s) => s.value > 0) ? (
       <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="panel p-5">
@@ -105,6 +123,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
           </div>
         ))}
       </dl>
+      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <HierarchyEditor
@@ -136,12 +155,15 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         canManage={canManage && dataSource() === "supabase"}
       />
 
+      {/* SSO and punchout are set up by Lufer: companies see them once connected. */}
+      {admin || sso.connections.length > 0 ? (
       <SsoConnections
         companyId={member.role === "ADMIN" ? company.id : null}
         connections={sso.connections}
         canManage={member.role === "ADMIN"}
         unavailable={dataSource() !== "supabase" ? "needs Supabase" : !sso.ready ? "needs migration 20261108000000" : null}
       />
+      ) : null}
 
       <RequestBoard
         companyId={member.role === "ADMIN" ? company.id : null}
@@ -151,6 +173,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         now={now.toISOString()}
       />
 
+      {admin || punchout.connections.length > 0 ? (
       <PunchoutConnections
         companyId={member.role === "ADMIN" ? company.id : null}
         connections={punchout.connections}
@@ -159,6 +182,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         canManage={member.role === "ADMIN"}
         unavailable={dataSource() !== "supabase" ? "needs Supabase" : !punchout.ready ? "needs migration 20261109000000" : null}
       />
+      ) : null}
     </Page>
   );
 }

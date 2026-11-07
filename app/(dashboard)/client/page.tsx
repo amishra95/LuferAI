@@ -76,6 +76,9 @@ import { venueResponseHours } from "@/lib/venues/signals-store";
 import { reviewsForBookings, venueRatingMap } from "@/lib/venues/review-store";
 import { REVIEWABLE_STATUSES } from "@/lib/venues/reviews";
 import { ReviewSheet } from "./_components/review-sheet";
+import { SetupChecklist } from "./_components/setup-checklist";
+import { setupGaps } from "@/lib/companies/setup";
+import { getHierarchy } from "@/lib/services/enterprise/governanceStore";
 import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
@@ -124,7 +127,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const [
     [bookings, catalog, users, allApprovals, exports, pos, poAllocations, departments, policy],
     [catalogItems, catalogOrders],
-    [rfps, queue, responseHours, ratings, spendLimit, nearby, savedPhone],
+    [rfps, queue, responseHours, ratings, spendLimit, nearby, savedPhone, , hierarchy],
   ] = await Promise.all([
     Promise.all([
       listBookings({ companyId: company.id }),
@@ -154,6 +157,10 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       employee ? getUserPhone(member.userId) : Promise.resolve(null),
       // The concierge (/api/chat) needs a model and the workspace agent switched on.
       syncAgentConfigs(),
+      // Approvers on Home get the setup checklist (approval chain is one item).
+      member.role === "CLIENT" && member.corporateRole === "APPROVER" && live
+        ? getHierarchy(company.id).catch(() => null)
+        : Promise.resolve(null),
     ]),
   ]);
 
@@ -199,6 +206,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
   const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, { responseHours, ratings }));
   const canPay = paymentsEnabled();
+  const setup = hierarchy
+    ? setupGaps({
+        hasOffice: office !== null,
+        approvers: hierarchy.length,
+        hasPerHeadTiers: policy?.auto_approval_limit_per_head != null || policy?.manager_approval_limit_per_head != null || policy?.max_budget_per_head != null,
+      })
+    : null;
 
   const myTurn = (s: SignOff) =>
     role === "APPROVER" &&
@@ -639,6 +653,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           ) : null}
 
           {quotesFirst ? rfpSection : null}
+
+          {setup && activeTab === "bookings" ? <SetupChecklist items={setup} /> : null}
 
           {canRequest ? (
             <div className="mb-10 space-y-10">

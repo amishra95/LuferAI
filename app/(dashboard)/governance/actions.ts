@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { requireWorkspace } from "@/lib/auth/session";
 import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/server";
-import { governedCompany } from "@/lib/services/enterprise/access";
+import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/access";
+import { CompanySetupInput } from "@/lib/companies/setup";
+import { saveCompanySetup } from "@/lib/companies/setup-store";
+import { dataSource } from "@/lib/data";
 import { ApprovalCommand, BudgetCommand, runApprovalCommand, runBudgetCommand, type ApprovalCommandResult, type BudgetCommandResult } from "@/lib/services/enterprise/commands";
 import { GovernanceError } from "@/lib/services/enterprise/governanceStore";
 import { addSsoConnection, removeSsoConnection, setSsoConnectionEnabled, SsoError } from "@/lib/auth/sso-store";
@@ -86,6 +89,21 @@ export async function updateSsoConnectionAction(companyId: string | null, input:
     if (input.change === "remove") await removeSsoConnection(company, input.id);
     else await setSsoConnectionEnabled(company, input.id, input.change === "enable");
     revalidatePath("/governance");
+    return { ok: true as const };
+  });
+}
+
+/** Office area and per-head approval tiers (components/governance/company-setup.tsx). */
+export async function companySetupAction(companyId: string | null, input: CompanySetupInput): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("governance/company-setup", async () => {
+    const { member, company } = await scope(companyId);
+    if (!canManageGovernance(member)) throw new ActionError("Only Approvers and platform admins can change company setup.");
+    if (dataSource() !== "supabase") throw new ActionError("Company setup needs the live database.");
+    const parsed = CompanySetupInput.safeParse(input);
+    if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
+    await saveCompanySetup(company, parsed.data);
+    revalidateGovernance();
+    revalidatePath("/venues");
     return { ok: true as const };
   });
 }
