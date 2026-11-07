@@ -7,6 +7,9 @@ import { NavBadges } from "@/components/dashboard/nav-badges";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
+import { holdLapsed, replyTimeLabel } from "@/lib/venues/response";
+import { venueResponseHours } from "@/lib/venues/signals-store";
+import { FAST_RESPONSE_HOURS } from "@/lib/venues/signals";
 import { BookingStatusBadge, GstTypeBadge } from "@/components/portal/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +101,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       return [];
     }),
   ]);
+  // Median hours to accept over the signal window; companies see it on the venue's card.
+  const replyHours = live ? (await venueResponseHours()).get(venue.id) : undefined;
   const platform = platformState.settings;
   const pricing = venuePricing.pricing;
   const incoming = bookings.filter((b) => b.status === "PENDING");
@@ -165,8 +170,9 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </p>
       ) : null}
 
-      <section className="grid gap-6 sm:grid-cols-3" aria-label="Summary">
+      <section className="grid grid-cols-2 gap-6 lg:grid-cols-4" aria-label="Summary">
         <StatCard label="Awaiting your response" value={String(incoming.length)} />
+        <StatCard label="Typical reply time" value={replyTimeLabel(replyHours)} hint={replyHours != null && replyHours <= FAST_RESPONSE_HOURS ? `Companies see “Usually confirms within ${replyHours} h”` : `Reply within ${FAST_RESPONSE_HOURS} h to show companies a fast-reply badge`} />
         <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
         <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} />
       </section>
@@ -280,6 +286,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                               <GstTypeBadge type={b.invoice.gst_type} />
                               {b.rate_card_id ? <RateCardPill label={`${formatINR(b.budget_per_head_inr)}/head`} /> : null}
                               <Badge variant="secondary">You receive {formatINR(b.venue_payout_inr)}</Badge>
+                              {holdLapsed(b.created_at) ? (
+                                <Badge variant="destructive" title="The date was held for you for 24 hours. Reply now: the company may book elsewhere.">
+                                  Hold expired
+                                </Badge>
+                              ) : null}
                             </div>
                           </div>
                           {holds.get(b.id) ? <HoldCountdown createdAt={holds.get(b.id)!.holdStart} expiresAt={holds.get(b.id)!.expiresAt} className="sm:w-44" /> : null}
