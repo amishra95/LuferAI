@@ -51,9 +51,9 @@ const STEPS = [
   { icon: Sparkles, title: "Brief", body: "Type it in plain English, or let the AI concierge turn a quick chat into a structured RFP." }, // /api/ai/generate-brief
   { icon: MapPinned, title: "Compare", body: "See matched venues with distance from your office, in-policy flags and what coworkers booked." }, // lib/venues signals, PostGIS
   { icon: Handshake, title: "Get direct quotes", body: "The RFP goes to matching venues, who quote you directly. Dates are held while you decide." }, // /api/ai/rfp-broadcast, lib/locks
-  { icon: ShieldCheck, title: "Approve", body: "Policy is checked before any spend. Anything over a limit goes to the right approver on WhatsApp or Slack." }, // lib/policies, lib/approvals
+  { icon: ShieldCheck, title: "Approve", body: "Policy is checked before any spend. Anything over a limit goes to the right approver first." }, // lib/policies, lib/approvals
   { icon: WalletCards, title: "Pay", body: "Pay the deposit online. Venues are paid out on clear terms once the event is completed." }, // /api/payments, lib/marketplace/settlement.ts
-  { icon: ReceiptText, title: "Reconcile", body: "You get a GST tax invoice with ITC tracked, and it syncs to Tally, Zoho or your expense tool." }, // lib/finance
+  { icon: ReceiptText, title: "Reconcile", body: "You get a GST tax invoice for every booking, with a Tally export for your books." }, // lib/finance
 ] satisfies { icon: LucideIcon; title: string; body: string }[];
 
 export function Workflow() {
@@ -88,7 +88,7 @@ export function Workflow() {
 type Feature = { icon: LucideIcon; title: string; body: string };
 
 const ORGANISERS: Feature[] = [
-  { icon: Sparkles, title: "AI concierge", body: "It remembers your team's preferences and books from chat, on the web, Slack or WhatsApp." }, // lib/agent/memory.ts, channels
+  { icon: Sparkles, title: "AI concierge", body: "It remembers your team's preferences and turns a quick chat into a booking." }, // lib/agent/memory.ts, channels
   { icon: Users, title: "Guest list & RSVPs", body: "Invite links, dietary needs, calendar invites and a shared event room." }, // lib/events
   { icon: CalendarCheck, title: "Holds that don't vanish", body: "A countdown on every held date, released automatically if you pass." }, // components/portal/hold-countdown.tsx, cron/release-holds
 ];
@@ -98,8 +98,8 @@ const FINANCE: Feature[] = [
   { icon: Gauge, title: "Spend & forecast", body: "Spend by department or cost centre, with a forecast against budget." }, // /api/analytics/forecast
   { icon: ClipboardCheck, title: "ITC governance", body: "Claim or block input tax credit per invoice, with an audit trail." }, // lib/finance/itc.ts
   { icon: ScanText, title: "Invoice OCR check", body: "Invoices are read and matched against the booking, so mismatches get flagged." }, // /api/finance/ocr-reconcile
-  { icon: FileSpreadsheet, title: "ERP export", body: "Tally Prime XML, Zoho Books and ERPNext, plus PO ledgers per cost centre." }, // lib/finance/tally-xml.ts
-  { icon: ReceiptText, title: "Expense sync", body: "Itemised receipts go to SAP Concur, Brex, Ramp or a webhook." }, // lib/expense
+  { icon: FileSpreadsheet, title: "Tally export", body: "Tally Prime XML, plus PO ledgers per cost centre." }, // lib/finance/tally-xml.ts
+  { icon: ReceiptText, title: "Itemised receipts", body: "Every booking itemised for your expense tool, with its cost centre." }, // lib/expense
 ];
 
 function FeatureGrid({ items, cols = 3 }: { items: Feature[]; cols?: 2 | 3 }) {
@@ -166,7 +166,7 @@ export function Audiences() {
 const VENUE_FEATURES: Feature[] = [
   { icon: Inbox, title: "Corporate requests, ready to quote", body: "Party size, budget, dates and dietary needs, all in one brief." }, // property portal
   { icon: Sparkles, title: "AI inquiry assistant", body: "A public inquiry page that answers questions from your venue's own facts, around the clock." }, // app/inquire/[venueId]
-  { icon: BellRing, title: "WhatsApp alerts & magic links", body: "Quote from your phone without logging in." }, // lib/vendor/quote-link.ts
+  { icon: BellRing, title: "Quote from your phone", body: "A link in the email opens the request. No login." }, // lib/vendor/quote-link.ts
   { icon: Store, title: "Book of business", body: "See every client company, when they're due to rebook, and what to offer them next." }, // property/_components/account-book.tsx
 ];
 
@@ -196,9 +196,8 @@ type Cell = boolean | "partial" | string;
 const ROWS: { label: string; lufer: Cell; agency: Cell; manual: Cell }[] = [
   { label: "Quotes direct from venues", lufer: true, agency: "Through the agency", manual: true },
   { label: "Policy checked before booking", lufer: true, agency: false, manual: false },
-  { label: "Approvals on WhatsApp / Slack", lufer: true, agency: false, manual: "partial" },
   { label: "GST invoice with ITC tracked", lufer: true, agency: "partial", manual: false },
-  { label: "Exports to Tally / Zoho / ERPNext", lufer: true, agency: false, manual: false },
+  { label: "Export to Tally", lufer: true, agency: false, manual: false },
   { label: "Spend by department & cost centre", lufer: true, agency: false, manual: "Spreadsheets" },
 ];
 
@@ -246,7 +245,7 @@ export function Comparison() {
 const FAQ = [
   {
     q: "Who is Lufer for?",
-    a: "Companies in India that book team events, offsites, client entertainment and catering, and the venues and partners who host them.",
+    a: "Companies in Bengaluru that book team events, offsites, client entertainment and catering, and the venues and partners who host them.",
   },
   {
     q: "How does Lufer make money?",
@@ -257,8 +256,8 @@ const FAQ = [
     a: "Yes, where the event qualifies. Every booking has a GST tax invoice under SAC 998596, with CGST + SGST or IGST worked out from both GSTINs. Finance marks each invoice claimed or blocked.",
   },
   {
-    q: "Do our approvers need to log in?",
-    a: "No. Requests over policy reach approvers on WhatsApp or Slack, and they approve or decline in one tap, with the itemised details in the message.",
+    q: "How do approvals work?",
+    a: "Anything over your policy goes to the right approver before it's booked. They see the itemised quote and approve or decline in Lufer.",
   },
   {
     q: "Is our data kept separate from other companies?",

@@ -4,7 +4,7 @@ import { DIYA_BOWL, DIYA_FLAME } from "@/components/brand/logo";
 
 // Link preview for WhatsApp, Slack, LinkedIn: plum card, linen wordmark, coral accent.
 // Hex here because ImageResponse can't read CSS variables; mirrors globals.css.
-export const alt = "Lufer: corporate events and hospitality for India";
+export const alt = "Lufer: corporate events and hospitality in Bengaluru";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -35,7 +35,7 @@ export default function OpengraphImage() {
             Team offsites, client dinners and events, booked in minutes.
           </div>
           <div style={{ marginTop: 28, fontSize: 30, color: "#C9BEDA" }}>
-            Direct venue quotes · WhatsApp approvals · GST invoices with ITC
+            Direct venue quotes · Approvals before spend · GST invoices
           </div>
         </div>
       </div>
