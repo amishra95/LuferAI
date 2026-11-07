@@ -34,12 +34,19 @@ export default async function ApprovalsPage({ searchParams }: PageProps<"/client
         <div className="glass mx-auto grid max-w-md justify-items-center gap-3 rounded-lg p-8 text-center">
           <ClipboardCheck className="size-6 text-fg-subtle" aria-hidden />
           <p className="text-body text-fg-muted">
-            You&apos;re not on {company.legal_name.replace(" Private Limited", "")}&apos;s approval chain. Ask a platform
-            admin to add you as an approver.
+            You&apos;re not on {company.legal_name.replace(" Private Limited", "")}&apos;s approval chain.
+            {member.corporateRole === "APPROVER" ? null : " An Approver at your company can add you."}
           </p>
-          <Button asChild variant="outline">
-            <Link href="/client">Back to bookings</Link>
-          </Button>
+          {/* Approvers manage the chain themselves, on Policies. */}
+          {member.corporateRole === "APPROVER" ? (
+            <Button asChild>
+              <Link href="/governance">Add yourself on Policies</Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href="/client">Back to Home</Link>
+            </Button>
+          )}
         </div>
       </PortalShell>
     );
