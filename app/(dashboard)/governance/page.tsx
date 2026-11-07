@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { BudgetManager } from "@/components/governance/budget-manager";
 import { CompanySetup } from "@/components/governance/company-setup";
+import { TeamManager } from "@/components/governance/team-manager";
+import { listTeam } from "@/lib/companies/team-store";
 import { officeAreaKeyOf } from "@/lib/companies/setup";
 import { ContractRequirement } from "@/components/governance/contract-requirement";
 import { HierarchyEditor } from "@/components/governance/hierarchy-editor";
@@ -54,6 +56,12 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
     }),
     getCorporatePolicy(company.id),
   ]);
+  const team = dataSource() === "supabase"
+    ? await listTeam(company.id).catch((err) => {
+        console.error("governance: could not load the team", err);
+        return null;
+      })
+    : null;
 
   const canManage = canManageGovernance(member);
   const punchout = await punchoutLoad;
@@ -112,6 +120,8 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
           maxDistanceKm: policy?.max_office_distance_km ?? null,
         }}
       />
+
+      {team ? <TeamManager companyId={admin ? company.id : null} team={team} selfId={member.userId} canManage={canManage} /> : null}
 
       {/* Counts only once there's something to count. */}
       {stats.some((s) => s.value > 0) ? (
