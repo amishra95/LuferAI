@@ -6,21 +6,15 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileSignature,
-  FileText,
-  FileSpreadsheet,
   Inbox,
   Landmark,
   LayoutDashboard,
   MapPinned,
   MessageSquare,
   MessagesSquare,
-  Radar,
-  TrendingUp,
   Package,
-  Receipt,
   Settings,
   ShieldCheck,
-  ShoppingBag,
   ShoppingCart,
   Store,
   Tags,
@@ -43,38 +37,32 @@ import type { NavSection, Side } from "@/types/navigation";
  * gated items need their exact href in the allowed list (partner permissions);
  * the rest need only their path.
  */
+/** The Spend area: one sidebar item, these tabs across its pages (components/dashboard/spend-tabs.tsx). */
+export const SPEND_TABS = [
+  { href: "/control-tower", label: "Overview" },
+  { href: "/client?tab=pos", label: "Purchase orders" },
+  { href: "/client?tab=settlement", label: "Invoices & GST" },
+  { href: "/client/statements", label: "Statements" },
+  { href: "/client/roi", label: "ROI" },
+] as const;
+
 export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
   company: {
     label: "For companies",
+    // Ande-shaped: find and book first; spend and policy behind one item each.
     sections: [
       {
         items: [
-          { href: "/client", label: "Company dashboard", icon: CalendarDays },
-          { href: "/venues", label: "Find venues", icon: MapPinned },
+          { href: "/client", label: "Home", icon: CalendarDays, also: ["/client?tab=signoffs", "/client?tab=catalog"] },
+          { href: "/venues", label: "Venues", icon: MapPinned },
           { href: "/chat", label: "Concierge", icon: MessageSquare },
-        ],
-      },
-      {
-        title: "Approvals",
-        items: [
-          { href: "/client?tab=signoffs", label: "Sign-offs", icon: ClipboardList },
-          { href: "/client/approvals", label: "To approve", icon: ClipboardCheck },
-        ],
-      },
-      {
-        title: "Spend",
-        items: [
-          { href: "/control-tower", label: "Control Tower", icon: Radar },
-          { href: "/client?tab=catalog", label: "Catalogue", icon: ShoppingBag },
-          { href: "/client?tab=pos", label: "Purchase orders", icon: FileText },
-          { href: "/client?tab=settlement", label: "Settlement", icon: Receipt },
-          { href: "/client/statements", label: "Monthly statements", icon: FileSpreadsheet },
-          { href: "/client/roi", label: "Entertainment ROI", icon: TrendingUp },
         ],
       },
       {
         title: "Company",
         items: [
+          { href: "/client/approvals", label: "Approvals", icon: ClipboardCheck },
+          { href: "/control-tower", label: "Spend", icon: Wallet, also: SPEND_TABS.map((t) => t.href) },
           { href: "/governance", label: "Policies", icon: Landmark },
           { href: "/contracts", label: "Contracts", icon: FileSignature },
         ],
@@ -227,7 +215,8 @@ export function sideHome(side: Side, allowedHrefs: readonly string[]): string {
  * without a tab is the page's default section). Pages below an item without
  * one of their own (/client/events/…) light up that item.
  */
-export function isItemActive(href: string, pathname: string, tab: string | null, allHrefs: readonly string[]): boolean {
+export function isItemActive(href: string, pathname: string, tab: string | null, allHrefs: readonly string[], also: readonly string[] = []): boolean {
+  if (also.some((a) => isItemActive(a, pathname, tab, allHrefs))) return true;
   const path = pathOf(href);
   if (pathname === path) return tabOf(href) === tab;
   return isActive(pathname, path) && !allHrefs.some((h) => pathOf(h).length > path.length && isActive(pathname, pathOf(h)));
@@ -247,7 +236,7 @@ export function isActive(pathname: string, href: string): boolean {
 /** Breadcrumb names for paths that aren't (only) a nav item. */
 const PATH_LABEL: Record<string, string> = {
   "/client": "Company",
-  "/client/approvals": "To approve",
+  "/client/approvals": "Approvals",
   "/client/statements": "Monthly statements",
   "/client/roi": "Entertainment ROI",
   "/property": "Venue",

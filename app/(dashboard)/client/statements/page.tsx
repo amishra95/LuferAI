@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, FileSpreadsheet, Printer } from "lucide-react";
 
+import { SpendTabs } from "@/components/dashboard/spend-tabs";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,7 @@ export default async function StatementsPage({ searchParams }: PageProps<"/clien
   return (
     <PortalShell
       portal="/client"
-      title="Monthly statements"
+      title="Spend"
       actions={
         statement.bookingCount > 0 ? (
           <div className="flex gap-2">
@@ -63,6 +64,7 @@ export default async function StatementsPage({ searchParams }: PageProps<"/clien
         ) : null
       }
     >
+      <SpendTabs active="/client/statements" query={member.role === "ADMIN" ? `company=${company.id}` : undefined} />
       <nav aria-label="Statement month" className="-mx-1 mb-4 flex gap-1 overflow-x-auto pb-1">
         {recentMonths(today).map((m) => (
           <Link

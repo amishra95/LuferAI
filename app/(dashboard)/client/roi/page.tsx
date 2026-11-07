@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 
+import { SpendTabs } from "@/components/dashboard/spend-tabs";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { StatCard } from "@/components/portal/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,8 @@ export default async function RoiPage({ searchParams }: PageProps<"/client/roi">
   const options = deals.map((d) => ({ id: d.id, label: `${d.name}${d.account_name ? ` · ${d.account_name}` : ""}${d.stage !== "open" ? ` (${STAGE[d.stage].label})` : ""}` }));
 
   return (
-    <PortalShell portal="/client" title="Entertainment ROI">
+    <PortalShell portal="/client" title="Spend">
+      <SpendTabs active="/client/roi" query={member.role === "ADMIN" ? `company=${company.id}` : undefined} />
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Won revenue entertained" value={formatINR(roi.wonRevenue)} hint={`on ${formatINR(roi.wonSpend)} of entertainment`} />

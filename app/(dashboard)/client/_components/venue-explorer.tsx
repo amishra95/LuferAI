@@ -96,7 +96,6 @@ export function VenueExplorer({
           <h2 id="venues-heading" className="text-fg text-body font-semibold tracking-tight">
             Venues
           </h2>
-          <p className="text-fg-subtle mt-0.5 text-meta">Prices are pre-GST; your company&apos;s rate card applies when you request.</p>
         </div>
         {venues.length ? (
           <div className="flex gap-1" role="group" aria-label="Venue view">

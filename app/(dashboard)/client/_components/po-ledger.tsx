@@ -106,7 +106,6 @@ export function PoLedger({
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-fg text-body font-semibold tracking-tight">Purchase orders</h2>
-          <p className="text-fg-subtle text-meta">Blanket POs that bookings and catalogue orders draw down.</p>
         </div>
         {!raising && raise(false)}
       </header>
@@ -119,7 +118,7 @@ export function PoLedger({
           headingLevel={3}
           icon={FileText}
           title="No purchase orders yet"
-          description={<>Without a PO, bookings and orders aren&apos;t checked against a budget.{canManage ? " Raise one to start tracking spend." : " An Approver can raise one."}</>}
+          description={canManage ? undefined : "An Approver can raise one."}
           action={raising ? null : raise(true)}
         />
       ) : (

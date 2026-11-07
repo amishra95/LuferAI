@@ -7,6 +7,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown only when this exact href is allowed (a permission-gated section), not just its path. */
   gated?: boolean;
+  /** Other hrefs (path and ?tab) that light this item: pages it fronts without a sidebar item of their own. */
+  also?: readonly string[];
 };
 
 /** Which side of the marketplace a page belongs to (components/dashboard/nav-config.ts). */
