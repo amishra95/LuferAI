@@ -6,7 +6,8 @@ import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { currentApplication, requirePortal } from "@/lib/auth/session";
-import { getVenue } from "@/lib/data";
+import { dataSource, getVenue } from "@/lib/data";
+import { listVenuePackages } from "@/lib/rfp/service";
 import { cn } from "@/lib/utils";
 import { GstinForm } from "../_components/gstin-form";
 
@@ -19,7 +20,11 @@ export const metadata: Metadata = { title: "Welcome" };
  */
 export default async function PropertyWelcomePage() {
   const member = await requirePortal("/property");
-  const [venue, application] = await Promise.all([member.venueId ? getVenue(member.venueId) : null, currentApplication()]);
+  const [venue, application, packages] = await Promise.all([
+    member.venueId ? getVenue(member.venueId) : null,
+    currentApplication(),
+    member.venueId && dataSource() === "supabase" ? listVenuePackages(member.venueId) : Promise.resolve([]),
+  ]);
   if (!venue) redirect("/property");
   const first = application?.full_name.split(" ")[0];
 
@@ -28,9 +33,10 @@ export default async function PropertyWelcomePage() {
     { done: true, title: "Create your account" },
     // Optional at signup, needed before listing: bookings are invoiced on it.
     { done: Boolean(venue.gstin), title: "Add your GSTIN", form: <GstinForm /> },
+    // A package's per-head price is what companies see on the venue's card and what instant quotes use.
+    { done: packages.some((p) => p.is_active), title: "Add a menu package with a price per head", href: pricing },
     { done: venue.photos.length > 0, title: "Add photos", href: pricing },
     { done: Number(venue.min_spend_inr) > 0 || Number(venue.min_spend_per_head_inr) > 0, title: "Set your minimum spend", href: pricing },
-    { done: Array.isArray(venue.cancellation_terms) && venue.cancellation_terms.length > 0, title: "Set cancellation terms", href: pricing },
     // Verification is ours to do (GSTIN and address, about one working day); the venue only waits.
     { done: venue.is_active, title: venue.is_active ? "Verified" : "Verification in progress" },
   ];
