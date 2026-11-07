@@ -61,7 +61,7 @@ export function Sidebar({
   const tab = useSearchParams().get("tab");
   const badges = useNavBadges();
   const groups = sides.length > 1 ? allSides(sides, allowedHrefs) : [{ side, sections: sideSections(side, allowedHrefs) }];
-  const hrefs = groups.flatMap((g) => g.sections.flatMap((s) => s.items.map((i) => i.href)));
+  const hrefs = groups.flatMap((g) => g.sections.flatMap((s) => s.items.flatMap((i) => [i.href, ...(i.also ?? [])])));
   return (
     <aside
       className={cn(
@@ -112,8 +112,8 @@ export function Sidebar({
                   ))}
                 {!section.title && i > 0 && collapsed ? <div className="border-line mx-3 mb-3 border-t" aria-hidden /> : null}
                 <ul className="space-y-px">
-                  {section.items.map(({ href, label, icon: Icon }) => {
-                    const active = isItemActive(href, pathname, tab, hrefs);
+                  {section.items.map(({ href, label, icon: Icon, also }) => {
+                    const active = isItemActive(href, pathname, tab, hrefs, also);
                     const badge = badges[href];
                     return (
                       <li key={href}>

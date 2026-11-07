@@ -1,16 +1,10 @@
-"use client";
-
-import { useState } from "react";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { GST_RATE_PERCENT, gstOn } from "@/lib/gst-engine";
 import { formatINR } from "@/lib/utils";
 
 /**
- * 18% GST ITC calculator. Shows the credit finance has confirmed as claimable,
+ * GST input tax credit summary. Shows the credit finance has confirmed as claimable,
  * what's pending their review or the tax invoice, and what's blocked
- * (lib/finance/itc.ts), plus a what-if for planned spend.
+ * (lib/finance/itc.ts). No what-if: F&B credit is often blocked (CGST 17(5)(b)),
+ * so a planner assuming full credit would overstate the saving.
  */
 export function ItcCalculator({
   eligible,
@@ -25,9 +19,6 @@ export function ItcCalculator({
   blocked: number;
   committedSpend: number;
 }) {
-  const [planned, setPlanned] = useState("250000");
-  const plannedValue = Number(planned) || 0;
-  const plannedItc = gstOn(plannedValue);
 
   return (
     <div className="grid gap-5">
@@ -44,26 +35,7 @@ export function ItcCalculator({
         </dl>
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="planned_spend">Plan ahead: taxable spend (₹)</Label>
-        <Input
-          id="planned_spend"
-          type="number"
-          min={0}
-          step="any"
-          inputMode="decimal"
-          value={planned}
-          onChange={(e) => setPlanned(e.target.value)}
-        />
-      </div>
-
       <dl className="grid grid-cols-2 gap-y-1.5 text-body">
-        <dt className="text-muted-foreground">GST @ {GST_RATE_PERCENT}%</dt>
-        <dd className="text-right tabular-nums">{formatINR(plannedItc, true)}</dd>
-        <dt className="text-muted-foreground">Gross outlay</dt>
-        <dd className="text-right tabular-nums">{formatINR(plannedValue + plannedItc, true)}</dd>
-        <dt className="font-medium">Net cost after ITC</dt>
-        <dd className="text-right font-medium tabular-nums">{formatINR(plannedValue, true)}</dd>
         <dt className="text-muted-foreground">Committed spend to date</dt>
         <dd className="text-right tabular-nums">{formatINR(committedSpend)}</dd>
       </dl>

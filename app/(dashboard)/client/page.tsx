@@ -9,6 +9,7 @@ import { MarkdownMatrix } from "@/components/portal/markdown-matrix";
 import { RateCardPill } from "@/components/portal/pills";
 import { StatCard } from "@/components/portal/stat-card";
 import { NavBadges } from "@/components/dashboard/nav-badges";
+import { SpendTabs } from "@/components/dashboard/spend-tabs";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { BookingStatusBadge, GstTypeBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
@@ -19,8 +20,7 @@ import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatCompanyScope, ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { activeHolds, approvalQueue } from "@/lib/approvals/service";
-import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
-import { getLanguageModel } from "@/lib/ai/model";
+import { syncAgentConfigs } from "@/lib/agents/store";
 import { requirePortal } from "@/lib/auth/session";
 import { teamEventPrompt } from "@/lib/chat/concierge-link";
 import { getUserPhone } from "@/lib/services/contact";
@@ -68,7 +68,6 @@ import { LiveBookings } from "./_components/live-bookings";
 import { PayDepositButton } from "./_components/pay-deposit-button";
 import { CatalogShop } from "./_components/catalog-shop";
 import { DirectQuoteCard } from "./_components/direct-quote-card";
-import { DiscoveryPanel } from "./_components/discovery-panel";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
@@ -113,6 +112,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   const live = dataSource() === "supabase";
   const activeTab = tab === "signoffs" ? "signoffs" : tab === "pos" ? "pos" : tab === "catalog" ? "catalog" : tab === "settlement" ? "settlement" : "bookings";
+  // Purchase orders and settlement sit under Spend (one sidebar item); Home is events and sign-offs.
+  const spendTab = activeTab === "pos" || activeTab === "settlement";
   const today = todayInIndia();
   const office = officeOf(company);
   // Only employees can request. Whether this one may is known once `users` loads,
@@ -197,12 +198,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const itc = computeItcSummary(bookings);
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
   const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, { responseHours, ratings }));
-  const workspaceAgent = getAgent("workspace-agent");
-  const concierge = !getLanguageModel({ backend: workspaceAgent?.model })
-    ? { ready: false, reason: "The concierge needs an AI model configured (see Settings)." }
-    : workspaceAgent?.enabled === false
-      ? { ready: false, reason: "The concierge is switched off on the Agents page." }
-      : { ready: true, reason: undefined };
   const canPay = paymentsEnabled();
 
   const myTurn = (s: SignOff) =>
@@ -214,10 +209,15 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         !s.approvals.some((x) => x.status === "PENDING" && (x.tier ?? 1) < (a.tier ?? 1))
     );
   const waitingOnMe = signOffs.filter((s) => myTurn(s)).length;
+  // Home's tabs appear only when there's more than the event list to show.
+  const homeTabs = [
+    { key: "bookings", label: "Events", count: 0 },
+    ...(signOffs.length > 0 || activeTab === "signoffs" ? [{ key: "signoffs", label: "Sign-offs", count: signOffs.length }] : []),
+    ...(activeTab === "catalog" ? [{ key: "catalog", label: "Catalogue", count: 0 }] : []),
+  ] as const satisfies readonly { key: string; label: string; count: number }[];
 
   // Approvers manage their company's POs; admins any company's.
   const canManagePos = member.role === "ADMIN" || role === "APPROVER";
-  const openPos = pos.filter((p) => p.status === "open").length;
   // Home overview figures.
   const upcoming = bookings.filter((b) => b.status === "CONFIRMED" && b.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date));
   const withVenue = bookings.filter((b) => b.status === "PENDING").length;
@@ -245,7 +245,6 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         <h2 id="rfp-heading" className="text-fg text-body font-semibold tracking-tight">
           {quotesFirst ? `Quotes to review (${openRfps})` : "RFP comparisons"}
         </h2>
-        <p className="text-fg-subtle text-meta">Instant quotes from your packages and rate card; venues can counter-offer.</p>
       </div>
       {rfps.map(({ rfp, markdown, columns }) =>
         rfp.origin === "venue" && columns[0] ? (
@@ -289,7 +288,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
   // Employees get a greeting; everyone else sees the company name.
   const firstName = user ? firstNameOf(user.name) : null;
-  const title = user ? (firstName ? `${greeting()}, ${firstName}` : greeting()) : company.legal_name;
+  const title = spendTab ? "Spend" : user ? (firstName ? `${greeting()}, ${firstName}` : greeting()) : company.legal_name;
 
   return (
     <PortalShell
@@ -304,8 +303,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               </Link>
             </Button>
           ) : null}
-          {/* Admins file on behalf of an employee; finance viewers get the concierge (see the modal). */}
-          {activeTab === "bookings" && (member.role === "ADMIN" || member.role === "CLIENT") ? (
+          {/* Admins file on behalf of an employee. Employees start from Plan an event on the page. */}
+          {activeTab === "bookings" && member.role === "ADMIN" ? (
             <ManualBookingModal
               companyId={company.id}
               trigger={
@@ -315,21 +314,22 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               }
             />
           ) : null}
-          {/* Always offered, read-only admin view included: the chat is open to every client role and admins. */}
-          <Button asChild>
-            <ChatDrawerTrigger companyId={company.id} prompt={canRequest ? teamEventPrompt(company.legal_name) : undefined}>
-              <Plus aria-hidden /> Plan an event
-            </ChatDrawerTrigger>
-          </Button>
+          {/* Those who can't request (finance viewers, admins) ask the concierge instead. */}
+          {spendTab || (canRequest && live) ? null : (
+            <Button asChild>
+              <ChatDrawerTrigger companyId={company.id} prompt={canRequest ? teamEventPrompt(company.legal_name) : undefined}>
+                <Plus aria-hidden /> Plan an event
+              </ChatDrawerTrigger>
+            </Button>
+          )}
         </div>
       }
     >
       <ChatCompanyScope company={{ id: company.id, name: company.legal_name }} />
       <NavBadges
         badges={{
-          ...(signOffs.length ? { "/client?tab=signoffs": waitingOnMe > 0 ? { label: `${waitingOnMe} for you`, tone: "warning" } : { label: String(signOffs.length) } } : {}),
+          ...(signOffs.length ? { "/client": waitingOnMe > 0 ? { label: `${waitingOnMe} for you`, tone: "warning" } : { label: String(signOffs.length) } } : {}),
           ...(queue.length ? { "/client/approvals": { label: String(queue.length), tone: "warning", title: `${queue.length} awaiting your approval` } } : {}),
-          ...(openPos ? { "/client?tab=pos": { label: String(openPos), title: `${openPos} open purchase order${openPos === 1 ? "" : "s"}` } } : {}),
         }}
       />
       {companies.length > 1 ? (
@@ -370,16 +370,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </p>
       ) : null}
 
-      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none]" aria-label="Client portal sections">
-        {(
-          [
-            { key: "bookings", label: "Bookings", count: 0 },
-            { key: "signoffs", label: "Sign-offs", count: signOffs.length },
-            { key: "catalog", label: "Catalogue", count: 0 },
-            { key: "pos", label: "Purchase orders", count: openPos },
-            { key: "settlement", label: "Settlement", count: 0 },
-          ] as const
-        ).map((t) => (
+      {spendTab ? (
+        <SpendTabs active={activeTab === "pos" ? "/client?tab=pos" : "/client?tab=settlement"} query={member.role === "ADMIN" ? `company=${company.id}` : undefined} />
+      ) : homeTabs.length > 1 ? (
+      <nav className="border-line -mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 [scrollbar-width:none]" aria-label="Home sections">
+        {homeTabs.map((t) => (
           <Link
             key={t.key}
             href={href({ tab: t.key === "bookings" ? undefined : t.key })}
@@ -398,6 +393,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           </Link>
         ))}
       </nav>
+      ) : null}
 
       {activeTab === "catalog" ? (
         <CatalogShop
@@ -426,15 +422,9 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         />
       ) : activeTab === "settlement" ? (
         <section aria-labelledby="settlement-heading" className="grid gap-4">
-          <div>
-            <h2 id="settlement-heading" className="text-fg text-body font-semibold tracking-tight">
-              Settlement
-            </h2>
-            <p className="text-fg-subtle text-caption">
-              PO lines, GST as invoiced, input tax credit and exports to your expense or ERP system, for confirmed bookings.
-              {member.role === "ADMIN" || role === "APPROVER" ? "" : " Approvers review ITC and send exports."}
-            </p>
-          </div>
+          <h2 id="settlement-heading" className="sr-only">
+            Invoices &amp; GST
+          </h2>
           {/* Receipts and tax credit live with settlement, not on the home tab. */}
             <div className="grid gap-6 lg:grid-cols-5">
               <Card className="lg:col-span-3">
@@ -605,6 +595,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
         </div>
       ) : (
         <>
+          {bookings.length > 0 ? (
           <section aria-labelledby="overview-heading" className="mb-10">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 id="overview-heading" className="text-fg text-body font-semibold">
@@ -615,7 +606,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 companyId={member.role === "ADMIN" ? company.id : undefined}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
               <StatCard
                 label="Upcoming events"
                 icon={CalendarDays}
@@ -643,20 +634,14 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
               ) : (
                 <StatCard label="Committed spend" icon={Wallet} value={formatINR(itc.committedSpend)} />
               )}
-              <StatCard
-                label="GST to reclaim"
-                icon={Receipt}
-                value={formatINR(itc.eligible)}
-                hint={itc.pendingReview > 0 ? `${formatINR(itc.pendingReview)} awaiting finance review` : undefined}
-              />
             </div>
           </section>
+          ) : null}
 
           {quotesFirst ? rfpSection : null}
 
           {canRequest ? (
             <div className="mb-10 space-y-10">
-              <DiscoveryPanel offline={!concierge.ready} reason={concierge.reason} />
               {live ? (
                 <section aria-label="Plan an event">
                   <RfpBroadcastForm />
@@ -686,7 +671,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Your bookings</CardTitle>
+              <CardTitle>Events</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -811,7 +796,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   {bookings.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={canPay ? 5 : 4} className="text-fg-subtle py-10 text-center">
-                        No bookings yet{canRequest ? ". Plan an event above, or pick a venue to send your first request" : ""}.
+                        No events yet.
                       </TableCell>
                     </TableRow>
                   )}

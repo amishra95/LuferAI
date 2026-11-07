@@ -69,15 +69,10 @@ export function RfpBroadcastForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-3" aria-labelledby="rfp-form-heading">
-      {/* Titled so it doesn't read as a second concierge box: this one sends, the concierge searches. */}
-      <header>
-        <h2 id="rfp-form-heading" className="text-fg text-body font-semibold">
-          Get quotes from venues
-        </h2>
-        <p className="text-fg-subtle text-meta">
-          Describe the event once. Matching venues get a structured request and quote you directly, and you compare them side by side under Quotes to review.
-        </p>
-      </header>
+      {/* The one place to start an event: matching venues quote back into Quotes to review. */}
+      <h2 id="rfp-form-heading" className="text-fg text-body font-semibold">
+        Plan an event
+      </h2>
       <div className="panel focus-within:border-line-strong relative p-2 transition-colors duration-100">
         <label htmlFor="brief" className="sr-only">
           Describe your event
@@ -95,7 +90,7 @@ export function RfpBroadcastForm() {
                 e.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder="Describe the event — guests, date, area, budget, dietary needs…"
+            placeholder="Guests, date, area, budget per head…"
             rows={2}
             maxLength={4000}
             className="field-sizing-content text-fg placeholder:text-fg-faint max-h-48 min-h-10 flex-1 resize-none bg-transparent py-2 text-body focus:outline-none"
@@ -103,7 +98,7 @@ export function RfpBroadcastForm() {
           <button
             type="submit"
             disabled={pending || brief.trim().length < 20}
-            aria-label="Broadcast RFP to matching venues"
+            aria-label="Get quotes from matching venues"
             className="bg-go text-on-go hover:bg-go-hover disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
           >
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}

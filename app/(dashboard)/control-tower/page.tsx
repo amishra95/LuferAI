@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Download } from "lucide-react";
 
 import { NoticePill, Page, PageHeader, SectionLabel } from "@/components/dashboard/page-header";
+import { SpendTabs } from "@/components/dashboard/spend-tabs";
 import { POLICY_STATUS_META, PolicyBadge } from "@/components/policy/policy-badge";
 import { BookingStatusBadge, PaymentStatusBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,10 @@ export default async function ControlTowerPage({ searchParams }: PageProps<"/con
   return (
     <Page>
       <PageHeader
-        title="Control Tower"
+        title="Spend"
         badge={admin && !filters.companyId ? <NoticePill>all companies</NoticePill> : null}
       />
+      <SpendTabs active="/control-tower" query={admin && filters.companyId ? `company=${filters.companyId}` : undefined} />
 
       <form method="get" className="panel mb-8 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 xl:items-end" aria-label="Filters">
         {admin ? (

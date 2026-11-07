@@ -69,3 +69,20 @@ test("the item for the current section is highlighted, tabs included", () => {
   assert.equal(isItemActive("/client", "/client/approvals", null, all), false);
   assert.equal(isItemActive("/client/approvals", "/client/approvals", null, all), true);
 });
+
+test("Spend lights for every page in the Spend area; Home doesn't", () => {
+  const spendAlso = ["/client?tab=pos", "/client?tab=settlement", "/client/statements", "/client/roi"];
+  const all = ["/client", "/client?tab=signoffs", "/control-tower", ...spendAlso, "/client/approvals"];
+  for (const [path, tab] of [["/control-tower", null], ["/client", "pos"], ["/client", "settlement"], ["/client/statements", null], ["/client/roi", null]]) {
+    assert.equal(isItemActive("/control-tower", path, tab, all, spendAlso), true, `${path}?tab=${tab}`);
+    assert.equal(isItemActive("/client", path, tab, all, ["/client?tab=signoffs"]), false, `Home on ${path}?tab=${tab}`);
+  }
+  assert.equal(isItemActive("/client", "/client", "signoffs", all, ["/client?tab=signoffs"]), true);
+  assert.equal(isItemActive("/client", "/client/events/abc", null, all, ["/client?tab=signoffs"]), true);
+});
+
+test("company sidebar: Home, Venues, Concierge, then Approvals (approvers), Spend, Policies, Contracts", () => {
+  const client = ["/client", "/venues", "/chat", "/governance", "/contracts", "/control-tower"];
+  assert.deepEqual(hrefs("company", client), ["/client", "/venues", "/chat", "/control-tower", "/governance", "/contracts"]);
+  assert.deepEqual(hrefs("company", [...client, "/client/approvals"]).slice(3, 4), ["/client/approvals"]);
+});
