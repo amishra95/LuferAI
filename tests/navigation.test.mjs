@@ -86,3 +86,11 @@ test("company sidebar: Home, Venues, Concierge, then Approvals (approvers), Spen
   assert.deepEqual(hrefs("company", client), ["/client", "/venues", "/chat", "/control-tower", "/governance", "/contracts"]);
   assert.deepEqual(hrefs("company", [...client, "/client/approvals"]).slice(3, 4), ["/client/approvals"]);
 });
+
+test("venue sidebar: Requests (with inquiries), Events, Listing, Clients, Payouts", () => {
+  const venue = ["/property", "/contracts"];
+  assert.deepEqual(hrefs("venue", venue), ["/property", "/property?tab=briefs", "/property?tab=pricing", "/property?tab=accounts", "/property?tab=payouts", "/contracts"]);
+  const all = hrefs("venue", venue).concat("/property?tab=inquiries");
+  assert.equal(isItemActive("/property", "/property", "inquiries", all, ["/property?tab=inquiries"]), true);
+  assert.equal(isItemActive("/property", "/property", "pricing", all, ["/property?tab=inquiries"]), false);
+});
