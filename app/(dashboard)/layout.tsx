@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     await syncAgentConfigs();
     const agent = getAgent("workspace-agent");
     const chatModel = getLanguageModel({ backend: agent?.model, speed: "fast" });
-    chat = { model: chatModel?.modelId ?? "none", offline: !chatModel, agentEnabled: agent?.enabled ?? true };
+    chat = { model: chatModel?.modelId ?? "none", offline: !chatModel, agentEnabled: agent?.enabled ?? true, inspector: member?.role === "ADMIN" };
   }
 
   // `lufer` scopes the design system (warm light theme).

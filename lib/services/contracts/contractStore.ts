@@ -123,6 +123,46 @@ export async function contractsForBookings(bookingIds: string[]): Promise<Map<st
   return out;
 }
 
+export interface ContractListItem {
+  id: string;
+  status: ContractStatus;
+  bookingId: string;
+  number: string;
+  counterparty: string;
+  eventDate: string;
+  total: number;
+  issuedAt: string;
+}
+
+/** Every contract the member may see, latest revision per booking, newest first. Empty without Supabase or the migration. */
+export async function listContractsFor(member: Member): Promise<ContractListItem[]> {
+  if (dataSource() !== "supabase") return [];
+  let query = createAdminClient().from("contracts").select("id, booking_id, status, revision, terms, tenant_id, venue_id, issued_at").order("revision");
+  if (member.role === "CLIENT") query = query.eq("tenant_id", member.companyId ?? "");
+  else if (member.role === "PROPERTY") query = query.eq("venue_id", member.venueId ?? "");
+  else if (member.role !== "ADMIN") return [];
+  const { data, error } = await query;
+  if (isMissingTable(error)) return [];
+  if (error) throw error;
+  const latest = new Map<string, (typeof data)[number]>();
+  for (const c of data) if (canViewContract(member, c)) latest.set(c.booking_id, c);
+  return [...latest.values()]
+    .map((c) => {
+      const terms = c.terms as unknown as ContractTerms;
+      return {
+        id: c.id,
+        status: c.status as ContractStatus,
+        bookingId: c.booking_id,
+        number: terms.contractNumber,
+        counterparty: member.role === "PROPERTY" ? terms.client.legalName : terms.venue.name,
+        eventDate: terms.event.date,
+        total: terms.pricing.invoiceTotal,
+        issuedAt: c.issued_at,
+      };
+    })
+    .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
+}
+
 /** Whether the company confirms bookings by contract. False without Supabase or the migration. */
 export async function contractsRequired(companyId: string): Promise<boolean> {
   if (dataSource() !== "supabase") return false;

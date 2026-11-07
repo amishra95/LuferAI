@@ -25,7 +25,8 @@ export function PromptBar({
   onSend: (text: string) => void;
   onStop: () => void;
   onNewChat: () => void;
-  onToggleInspector: () => void;
+  /** Absent: no inspector button. */
+  onToggleInspector?: () => void;
   inspectorOpen: boolean;
   canReset: boolean;
   /** A draft to start from (e.g. /chat?prompt=…): shown in the composer, never sent on its own. */
@@ -88,6 +89,7 @@ export function PromptBar({
           <button type="button" onClick={onNewChat} disabled={!canReset} className="btn btn-ghost h-8 px-2.5 text-caption">
             <Plus className="size-3.5" aria-hidden /> New
           </button>
+          {onToggleInspector ? (
           <button
             type="button"
             onClick={onToggleInspector}
@@ -96,6 +98,7 @@ export function PromptBar({
           >
             <PanelRight className={cn("size-3.5", inspectorOpen && "text-fg")} aria-hidden /> Inspector
           </button>
+          ) : null}
           {busy ? (
             <button
               type="button"

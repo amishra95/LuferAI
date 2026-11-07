@@ -88,6 +88,12 @@ function greeting(now = new Date()) {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
+/** "Priya Rao" → "Priya"; an email standing in for a name ("silva.radrian@…") → "Silva". */
+function firstNameOf(name: string): string | null {
+  const word = (name.includes("@") ? name.split("@")[0].split(/[._\-+\d]/) : name.trim().split(/\s+/)).find(Boolean);
+  return word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : null;
+}
+
 const MONTH = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 const MONTH_SHORT = new Intl.DateTimeFormat("en-IN", { month: "long", timeZone: "Asia/Kolkata" });
 
@@ -282,8 +288,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   );
 
   // Employees get a greeting; everyone else sees the company name.
-  const firstName = user?.name.split(/[\s@]/)[0];
-  const title = user && firstName ? `${greeting()}, ${firstName[0].toUpperCase()}${firstName.slice(1)}` : company.legal_name;
+  const firstName = user ? firstNameOf(user.name) : null;
+  const title = user ? (firstName ? `${greeting()}, ${firstName}` : greeting()) : company.legal_name;
 
   return (
     <PortalShell
