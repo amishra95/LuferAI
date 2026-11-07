@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, List, Map as MapIcon, MapPinned } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight, List, Map as MapIcon, MapPinned } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
 import { RateCardPill } from "@/components/portal/pills";
@@ -38,6 +39,9 @@ export function VenueExplorer({
   office = null,
   officeDistances = null,
   signals = {},
+  limit,
+  moreHref,
+  heading = "Venues",
 }: {
   venues: CatalogVenue[];
   company: { id: string; gstin: string };
@@ -55,6 +59,14 @@ export function VenueExplorer({
   officeDistances?: Record<string, number> | null;
   /** Coworker and response-time signals by venue id (lib/venues/signals.ts). */
   signals?: Record<string, VenueSignals>;
+  /**
+   * Preview mode (Home): the nearest `limit` venues to the office, no search
+   * box or map toggle, and a link to the full list at `moreHref`.
+   */
+  limit?: number;
+  moreHref?: string;
+  /** null: the page title already says it (screen readers still get "Venues"). */
+  heading?: string | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -70,6 +82,11 @@ export function VenueExplorer({
     return office && venue.latitude != null && venue.longitude != null ? distanceKm(office, { latitude: venue.latitude, longitude: venue.longitude }) : null;
   };
   const fit = new Map(options.map((o, i) => [o.id, venuePolicyStatus(policy, o, officeKm(venues[i]))]));
+  // Preview: nearest first (venues without a distance last), then the first `limit`.
+  const shown = limit
+    ? [...venues].sort((a, b) => (officeKm(a) ?? Infinity) - (officeKm(b) ?? Infinity)).slice(0, limit)
+    : venues;
+  const preview = limit !== undefined;
   const distanceLabel = (venue: CatalogVenue) => {
     if (!officeDistances) return officeDistanceLabel(office, venue);
     const meters = officeDistances[venue.id];
@@ -93,11 +110,15 @@ export function VenueExplorer({
     <section aria-labelledby="venues-heading" className="relative">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="venues-heading" className="text-fg text-body font-semibold tracking-tight">
-            Venues
+          <h2 id="venues-heading" className={heading === null ? "sr-only" : "text-fg text-body font-semibold tracking-tight"}>
+            {heading ?? "Venues"}
           </h2>
         </div>
-        {venues.length ? (
+        {preview && moreHref && venues.length > shown.length ? (
+          <Link href={moreHref} className="text-fg-subtle hover:text-fg inline-flex items-center gap-1 text-meta">
+            All {venues.length} venues <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        ) : !preview && venues.length ? (
           <div className="flex gap-1" role="group" aria-label="Venue view">
             {(["list", "map"] as const).map((v) => (
               <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cn(segmentClass(view === v), "gap-1.5")}>
@@ -109,14 +130,16 @@ export function VenueExplorer({
         ) : null}
       </div>
 
-      <div className="mb-4">
-        <AiVenueSearch companyId={company.id} onSelect={pickFromSearch} />
-      </div>
+      {preview ? null : (
+        <div className="mb-4">
+          <AiVenueSearch companyId={company.id} onSelect={pickFromSearch} />
+        </div>
+      )}
 
       {venues.length === 0 ? (
         <EmptyState
           icon={MapPinned}
-          title="No venues in your catalogue yet"
+          title="No venues yet"
         />
       ) : (
         <div className={cn("grid gap-6", view === "map" && "lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]")}>
@@ -126,7 +149,7 @@ export function VenueExplorer({
               view === "map" ? "lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto lg:p-1 lg:pr-2" : "lg:grid-cols-3"
             )}
           >
-            {options.map((v, i) => {
+            {shown.map(toVenueOption).map((v, i) => {
               const active = v.id === selectedId;
               return (
                 <li key={v.id} className="grid">
@@ -142,7 +165,7 @@ export function VenueExplorer({
                     <VenueCardBody
                       venue={v}
                       policy={policy ? fit.get(v.id) : undefined}
-                      distance={distanceLabel(venues[i])}
+                      distance={distanceLabel(shown[i])}
                       signals={signals[v.id]}
                       indicator={
                         <ArrowUpRight
@@ -163,7 +186,7 @@ export function VenueExplorer({
           {view === "map" ? (
             <div className="max-lg:order-first lg:sticky lg:top-20 lg:self-start">
               <VenueMap
-                venues={venues.map((v) => ({
+                venues={shown.map((v) => ({
                   id: v.id,
                   name: v.name,
                   latitude: v.latitude,
