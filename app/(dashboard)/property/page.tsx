@@ -65,6 +65,22 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   // Property managers are pinned to their own venue, listed or not; admins may switch via ?venue=<id>.
   const venues = member.role === "ADMIN" ? allVenues : allVenues.filter((v) => v.id === member.venueId);
   const venue = typeof venueParam === "string" ? venues.find((v) => v.id === venueParam) : venues[0];
+  // Admins before any venue exists: say so, not a 404.
+  if (!venue && member.role === "ADMIN" && venueParam === undefined) {
+    return (
+      <PortalShell portal="/property" title="Venues">
+        <EmptyState
+          icon={Inbox}
+          title="No venues yet"
+          action={
+            <Link href="/admin/new-venue" className="btn h-8 px-3 text-meta">
+              Add a venue
+            </Link>
+          }
+        />
+      </PortalShell>
+    );
+  }
   if (!venue) notFound();
   const tab: Tab = TABS.find((t) => t === tabParam) ?? "requests";
 
@@ -179,10 +195,9 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
 
       <NavBadges
         badges={{
-          ...(incoming.length + escalations.open.length
-            ? { "/property": { label: String(incoming.length + escalations.open.length), tone: "warning", title: `${incoming.length} request${incoming.length === 1 ? "" : "s"} and ${escalations.open.length} counter-offer${escalations.open.length === 1 ? "" : "s"} waiting for you` } }
+          ...(incoming.length + escalations.open.length + readyToQuote
+            ? { "/property": { label: String(incoming.length + escalations.open.length + readyToQuote), tone: "warning", title: `${incoming.length} request${incoming.length === 1 ? "" : "s"}, ${escalations.open.length} counter-offer${escalations.open.length === 1 ? "" : "s"} and ${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} waiting for you` } }
             : {}),
-          ...(readyToQuote ? { "/property?tab=inquiries": { label: String(readyToQuote), tone: "warning", title: `${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} ready for your quote` } } : {}),
           ...(opportunities.length ? { "/property?tab=accounts": { label: String(opportunities.length), title: `${opportunities.length} suggested next step${opportunities.length === 1 ? "" : "s"}` } } : {}),
           ...(incoming.length + upcoming.length ? { "/property?tab=briefs": { label: String(incoming.length + upcoming.length) } } : {}),
         }}
@@ -190,12 +205,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       <nav className="border-line mt-8 mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Property workspace sections">
         {(
           [
-            { key: "requests", label: "Requests & Holds" },
-            { key: "inquiries", label: "Inquiries" },
-            { key: "accounts", label: "Accounts" },
-            { key: "briefs", label: "Event Briefs" },
-            { key: "pricing", label: "Listing & pricing" },
-            { key: "payouts", label: "Payouts & History" },
+            { key: "requests", label: "Requests" },
+            { key: "briefs", label: "Events" },
+            { key: "pricing", label: "Listing" },
+            { key: "accounts", label: "Clients" },
+            { key: "payouts", label: "Payouts" },
           ] as const
         ).map((t) => (
           <Link
@@ -210,20 +224,15 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                 {escalations.open.length} to review
               </Badge>
             ) : null}
-            {t.key === "requests" && incoming.length > 0 ? (
-              <Badge variant="warning" title={`${incoming.length} request${incoming.length === 1 ? "" : "s"} waiting for you`}>
-                {incoming.length}
+            {t.key === "requests" && incoming.length + readyToQuote > 0 ? (
+              <Badge variant="warning" title={`${incoming.length} request${incoming.length === 1 ? "" : "s"} and ${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} waiting for you`}>
+                {incoming.length + readyToQuote}
               </Badge>
             ) : null}
             {t.key === "requests" && holdsByDate.length > 0 ? (
               <Badge variant="secondary" title={`${holdsByDate.length} active date hold${holdsByDate.length === 1 ? "" : "s"}`}>
                 <Lock className="size-2.5" aria-hidden /> {holdsByDate.length}
                 <span className="sr-only"> on hold</span>
-              </Badge>
-            ) : null}
-            {t.key === "inquiries" && readyToQuote > 0 ? (
-              <Badge variant="warning" title={`${readyToQuote} lead${readyToQuote === 1 ? "" : "s"} ready for your quote`}>
-                {readyToQuote}
               </Badge>
             ) : null}
             {t.key === "accounts" && opportunities.length > 0 ? (
@@ -238,7 +247,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       </nav>
 
       {tab === "requests" ? (
-        incoming.length === 0 && holdsByDate.length === 0 && blocks.length === 0 && rfpInbox.length === 0 ? (
+        <>
+        {incoming.length === 0 && holdsByDate.length === 0 && blocks.length === 0 && rfpInbox.length === 0 && inquiries.length === 0 ? (
           // Nothing pending anywhere: one card with the two things a host can do, not four empty boxes.
           <EmptyState
             icon={Inbox}
@@ -468,7 +478,17 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
               </CardContent>
             </Card>
           </div>
-        )
+        )}
+        {/* Leads from the venue's AI inquiry agent, with requests: both are people waiting on the venue. */}
+        {inquiries.length > 0 ? (
+          <section aria-labelledby="inquiries-heading" className="mt-10">
+            <h2 id="inquiries-heading" className="text-fg mb-3 text-body font-semibold tracking-tight">
+              Inquiries
+            </h2>
+            <InquiryInbox venueId={venue.id} link={`${siteUrl("http://localhost:3000")}/inquire/${venue.id}`} inquiries={inquiries} names={new Map(allVenues.map((v) => [v.id, v.name]))} />
+          </section>
+        ) : null}
+        </>
       ) : tab === "inquiries" ? (
         <InquiryInbox
           venueId={venue.id}

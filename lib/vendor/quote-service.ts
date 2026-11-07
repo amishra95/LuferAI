@@ -9,6 +9,7 @@ import { siteUrl } from "@/lib/site-url";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import type { Rfp, RfpResponse } from "@/lib/supabase/database.types";
 import { formatINR } from "@/lib/utils";
+import { alertVenueRfp } from "@/lib/venues/alerts";
 import { splitQuoteNotes, type InclusionId, type QuoteSubmission } from "@/lib/vendor/quote-form";
 import { signQuoteToken, verifyQuoteToken } from "@/lib/vendor/quote-link";
 
@@ -132,7 +133,17 @@ export function quoteLinkMessage(r: { companyName: string; partySize: number; ev
  * after the response; never throws.
  */
 export function sendQuoteLinks(rfp: { companyName: string; partySize: number; eventDate: string | null }, responses: { id: string; venue_id: string; per_head_inr?: number | null }[]): void {
-  if (!vendorLinkSecret() || !whatsAppProvider() || responses.length === 0) return;
+  if (!vendorLinkSecret() || responses.length === 0) return;
+  // Email always (lib/venues/alerts.ts: the venue's managers, else the concierge); WhatsApp too when it's set up.
+  void (async () => {
+    const { data: venues } = await createAdminClient().from("venues").select("id, name").in("id", responses.map((r) => r.venue_id));
+    const names = new Map((venues ?? []).map((v) => [v.id, v.name]));
+    for (const r of responses) {
+      const url = vendorQuoteUrl(r.id, r.venue_id);
+      if (url) alertVenueRfp(r.venue_id, { venueName: names.get(r.venue_id) ?? "your venue", companyName: rfp.companyName, guests: rfp.partySize, eventDate: rfp.eventDate, perHead: r.per_head_inr ?? null }, url);
+    }
+  })().catch((err) => console.error("vendor: quote emails not sent", err));
+  if (!whatsAppProvider()) return;
   const work = Promise.all(
     responses.map(async (r) => {
       try {

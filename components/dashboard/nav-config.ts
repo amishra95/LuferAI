@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   MapPinned,
   MessageSquare,
-  MessagesSquare,
   Package,
   Settings,
   ShieldCheck,
@@ -73,20 +72,15 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
     label: "For venues",
     sections: [
       // Lufer's own venues (property managers).
+      // A venue manager's four jobs: answer requests, run events, keep the listing current, get paid.
       {
-        title: "Bookings",
+        title: "Your venue",
         items: [
-          { href: "/property", label: "Requests & holds", icon: Inbox },
-          { href: "/property?tab=inquiries", label: "Inquiries", icon: MessagesSquare },
-          { href: "/property?tab=briefs", label: "Event briefs", icon: ClipboardList },
+          { href: "/property", label: "Requests", icon: Inbox, also: ["/property?tab=inquiries"] },
+          { href: "/property?tab=briefs", label: "Events", icon: ClipboardList },
+          { href: "/property?tab=pricing", label: "Listing", icon: Tags },
           { href: "/property?tab=accounts", label: "Clients", icon: Users },
-        ],
-      },
-      {
-        title: "Money",
-        items: [
-          { href: "/property?tab=pricing", label: "Pricing", icon: Tags },
-          { href: "/property?tab=payouts", label: "Payouts & history", icon: Wallet },
+          { href: "/property?tab=payouts", label: "Payouts", icon: Wallet },
         ],
       },
       // Partner suppliers (the extranet).

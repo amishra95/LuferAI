@@ -65,6 +65,7 @@ export function QuickAddForm() {
               {state.name} {state.result.published ? "is live" : "is saved, unlisted until it has a GSTIN"} · {state.result.packages} package
               {state.result.packages === 1 ? "" : "s"}
             </p>
+            {state.result.paused.length ? <p className="text-fg-subtle">Concierge listing paused: {state.result.paused.join(", ")}</p> : null}
             {state.result.manager ? (
               <p className="text-fg-subtle">
                 Manager: {state.result.manager === "invited" ? "invited by email" : state.result.manager === "linked" ? "existing account linked" : state.result.manager}

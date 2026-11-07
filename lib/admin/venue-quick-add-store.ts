@@ -4,6 +4,7 @@ import { addPropertyManager, ManagerError } from "@/lib/admin/property-managers"
 import { dataSource } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveMenuPackage } from "@/lib/venues/pricing-store";
+import { pauseConciergeTwins } from "@/lib/venues/concierge-twins-store";
 import type { VenueQuickAddValue } from "./venue-quick-add";
 
 export class QuickAddError extends Error {}
@@ -14,6 +15,8 @@ export interface QuickAddResult {
   packages: number;
   /** "invited" | "linked" (existing account) | an error message | null (none asked). */
   manager: string | null;
+  /** Concierge listings paused because this is the same place. */
+  paused: string[];
 }
 
 /**
@@ -55,6 +58,9 @@ export async function quickAddVenue(v: VenueQuickAddValue, managerRedirect: stri
     .single();
   if (error) throw error;
 
+  // Live at once: the concierge listing for the same place steps aside.
+  const paused = v.publish ? await pauseConciergeTwins({ name: v.name, neighborhood: v.neighborhood }) : [];
+
   let packages = 0;
   for (const p of v.packages) {
     await saveMenuPackage(venue.id, { packageId: null, name: p.name, perHeadInr: p.perHead, dietaryTags: p.dietary, description: null, isActive: true });
@@ -71,5 +77,5 @@ export async function quickAddVenue(v: VenueQuickAddValue, managerRedirect: stri
     }
   }
 
-  return { venueId: venue.id, published: v.publish, packages, manager };
+  return { venueId: venue.id, published: v.publish, packages, manager, paused };
 }
