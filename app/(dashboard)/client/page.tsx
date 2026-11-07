@@ -647,7 +647,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                   <RfpBroadcastForm />
                 </section>
               ) : null}
+              {catalog.venues.length > 0 ? (
               <VenueExplorer
+                limit={6}
+                moreHref="/venues"
+                heading={office ? "Near your office" : "Venues"}
                 venues={catalog.venues}
                 company={{ id: company.id, gstin: company.gstin }}
                 departments={catalog.departments}
@@ -666,6 +670,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 officeDistances={officeDistances}
                 signals={signals}
               />
+              ) : null}
             </div>
           ) : null}
 

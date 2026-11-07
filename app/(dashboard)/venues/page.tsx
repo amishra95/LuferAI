@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, List, Map as MapIcon, MessageSquarePlus, NotebookPen, Search, SearchX } from "lucide-react";
 
 import { toVenueOption } from "@/app/(dashboard)/client/_components/venue-options";
+import { VenueExplorer } from "@/app/(dashboard)/client/_components/venue-explorer";
+import { loadVenueExplorer } from "@/lib/venues/explorer-data";
 
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -134,9 +136,50 @@ async function mapData(matches: DirectoryVenue[], member: { companyId: string | 
 export default async function VenuesPage({ searchParams }: PageProps<"/venues">) {
   const [directory, member] = await Promise.all([listDirectory(), getCurrentMember()]);
   const admin = member?.role === "ADMIN";
+
+  // Employees who can book get cards: Lufer venues with packages, policy fit,
+  // distance and the request form; partner listings below, quoted through the concierge.
+  const explorer = await loadVenueExplorer(member ?? null);
+  if (explorer) {
+    const partnerVenues = directory.venues.filter((v) => v.tier === "partner");
+    return (
+      <Page>
+        <PageHeader title="Venues" />
+        <VenueExplorer {...explorer} heading={partnerVenues.length > 0 ? "Book directly" : null} />
+        {partnerVenues.length > 0 ? (
+          <section aria-labelledby="partner-venues-heading" className="mt-12">
+            <h2 id="partner-venues-heading" className="text-fg mb-3 text-body font-semibold tracking-tight">
+              Partner venues
+            </h2>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {partnerVenues.map((v) => (
+                <li key={v.id} className="panel flex flex-col gap-2 p-5">
+                  <VenuePhoto url={v.photo_url} className="aspect-[16/9] w-full rounded-md" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-fg truncate text-body font-medium">{v.name}</p>
+                      <p className="text-fg-subtle truncate text-caption">{v.neighborhood} · {v.city}</p>
+                    </div>
+                    <span className="text-fg shrink-0 font-mono text-meta tabular-nums" title="Minimum spend">
+                      {compact(v.min_spend_inr)} min
+                    </span>
+                  </div>
+                  <p className="text-fg-subtle text-caption">
+                    Up to {v.capacity_max} guests{v.pdr_available ? " · private room" : ""}
+                  </p>
+                  <RequestRfp venue={v} className="-ml-2 mt-auto self-start" />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </Page>
+    );
+  }
+
   const { venues, query } = admin ? { venues: directory.venues, query: parseVenueQuery(await searchParams) } : withoutCommission(directory.venues, parseVenueQuery(await searchParams));
   const { partners } = directory;
-  const columns = admin ? COLUMNS : COLUMNS.filter((c) => c.key !== "commission_rate");
+  const columns = admin ? COLUMNS : COLUMNS.filter((c) => c.key !== "commission_rate" && c.label !== "GSTIN" && c.label !== "Tier");
   // Row booking actions for admins and client users (the modal decides who can file).
   const canRequest = member?.role === "ADMIN" || member?.role === "CLIENT";
   const { matches, rows, total, page, pageCount } = applyVenueQuery(venues, query);
@@ -158,7 +201,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
         <label className="relative min-w-56 flex-[2_1_16rem]">
           <span className="sr-only">Search venues</span>
           <Search className="text-fg-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" aria-hidden />
-          <input name="q" defaultValue={query.q} placeholder="Search name, address or GSTIN" className="field pl-9" />
+          <input name="q" defaultValue={query.q} placeholder={admin ? "Search name, address or GSTIN" : "Search name or area"} className="field pl-9" />
         </label>
         <label className="flex-[1_1_9rem]">
           <span className="sr-only">Area</span>
@@ -169,6 +212,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             ))}
           </select>
         </label>
+        {admin ? (
         <label className="flex-[1_1_9rem]">
           <span className="sr-only">Directory tier</span>
           <select name="tier" defaultValue={query.tier} className="field">
@@ -177,6 +221,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             <option value="partner">Partner network</option>
           </select>
         </label>
+        ) : null}
         <label className="flex-[1_1_8rem]">
           <span className="sr-only">Private dining room</span>
           <select name="pdr" defaultValue={query.pdr} className="field">
@@ -336,9 +381,11 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                             </div>
                           </div>
                         </td>
-                        <td className="px-4">
-                          <TierBadge venue={v} />
-                        </td>
+                        {admin ? (
+                          <td className="px-4">
+                            <TierBadge venue={v} />
+                          </td>
+                        ) : null}
                         <td className="text-fg-muted px-4 whitespace-nowrap">{v.neighborhood}</td>
                         <td className="text-fg px-4 text-right font-mono tabular-nums">{v.capacity_max}</td>
                         <td className="text-fg px-4 text-right font-mono tabular-nums">{formatINR(v.min_spend_inr)}</td>
@@ -355,7 +402,7 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
                             {v.commission_rate === null ? <span className="text-fg-faint">—</span> : `${(v.commission_rate * 100).toFixed(1)}%`}
                           </td>
                         ) : null}
-                        <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td>
+                        {admin ? <td className="text-fg-subtle hidden pr-5 pl-4 font-mono text-caption xl:table-cell">{v.gstin ?? <span className="text-fg-faint">—</span>}</td> : null}
                         {canRequest ? (
                           <td className="pr-5 text-right whitespace-nowrap">
                             {/* Shown on row hover; always reachable by keyboard (and on touch). */}
