@@ -158,15 +158,18 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {partnerVenues.map((v) => (
                 <li key={v.id} className="panel flex flex-col gap-2 p-5">
-                  <VenuePhoto url={v.photo_url} className="aspect-[16/9] w-full rounded-md" />
+                  {/* No placeholder: a wall of empty photo boxes reads as unfinished. */}
+                  {v.photo_url ? <VenuePhoto url={v.photo_url} className="aspect-[16/9] w-full rounded-md" /> : null}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-fg truncate text-body font-medium">{v.name}</p>
                       <p className="text-fg-subtle truncate text-caption">{v.neighborhood} · {v.city}</p>
                     </div>
-                    <span className="text-fg shrink-0 font-mono text-meta tabular-nums" title="Minimum spend">
-                      {compact(v.min_spend_inr)} min
-                    </span>
+                    {v.min_spend_inr > 0 ? (
+                      <span className="text-fg shrink-0 font-mono text-meta tabular-nums" title="Minimum spend">
+                        {compact(v.min_spend_inr)} min
+                      </span>
+                    ) : null}
                   </div>
                   <p className="text-fg-subtle text-caption">
                     Up to {v.capacity_max} guests{v.pdr_available ? " · private room" : ""}
