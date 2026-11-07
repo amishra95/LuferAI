@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sendMagicLink, signInWithGoogle, signInWithSso, type MagicLinkState, type SsoState } from "../actions";
 
-export function LoginForm({ next }: { next: string }) {
+/** `email`: prefilled from /login?email=… (team invite emails link there). */
+export function LoginForm({ next, email }: { next: string; email?: string }) {
   const [state, formAction, pending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
   const [sso, ssoAction, ssoPending] = useActionState<SsoState, FormData>(signInWithSso, { status: "idle" });
   const [ssoOpen, setSsoOpen] = useState(false);
@@ -62,6 +63,7 @@ export function LoginForm({ next }: { next: string }) {
               name="email"
               type="email"
               autoComplete="email"
+              defaultValue={email}
               required
               aria-invalid={state.status === "error"}
             />

@@ -146,3 +146,16 @@ export async function notifyMonthlyStatement(s: {
     return { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/** Tells someone an Approver added them to their company, with where to sign in. Never throws. */
+export async function notifyTeamInvite(to: string, message: { subject: string; text: string; lines: string[] }, signInUrl: string): Promise<NotifyOutcome> {
+  try {
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${message.lines
+      .map((l) => (l === signInUrl ? `<p><a href="${escHtml(signInUrl)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
+      .join("")}</body></html>`;
+    return await sendEmail({ to, subject: message.subject, text: message.text, html });
+  } catch (err) {
+    console.error("notify: team invite failed", err);
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}

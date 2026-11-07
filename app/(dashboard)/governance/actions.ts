@@ -7,7 +7,9 @@ import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/
 import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/access";
 import { CompanySetupInput } from "@/lib/companies/setup";
 import { saveCompanySetup } from "@/lib/companies/setup-store";
-import { dataSource } from "@/lib/data";
+import { dataSource, listCompanies } from "@/lib/data";
+import { TeamInvite } from "@/lib/companies/team";
+import { inviteTeammate, removeTeammate, TeamError } from "@/lib/companies/team-store";
 import { ApprovalCommand, BudgetCommand, runApprovalCommand, runBudgetCommand, type ApprovalCommandResult, type BudgetCommandResult } from "@/lib/services/enterprise/commands";
 import { GovernanceError } from "@/lib/services/enterprise/governanceStore";
 import { addSsoConnection, removeSsoConnection, setSsoConnectionEnabled, SsoError } from "@/lib/auth/sso-store";
@@ -104,6 +106,40 @@ export async function companySetupAction(companyId: string | null, input: Compan
     await saveCompanySetup(company, parsed.data);
     revalidateGovernance();
     revalidatePath("/venues");
+    return { ok: true as const };
+  });
+}
+
+/** Team (components/governance/team-manager.tsx): Approvers invite and remove colleagues. */
+async function teamScope(companyId: string | null) {
+  const { member, company } = await scope(companyId);
+  if (!canManageGovernance(member)) throw new ActionError("Only Approvers can manage the team.");
+  return { member, company };
+}
+
+const asTeamAction = (err: unknown): never => {
+  if (err instanceof TeamError) throw new ActionError(err.message);
+  throw err;
+};
+
+export async function inviteTeammateAction(companyId: string | null, input: { email: string; role: string }): Promise<ActionResult<{ email: string; emailed: boolean }>> {
+  return serverDispatch("governance/team-invite", async () => {
+    const { member, company } = await teamScope(companyId);
+    const parsed = TeamInvite.safeParse(input);
+    if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
+    const row = (await listCompanies()).find((c) => c.id === company);
+    if (!row) throw new ActionError("Company not found.");
+    const { emailed } = await inviteTeammate(row, member.email ?? "Your colleague", parsed.data).catch(asTeamAction);
+    revalidateGovernance();
+    return { email: parsed.data.email, emailed };
+  });
+}
+
+export async function removeTeammateAction(companyId: string | null, userId: string): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("governance/team-remove", async () => {
+    const { member, company } = await teamScope(companyId);
+    await removeTeammate(company, member.userId, userId).catch(asTeamAction);
+    revalidateGovernance();
     return { ok: true as const };
   });
 }

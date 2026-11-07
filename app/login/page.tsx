@@ -18,7 +18,8 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { next: nextParam, error } = await searchParams;
+  const { next: nextParam, error, email: emailParam } = await searchParams;
+  const email = typeof emailParam === "string" && /^[^\s@]+@[^\s@]+$/.test(emailParam) ? emailParam.slice(0, 254) : undefined;
   const next = safeNextPath(typeof nextParam === "string" ? nextParam : null);
 
   // Already signed in with a portal role → skip the form.
@@ -42,7 +43,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               {errorMessage}
             </p>
           ) : null}
-          <LoginForm next={next ?? ""} />
+          <LoginForm next={next ?? ""} email={email} />
         </CardContent>
       </Card>
       <p className="text-fg-subtle text-center text-meta">
