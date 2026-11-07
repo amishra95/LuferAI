@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type NotifyOutcome = { status: "sent"; to: string } | { status: "skipped"; reason: string } | { status: "failed"; error: string };
 
-async function sendEmail(message: { to: string; subject: string; text: string; html: string }): Promise<NotifyOutcome> {
+async function sendEmail(message: { to: string; subject: string; text: string; html: string; replyTo?: string }): Promise<NotifyOutcome> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFY_FROM_EMAIL;
   if (!key || !from) {
@@ -28,7 +28,7 @@ async function sendEmail(message: { to: string; subject: string; text: string; h
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text, html: message.html }),
+      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text, html: message.html, ...(message.replyTo && { reply_to: message.replyTo }) }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return { status: "failed", error: `Resend ${res.status}: ${(await res.text()).slice(0, 200)}` };
@@ -158,4 +158,28 @@ export async function notifyTeamInvite(to: string, message: { subject: string; t
     console.error("notify: team invite failed", err);
     return { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+const plainHtml = (lines: string[]) =>
+  `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${lines
+    .map((l) => (l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
+    .join("")}</body></html>`;
+
+/**
+ * Concierge request (lib/concierge/request.ts): to Lufer ops at
+ * CONCIERGE_EMAIL, reply-to the requester, plus a receipt to the requester.
+ * Returns whether ops got it: without that the request would be lost, so
+ * callers report failure instead of a receipt.
+ */
+export async function notifyConciergeRequest(
+  ops: { subject: string; lines: string[] },
+  requester: { email: string; subject: string; lines: string[] }
+): Promise<{ delivered: boolean; reason?: string }> {
+  const to = process.env.CONCIERGE_EMAIL?.trim();
+  if (!to) return { delivered: false, reason: "CONCIERGE_EMAIL is not set." };
+  const sent = await sendEmail({ to, subject: ops.subject, text: ops.lines.join("\n"), html: plainHtml(ops.lines), replyTo: requester.email });
+  if (sent.status !== "sent") return { delivered: false, reason: "reason" in sent ? sent.reason : sent.error };
+  const receipt = await sendEmail({ to: requester.email, subject: requester.subject, text: requester.lines.join("\n"), html: plainHtml(requester.lines) });
+  if (receipt.status !== "sent") console.warn("notify: concierge receipt not sent", "reason" in receipt ? receipt.reason : receipt.error);
+  return { delivered: true };
 }

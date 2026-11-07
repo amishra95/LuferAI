@@ -3,7 +3,10 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { requireWorkspace } from "@/lib/auth/session";
-import { listBookings, listMenuPackages, listRateCards } from "@/lib/data";
+import { dataSource, listBookings, listCompanies, listMenuPackages, listRateCards } from "@/lib/data";
+import { opsQuoteEmail, QuoteRequest, requesterReceipt, type QuoteRequestInput } from "@/lib/concierge/request";
+import { notifyConciergeRequest } from "@/lib/services/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { todayInIndia } from "@/lib/gst-engine";
 import { serverDispatch, type ActionResult } from "@/lib/mutations/server";
 import { isRateCardActive } from "@/lib/rates/apply-rate-card";
@@ -62,4 +65,34 @@ export async function triggerVenueDirectorySync(): Promise<ActionResult<VenueSyn
     },
     { emit: ({ total, partners }) => publishVenueSync(total, partners) }
   );
+}
+
+export type QuoteRequestResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * "Request a quote" on a partner listing (Wizard of Oz): emails Lufer ops,
+ * who arrange it with the venue, and sends the requester a receipt.
+ */
+export async function requestQuoteAction(input: QuoteRequestInput): Promise<QuoteRequestResult> {
+  const member = await requireWorkspace("/venues");
+  if (member.role !== "CLIENT" && member.role !== "ADMIN") return { ok: false, error: "Only company accounts can request quotes." };
+  const parsed = QuoteRequest.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form." };
+  if (dataSource() !== "supabase") return { ok: false, error: "Quote requests need the live database." };
+
+  const { data: venue, error } = await createAdminClient().from("partner_venues").select("name, area, address").eq("id", parsed.data.venueId).eq("status", "active").maybeSingle();
+  if (error) throw error;
+  if (!venue) return { ok: false, error: "That venue isn't available any more." };
+  const company = member.companyId ? (await listCompanies()).find((c) => c.id === member.companyId) : null;
+  const ctx = { companyName: company?.legal_name ?? "Lufer admin (test)", requesterEmail: member.email ?? "unknown" };
+
+  const sent = await notifyConciergeRequest(opsQuoteEmail(ctx, venue, parsed.data), {
+    email: ctx.requesterEmail,
+    ...requesterReceipt(`${venue.name} on ${parsed.data.date} for ${parsed.data.guests} guests`),
+  });
+  if (!sent.delivered) {
+    console.error("venues: quote request not delivered", sent.reason);
+    return { ok: false, error: "We couldn't send that just now. Try again in a minute." };
+  }
+  return { ok: true };
 }

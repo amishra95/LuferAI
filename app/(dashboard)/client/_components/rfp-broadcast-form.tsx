@@ -57,7 +57,15 @@ export function RfpBroadcastForm() {
       if (json.policy) setPolicy(json.policy);
       if (res.status === 429) throw new Error(`Too many requests — try again in ${json.retryAfter ?? 60}s.`);
       if (!res.ok) throw new Error(json.error ?? "Broadcast failed");
-      setStatus({ ok: true, message: `Sent to ${json.venuesContacted} venue${json.venuesContacted === 1 ? "" : "s"} — quotes are in the comparison below.` });
+      setStatus({
+        ok: true,
+        message:
+          json.venuesContacted > 0
+            ? `Sent to ${json.venuesContacted} venue${json.venuesContacted === 1 ? "" : "s"}. Quotes are in the comparison below${json.concierge ? ", and the Lufer team will add more by email" : ""}.`
+            : json.concierge
+              ? "Sent to the Lufer team. We'll email you options and prices, usually within a working day."
+              : "No venue could quote this yet. Try a different date or area.",
+      });
       setBrief("");
       router.refresh();
     } catch (err) {
