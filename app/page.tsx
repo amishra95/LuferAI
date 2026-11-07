@@ -6,7 +6,7 @@ import { Audiences, Comparison, Faq, FinalCta, ForVenues, SiteFooter, Workflow }
 // Server-rendered markup; the only client code is next/image for the photos (components/landing/occasions.tsx).
 export default function Home() {
   return (
-    <div className="landing flex flex-1 flex-col">
+    <div className="landing flex flex-1 flex-col overflow-x-clip">
       <SiteHeader />
       <main className="flex flex-1 flex-col">
         <Hero />
