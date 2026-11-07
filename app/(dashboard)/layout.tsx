@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...PORTALS.filter((p) => canAccess(member.role, p)),
         ...WORKSPACE_ROUTES.filter((r) => canAccessWorkspace(member.role, member.corporateRole, r)),
         ...(member.canApprove || member.role === "ADMIN" ? ["/client/approvals"] : []),
-        ...(member.role === "ADMIN" ? ["/admin/approvals", "/admin/managers", "/admin/analytics"] : []),
+        ...(member.role === "ADMIN" ? ["/admin/approvals", "/admin/managers", "/admin/analytics", "/admin/new-venue"] : []),
         // Extranet sections gated by the partner's role (team, activity, payouts).
         ...(canAccess(member.role, "/partner") ? partnerSectionHrefs(member) : []),
       ]

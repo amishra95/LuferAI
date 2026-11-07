@@ -139,6 +139,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
         title: "Directory & AI",
         items: [
           { href: "/venues", label: "Venues", icon: MapPinned },
+          { href: "/admin/new-venue", label: "Add venue", icon: Store },
           { href: "/agents", label: "Agents", icon: Bot },
           { href: "/chat", label: "Chat", icon: MessageSquare },
         ],
@@ -244,6 +245,7 @@ const PATH_LABEL: Record<string, string> = {
   "/admin": "Operator",
   "/admin/approvals": "Account approvals",
   "/admin/managers": "Venue managers",
+  "/admin/new-venue": "Add venue",
   // Shared pages: neutral names, since their sidebar label differs by side.
   "/venues": "Venues",
   "/chat": "Chat",
