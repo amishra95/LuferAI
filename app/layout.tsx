@@ -24,19 +24,19 @@ export const viewport: Viewport = {
 };
 
 const DESCRIPTION =
-  "Book team offsites, client dinners and corporate events in India. AI venue sourcing, direct quotes, pre-spend policy, WhatsApp approvals and GST-correct invoices with ITC tracked.";
+  "Book team offsites, client dinners and corporate events in Bengaluru. Venues that fit your policy, direct quotes, approvals before any spend and a GST invoice for every booking.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl("http://localhost:3000")),
   title: {
-    default: "Lufer — Corporate events & hospitality for India",
+    default: "Lufer — Corporate events & hospitality in Bengaluru",
     template: "%s · Lufer",
   },
   description: DESCRIPTION,
   applicationName: "Lufer",
-  keywords: ["corporate events India", "team offsite", "venue booking", "corporate hospitality", "GST invoice", "SAC 998596", "event procurement"],
-  openGraph: { type: "website", siteName: "Lufer", locale: "en_IN", title: "Lufer — Corporate events & hospitality for India", description: DESCRIPTION },
-  twitter: { card: "summary_large_image", title: "Lufer — Corporate events & hospitality for India", description: DESCRIPTION },
+  keywords: ["corporate events Bengaluru", "team offsite", "venue booking", "corporate hospitality", "GST invoice", "SAC 998596", "event procurement"],
+  openGraph: { type: "website", siteName: "Lufer", locale: "en_IN", title: "Lufer — Corporate events & hospitality in Bengaluru", description: DESCRIPTION },
+  twitter: { card: "summary_large_image", title: "Lufer — Corporate events & hospitality in Bengaluru", description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

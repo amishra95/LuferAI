@@ -47,7 +47,7 @@ export function Hero() {
           </h1>
 
           <p className="text-ink-muted mx-auto mt-6 max-w-xl text-base text-pretty sm:text-lg lg:mx-0">
-            Venues that fit your policy, quotes direct from them, approvals on WhatsApp and a GST invoice finance can claim.
+            Bengaluru venues that fit your policy, quotes direct from them, approvals before any spend and a GST invoice for every booking.
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
