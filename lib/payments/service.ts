@@ -11,6 +11,7 @@ import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
 import { getCheckoutGateway, getGateway, type DepositCheckout, type NormalizedEvent } from "./gateways";
 import { listedGstin } from "@/lib/venues/gstin";
+import { billableGstin } from "@/lib/companies/gstin";
 
 /** GST invoice metadata snapshotted onto payments.invoice. */
 export interface DepositInvoice extends TaxInvoicePayload {
@@ -74,7 +75,7 @@ export async function createDepositCheckout(
   const list = roundInr(booking.party_size * Number(booking.list_budget_per_head_inr ?? booking.budget_per_head_inr));
   const gst = calculateGst({
     total_amount: taxable,
-    company_gstin: booking.company!.gstin,
+    company_gstin: billableGstin(booking.company!),
     venue_gstin: listedGstin(booking.venue!),
     booking_id: booking.id,
     invoice_date: booking.event_date,
@@ -150,7 +151,7 @@ export async function createInvoiceCheckout(
   const total = Number(inv.total_inr);
   const gst = calculateGst({
     total_amount: Number(booking.total_amount_inr),
-    company_gstin: booking.billing_gstin ?? booking.company!.gstin,
+    company_gstin: booking.billing_gstin ?? billableGstin(booking.company!),
     venue_gstin: listedGstin(booking.venue!),
     booking_id: booking.id,
     invoice_date: booking.event_date,

@@ -71,6 +71,8 @@ import { DirectQuoteCard } from "./_components/direct-quote-card";
 import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
+import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
+import { listDirectory } from "@/lib/venues/directory";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
 import { reviewsForBookings, venueRatingMap } from "@/lib/venues/review-store";
@@ -183,7 +185,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const bookingIds = bookings.map((b) => b.id);
 
   // Round trip 2: everything that needs the bookings.
-  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements, reviews] = await Promise.all([
+  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements, reviews, conciergeVenues] = await Promise.all([
     listOrderSettlements(catalogOrders),
     latestPayments(bookingIds),
     activeHolds(bookingIds),
@@ -201,6 +203,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
       console.error("client: could not load reviews", err);
       return new Map<string, { rating: number; comment: string | null }>();
     }),
+    // Nothing bookable directly yet: Home shows the listings the concierge quotes for.
+    canRequest && catalog.venues.length === 0 ? listDirectory().then((d) => conciergeListings(d.venues)) : Promise.resolve([]),
   ]);
   const itc = computeItcSummary(bookings);
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
@@ -208,6 +212,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const canPay = paymentsEnabled();
   const setup = hierarchy
     ? setupGaps({
+        hasGstin: Boolean(company.gstin),
         hasOffice: office !== null,
         approvers: hierarchy.length,
         hasPerHeadTiers: policy?.auto_approval_limit_per_head != null || policy?.manager_approval_limit_per_head != null || policy?.max_budget_per_head != null,
@@ -351,7 +356,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           <span className="label-mono mr-1">Viewing</span>
           {companies.map((c) => (
             <Link key={c.id} href={`/client?company=${c.id}`} className={segmentClass(c.id === company.id)}>
-              {c.legal_name.replace(" Private Limited", "")} ({partyStateCode(c)})
+              {c.legal_name.replace(" Private Limited", "")}{c.gstin ? ` (${partyStateCode({ gstin: c.gstin, state_code: c.state_code })})` : ""}
             </Link>
           ))}
         </div>
@@ -686,6 +691,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 officeDistances={officeDistances}
                 signals={signals}
               />
+              ) : conciergeVenues.length > 0 ? (
+                <ConciergeVenueGrid venues={conciergeVenues} heading="Venues" limit={6} moreHref="/venues" />
               ) : null}
             </div>
           ) : null}

@@ -54,6 +54,8 @@ export interface BookingSchemaContext {
   venueName?: string;
   /** The company's registered GSTIN, when known: enables the same-legal-entity check. */
   companyGstin?: string;
+  /** The company has no GSTIN yet: billing_gstin is required and becomes the company's. */
+  needsCompanyGstin?: boolean;
 }
 
 export function bookingRequestSchema(ctx: BookingSchemaContext) {
@@ -94,6 +96,10 @@ export function bookingRequestSchema(ctx: BookingSchemaContext) {
       notes: text.max(NOTES_MAX, `Notes: up to ${NOTES_MAX} characters`).transform((v) => v || undefined),
     })
     .superRefine((v, issue) => {
+      if (ctx.needsCompanyGstin && !v.billing_gstin) {
+        issue.addIssue({ code: "custom", path: ["billing_gstin"], message: "Enter your company's GSTIN: the invoice is raised on it." });
+        return;
+      }
       // The expense rules finance relies on, shared with placeBookingRequest. Without the
       // company's GSTIN only the format is checked here; the server checks the entity.
       const companyGstin = ctx.companyGstin || v.billing_gstin;

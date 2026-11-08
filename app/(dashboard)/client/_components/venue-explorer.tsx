@@ -44,7 +44,7 @@ export function VenueExplorer({
   heading = "Venues",
 }: {
   venues: CatalogVenue[];
-  company: { id: string; gstin: string };
+  company: { id: string; gstin: string | null };
   departments: { id: string; name: string }[];
   /** The requester's saved mobile, prefilled in the request form. */
   defaultPhone?: string;

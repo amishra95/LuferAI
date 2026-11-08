@@ -63,8 +63,10 @@ describe("signup form", () => {
     });
   });
 
-  test("an enterprise needs a valid GSTIN", () => {
-    assert.deepEqual(parseSignupInput(enterprise({ gstin: "" })).errors, { gstin: "Enter your company's GSTIN: invoices are raised on it." });
+  test("an enterprise may sign up without a GSTIN; one given must be valid", () => {
+    const r = parseSignupInput(enterprise({ gstin: "" }));
+    assert.equal(r.ok, true);
+    assert.equal(r.value.gstin, null, "added before the first booking instead");
     assert.match(parseSignupInput(enterprise({ gstin: "29AAACZ1234Q1Z9" })).errors.gstin, /isn't valid/);
   });
 
@@ -405,8 +407,7 @@ describe("migration: signup_applications and decide_signup_application", () => {
     await assert.rejects(as(ADMIN, (tx) => decide(tx, ids.enterprise, "active")), /permission denied/);
   });
 
-  test("the table's checks: an enterprise needs a GSTIN, a partner its kind, status is one of three", async () => {
-    await assert.rejects(db.query("insert into public.signup_applications (user_id, email, full_name, account_type, company_name) values ($1, 'a@b.co', 'Me Me', 'enterprise', 'Me Co')", [STRANGER]), /signup_applications_enterprise_gstin/);
+  test("the table's checks: a partner needs its kind, status is one of three", async () => {
     await assert.rejects(db.query("insert into public.signup_applications (user_id, email, full_name, account_type, company_name) values ($1, 'a@b.co', 'Me Me', 'partner', 'Me Co')", [STRANGER]), /signup_applications_partner_role/);
     await assert.rejects(db.query("update public.signup_applications set status = 'approved' where id = $1", [ids.enterprise]), /check constraint/);
   });
@@ -686,5 +687,58 @@ describe("migration: venue GSTIN optional until listed", () => {
     await assert.rejects(db.query("update public.venues set is_active = true where id = $1", [venueId]), /venues_listed_have_gstin/);
     await db.query("update public.venues set gstin = $2 where id = $1", [venueId, VENUE_GSTIN]);
     await db.query("update public.venues set is_active = true where id = $1", [venueId]);
+  });
+});
+
+describe("migration: company GSTIN optional until the first booking", () => {
+  const FIRST = "aaaaaaaa-6666-4000-8000-000000000001";
+  const SECOND = "aaaaaaaa-6666-4000-8000-000000000002";
+  let db;
+  const companyOf = {};
+
+  before(async () => {
+    db = await createDatabase();
+    for (const [id, email] of [[FIRST, "asha@nogst.example"], [SECOND, "ravi@nogst.example"]]) {
+      await db.query("insert into auth.users (id, email) values ($1, $2)", [id, email]);
+      const { rows } = await db.query(
+        "insert into public.signup_applications (user_id, email, full_name, account_type, company_name) values ($1, $2, 'Asha Rao', 'enterprise', 'No GST Co') returning id",
+        [id, email]
+      );
+      companyOf[id] = (await db.query("select status, company_id from public.activate_signup_application($1)", [rows[0].id])).rows[0];
+    }
+  });
+
+  test("a company application without a GSTIN activates at once, with an Approver and no GSTIN", async () => {
+    assert.equal(companyOf[FIRST].status, "active");
+    const c = (await db.query("select gstin, state_code from public.companies where id = $1", [companyOf[FIRST].company_id])).rows[0];
+    assert.deepEqual(c, { gstin: null, state_code: null });
+    const m = (await db.query("select role, corporate_role from public.platform_users where user_id = $1", [FIRST])).rows[0];
+    assert.deepEqual(m, { role: "CLIENT", corporate_role: "APPROVER" });
+  });
+
+  test("two signups without a GSTIN open two companies (colleagues join by invitation)", () => {
+    assert.equal(companyOf[SECOND].status, "active");
+    assert.notEqual(companyOf[FIRST].company_id, companyOf[SECOND].company_id);
+  });
+
+  test("no booking until the company adds its GSTIN; then the usual checks apply", async () => {
+    const venue = (await db.query("select id from public.venues where is_active limit 1")).rows[0].id;
+    const book = () =>
+      db.query(
+        "insert into public.bookings (company_id, venue_id, party_size, budget_per_head_inr, total_amount_inr, event_date) values ($1, $2, 10, 1500, 15000, current_date + 30) returning id",
+        [companyOf[FIRST].company_id, venue]
+      );
+    await assert.rejects(book(), /Add your company's GSTIN before booking/);
+    await db.query("update public.companies set gstin = $2 where id = $1", [companyOf[FIRST].company_id, NEW_CO_GSTIN]);
+    const c = (await db.query("select state_code from public.companies where id = $1", [companyOf[FIRST].company_id])).rows[0];
+    assert.equal(c.state_code, NEW_CO_GSTIN.slice(0, 2));
+    await assert.doesNotReject(book().catch((err) => {
+      // Past the GSTIN guard, other rules (approvals, contracts, holds) may still refuse a bare insert.
+      if (/GSTIN before booking/.test(err.message)) throw err;
+    }));
+  });
+
+  test("a GSTIN belongs to one company", async () => {
+    await assert.rejects(db.query("update public.companies set gstin = $2 where id = $1", [companyOf[SECOND].company_id, NEW_CO_GSTIN]), /duplicate key|unique/);
   });
 });

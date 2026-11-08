@@ -97,7 +97,7 @@ export interface MonthlyStatement {
   number: string;
   month: string;
   label: string;
-  company: { id: string; legal_name: string; gstin: string };
+  company: { id: string; legal_name: string; gstin: string | null };
   vendors: StatementVendor[];
   totals: Totals;
   bookingCount: number;
@@ -109,7 +109,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export const statementNumber = (companyId: string, month: string) => `ST-${month.replace("-", "")}-${companyId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
 export function buildMonthlyStatement(input: {
-  company: { id: string; legal_name: string; gstin: string };
+  company: { id: string; legal_name: string; gstin: string | null };
   month: string;
   bookings: readonly StatementBooking[];
   payments?: readonly StatementPayment[];
@@ -267,7 +267,7 @@ export function renderStatementHtml(s: MonthlyStatement): { html: string; sha256
 
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Statement ${e(s.number)}</title><style>${STYLE}</style></head><body>
 <h1>Monthly statement · ${e(s.label)}</h1>
-<div class="meta">${e(s.number)} · ${e(s.company.legal_name)} · GSTIN ${e(s.company.gstin)}</div>
+<div class="meta">${e(s.number)} · ${e(s.company.legal_name)}${s.company.gstin ? ` · GSTIN ${e(s.company.gstin)}` : ""}</div>
 ${body}
 <p class="note">This statement summarises the month's bookings made through Lufer. It is not a tax invoice: each line's GST is charged on the vendor's own tax invoice (the number shown), which is what you claim input tax credit against.</p>
 </body></html>`;

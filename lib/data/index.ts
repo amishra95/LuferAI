@@ -43,6 +43,7 @@ import { isRedisConfigured, mutateDb, readDb } from "./local-store";
 import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 import { listedGstin } from "@/lib/venues/gstin";
+import { billableGstin } from "@/lib/companies/gstin";
 import { pauseConciergeTwins } from "@/lib/venues/concierge-twins-store";
 
 /**
@@ -62,7 +63,8 @@ export const dataSource = (): DataSource => (isSupabaseConfigured() ? "supabase"
 const local = () => dataSource() !== "supabase";
 
 export interface BookingDetail extends Booking {
-  company: Pick<Company, "id" | "legal_name" | "gstin" | "state_code">;
+  /** A booked company always has a GSTIN (bookings_require_company_gstin). */
+  company: Pick<Company, "id" | "legal_name" | "state_code"> & { gstin: string };
   venue: Pick<Venue, "id" | "name" | "neighborhood" | "city" | "gstin" | "commission_rate">;
   invoice: TaxInvoicePayload;
   commission_inr: number;
@@ -71,9 +73,10 @@ export interface BookingDetail extends Booking {
 
 function enrich(
   b: Booking,
-  company: BookingDetail["company"],
+  booked: Pick<Company, "id" | "legal_name" | "gstin" | "state_code">,
   venue: BookingDetail["venue"]
 ): BookingDetail {
+  const company = { ...booked, gstin: billableGstin(booked) };
   const total = Number(b.total_amount_inr);
   const invoice = calculateGst({
     total_amount: total,
@@ -180,6 +183,35 @@ export async function addVenueGstin(id: string, gstin: string): Promise<boolean>
   const { data, error } = await createAdminClient().from("venues").update({ gstin }).eq("id", id).is("gstin", null).select("id");
   if (error) throw error;
   return (data ?? []).length > 0;
+}
+
+/**
+ * A company adds its GSTIN once, if it signed up without one (company setup, or
+ * its first booking). "has_one": it already has a GSTIN, which stays as it is;
+ * "taken": another company on Lufer has it (companies.gstin is unique).
+ */
+export async function addCompanyGstin(id: string, gstin: string): Promise<"added" | "has_one" | "taken"> {
+  if (local()) {
+    let result: "added" | "has_one" | "taken" = "has_one";
+    await mutateDb((db) => {
+      if (db.companies.some((c) => c.gstin === gstin && c.id !== id)) {
+        result = "taken";
+        return;
+      }
+      const c = db.companies.find((x) => x.id === id);
+      if (c && !c.gstin) {
+        Object.assign(c, { gstin, state_code: gstin.slice(0, 2), updated_at: new Date().toISOString() });
+        result = "added";
+      }
+    });
+    return result;
+  }
+  const { data, error } = await createAdminClient().from("companies").update({ gstin }).eq("id", id).is("gstin", null).select("id");
+  if (error) {
+    if (error.code === "23505") return "taken";
+    throw error;
+  }
+  return (data ?? []).length > 0 ? "added" : "has_one";
 }
 
 export async function listBookings(filter: { companyId?: string; venueId?: string; ids?: string[] } = {}): Promise<BookingDetail[]> {
@@ -2388,14 +2420,15 @@ export async function decideSignupApplication(applicationId: string, decision: "
         return;
       }
       if (app.account_type === "enterprise") {
-        let company = db.companies.find((c) => c.gstin === app.gstin);
+        // Without a GSTIN a signup opens its own company (colleagues join by invitation).
+        let company = app.gstin ? db.companies.find((c) => c.gstin === app.gstin) : undefined;
         const joined = Boolean(company);
         if (!company) {
           company = {
             id: crypto.randomUUID(),
             legal_name: app.company_name.trim(),
-            gstin: app.gstin!,
-            state_code: app.gstin!.slice(0, 2),
+            gstin: app.gstin,
+            state_code: app.gstin?.slice(0, 2) ?? null,
             primary_contact_email: app.email,
             monthly_spend_limit_inr: 0,
             expense_provider: "webhook",
@@ -2462,7 +2495,7 @@ export async function activateSignupApplication(applicationId: string): Promise<
     const needsAdmin =
       app.status !== "pending_approval" ||
       db.users.some((u) => u.user_id === app.user_id) ||
-      (app.account_type === "enterprise" && db.companies.some((c) => c.gstin === app.gstin)) ||
+      (app.account_type === "enterprise" && app.gstin != null && db.companies.some((c) => c.gstin === app.gstin)) ||
       (app.account_type === "venue" && app.gstin != null && db.venues.some((v) => v.gstin === app.gstin));
     return needsAdmin ? app : decideSignupApplication(applicationId, "active", null);
   }

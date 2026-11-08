@@ -98,7 +98,8 @@ export function EventRequestForm({
 }: {
   /** Used for the negotiated-rate preview; the server scopes it to the session's company. */
   companyId: string;
-  companyGstin: string;
+  /** Null until the company adds it: the billing GSTIN field then asks for it, and it becomes the company's. */
+  companyGstin: string | null;
   venues: VenueOption[];
   departments?: { id: string; name: string }[];
   defaultVenueId?: string;
@@ -256,13 +257,14 @@ export function EventRequestForm({
   const billedGstin = values.billing_gstin && validateGstin(values.billing_gstin).valid ? normalizeGstin(values.billing_gstin) : companyGstin;
   const preview = useMemo(() => {
     if (!venue || !(total > 0)) return null;
-    return calculateGst({ total_amount: total, company_gstin: billedGstin, venue_gstin: venue.gstin });
+    // Before the company has a GSTIN, preview as same-state: the total is the same either way.
+    return calculateGst({ total_amount: total, company_gstin: billedGstin ?? venue.gstin, venue_gstin: venue.gstin });
   }, [venue, total, billedGstin]);
 
   // Lazy initializers keep render pure (evaluated once on mount).
   const [minDate] = useState(() => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
-  const schemaCtx: BookingSchemaContext = { today, capacity: venue?.capacity_max, venueName: venue?.name, companyGstin };
+  const schemaCtx: BookingSchemaContext = { today, capacity: venue?.capacity_max, venueName: venue?.name, companyGstin: companyGstin ?? undefined, needsCompanyGstin: !companyGstin };
 
   const serverErrors: Errors = state.status === "error" && state === handledState ? (state.fieldErrors ?? {}) : {};
   const err = (f: BookingFormField) => clientErrors[f] ?? serverErrors[f];
@@ -645,22 +647,23 @@ export function EventRequestForm({
           </div>
           <div className="grid content-start gap-2">
             <Label htmlFor="billing_gstin">
-              Billing GSTIN
+              {companyGstin ? "Billing GSTIN" : "Company GSTIN"}
             </Label>
             <Input
               id="billing_gstin"
               name="billing_gstin"
               value={values.billing_gstin}
               onChange={(e) => set("billing_gstin", e.target.value.toUpperCase())}
-              placeholder={companyGstin}
+              placeholder={companyGstin ?? undefined}
+              required={!companyGstin}
               maxLength={15}
               aria-invalid={Boolean(err("billing_gstin"))}
-              aria-describedby="billing-gstin-help"
+              aria-describedby={companyGstin ? "billing-gstin-help" : undefined}
               className="font-mono tracking-wider"
             />
             {err("billing_gstin") ? (
               <FieldError message={err("billing_gstin")} />
-            ) : (
+            ) : !companyGstin ? null : (
               <p id="billing-gstin-help" className="text-muted-foreground text-caption">
                 Optional. Blank bills your registered GSTIN.
               </p>

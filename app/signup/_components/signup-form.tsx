@@ -56,10 +56,15 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
     );
   }
 
-  const gstinRequired = accountType === "enterprise";
+  // Venues and partners may give it now; a company adds it before its first booking.
   const gstinField = (
-    <Field id="gstin" label="GSTIN" required={gstinRequired} error={e.gstin}>
-      <Input id="gstin" name="gstin" required={gstinRequired} maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />
+    <Field id="gstin" label="GSTIN" error={e.gstin}>
+      <Input id="gstin" name="gstin" maxLength={15} autoCapitalize="characters" className="font-mono uppercase" {...invalid("gstin")} />
+    </Field>
+  );
+  const companyField = (
+    <Field id="company_name" label={COMPANY_LABEL[accountType]} required error={e.company_name}>
+      <Input id="company_name" name="company_name" autoComplete="organization" required maxLength={120} {...invalid("company_name")} />
     </Field>
   );
 
@@ -79,16 +84,14 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
         <Field id="phone" label="Mobile" error={e.phone}>
           <Input id="phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98450 12345" {...invalid("phone")} />
         </Field>
-        {accountType === "enterprise" ? gstinField : (
+        {accountType === "enterprise" ? companyField : (
           <Field id="venue_website" label={accountType === "venue" ? "Website or Instagram" : "Website or portfolio"} required={accountType === "partner"} error={e.venue_website}>
             <Input id="venue_website" name="venue_website" inputMode="url" required={accountType === "partner"} placeholder={accountType === "venue" ? "yourvenue.in" : "yourstudio.in"} {...invalid("venue_website")} />
           </Field>
         )}
       </div>
 
-      <Field id="company_name" label={COMPANY_LABEL[accountType]} required error={e.company_name}>
-        <Input id="company_name" name="company_name" autoComplete="organization" required maxLength={120} {...invalid("company_name")} />
-      </Field>
+      {accountType === "enterprise" ? null : companyField}
 
       {accountType === "venue" ? (
         <>

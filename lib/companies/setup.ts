@@ -40,6 +40,11 @@ export const CompanySetupInput = z
     managerPerHead: rupees,
     maxPerHead: rupees,
     maxDistanceKm: z.union([z.literal(""), z.coerce.number().min(0).max(200)]).transform((v) => (v === "" ? null : v)),
+    /** Added once, if the company signed up without it (checked and saved by the action). */
+    gstin: z
+      .string()
+      .optional()
+      .transform((v) => (v ?? "").replace(/\s/g, "").toUpperCase() || null),
   })
   .superRefine((v, ctx) => {
     const order: [keyof typeof v, number | null][] = [
@@ -59,8 +64,9 @@ export type CompanySetupInput = z.input<typeof CompanySetupInput>;
 export type CompanySetup = z.output<typeof CompanySetupInput>;
 
 /** What's left to set up, for the checklist on Home. */
-export function setupGaps(state: { hasOffice: boolean; approvers: number; hasPerHeadTiers: boolean }) {
+export function setupGaps(state: { hasGstin: boolean; hasOffice: boolean; approvers: number; hasPerHeadTiers: boolean }) {
   return [
+    { key: "gstin", label: "Add your GSTIN", done: state.hasGstin },
     { key: "office", label: "Set your office area", done: state.hasOffice },
     { key: "approvers", label: "Add an approver", done: state.approvers > 0 },
     { key: "limits", label: "Set per-head approval limits", done: state.hasPerHeadTiers },

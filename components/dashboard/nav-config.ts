@@ -36,14 +36,19 @@ import type { NavSection, Side } from "@/types/navigation";
  * gated items need their exact href in the allowed list (partner permissions);
  * the rest need only their path.
  */
-/** The Spend area: one sidebar item, these tabs across its pages (components/dashboard/spend-tabs.tsx). */
+/**
+ * The Spend area: one sidebar item, these tabs across its pages (components/dashboard/spend-tabs.tsx).
+ * Purchase orders (/client?tab=pos), statements (/client/statements) and ROI
+ * (/client/roi) still work by URL; they're off the tabs until companies book
+ * regularly enough to need them.
+ */
 export const SPEND_TABS = [
   { href: "/control-tower", label: "Overview" },
-  { href: "/client?tab=pos", label: "Purchase orders" },
   { href: "/client?tab=settlement", label: "Invoices & GST" },
-  { href: "/client/statements", label: "Statements" },
-  { href: "/client/roi", label: "ROI" },
 ] as const;
+
+/** Spend pages not on the tabs, which still light up the Spend item when opened. */
+const SPEND_HIDDEN = ["/client?tab=pos", "/client/statements", "/client/roi"];
 
 export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
   company: {
@@ -61,9 +66,9 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
         title: "Company",
         items: [
           { href: "/client/approvals", label: "Approvals", icon: ClipboardCheck },
-          { href: "/control-tower", label: "Spend", icon: Wallet, also: SPEND_TABS.map((t) => t.href) },
+          { href: "/control-tower", label: "Spend", icon: Wallet, also: [...SPEND_TABS.map((t) => t.href), ...SPEND_HIDDEN] },
+          // Contracts (/contracts) is off the sidebar until companies have bookings to sign for; it still opens by URL.
           { href: "/governance", label: "Policies", icon: Landmark },
-          { href: "/contracts", label: "Contracts", icon: FileSignature },
         ],
       },
     ],

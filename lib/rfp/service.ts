@@ -301,7 +301,7 @@ type ResponseRow = RfpResponse & {
   menu_package: { name: string } | null;
 };
 
-function toColumn(r: ResponseRow, companyGstin: string, depositRate?: number): MatrixColumn {
+function toColumn(r: ResponseRow, companyGstin: string | null, depositRate?: number): MatrixColumn {
   const priced = (r.status === "quoted" || r.status === "countered") && r.list_amount_inr != null;
   return {
     response_id: r.id,
@@ -338,7 +338,7 @@ export async function listRfps(filter: { companyId?: string; rfpIds?: string[] }
   const { data, error } = await query;
   if (error) throw error;
 
-  type Row = Rfp & { company: { gstin: string }; responses: ResponseRow[] };
+  type Row = Rfp & { company: { gstin: string | null }; responses: ResponseRow[] };
   const rows = data as unknown as Row[];
   // Venues that set their own deposit show it in the comparison.
   const pricing = await pricingForVenues([...new Set(rows.flatMap((r) => r.responses.map((x) => x.venue_id)))]);

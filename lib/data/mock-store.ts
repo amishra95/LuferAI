@@ -32,6 +32,7 @@ import type {
 } from "@/lib/supabase/database.types";
 import { determineGstType } from "@/lib/gst-engine";
 import { listedGstin } from "@/lib/venues/gstin";
+import { billableGstin } from "@/lib/companies/gstin";
 
 /**
  * Mirror of supabase/seed.sql, used when Supabase env vars are not set: seeds the
@@ -670,5 +671,5 @@ export function mockGstType(db: MockDb, companyId: string, venueId: string, bill
   const c = db.companies.find((x) => x.id === companyId);
   const v = db.venues.find((x) => x.id === venueId);
   if (!c || !v) throw new Error("Unknown company or venue");
-  return determineGstType(billingGstin || c.gstin, listedGstin(v));
+  return determineGstType(billingGstin || billableGstin(c), listedGstin(v));
 }

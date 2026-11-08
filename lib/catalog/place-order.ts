@@ -3,8 +3,9 @@ import "server-only";
 import { assignApprovers, signOffPhrase } from "@/lib/approvals/route";
 import { validateExpense, type ExpenseInput } from "@/lib/bookings/expense";
 import { priceOrder, unitNoun, type Category, type OrderInput } from "@/lib/catalog/items";
-import { createCatalogOrder, listCatalogItems, listCompanies, listDepartments, listPoAllocations, listPortalUsers, listPurchaseOrders, BudgetHoldError, PoAllocationError } from "@/lib/data";
+import { addCompanyGstin, createCatalogOrder, listCatalogItems, listCompanies, listDepartments, listPoAllocations, listPortalUsers, listPurchaseOrders, BudgetHoldError, PoAllocationError } from "@/lib/data";
 import { calculateGst, todayInIndia, type TaxInvoicePayload } from "@/lib/gst-engine";
+import { bookingCompanyGstin, GSTIN_TAKEN } from "@/lib/companies/gstin";
 import { checkBookingPolicy } from "@/lib/policies/checkBookingPolicy";
 import { selectPo } from "@/lib/procurement/po-ledger";
 import { approvalDemand } from "@/lib/services/enterprise/approvalEngine";
@@ -55,8 +56,12 @@ export async function placeCatalogOrder(input: PlaceOrderInput): Promise<PlaceOr
 
   const departmentId = input.departmentId || null;
   if (departmentId && !(await listDepartments({ companyIds: [company.id] })).some((d) => d.id === departmentId)) return fail("Unknown department.");
-  const expense = validateExpense(input.expense, company.gstin);
+  // A company that signed up without its GSTIN gives it here: it becomes the company's.
+  const billTo = bookingCompanyGstin(company.gstin, input.expense.taxId);
+  if (!billTo.ok) return fail(billTo.error);
+  const expense = validateExpense(input.expense, billTo.gstin);
   if (!expense.ok) return fail(Object.values(expense.errors)[0] ?? "Check the cost centre.");
+  if (billTo.adopt && (await addCompanyGstin(company.id, billTo.gstin)) === "taken") return fail(GSTIN_TAKEN);
 
   const priced = priceOrder(item, input.order, todayInIndia());
   if (!priced.ok) return fail(priced.error);
@@ -65,7 +70,7 @@ export async function placeCatalogOrder(input: PlaceOrderInput): Promise<PlaceOr
 
   const invoice = calculateGst({
     total_amount: p.total,
-    company_gstin: expense.value.billing_gstin ?? company.gstin,
+    company_gstin: expense.value.billing_gstin ?? billTo.gstin,
     venue_gstin: item.partner_gstin,
     tax: p.tax,
     ...(p.placeOfSupplyState && { place_of_supply_state_code: p.placeOfSupplyState }),

@@ -3,11 +3,12 @@ import Link from "next/link";
 import { SPEND_TABS } from "@/components/dashboard/nav-config";
 import { cn } from "@/lib/utils";
 
-type SpendHref = (typeof SPEND_TABS)[number]["href"];
+/** A tab's href, or a Spend page that's off the tabs (none highlighted). */
+type SpendHref = (typeof SPEND_TABS)[number]["href"] | "/client?tab=pos" | "/client/statements" | "/client/roi";
 
 /**
- * Tabs across the Spend area (one sidebar item): overview, purchase orders,
- * invoices & GST, statements and ROI live on different routes but read as one place.
+ * Tabs across the Spend area (one sidebar item): overview and invoices & GST
+ * live on different routes but read as one place.
  * `query` carries ?company=… for admins viewing a company.
  */
 export function SpendTabs({ active, query }: { active: SpendHref; query?: string }) {
