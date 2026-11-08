@@ -13,7 +13,7 @@ import { venueResponseHours } from "@/lib/venues/signals-store";
 /** Everything the bookable venue explorer (cards, policy fit, distance, request form) needs. */
 export interface VenueExplorerData {
   venues: CatalogVenue[];
-  company: { id: string; gstin: string };
+  company: { id: string; gstin: string | null };
   departments: { id: string; name: string }[];
   defaultPhone?: string;
   policy: VenueCardRules | null;

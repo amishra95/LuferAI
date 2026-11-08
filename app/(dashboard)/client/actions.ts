@@ -193,7 +193,8 @@ export async function submitBookingRequest(
 
 export interface ManualBookingContext {
   companyId: string;
-  companyGstin: string;
+  /** Null until the company adds it (the form then asks for it). */
+  companyGstin: string | null;
   venues: VenueOption[];
   departments: { id: string; name: string }[];
   /** The signed-in requester's saved mobile, to prefill the form (clients only). */

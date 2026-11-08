@@ -113,6 +113,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         companyId={admin ? company.id : null}
         canManage={canManage && dataSource() === "supabase"}
         initial={{
+          gstin: company.gstin,
           officeArea: officeAreaKeyOf(company),
           autoApprovePerHead: policy?.auto_approval_limit_per_head ?? null,
           managerPerHead: policy?.manager_approval_limit_per_head ?? null,

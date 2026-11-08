@@ -1141,7 +1141,7 @@ export type Database = {
           contracts_required: boolean
           created_at: string
           expense_provider: string
-          gstin: string
+          gstin: string | null
           id: string
           legal_name: string
           monthly_spend_limit_inr: number
@@ -1156,7 +1156,7 @@ export type Database = {
           contracts_required?: boolean
           created_at?: string
           expense_provider?: string
-          gstin: string
+          gstin?: string | null
           id?: string
           legal_name: string
           monthly_spend_limit_inr?: number
@@ -1171,7 +1171,7 @@ export type Database = {
           contracts_required?: boolean
           created_at?: string
           expense_provider?: string
-          gstin?: string
+          gstin?: string | null
           id?: string
           legal_name?: string
           monthly_spend_limit_inr?: number

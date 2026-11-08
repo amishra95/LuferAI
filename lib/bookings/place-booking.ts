@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  addCompanyGstin,
   createBookingRequest,
   HoldConflictError,
   listCompanies,
@@ -16,6 +17,7 @@ import { assignApprovers, signOffPhrase } from "@/lib/approvals/route";
 import { scheduleApproverNotifications } from "@/lib/approvals/whatsapp";
 import { alertVenueBookingRequest } from "@/lib/venues/alerts";
 import { validateExpense, type ExpenseField, type ExpenseInput } from "@/lib/bookings/expense";
+import { bookingCompanyGstin, GSTIN_TAKEN } from "@/lib/companies/gstin";
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { checkHoldAvailability } from "@/lib/inventory/checkHoldAvailability";
 import { getSlotLocks } from "@/lib/locks";
@@ -125,9 +127,14 @@ export async function placeBookingRequest(input: PlaceBookingInput): Promise<Pla
   if (departmentId && !(await listDepartments({ companyIds: [company.id] })).some((d) => d.id === departmentId)) {
     return { status: "error", message: "Unknown department." };
   }
-  const expense = validateExpense(input.expense, company.gstin);
+  // A company that signed up without its GSTIN gives it here (the billing GSTIN field): it becomes the company's.
+  const billTo = bookingCompanyGstin(company.gstin, input.expense.taxId);
+  const expense = billTo.ok ? validateExpense(input.expense, billTo.gstin) : ({ ok: false, errors: { billing_gstin: billTo.error } } as const);
   if (!expense.ok) Object.assign(fieldErrors, expense.errors);
   if (Object.keys(fieldErrors).length > 0) return { status: "error", fieldErrors, message: "Please fix the highlighted fields." };
+  if (billTo.ok && billTo.adopt && (await addCompanyGstin(company.id, billTo.gstin)) === "taken") {
+    return { status: "error", fieldErrors: { billing_gstin: GSTIN_TAKEN }, message: "Please fix the highlighted fields." };
+  }
 
   /** The critical section: re-price, check the date, route for approval, create with a hold. */
   const priceHoldAndCreate = async (): Promise<PlaceBookingResult> => {

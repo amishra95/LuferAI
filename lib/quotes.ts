@@ -39,18 +39,22 @@ export interface PriceBreakdown {
   invoice: TaxInvoicePayload;
 }
 
-/** Invoices a quote: list price for reference, GST on the taxable value actually charged. */
+/**
+ * Invoices a quote: list price for reference, GST on the taxable value actually charged.
+ * A company without a GSTIN yet is quoted as if in the venue's state: the 18% total
+ * is the same either way, only the CGST+SGST / IGST split waits for its GSTIN.
+ */
 export function priceQuote(input: {
   listAmount: number;
   taxableValue: number;
-  companyGstin: string;
+  companyGstin: string | null;
   venueGstin: string;
   bookingId?: string;
   invoiceDate?: string;
 }): PriceBreakdown {
   const invoice = calculateGst({
     total_amount: input.taxableValue,
-    company_gstin: input.companyGstin,
+    company_gstin: input.companyGstin ?? input.venueGstin,
     venue_gstin: input.venueGstin,
     booking_id: input.bookingId,
     invoice_date: input.invoiceDate,
@@ -96,7 +100,8 @@ export interface QuoteRequest {
   requiresPdr: boolean;
   /** The company's corporate_rate_cards row for this venue on the event date, if any. */
   rateCard: RateCardTerms | null;
-  companyGstin: string;
+  /** Null until the company adds it (see priceQuote). */
+  companyGstin: string | null;
 }
 
 export type VenueQuote =

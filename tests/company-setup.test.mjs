@@ -7,7 +7,7 @@ const blank = { officeArea: "", autoApprovePerHead: "", managerPerHead: "", maxP
 
 test("blank fields mean no limit and no office", () => {
   const r = CompanySetupInput.parse(blank);
-  assert.deepEqual(r, { officeArea: "", autoApprovePerHead: null, managerPerHead: null, maxPerHead: null, maxDistanceKm: null });
+  assert.deepEqual(r, { officeArea: "", autoApprovePerHead: null, managerPerHead: null, maxPerHead: null, maxDistanceKm: null, gstin: null });
 });
 
 test("per-head limits parse from form strings and must not decrease", () => {
@@ -28,6 +28,6 @@ test("office areas are presets only", () => {
 });
 
 test("setup checklist", () => {
-  const gaps = setupGaps({ hasOffice: true, approvers: 0, hasPerHeadTiers: false });
-  assert.deepEqual(gaps.map((g) => [g.key, g.done]), [["office", true], ["approvers", false], ["limits", false]]);
+  const gaps = setupGaps({ hasGstin: false, hasOffice: true, approvers: 0, hasPerHeadTiers: false });
+  assert.deepEqual(gaps.map((g) => [g.key, g.done]), [["gstin", false], ["office", true], ["approvers", false], ["limits", false]]);
 });

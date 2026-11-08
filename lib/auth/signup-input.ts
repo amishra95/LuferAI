@@ -84,8 +84,6 @@ export function parseSignupInput(raw: Record<string, unknown>): { ok: true; valu
     const check = validateGstin(gstinRaw);
     if (check.valid) gstin = gstinRaw;
     else errors.gstin = "That GSTIN isn't valid. Check the 15 characters.";
-  } else if (accountType === "enterprise") {
-    errors.gstin = "Enter your company's GSTIN: invoices are raised on it.";
   }
 
   let website: string | null = null;

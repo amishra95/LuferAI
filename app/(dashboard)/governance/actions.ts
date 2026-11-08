@@ -7,7 +7,9 @@ import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/
 import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/access";
 import { CompanySetupInput } from "@/lib/companies/setup";
 import { saveCompanySetup } from "@/lib/companies/setup-store";
-import { dataSource, listCompanies } from "@/lib/data";
+import { addCompanyGstin, dataSource, listCompanies } from "@/lib/data";
+import { GSTIN_TAKEN } from "@/lib/companies/gstin";
+import { validateGstin } from "@/lib/gst-engine";
 import { TeamInvite } from "@/lib/companies/team";
 import { inviteTeammate, removeTeammate, TeamError } from "@/lib/companies/team-store";
 import { ApprovalCommand, BudgetCommand, runApprovalCommand, runBudgetCommand, type ApprovalCommandResult, type BudgetCommandResult } from "@/lib/services/enterprise/commands";
@@ -103,6 +105,12 @@ export async function companySetupAction(companyId: string | null, input: Compan
     if (dataSource() !== "supabase") throw new ActionError("Company setup needs the live database.");
     const parsed = CompanySetupInput.safeParse(input);
     if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
+    // GSTIN: added once if the company has none; changing a set one stays with Lufer.
+    if (parsed.data.gstin) {
+      if (!validateGstin(parsed.data.gstin).valid) throw new ActionError("That GSTIN isn't valid. Check the 15 characters.");
+      const added = await addCompanyGstin(company, parsed.data.gstin);
+      if (added === "taken") throw new ActionError(GSTIN_TAKEN);
+    }
     await saveCompanySetup(company, parsed.data);
     revalidateGovernance();
     revalidatePath("/venues");

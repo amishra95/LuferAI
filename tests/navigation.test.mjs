@@ -81,9 +81,9 @@ test("Spend lights for every page in the Spend area; Home doesn't", () => {
   assert.equal(isItemActive("/client", "/client/events/abc", null, all, ["/client?tab=signoffs"]), true);
 });
 
-test("company sidebar: Home, Venues, Concierge, then Approvals (approvers), Spend, Policies, Contracts", () => {
+test("company sidebar: Home, Venues, Concierge, then Approvals (approvers), Spend, Policies", () => {
   const client = ["/client", "/venues", "/chat", "/governance", "/contracts", "/control-tower"];
-  assert.deepEqual(hrefs("company", client), ["/client", "/venues", "/chat", "/control-tower", "/governance", "/contracts"]);
+  assert.deepEqual(hrefs("company", client), ["/client", "/venues", "/chat", "/control-tower", "/governance"]);
   assert.deepEqual(hrefs("company", [...client, "/client/approvals"]).slice(3, 4), ["/client/approvals"]);
 });
 

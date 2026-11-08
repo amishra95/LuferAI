@@ -18,6 +18,7 @@ import { renderContract } from "./render";
 import { describeSchedule, planInstalments } from "./schedule";
 import { buildContractTerms, istDate, type ContractTerms } from "./terms";
 import { listedGstin } from "@/lib/venues/gstin";
+import { billableGstin } from "@/lib/companies/gstin";
 
 /**
  * Contracts (migration 0031): issuing one from a booking's negotiated terms,
@@ -257,7 +258,7 @@ export async function issueContract(bookingId: string, member: Member): Promise<
 
   const invoice = calculateGst({
     total_amount: Number(booking.total_amount_inr),
-    company_gstin: booking.billing_gstin ?? booking.company!.gstin,
+    company_gstin: booking.billing_gstin ?? billableGstin(booking.company!),
     venue_gstin: listedGstin(booking.venue!),
     booking_id: booking.id,
     invoice_date: booking.event_date,
@@ -280,7 +281,7 @@ export async function issueContract(bookingId: string, member: Member): Promise<
       list_budget_per_head_inr: booking.list_budget_per_head_inr === null ? null : Number(booking.list_budget_per_head_inr),
       total_amount_inr: Number(booking.total_amount_inr),
     },
-    company: booking.company!,
+    company: { ...booking.company!, gstin: billableGstin(booking.company!) },
     venue: { ...booking.venue!, min_spend_inr: Number(booking.venue!.min_spend_inr), min_spend_per_head_inr: Number(booking.venue!.min_spend_per_head_inr) },
     invoice,
     cancellation: parseCancellationTerms(booking.venue!.cancellation_terms),
