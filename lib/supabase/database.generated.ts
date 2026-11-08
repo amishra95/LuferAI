@@ -1506,6 +1506,63 @@ export type Database = {
           },
         ]
       }
+      concierge_requests: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          details: string | null
+          event_date: string | null
+          guests: number | null
+          id: string
+          kind: string
+          note: string | null
+          partner_venue_id: string | null
+          per_head_inr: number | null
+          requested_by: string | null
+          requester_email: string
+          rfp_id: string | null
+          status: string
+          updated_at: string
+          venue_name: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          details?: string | null
+          event_date?: string | null
+          guests?: number | null
+          id?: string
+          kind: string
+          note?: string | null
+          partner_venue_id?: string | null
+          per_head_inr?: number | null
+          requested_by?: string | null
+          requester_email: string
+          rfp_id?: string | null
+          status?: string
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          details?: string | null
+          event_date?: string | null
+          guests?: number | null
+          id?: string
+          kind?: string
+          note?: string | null
+          partner_venue_id?: string | null
+          per_head_inr?: number | null
+          requested_by?: string | null
+          requester_email?: string
+          rfp_id?: string | null
+          status?: string
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Relationships: []
+      }
       crm_deals: {
         Row: {
           account_name: string | null

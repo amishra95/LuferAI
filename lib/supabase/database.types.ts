@@ -57,6 +57,7 @@ export type CorporateRole = Enums<"corporate_role">;
 export type PartnerRoleEnum = Enums<"partner_role">;
 
 export type Company = Tables<"companies">;
+export type ConciergeRequest = Tables<"concierge_requests">;
 export type CompanySsoConnection = Tables<"company_sso_connections">;
 export type Venue = Tables<"venues">;
 export type Booking = Tables<"bookings">;
