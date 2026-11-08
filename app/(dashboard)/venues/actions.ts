@@ -6,6 +6,7 @@ import { requireWorkspace } from "@/lib/auth/session";
 import { dataSource, listBookings, listCompanies, listMenuPackages, listRateCards } from "@/lib/data";
 import { opsQuoteEmail, QuoteRequest, requesterReceipt, type QuoteRequestInput } from "@/lib/concierge/request";
 import { notifyConciergeRequest } from "@/lib/services/notifications";
+import { alertConcierge, createConciergeRequest } from "@/lib/concierge/request-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayInIndia } from "@/lib/gst-engine";
 import { serverDispatch, type ActionResult } from "@/lib/mutations/server";
@@ -70,8 +71,10 @@ export async function triggerVenueDirectorySync(): Promise<ActionResult<VenueSyn
 export type QuoteRequestResult = { ok: true } | { ok: false; error: string };
 
 /**
- * "Request a quote" on a partner listing (Wizard of Oz): emails Lufer ops,
- * who arrange it with the venue, and sends the requester a receipt.
+ * "Request a quote" on a partner listing (Wizard of Oz): saved to the
+ * concierge's queue (/admin/requests), emailed (and, when set up, sent on
+ * Telegram) to Lufer ops, who arrange it with the venue; the requester gets a
+ * receipt and sees it on Home.
  */
 export async function requestQuoteAction(input: QuoteRequestInput): Promise<QuoteRequestResult> {
   const member = await requireWorkspace("/venues");
@@ -86,13 +89,36 @@ export async function requestQuoteAction(input: QuoteRequestInput): Promise<Quot
   const company = member.companyId ? (await listCompanies()).find((c) => c.id === member.companyId) : null;
   const ctx = { companyName: company?.legal_name ?? "Lufer admin (test)", requesterEmail: member.email ?? "unknown" };
 
-  const sent = await notifyConciergeRequest(opsQuoteEmail(ctx, venue, parsed.data), {
-    email: ctx.requesterEmail,
-    ...requesterReceipt(`${venue.name} on ${parsed.data.date} for ${parsed.data.guests} guests`),
-  });
-  if (!sent.delivered) {
-    console.error("venues: quote request not delivered", sent.reason);
-    return { ok: false, error: "We couldn't send that just now. Try again in a minute." };
-  }
+  // Saved first, so the request reaches the concierge's queue even if an email fails.
+  const request = {
+    companyId: company?.id ?? null,
+    requestedBy: member.userId,
+    requesterEmail: ctx.requesterEmail,
+    kind: "quote" as const,
+    partnerVenueId: parsed.data.venueId,
+    venueName: venue.name,
+    eventDate: parsed.data.date,
+    guests: parsed.data.guests,
+    perHeadInr: parsed.data.perHead,
+    details: parsed.data.notes || null,
+  };
+  const saved = await createConciergeRequest(request).then(
+    () => true,
+    (err) => {
+      console.error("venues: quote request not saved", err);
+      return false;
+    }
+  );
+  const [sent] = await Promise.all([
+    notifyConciergeRequest(opsQuoteEmail(ctx, venue, parsed.data), {
+      email: ctx.requesterEmail,
+      ...requesterReceipt(`${venue.name} on ${parsed.data.date} for ${parsed.data.guests} guests`),
+    }),
+    alertConcierge({ ...request, companyName: ctx.companyName }),
+  ]);
+  if (!sent.delivered) console.error("venues: quote request email not delivered", sent.reason);
+  if (!saved && !sent.delivered) return { ok: false, error: "We couldn't send that just now. Try again in a minute." };
+  revalidatePath("/client");
+  revalidatePath("/admin/requests");
   return { ok: true };
 }

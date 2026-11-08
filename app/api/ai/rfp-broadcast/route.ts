@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -8,6 +9,7 @@ import { getCurrentMember } from "@/lib/auth/session";
 import { dataSource, listCompanies } from "@/lib/data";
 import { opsBriefEmail, requesterReceipt } from "@/lib/concierge/request";
 import { notifyConciergeRequest } from "@/lib/services/notifications";
+import { alertConcierge, createConciergeRequest } from "@/lib/concierge/request-store";
 import { todayInIndia } from "@/lib/gst-engine";
 import { broadcastRfp, PolicyBlockedError, RfpRequirements, type BroadcastResult } from "@/lib/rfp/service";
 import { clip, logAgentRun } from "@/lib/telemetry/runs";
@@ -99,19 +101,46 @@ async function handleRfpBroadcast(request: NextRequest) {
 
   // Wizard of Oz: every brief also reaches Lufer's concierge, who covers venues
   // that can't quote here (partner listings) and briefs nothing matched.
+  // Saved to the concierge's queue (/admin/requests) and shown on the requester's Home.
   const company = (await listCompanies()).find((c) => c.id === companyId);
-  const concierge = await notifyConciergeRequest(
-    opsBriefEmail({ companyName: company?.legal_name ?? companyId, requesterEmail: member.email ?? "unknown" }, parsed.data.brief, result.columns.length),
-    { email: member.email ?? "", ...requesterReceipt("your event") }
-  ).catch((err) => {
-    console.error("rfp-broadcast: concierge notify failed", err);
-    return { delivered: false };
-  });
+  const companyName = company?.legal_name ?? companyId;
+  const brief = {
+    companyId,
+    requestedBy: member.userId,
+    requesterEmail: member.email ?? "unknown",
+    kind: "brief" as const,
+    eventDate: requirements.event_date && /^\d{4}-\d{2}-\d{2}$/.test(requirements.event_date) ? requirements.event_date : null,
+    guests: requirements.party_size,
+    perHeadInr: requirements.budget_per_head_inr != null ? Math.round(requirements.budget_per_head_inr) : null,
+    details: parsed.data.brief,
+    rfpId: result.rfp.id,
+  };
+  const [saved, concierge] = await Promise.all([
+    createConciergeRequest(brief).then(
+      () => true,
+      (err) => {
+        console.error("rfp-broadcast: concierge request not saved", err);
+        return false;
+      }
+    ),
+    notifyConciergeRequest(
+      opsBriefEmail({ companyName, requesterEmail: member.email ?? "unknown" }, parsed.data.brief, result.columns.length),
+      { email: member.email ?? "", ...requesterReceipt("your event") }
+    ).catch((err) => {
+      console.error("rfp-broadcast: concierge notify failed", err);
+      return { delivered: false };
+    }),
+    alertConcierge({ ...brief, companyName }),
+  ]);
+  if (saved) {
+    revalidatePath("/client");
+    revalidatePath("/admin/requests");
+  }
 
   return NextResponse.json({
     rfpId: result.rfp.id,
     requirements,
-    concierge: concierge.delivered,
+    concierge: concierge.delivered || saved,
     venuesContacted: result.columns.length,
     matrix: result.markdown,
     policy: result.policy,

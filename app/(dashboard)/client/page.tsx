@@ -73,6 +73,8 @@ import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
 import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
 import { listDirectory } from "@/lib/venues/directory";
+import { RequestList } from "@/components/concierge/request-list";
+import { listCompanyRequests } from "@/lib/concierge/request-store";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
 import { reviewsForBookings, venueRatingMap } from "@/lib/venues/review-store";
@@ -185,7 +187,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const bookingIds = bookings.map((b) => b.id);
 
   // Round trip 2: everything that needs the bookings.
-  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements, reviews, conciergeVenues] = await Promise.all([
+  const [orderSettlements, payments, holds, guestCounts, depositRate, contracts, comments, settlements, reviews, conciergeVenues, requests] = await Promise.all([
     listOrderSettlements(catalogOrders),
     latestPayments(bookingIds),
     activeHolds(bookingIds),
@@ -205,6 +207,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     }),
     // Nothing bookable directly yet: Home shows the listings the concierge quotes for.
     canRequest && catalog.venues.length === 0 ? listDirectory().then((d) => conciergeListings(d.venues)) : Promise.resolve([]),
+    // Quote requests and briefs the concierge is arranging (migration 20261114000000).
+    live && activeTab === "bookings"
+      ? listCompanyRequests(company.id, 5).catch((err) => {
+          console.error("client: could not load requests", err);
+          return [];
+        })
+      : Promise.resolve([]),
   ]);
   const itc = computeItcSummary(bookings);
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
@@ -660,6 +669,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
           {quotesFirst ? rfpSection : null}
 
           {setup && activeTab === "bookings" ? <SetupChecklist items={setup} /> : null}
+
+          <RequestList requests={requests} />
 
           {canRequest ? (
             <div className="mb-10 space-y-10">
