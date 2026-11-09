@@ -11,7 +11,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "btn-primary",
-        destructive: "border-error-ink bg-error-ink text-white hover:border-error-ink hover:bg-error-ink/90 hover:text-white",
+        destructive: "border-error-ink bg-error-ink text-on-accent hover:border-error-ink hover:bg-error-ink/90 hover:text-on-accent",
         outline: "",
         secondary: "btn-secondary",
         ghost: "btn-ghost",

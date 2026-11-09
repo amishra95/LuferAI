@@ -506,8 +506,9 @@ function AgentPick({ today }: { today: string }) {
           </p>
           <ol className="text-fg-subtle mt-1 space-y-0.5 font-mono text-caption">
             {outcome.steps.map((s, i) => (
-              <li key={i} className={cn(!s.ok && "text-rose")}>
-                {s.ok ? "✓" : "✗"} {s.step}: {s.detail}
+              <li key={i} className={cn("flex items-start gap-1.5", !s.ok && "text-rose")}>
+                {s.ok ? <Check className="mt-0.5 size-3 shrink-0" aria-label="Done" /> : <X className="mt-0.5 size-3 shrink-0" aria-label="Failed" />}
+                <span>{s.step}: {s.detail}</span>
               </li>
             ))}
           </ol>

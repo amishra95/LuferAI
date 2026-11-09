@@ -113,7 +113,7 @@ export function PromptBar({
               type="submit"
               disabled={!text || disabled}
               aria-label="Send message"
-              className="bg-go text-on-go hover:bg-go-hover disabled:bg-surface-raised disabled:text-fg-faint focus-visible:outline-focus grid size-8 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="bg-accent text-on-accent hover:bg-accent-hover disabled:bg-surface-raised disabled:text-fg-faint focus-visible:outline-focus grid size-8 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <ArrowUp className="size-4" strokeWidth={2.25} aria-hidden />
             </button>

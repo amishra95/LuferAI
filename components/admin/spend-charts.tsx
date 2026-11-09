@@ -9,7 +9,7 @@ import { formatINR } from "@/lib/utils";
 
 /**
  * Executive spend charts. Each is a single series in --chart-1 (light grey on
- * the carbon surface), so the card title names it and no legend is needed. Status
+ * the ink surface), so the card title names it and no legend is needed. Status
  * red is reserved for over-budget bars and always comes with an icon + label.
  * Every chart has a hover tooltip and a table view underneath.
  */

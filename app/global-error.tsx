@@ -20,8 +20,8 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       <body style={{ fontFamily: "system-ui, sans-serif", display: "grid", placeItems: "center", minHeight: "100vh", margin: 0, padding: 16 }}>
         <main style={{ maxWidth: 420, textAlign: "center" }}>
           <h1 style={{ fontSize: 20 }}>Something went wrong</h1>
-          <p style={{ color: "#555" }}>{error.digest ? `Please try again. If it keeps happening, quote ref ${error.digest}.` : "Please try again."}</p>
-          <button type="button" onClick={reset} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #ccc", background: "white", cursor: "pointer" }}>
+          <p style={{ color: "#5E564C" }}>{error.digest ? `Please try again. If it keeps happening, quote ref ${error.digest}.` : "Please try again."}</p>
+          <button type="button" onClick={reset} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #E2D6C2", background: "#FCF8F1", cursor: "pointer" }}>
             Try again
           </button>
         </main>

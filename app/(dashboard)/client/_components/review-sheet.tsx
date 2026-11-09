@@ -37,7 +37,7 @@ export function ReviewSheet({
     <Sheet>
       <SheetTrigger asChild>
         <button type="button" className={cn("text-fg-subtle hover:text-fg inline-flex items-center gap-1 text-caption underline-offset-2 hover:underline", className)}>
-          <Star className={cn("size-3", existing && "text-gold-ink fill-current")} aria-hidden />
+          <Star className={cn("size-3", existing && "text-warning-ink fill-current")} aria-hidden />
           {existing ? `You rated ${existing.rating}/5 · Edit` : "Rate this event"}
         </button>
       </SheetTrigger>
@@ -62,7 +62,7 @@ export function ReviewSheet({
                   onMouseEnter={() => setHover(n)}
                   className="focus-visible:ring-ring rounded p-0.5 focus-visible:ring-2 focus-visible:outline-none"
                 >
-                  <Star className={cn("size-7", n <= shown ? "text-gold-ink fill-current" : "text-fg-faint")} aria-hidden />
+                  <Star className={cn("size-7", n <= shown ? "text-warning-ink fill-current" : "text-fg-faint")} aria-hidden />
                 </button>
               ))}
               <span className="text-fg-muted ml-2 text-meta" aria-live="polite">

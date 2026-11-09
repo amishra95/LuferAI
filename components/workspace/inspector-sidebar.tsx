@@ -426,7 +426,7 @@ function VenueBookingActions({ entity, className }: { entity: VenueDetail; class
           venueId={venue.id}
           venueName={venue.name}
           trigger={
-            <Button variant="outline" size="lg" className="border-plum/20 text-plum hover:bg-plum/5 w-full rounded-full font-medium dark:border-line-strong dark:text-fg">
+            <Button variant="outline" size="lg" className="border-ink/20 text-ink hover:bg-ink/5 w-full rounded-full font-medium dark:border-line-strong dark:text-fg">
               <NotebookPen aria-hidden /> Book manually
             </Button>
           }

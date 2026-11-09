@@ -28,7 +28,6 @@ export function StatCard({
   label,
   value,
   hint,
-  icon: Icon,
   change,
   meter,
 }: {
@@ -36,6 +35,7 @@ export function StatCard({
   value: string;
   /** Context under the value; follows the change when there is one ("vs previous 7 days"). */
   hint?: string;
+  /** Accepted for compatibility; stat cards show the label, figure and change only. */
   icon?: LucideIcon;
   /** Change from the previous period. */
   change?: MetricChange | null;
@@ -44,15 +44,14 @@ export function StatCard({
 }) {
   return (
     <div className="panel flex min-w-0 flex-col p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-2">
+      <div data-slot="sheet-head" className="-mx-4 flex items-center justify-between gap-2 px-4 pb-2.5 sm:-mx-5 sm:px-5">
         <p className="label-mono">{label}</p>
-        {Icon ? <Icon className="text-fg-faint size-3.5" strokeWidth={1.75} aria-hidden /> : null}
       </div>
-      <p className="text-fg mt-3 font-mono text-[1.4rem] leading-none sm:text-[1.75rem] font-semibold tracking-tight tabular-nums">{value}</p>
+      <p className="text-fg mt-4 font-ledger text-[1.35rem] leading-none sm:text-[1.6rem] font-semibold tabular-nums">{value}</p>
       {meter ? (
         <div role="meter" aria-label={meter.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(meter.pct, 100))} className="bg-surface-raised mt-3 h-1.5 overflow-hidden rounded-full">
           <div
-            className={cn("h-full rounded-full", meter.tone === "over" ? "bg-error" : meter.tone === "warn" ? "bg-gold" : "bg-coral")}
+            className={cn("h-full rounded-full", meter.tone === "over" ? "bg-error" : meter.tone === "warn" ? "bg-warning" : "bg-accent")}
             style={{ width: `${Math.max(2, Math.min(meter.pct, 100))}%` }}
           />
         </div>

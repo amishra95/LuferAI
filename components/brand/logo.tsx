@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
 
 /*
- * Lufer brand: the Diya mark (a lamp bowl with a coral flame: hospitality and
- * celebration) beside "Lufer" in Fraunces, optionally with the tagline beneath.
- * Colours are palette hexes (globals.css), fixed so the mark reads the same in
- * dark mode. The same paths are in app/icon.svg, app/apple-icon.tsx and
+ * Lufer brand: the Diya mark (a lamp bowl with a flame: hospitality and
+ * celebration) beside "Lufer" in wide Anek Latin, optionally with the tagline
+ * beneath. The bowl is ink black (cream on ink grounds) and the flame is
+ * burnt orange. Fills read the palette tokens (fixed tokens, not semantic roles),
+ * so the mark follows globals.css and reads the same in dark mode. The same paths are in app/icon.svg, app/apple-icon.tsx and
  * app/opengraph-image.tsx (keep them in step: DIYA_FLAME / DIYA_BOWL).
  */
 
@@ -12,16 +13,16 @@ import { cn } from "@/lib/utils";
 export const DIYA_FLAME = "M32 5C32 5 42.5 16 42.5 23C42.5 28.8 37.8 32 32 32C26.2 32 21.5 28.8 21.5 23C21.5 16 32 5 32 5Z";
 export const DIYA_BOWL = "M6 36H58C58 49 46.4 59 32 59C17.6 59 6 49 6 36Z";
 
-const PLUM = "#2a1b3d";
-const LINEN = "#faf6f0";
-const CORAL = "#ff6b4a";
+const INK = "var(--color-fg)"; /* the foreground role: ink on cream, cream in dark mode */
+const PAPER = "var(--color-cream)";
+const FLAME = "var(--color-accent)";
 
-/** The Diya mark alone. `tone`: the bowl's colour, plum on light grounds, linen on plum. */
-export function DiyaMark({ tone = "plum", className, title }: { tone?: "plum" | "linen"; className?: string; title?: string }) {
+/** The Diya mark alone. `tone`: the bowl's colour, ink on light grounds ("ink"), cream on ink ("cream"). */
+export function DiyaMark({ tone = "ink", className, title }: { tone?: "ink" | "cream"; className?: string; title?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={cn("shrink-0", className)} role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
-      <path d={DIYA_FLAME} fill={CORAL} />
-      <path d={DIYA_BOWL} fill={tone === "linen" ? LINEN : PLUM} />
+      <path d={DIYA_FLAME} fill={FLAME} />
+      <path d={DIYA_BOWL} fill={tone === "cream" ? PAPER : INK} />
     </svg>
   );
 }
@@ -29,16 +30,16 @@ export function DiyaMark({ tone = "plum", className, title }: { tone?: "plum" | 
 export function Logo({
   size = "md",
   tagline = true,
-  tone = "plum",
+  tone = "ink",
   className,
 }: {
   size?: "sm" | "md" | "lg";
   tagline?: boolean;
-  /** Plum on light grounds (default), linen on plum. */
-  tone?: "plum" | "linen";
+  /** Ink bowl on light grounds (default, "ink"), cream bowl on ink ("cream"). */
+  tone?: "ink" | "cream";
   className?: string;
 }) {
-  const text = tone === "linen" ? "text-linen" : "text-plum";
+  const text = tone === "cream" ? "text-on-ink" : "text-fg";
   return (
     <div className={cn("inline-flex flex-col items-center text-center", className)}>
       <span
@@ -50,9 +51,9 @@ export function Logo({
         )}
       >
         <DiyaMark tone={tone} className="size-[1.05em]" />
-        <span className={cn("font-display font-semibold tracking-tight", text)}>Lufer</span>
+        <span className={cn("font-display font-wide font-bold tracking-tight", text)}>Lufer</span>
       </span>
-      {tagline ? <span className={cn("mt-2 text-sm font-medium tracking-wide", tone === "linen" ? "text-linen/80" : "text-plum/80")}>Your Corporate Entertainment Concierge</span> : null}
+      {tagline ? <span className={cn("mt-2 text-sm font-medium tracking-wide", tone === "cream" ? "text-on-ink/80" : "text-fg/80")}>Your Corporate Entertainment Concierge</span> : null}
     </div>
   );
 }

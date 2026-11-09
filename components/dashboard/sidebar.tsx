@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import type { Side } from "@/types/navigation";
 
 /** Each side's mark: the dot beside its label and the rail on the current page. */
-export const SIDE_ACCENT: Record<Side, string> = { company: "bg-gold", venue: "bg-mint", operator: "bg-coral" };
+// Side markers stay neutral: status colours carry meaning, so they never decorate.
+export const SIDE_ACCENT: Record<Side, string> = { company: "bg-fg-faint", venue: "bg-fg-faint", operator: "bg-fg-faint" };
 
 /** Monogram: the brand mark, derived from the workspace name. */
 export function Monogram({ name, className }: { name: string; className?: string }) {
@@ -19,7 +20,7 @@ export function Monogram({ name, className }: { name: string; className?: string
     <span
       aria-hidden
       className={cn(
-        "bg-plum-light text-gold grid size-7 shrink-0 place-items-center rounded-tile text-caption font-semibold",
+        "bg-ink grid size-7 shrink-0 place-items-center rounded-tile text-caption font-semibold text-on-ink",
         className
       )}
     >
@@ -65,14 +66,14 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "on-plum border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
+        "bg-canvas border-line flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out",
         collapsed ? "w-[3.75rem]" : "w-60",
         className
       )}
     >
       <div className={cn("flex h-14 shrink-0 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
         <Link href={sideHome(side, allowedHrefs)} onClick={onNavigate} className="flex min-w-0 items-center gap-2.5 rounded-md">
-          {workspaceName === "Lufer" ? <DiyaMark tone="linen" className="size-7" /> : <Monogram name={workspaceName} />}
+          {workspaceName === "Lufer" ? <DiyaMark className="size-7" /> : <Monogram name={workspaceName} />}
           {/* The default workspace name gets the brand wordmark; a renamed workspace shows as typed. */}
           {!collapsed &&
             (workspaceName === "Lufer" ? (
@@ -125,13 +126,13 @@ export function Sidebar({
                           className={cn(
                             "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-meta font-medium transition-[color,background-color,box-shadow,transform] duration-150",
                             collapsed && "justify-center px-0",
-                            active ? "bg-surface-raised text-fg" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
+                            active ? "bg-surface-raised text-accent-text" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
                           )}
                         >
-                          {/* The side's colour marks the current page. */}
-                          {active && <span aria-hidden className={cn("absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full", SIDE_ACCENT[groupSide])} />}
+                          {/* The accent marks the current page. */}
+                          {active && <span aria-hidden className="bg-accent absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full" />}
                           <Icon
-                            className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
+                            className={cn("size-4 shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
                             strokeWidth={1.75}
                             aria-hidden
                           />
@@ -141,7 +142,7 @@ export function Sidebar({
                                 {label}
                                 {badge ? ` (${badge.label})` : ""}
                               </span>
-                              {badge ? <span aria-hidden className={cn("absolute top-1.5 right-2 size-1.5 rounded-full", badge.tone === "warning" ? "bg-gold" : "bg-fg-subtle")} /> : null}
+                              {badge ? <span aria-hidden className={cn("absolute top-1.5 right-2 size-1.5 rounded-full", badge.tone === "warning" ? "bg-warning" : "bg-fg-subtle")} /> : null}
                             </>
                           ) : (
                             <>
@@ -150,7 +151,7 @@ export function Sidebar({
                                 <span
                                   className={cn(
                                     "ml-auto shrink-0 rounded-full px-1.5 font-mono text-[11px] leading-[18px] tabular-nums",
-                                    badge.tone === "warning" ? "bg-gold text-plum" : "bg-surface-raised text-fg-muted"
+                                    badge.tone === "warning" ? "bg-warning-tint text-warning-ink" : "bg-surface-raised text-fg-muted"
                                   )}
                                 >
                                   {badge.label}

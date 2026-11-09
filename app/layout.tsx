@@ -1,22 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import { Anek_Latin, Courier_Prime } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
-// Velvet Night type: Plus Jakarta Sans for UI, Fraunces for display headings,
+// Bill Book type: Anek Latin (Ek Type) for every voice, its width axis setting
+// the wide display headers; Courier Prime for written-in entries on bill sheets;
 // Geist Mono (self-hosted) for code only. next/font self-hosts the Google fonts.
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-jakarta", display: "swap" });
-const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-fraunces", display: "swap" });
+const anek = Anek_Latin({ subsets: ["latin", "latin-ext"], axes: ["wdth"], variable: "--font-anek", display: "swap" });
+const courierPrime = Courier_Prime({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-courier-prime", display: "swap" });
 const geistMono = GeistMono;
 
 export const viewport: Viewport = {
-  // Plum brand bar (light) / ink canvas (dark); mirrors --color-plum and --color-ink.
+  // Cream (light) / ink (dark); mirrors --color-cream and --color-ink.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#2A1B3D" },
-    { media: "(prefers-color-scheme: dark)", color: "#1A1523" },
+    { media: "(prefers-color-scheme: light)", color: "#F3EBDD" },
+    { media: "(prefers-color-scheme: dark)", color: "#1A1714" },
   ],
   colorScheme: "light dark",
   // Edge-to-edge (incl. Capacitor shells); layouts pad via --app-safe-* in globals.css.
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${anek.variable} ${courierPrime.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         {children}
         {/* Page views and Core Web Vitals; both no-op outside Vercel. Enable them under Project → Analytics / Speed Insights. */}

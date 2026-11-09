@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { DIYA_BOWL, DIYA_FLAME } from "@/components/brand/logo";
 
-// Link preview for WhatsApp, Slack, LinkedIn: plum card, linen wordmark, coral accent.
+// Link preview for WhatsApp, Slack, LinkedIn: cream ground, ink wordmark, burnt-orange flame, the bill-book rule.
 // Hex here because ImageResponse can't read CSS variables; mirrors globals.css.
 export const alt = "Lufer: corporate events and hospitality in Bengaluru";
 export const size = { width: 1200, height: 630 };
@@ -19,22 +19,22 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 80,
-          background: "radial-gradient(900px 500px at 100% 0%, rgba(255,107,74,0.35), transparent), #2A1B3D",
-          color: "#FAF6F0",
+          background: "#F3EBDD",
+          color: "#1A1714",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 64, fontWeight: 700 }}>
           <svg width="72" height="72" viewBox="0 0 64 64">
-            <path d={DIYA_FLAME} fill="#FF6B4A" />
-            <path d={DIYA_BOWL} fill="#FAF6F0" />
+            <path d={DIYA_FLAME} fill="#BF5700" />
+            <path d={DIYA_BOWL} fill="#1A1714" />
           </svg>
           Lufer
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, maxWidth: 980 }}>
-            Team offsites, client dinners and events, booked in minutes.
+            Team offsites, client dinners and events, booked inside your policy
           </div>
-          <div style={{ marginTop: 28, fontSize: 30, color: "#C9BEDA" }}>
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: "3px solid #E2D6C2", fontSize: 30, color: "#5E564C" }}>
             Direct venue quotes · Approvals before spend · GST invoices
           </div>
         </div>

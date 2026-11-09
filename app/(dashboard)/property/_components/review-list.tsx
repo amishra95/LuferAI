@@ -8,7 +8,7 @@ function Stars({ rating }: { rating: number }) {
   return (
     <span className="inline-flex" role="img" aria-label={`${rating} out of 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} className={n <= rating ? "text-gold-ink size-3.5 fill-current" : "text-fg-faint size-3.5"} aria-hidden />
+        <Star key={n} className={n <= rating ? "text-warning-ink size-3.5 fill-current" : "text-fg-faint size-3.5"} aria-hidden />
       ))}
     </span>
   );
@@ -24,7 +24,7 @@ export function ReviewList({ reviews }: { reviews: (VenueReview & { company_name
           Reviews
           {average != null ? (
             <span className="text-fg-muted inline-flex items-center gap-1 text-meta font-normal">
-              <Star className="text-gold-ink size-3.5 fill-current" aria-hidden /> {average.toFixed(1)} · {reviews.length}
+              <Star className="text-warning-ink size-3.5 fill-current" aria-hidden /> {average.toFixed(1)} · {reviews.length}
             </span>
           ) : null}
         </CardTitle>

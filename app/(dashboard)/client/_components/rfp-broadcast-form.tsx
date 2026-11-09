@@ -107,7 +107,7 @@ export function RfpBroadcastForm() {
             type="submit"
             disabled={pending || brief.trim().length < 20}
             aria-label="Get quotes from matching venues"
-            className="bg-go text-on-go hover:bg-go-hover disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
+            className="bg-accent text-on-accent hover:bg-accent-hover disabled:bg-surface-raised disabled:text-fg-faint mt-1 grid size-8 shrink-0 place-items-center rounded-md transition-colors pointer-coarse:size-11"
           >
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}
           </button>

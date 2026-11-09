@@ -72,7 +72,7 @@ export function VenueMapView({
       onMouseLeave={() => setHoveredId(null)}
       data-selected={v.id === selectedId}
       data-hovered={v.id === hoveredId}
-      className="panel-interactive data-[hovered=true]:border-plum data-[selected=true]:border-plum relative grid gap-2 p-4"
+      className="panel-interactive data-[hovered=true]:border-ink data-[selected=true]:border-ink relative grid gap-2 p-4"
     >
       <VenueCard venue={v} onOpen={() => inspect("venue", v.id)} />
       {actions[v.id] ? <div className="relative -ml-2 flex gap-1">{actions[v.id]}</div> : null}
@@ -160,7 +160,7 @@ function VenueCard({ venue: v, onOpen }: { venue: MapVenueCard; onOpen: () => vo
             const Icon = SIGNAL_ICON[key];
             return (
               <span key={key} className={cn("inline-flex items-center gap-1 text-caption font-medium", key === "favorite" ? "text-fg" : "text-fg-muted")}>
-                <Icon className={cn("size-3.5", key === "favorite" && "text-coral fill-current", key === "rated" && "text-gold-ink fill-current")} aria-hidden /> {label}
+                <Icon className={cn("size-3.5", key === "favorite" && "text-accent fill-current", key === "rated" && "text-warning-ink fill-current")} aria-hidden /> {label}
               </span>
             );
           })}
