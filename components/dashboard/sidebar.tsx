@@ -150,7 +150,7 @@ export function Sidebar({
                                 <span
                                   className={cn(
                                     "ml-auto shrink-0 rounded-full px-1.5 font-mono text-[11px] leading-[18px] tabular-nums",
-                                    badge.tone === "warning" ? "bg-warning text-ink" : "bg-surface-raised text-fg-muted"
+                                    badge.tone === "warning" ? "bg-warning-tint text-warning-ink" : "bg-surface-raised text-fg-muted"
                                   )}
                                 >
                                   {badge.label}

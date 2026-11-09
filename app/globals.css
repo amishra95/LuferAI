@@ -740,6 +740,12 @@ html:has(.lufer) {
 @layer base {
   .landing {
     color-scheme: light;
+    /* Light in every OS theme: pin the foreground roles the logo and shared parts read. */
+    --color-fg: var(--color-ink);
+    --color-fg-muted: color-mix(in srgb, var(--color-ink) 60%, var(--color-ink-muted));
+    --color-fg-subtle: var(--color-ink-muted);
+    --color-fg-faint: var(--color-ink-muted);
+    --color-link: var(--color-accent-text);
     background: var(--color-cream);
     color: var(--color-ink);
   }

@@ -25,10 +25,10 @@ export function AuthShell({
         <div className="hidden w-full max-w-md self-center lg:block">
           <BillSheet />
         </div>
-        <p className="text-ink-muted hidden text-meta lg:block">Your Corporate Entertainment Concierge</p>
+        <p className="text-fg-subtle hidden text-meta lg:block">Your Corporate Entertainment Concierge</p>
         <Link
           href="/"
-          className="text-ink-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-medium hover:text-ink lg:hidden"
+          className="text-fg-subtle inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-medium hover:text-fg lg:hidden"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back

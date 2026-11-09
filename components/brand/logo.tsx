@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export const DIYA_FLAME = "M32 5C32 5 42.5 16 42.5 23C42.5 28.8 37.8 32 32 32C26.2 32 21.5 28.8 21.5 23C21.5 16 32 5 32 5Z";
 export const DIYA_BOWL = "M6 36H58C58 49 46.4 59 32 59C17.6 59 6 49 6 36Z";
 
-const INK = "var(--color-ink)";
+const INK = "var(--color-fg)"; /* the foreground role: ink on cream, cream in dark mode */
 const PAPER = "var(--color-cream)";
 const FLAME = "var(--color-accent)";
 
@@ -39,7 +39,7 @@ export function Logo({
   tone?: "ink" | "cream";
   className?: string;
 }) {
-  const text = tone === "cream" ? "text-on-ink" : "text-ink";
+  const text = tone === "cream" ? "text-on-ink" : "text-fg";
   return (
     <div className={cn("inline-flex flex-col items-center text-center", className)}>
       <span
@@ -53,7 +53,7 @@ export function Logo({
         <DiyaMark tone={tone} className="size-[1.05em]" />
         <span className={cn("font-display font-wide font-bold tracking-tight", text)}>Lufer</span>
       </span>
-      {tagline ? <span className={cn("mt-2 text-sm font-medium tracking-wide", tone === "cream" ? "text-on-ink/80" : "text-ink/80")}>Your Corporate Entertainment Concierge</span> : null}
+      {tagline ? <span className={cn("mt-2 text-sm font-medium tracking-wide", tone === "cream" ? "text-on-ink/80" : "text-fg/80")}>Your Corporate Entertainment Concierge</span> : null}
     </div>
   );
 }
