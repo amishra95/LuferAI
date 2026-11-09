@@ -35,11 +35,10 @@ type Load =
   | { status: "readOnly"; message: string }
   | { status: "error"; message: string };
 
-// The brand pill, in green rather than the default coral. `!` beats btn-primary's colors (incl. its
-// nested :hover); emerald-700 keeps white text above 4.5:1 (emerald-600 doesn't).
+// The brand pill: burnt orange with white text. `!` beats btn-primary's colors (incl. its nested :hover).
 const SUBMIT =
   "h-auto rounded-full px-6 py-3 text-body font-medium has-[>svg]:px-6 " +
-  "border-emerald-700! bg-emerald-700! text-white! hover:border-emerald-800! hover:bg-emerald-800! hover:text-white!";
+  "border-accent! bg-accent! text-on-accent! hover:border-accent-hover! hover:bg-accent-hover! hover:text-on-accent!";
 
 export function ManualBookingModal({
   venueId,
@@ -130,7 +129,7 @@ export function ManualBookingModal({
                 <p className="text-fg-muted text-body">{load.message}</p>
                 <Button asChild variant="outline" className="rounded-full">
                   <ChatDrawerTrigger onClick={() => setOpen(false)}>
-                    <Sparkles className="text-coral" aria-hidden /> Ask the concierge
+                    <Sparkles className="text-accent" aria-hidden /> Ask the concierge
                   </ChatDrawerTrigger>
                 </Button>
               </div>

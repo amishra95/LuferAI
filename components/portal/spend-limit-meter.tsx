@@ -32,7 +32,7 @@ export function SpendLimitMeter({ committed, limit, month, className }: { commit
         className={cn("bg-surface-raised border-line relative mt-3 h-2.5 overflow-hidden rounded-sm border", tone === "over" && "border-rose/40")}
       >
         <span
-          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-gold" : "bg-chart-1")}
+          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-warning" : "bg-chart-1")}
           style={{ width: `${Math.min(100, pct)}%` }}
         />
         <span aria-hidden className="bg-fg-faint absolute inset-y-0 w-px" style={{ left: `${CRITICAL_PCT}%` }} />

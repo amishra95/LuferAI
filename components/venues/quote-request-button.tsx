@@ -42,7 +42,7 @@ export function QuoteRequestButton({ venue, className }: { venue: { id: string; 
         <MessageSquarePlus className="size-3.5" aria-hidden /> Request a quote
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim" />
         <Dialog.Content
           className={cn(
             "lufer bg-canvas border-line fixed z-50 flex flex-col border shadow-2xl outline-none",

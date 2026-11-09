@@ -76,7 +76,7 @@ export function bookingAcceptedMessage(b: AcceptedBooking): { subject: string; t
 
   const html = `<!doctype html><html><body style="margin:0;background:#F3EBDD;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#1A1714">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #E2D6C2;border-radius:16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fcf8f1;border:1px solid #E2D6C2;border-radius:16px">
 <tr><td style="padding:28px 28px 8px"><p style="margin:0;font-size:13px;color:#5E564C">Lufer</p>
 <h1 style="margin:8px 0 0;font-size:22px;line-height:1.3">${esc(b.venueName)} accepted your event request</h1></td></tr>
 <tr><td style="padding:8px 28px 0;font-size:15px;line-height:1.5"><p style="margin:0 0 12px">${esc(greeting)}</p><p style="margin:0">${esc(intro)}</p></td></tr>

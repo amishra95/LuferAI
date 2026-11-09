@@ -14,9 +14,9 @@ const courierPrime = Courier_Prime({ subsets: ["latin"], weight: ["400", "700"],
 const geistMono = GeistMono;
 
 export const viewport: Viewport = {
-  // Ink black in both schemes (the header cover / dark canvas); mirrors --color-ink.
+  // Cream (light) / ink (dark); mirrors --color-cream and --color-ink.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#1A1714" },
+    { media: "(prefers-color-scheme: light)", color: "#F3EBDD" },
     { media: "(prefers-color-scheme: dark)", color: "#1A1714" },
   ],
   colorScheme: "light dark",

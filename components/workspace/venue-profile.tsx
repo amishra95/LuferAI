@@ -154,7 +154,7 @@ export function VenueProfile({ entity }: { entity: VenueDetail }) {
 const STATUS_DOT: Record<LifecycleStatus, string> = {
   PENDING_APPROVAL: "border border-warn",
   PENDING: "bg-warn",
-  CONFIRMED: "bg-mint",
+  CONFIRMED: "bg-success",
   COMPLETED: "bg-sage",
   SETTLED: "border border-sage",
   CANCELLED: "bg-rose",

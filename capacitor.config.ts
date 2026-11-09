@@ -15,14 +15,14 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * store review before shipping a remote-URL build.
  */
 const serverUrl = process.env.CAP_SERVER_URL?.replace(/\/$/, "");
-// Ink black (--color-ink in app/globals.css): the brand bar behind the status bar.
-const plum = "#1A1714";
+// Cream (--color-cream in app/globals.css): the bar behind the status bar.
+const cream = "#F3EBDD";
 
 const config: CapacitorConfig = {
   appId: "com.luferai.app",
   appName: "Lufer",
   webDir: "capacitor-shell",
-  backgroundColor: plum,
+  backgroundColor: cream,
 
   server: serverUrl
     ? {
@@ -38,13 +38,13 @@ const config: CapacitorConfig = {
     : { androidScheme: "https" },
 
   ios: {
-    backgroundColor: plum,
+    backgroundColor: cream,
     // The web layer pads for the notch / home indicator itself (env(safe-area-inset-*)).
     contentInset: "never",
   },
 
   android: {
-    backgroundColor: plum,
+    backgroundColor: cream,
   },
 
   plugins: {
@@ -53,8 +53,8 @@ const config: CapacitorConfig = {
       // Android WebView < 140 where env(safe-area-inset-*) is unreliable.
       insetsHandling: "css",
       initialViewportFitValueHint: "cover",
-      // Light status/navigation bar icons over the plum brand bar.
-      style: "DARK",
+      // Dark status/navigation bar icons over the cream bar.
+      style: "LIGHT",
     },
   },
 };

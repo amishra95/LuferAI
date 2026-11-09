@@ -49,7 +49,7 @@ export default async function PendingPage() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 px-4 pt-[calc(3rem+var(--app-safe-top))] pb-[calc(3rem+var(--app-safe-bottom))]">
       <Card>
         <CardHeader>
-          <div className={rejected ? "text-rose" : "text-gold-ink"} aria-hidden>
+          <div className={rejected ? "text-rose" : "text-warning-ink"} aria-hidden>
             {rejected ? <XCircle className="size-6" /> : <Clock className="size-6" />}
           </div>
           <CardTitle>{rejected ? "We couldn't approve this application" : "Application received"}</CardTitle>

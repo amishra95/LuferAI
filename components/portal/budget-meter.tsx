@@ -24,7 +24,7 @@ export function BudgetMeter({ balance, size = "md", showLegend = false, classNam
         className={cn("bg-surface-raised border-line relative overflow-hidden rounded-sm border", size === "sm" ? "h-1.5" : "h-2.5", tone === "over" && "border-rose/40")}
       >
         <span
-          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-gold" : "bg-chart-1")}
+          className={cn("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", tone === "over" ? "bg-error" : tone === "critical" ? "bg-warning" : "bg-chart-1")}
           style={{ width: `${seg.consumed}%` }}
         />
         <span

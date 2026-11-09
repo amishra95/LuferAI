@@ -145,7 +145,7 @@ function ToolCall({ part, onRespond }: { part: ToolPart; onRespond: ChatAddToolA
     <div className="border-line bg-surface rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
         {running ? (
-          <span aria-hidden className="status-dot bg-gold animate-pulse motion-reduce:animate-none" />
+          <span aria-hidden className="status-dot bg-warning animate-pulse motion-reduce:animate-none" />
         ) : (
           <Icon className="text-fg-subtle size-3.5" strokeWidth={1.75} aria-hidden />
         )}

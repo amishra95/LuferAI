@@ -30,7 +30,7 @@ export function SetupChecklist({ items }: { items: readonly { key: string; label
             >
               <span
                 aria-hidden
-                className={cn("grid size-5 shrink-0 place-items-center rounded-full border", i.done ? "bg-sage border-sage text-white" : "border-line-strong")}
+                className={cn("grid size-5 shrink-0 place-items-center rounded-full border", i.done ? "bg-sage border-sage text-on-ink" : "border-line-strong")}
               >
                 {i.done ? <Check className="size-3" /> : null}
               </span>
