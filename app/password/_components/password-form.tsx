@@ -5,8 +5,8 @@ import { useActionState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { PASSWORD_MIN } from "@/lib/auth/password";
 import { setPassword, type SetPasswordState } from "../actions";
 
@@ -33,10 +33,9 @@ export function PasswordForm({ email, home }: { email: string; home: string }) {
       <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
       <div className="grid gap-2">
         <Label htmlFor="password">New password</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="new-password"
           minLength={PASSWORD_MIN}
           maxLength={72}
