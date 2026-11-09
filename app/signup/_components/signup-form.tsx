@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { AccountType } from "@/lib/auth/onboarding";
+import { PASSWORD_MIN } from "@/lib/auth/password";
 import { PARTNER_KIND_LABEL, PARTNER_KINDS, type SignupField } from "@/lib/auth/signup-input";
 import { submitSignup, type SignupState } from "../actions";
 
 /** Required fields get an asterisk; optional ones are left unmarked. */
-function Field({ id, label, required, error, children }: { id: SignupField; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+function Field({ id, label, required, error, children }: { id: SignupField | "password"; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>
@@ -37,7 +38,7 @@ function Field({ id, label, required, error, children }: { id: SignupField; labe
 const COMPANY_LABEL: Record<AccountType, string> = { enterprise: "Company (legal name)", venue: "Venue name", partner: "Business or stage name" };
 
 /**
- * One form for every account type, in the order name, email, mobile, website,
+ * One form for every account type, in the order name, email, password, mobile, website,
  * then the business: a venue also gives where it is and how many it seats; a
  * partner, what they offer. Only what an
  * account needs to open; the rest (role, notes) belongs in settings later.
@@ -76,9 +77,23 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
           <Input id="full_name" name="full_name" autoComplete="name" required maxLength={120} {...invalid("full_name")} />
         </Field>
         <Field id="email" label="Work email" required error={e.email}>
-          <Input id="email" name="email" type="email" autoComplete="email" required {...invalid("email")} />
+          <Input id="email" name="email" type="email" autoComplete="username" required {...invalid("email")} />
         </Field>
       </div>
+
+      <Field id="password" label="Password" required error={e.password}>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN}
+          maxLength={72}
+          required
+          aria-invalid={Boolean(e.password) || undefined}
+          aria-describedby={e.password ? "password-error" : undefined}
+        />
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="phone" label="Mobile" error={e.phone}>

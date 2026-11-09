@@ -6,11 +6,13 @@ import { Building2, CheckCircle2, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendMagicLink, signInWithGoogle, signInWithSso, type MagicLinkState, type SsoState } from "../actions";
+import { sendMagicLink, signInWithGoogle, signInWithPassword, signInWithSso, type MagicLinkState, type PasswordState, type SsoState } from "../actions";
 
 /** `email`: prefilled from /login?email=… (team invite emails link there). */
 export function LoginForm({ next, email }: { next: string; email?: string }) {
-  const [state, formAction, pending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
+  const [state, linkAction, linkPending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
+  const [pw, passwordAction, pwPending] = useActionState<PasswordState, FormData>(signInWithPassword, { status: "idle" });
+  const busy = linkPending || pwPending;
   const [sso, ssoAction, ssoPending] = useActionState<SsoState, FormData>(signInWithSso, { status: "idle" });
   const [ssoOpen, setSsoOpen] = useState(false);
 
@@ -54,7 +56,7 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
           {state.message}
         </p>
       ) : (
-        <form action={formAction} className="grid gap-3">
+        <form action={passwordAction} className="grid gap-3">
           <input type="hidden" name="next" value={next} />
           <div className="grid gap-2">
             <Label htmlFor="email">Work email</Label>
@@ -62,15 +64,45 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
               id="email"
               name="email"
               type="email"
-              autoComplete="email"
+              autoComplete="username"
               defaultValue={email}
               required
               aria-invalid={state.status === "error"}
             />
             {state.status === "error" ? <p className="text-destructive text-caption">{state.message}</p> : null}
           </div>
-          <Button type="submit" size="lg" disabled={pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
+          <div className="grid gap-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label htmlFor="password">Password</Label>
+              {/* Same email link, landing on /password. formNoValidate: no password needed for this. */}
+              <button
+                type="submit"
+                name="intent"
+                value="reset"
+                formAction={linkAction}
+                formNoValidate
+                disabled={busy}
+                className="text-link text-caption underline-offset-2 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              aria-invalid={pw.status === "error"}
+            />
+            {pw.status === "error" ? <p className="text-destructive text-caption">{pw.message}</p> : null}
+          </div>
+          <Button type="submit" size="lg" disabled={busy}>
+            {pwPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+            Sign in
+          </Button>
+          <Button type="submit" variant="ghost" formAction={linkAction} formNoValidate disabled={busy}>
+            {linkPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
             Email me a sign-in link
           </Button>
         </form>
