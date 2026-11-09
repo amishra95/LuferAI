@@ -124,13 +124,13 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
 
       {team ? <TeamManager companyId={admin ? company.id : null} team={team} selfId={member.userId} canManage={canManage} /> : null}
 
-      {/* Counts only once there's something to count. */}
+      {/* Counts only once there's something to count. The one that needs someone leads, wider and larger. */}
       {stats.some((s) => s.value > 0) ? (
-      <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.label} className="panel p-5">
+      <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-5">
+        {stats.map((s, i) => (
+          <div key={s.label} className={cn("panel p-5", i === 0 && "col-span-2")}>
             <dt className="label-mono">{s.label}</dt>
-            <dd className={cn("figure text-fg mt-1 text-section", s.warn && "text-warn")}>{s.value}</dd>
+            <dd className={cn("figure text-fg mt-1", i === 0 ? "text-title" : "text-section", s.warn && "text-warn")}>{s.value}</dd>
           </div>
         ))}
       </dl>
