@@ -4,6 +4,7 @@ import type { AuthError } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { landingAfterSignIn } from "@/lib/auth/landing";
 import { safeNextPath } from "@/lib/auth/roles";
 import { emailDomain } from "@/lib/auth/sso";
 import { siteUrl } from "@/lib/site-url";
@@ -84,8 +85,10 @@ export async function signInWithSso(_prev: SsoState, formData: FormData): Promis
 
 export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): Promise<MagicLinkState> {
   const email = String(formData.get("email") ?? "").trim();
-  const next = safeNextPath(String(formData.get("next") ?? ""));
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Enter a valid email address." };
+  // "Forgot password?": the same sign-in link, landing on /password to set a new one.
+  const reset = formData.get("intent") === "reset";
+  const next = reset ? "/password" : safeNextPath(String(formData.get("next") ?? ""));
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Enter your email address first." };
   if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
 
   const supabase = await createClient();
@@ -98,7 +101,43 @@ export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): 
     logAuthError("signInWithOtp", error);
     return { status: "error", message: magicLinkErrorMessage(error) };
   }
-  return { status: "sent", message: `Check ${email} for a sign-in link.` };
+  return { status: "sent", message: reset ? `Check ${email} for a link to set a new password.` : `Check ${email} for a sign-in link.` };
+}
+
+export interface PasswordState {
+  status: "idle" | "error";
+  message?: string;
+}
+
+/**
+ * Email + password sign-in. The account's email must be confirmed first
+ * (Supabase refuses otherwise), so a password never skips the email check;
+ * it only saves opening a link on every later sign-in.
+ */
+export async function signInWithPassword(_prev: PasswordState, formData: FormData): Promise<PasswordState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = safeNextPath(String(formData.get("next") ?? ""));
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Enter a valid email address." };
+  if (!password) return { status: "error", message: "Enter your password." };
+  if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    logAuthError("signInWithPassword", error);
+    if (error.code === "email_not_confirmed") {
+      return { status: "error", message: "Confirm your email first: open the link we sent you." };
+    }
+    if (error.status === 429 || error.code === "over_request_rate_limit") {
+      return { status: "error", message: "Too many attempts. Wait a minute, then try again." };
+    }
+    if (error.status !== undefined && error.status >= 500) {
+      return { status: "error", message: "Sign-in isn't working right now. Please try again shortly." };
+    }
+    return { status: "error", message: "Wrong email or password." };
+  }
+  redirect(await landingAfterSignIn(supabase, next));
 }
 
 export async function signOut() {
