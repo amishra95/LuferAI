@@ -474,11 +474,12 @@ html:has(.lufer) {
     font-stretch: 112%;
     letter-spacing: -0.01em;
   }
+}
 
-  /* A sheet's header sits on the bill book's double rule. */
-  [data-slot="card-header"].border-b {
-    border-bottom: 3px double var(--color-line-strong);
-  }
+/* A sheet's header sits on the bill book's double rule (unlayered so it beats the border-b utility). */
+[data-slot="card-header"].border-b,
+[data-slot="sheet-head"] {
+  border-bottom: 3px double var(--color-line-strong);
 }
 
 /* Card: white surface (plum in dark), 1px frame border, 14px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
@@ -849,6 +850,12 @@ html:has(.landing) {
   text-transform: uppercase;
   mix-blend-mode: multiply;
   opacity: 0.9;
+  /* Smaller on narrow sheets (the sheet is a size container). */
+  @container (width < 28rem) {
+    padding: 0.2rem 0.5rem;
+    border-width: 2px;
+    font-size: 0.8rem;
+  }
 }
 /* The small upright stamp used in lists. */
 @utility bill-stamp-sm {

@@ -10,7 +10,7 @@ import { MapPin } from "lucide-react";
 const VENUES = [
   { name: "The Copper Courtyard", area: "Indiranagar", km: "2.1 km", perHead: "₹2,450", stamp: "In policy", note: "Booked by 6 coworkers", top: true },
   { name: "Saffron Terrace", area: "Koramangala", km: "4.8 km", perHead: "₹2,200", stamp: "In policy", note: "Confirms within 3 h" },
-  { name: "Indigo House", area: "Lavelle Road", km: "6.3 km", perHead: "₹3,100", stamp: "Needs approval", warn: true },
+  { name: "Indigo House", area: "Lavelle Road", km: "6.3 km", perHead: "₹3,100", stamp: "Needs approval" },
 ];
 
 export function ProductPreview() {
@@ -25,8 +25,9 @@ export function ProductPreview() {
           </p>
         </div>
 
-        <p className="text-carbon border-carbon mt-4 border-b-[3px] border-double pb-2 text-caption font-semibold tracking-[0.06em] uppercase">
-          3 venues matched · Engineering policy
+        <p className="text-carbon border-carbon mt-4 flex justify-between gap-3 border-b-[3px] border-double pb-2 text-caption font-semibold tracking-[0.06em] uppercase">
+          <span>3 venues matched · Engineering policy</span>
+          <span className="text-carbon/50 text-[10px] tracking-[0.2em]">Specimen</span>
         </p>
 
         <ul>
@@ -45,7 +46,7 @@ export function ProductPreview() {
                 </p>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`bill-stamp-sm ${v.warn ? "text-gold-ink" : "text-stamp"}`}>{v.stamp}</span>
+                <span className="bill-stamp-sm text-stamp">{v.stamp}</span>
                 {v.note ? <span className="text-ink-muted text-caption">{v.note}</span> : null}
               </div>
             </li>
@@ -54,7 +55,7 @@ export function ProductPreview() {
       </div>
 
       {/* The pink duplicate slip with the tax split */}
-      <div className="bg-duplicate text-carbon relative -mt-4 ml-auto w-[82%] rotate-[1.5deg] rounded-[4px] p-4 shadow-[0_16px_34px_-18px_rgb(21_26_59/0.45)] sm:-mt-8 sm:w-72 lg:absolute lg:-right-4 lg:-bottom-12 lg:mt-0">
+      <div className="bg-duplicate text-carbon relative -mt-4 ml-auto w-[82%] rotate-[1.5deg] rounded-[4px] p-4 shadow-[0_16px_34px_-18px_rgb(21_26_59/0.45)] sm:-mt-8 sm:w-72">
         <p className="text-[11px] font-semibold tracking-[0.14em] uppercase">Tax invoice · SAC 998596</p>
         <dl className="font-ledger mt-2 space-y-1 text-caption tabular-nums">
           <div className="flex justify-between"><dt>Taxable value</dt><dd>₹98,000</dd></div>
@@ -62,7 +63,7 @@ export function ProductPreview() {
           <div className="flex justify-between"><dt>SGST 9%</dt><dd>₹8,820</dd></div>
           <div className="border-carbon flex justify-between border-t-[3px] border-double pt-1 font-bold"><dt>Total</dt><dd>₹1,15,640</dd></div>
         </dl>
-        <p className="bill-stamp-sm text-mint-ink mt-3">₹17,640 ITC claimable</p>
+        <p className="bill-stamp-sm text-stamp mt-3">₹17,640 ITC claimable</p>
       </div>
     </div>
   );

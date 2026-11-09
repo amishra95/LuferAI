@@ -1,22 +1,9 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BellRing,
-  CalendarCheck,
   Check,
-  ClipboardCheck,
-  FileSpreadsheet,
-  Gauge,
-  Inbox,
   Minus,
-  ReceiptText,
-  ScanText,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Users,
   X,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
@@ -45,12 +32,12 @@ function SectionHeader({ title, body, id, center }: { title: string; body?: stri
 
 const STEPS = [
   { title: "Brief", body: "Type it in plain English, or let the AI concierge turn a quick chat into a structured RFP." }, // /api/ai/generate-brief
-  { title: "Compare", body: "See matched venues with distance from your office, in-policy flags and what coworkers booked." }, // lib/venues signals, PostGIS
+  { title: "Compare", stamp: "In policy", body: "See matched venues with distance from your office, in-policy flags and what coworkers booked." }, // lib/venues signals, PostGIS
   { title: "Get direct quotes", body: "The RFP goes to matching venues, who quote you directly. Dates are held while you decide." }, // /api/ai/rfp-broadcast, lib/locks
-  { title: "Approve", body: "Policy is checked before any spend. Anything over a limit goes to the right approver first." }, // lib/policies, lib/approvals
-  { title: "Pay", body: "Pay the deposit online. Venues are paid out on clear terms once the event is completed." }, // /api/payments, lib/marketplace/settlement.ts
+  { title: "Approve", stamp: "Approved", body: "Policy is checked before any spend. Anything over a limit goes to the right approver first." }, // lib/policies, lib/approvals
+  { title: "Pay", stamp: "Paid", body: "Pay the deposit online. Venues are paid out on clear terms once the event is completed." }, // /api/payments, lib/marketplace/settlement.ts
   { title: "Reconcile", body: "You get a GST tax invoice for every booking, with a Tally export for your books." }, // lib/finance
-] satisfies { title: string; body: string }[];
+] satisfies { title: string; body: string; stamp?: string }[];
 
 // The order is the point (policy before payment), so the steps keep their numbers.
 export function Workflow() {
@@ -61,18 +48,21 @@ export function Workflow() {
         title="From “we need a venue” to a reconciled invoice"
         body="Six steps that usually take a week of emails, calls and spreadsheets, handled in one place."
       />
-      <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
-        <div className="lg:sticky lg:top-24 lg:order-2 lg:pb-10">
+      <div className="mt-12 grid items-center gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+        <div className="lg:order-2">
           <ProductPreview />
         </div>
         <ol className="border-ruling rounded-[6px] border bg-white px-5 sm:px-7">
-          {STEPS.map(({ title, body }, i) => (
+          {STEPS.map(({ title, body, ...rest }, i) => (
             <li key={title} className="border-ruling grid grid-cols-[2.25rem_1fr] gap-x-3 border-b py-5 last:border-0 sm:grid-cols-[3rem_1fr]">
               <span aria-hidden className="font-ledger text-stamp pt-1 text-base font-bold tabular-nums">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div>
-                <h3 className="font-display text-carbon text-xl font-bold">{title}</h3>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h3 className="font-display text-carbon text-xl font-bold">{title}</h3>
+                  {"stamp" in rest ? <span className="bill-stamp-sm text-stamp -rotate-3">{rest.stamp}</span> : null}
+                </div>
                 <p className="text-ink-muted mt-1 text-body">{body}</p>
               </div>
             </li>
@@ -85,36 +75,41 @@ export function Workflow() {
 
 /* Audiences ---------------------------------------------------------------- */
 
-type Feature = { icon: LucideIcon; title: string; body: string };
+type Feature = { title: string; body: string };
 
 const ORGANISERS: Feature[] = [
-  { icon: Sparkles, title: "AI concierge", body: "It remembers your team's preferences and turns a quick chat into a booking." }, // lib/agent/memory.ts, channels
-  { icon: Users, title: "Guest list & RSVPs", body: "Invite links, dietary needs, calendar invites and a shared event room." }, // lib/events
-  { icon: CalendarCheck, title: "Holds that don't vanish", body: "A countdown on every held date, released automatically if you pass." }, // components/portal/hold-countdown.tsx, cron/release-holds
+  { title: "AI concierge", body: "It remembers your team's preferences and turns a quick chat into a booking." }, // lib/agent/memory.ts, channels
+  { title: "Guest list & RSVPs", body: "Invite links, dietary needs, calendar invites and a shared event room." }, // lib/events
+  { title: "Holds that don't vanish", body: "A countdown on every held date, released automatically if you pass." }, // components/portal/hold-countdown.tsx, cron/release-holds
 ];
 
 const FINANCE: Feature[] = [
-  { icon: ShieldCheck, title: "Pre-spend policy", body: "Per-head caps, department budgets and tiered approval chains, enforced before booking." }, // lib/policies
-  { icon: Gauge, title: "Spend & forecast", body: "Spend by department or cost centre, with a forecast against budget." }, // /api/analytics/forecast
-  { icon: ClipboardCheck, title: "ITC governance", body: "Claim or block input tax credit per invoice, with an audit trail." }, // lib/finance/itc.ts
-  { icon: ScanText, title: "Invoice OCR check", body: "Invoices are read and matched against the booking, so mismatches get flagged." }, // /api/finance/ocr-reconcile
-  { icon: FileSpreadsheet, title: "Tally export", body: "Tally Prime XML, plus PO ledgers per cost centre." }, // lib/finance/tally-xml.ts
-  { icon: ReceiptText, title: "Itemised receipts", body: "Every booking itemised for your expense tool, with its cost centre." }, // lib/expense
+  { title: "Pre-spend policy", body: "Per-head caps, department budgets and tiered approval chains, enforced before booking." }, // lib/policies
+  { title: "Spend & forecast", body: "Spend by department or cost centre, with a forecast against budget." }, // /api/analytics/forecast
+  { title: "ITC governance", body: "Claim or block input tax credit per invoice, with an audit trail." }, // lib/finance/itc.ts
+  { title: "Invoice OCR check", body: "Invoices are read and matched against the booking, so mismatches get flagged." }, // /api/finance/ocr-reconcile
+  { title: "Tally export", body: "Tally Prime XML, plus PO ledgers per cost centre." }, // lib/finance/tally-xml.ts
+  { title: "Itemised receipts", body: "Every booking itemised for your expense tool, with its cost centre." }, // lib/expense
 ];
 
-function FeatureGrid({ items, cols = 3 }: { items: Feature[]; cols?: 2 | 3 }) {
+/** A bill-book sheet of particulars: one numbered, ruled row per feature, marked with whose copy it is. */
+function Ledger({ items, copy, className = "" }: { items: Feature[]; copy: string; className?: string }) {
   return (
-    <ul className={`grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""}`}>
-      {items.map(({ icon: Icon, title, body }) => (
-        <li key={title} className="flex gap-3">
-          <Icon className="text-coral-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
-          <div>
-            <p className="text-carbon-ink font-semibold">{title}</p>
-            <p className="text-ink-muted mt-1 text-body">{body}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <div className={`border-ruling text-carbon-ink rounded-[6px] border bg-white shadow-[0_18px_40px_-24px_rgb(21_26_59/0.35)] ${className}`}>
+      <div className="border-carbon flex items-baseline justify-between gap-4 border-b-[3px] border-double px-5 py-3 sm:px-7">
+        <span className="text-carbon/70 text-[11px] font-semibold tracking-[0.12em] uppercase">Particulars</span>
+        <span className="font-ledger text-carbon text-caption tracking-[0.12em] uppercase">{copy}</span>
+      </div>
+      <ol className="px-5 sm:px-7">
+        {items.map(({ title, body }, i) => (
+          <li key={title} className="border-ruling grid grid-cols-[2rem_1fr] gap-x-3 border-b py-4 last:border-0 md:grid-cols-[2.5rem_15rem_1fr] md:gap-x-6">
+            <span aria-hidden className="font-ledger text-carbon/60 text-meta tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+            <p className="text-carbon font-semibold">{title}</p>
+            <p className="text-ink-muted col-start-2 mt-1 text-body md:col-start-3 md:mt-0">{body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -127,9 +122,7 @@ export function Audiences() {
           title="Plan it like you have an events team"
           body="Offsites, all-hands, client dinners, Diwali parties. Tell Lufer what you need and get options you can actually book, inside your company's rules."
         />
-        <div className="border-ruling mt-10 border-t-[3px] border-double pt-8">
-          <FeatureGrid items={ORGANISERS} />
-        </div>
+        <Ledger items={ORGANISERS} copy="Organiser's copy" className="mt-10" />
       </section>
 
       <section id="finance" aria-labelledby="finance-title" className="on-plum scroll-mt-16">
@@ -142,17 +135,7 @@ export function Audiences() {
               One supplier on your books, policy checked up front, and GST you can claim.
             </p>
           </header>
-          <ul className="mt-12 grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
-            {FINANCE.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="flex gap-3 border-t border-white/20 py-6">
-                <Icon className="text-triplicate mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
-                <div>
-                  <p className="font-semibold text-white">{title}</p>
-                  <p className="text-on-carbon-muted mt-1 text-body">{body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Ledger items={FINANCE} copy="Finance copy" className="mt-12" />
         </div>
       </section>
     </>
@@ -162,29 +145,28 @@ export function Audiences() {
 /* Venues (supply side) ----------------------------------------------------- */
 
 const VENUE_FEATURES: Feature[] = [
-  { icon: Inbox, title: "Corporate requests, ready to quote", body: "Party size, budget, dates and dietary needs, all in one brief." }, // property portal
-  { icon: Sparkles, title: "AI inquiry assistant", body: "A public inquiry page that answers questions from your venue's own facts, around the clock." }, // app/inquire/[venueId]
-  { icon: BellRing, title: "Quote from your phone", body: "A link in the email opens the request. No login." }, // lib/vendor/quote-link.ts
-  { icon: Store, title: "Book of business", body: "See every client company, when they're due to rebook, and what to offer them next." }, // property/_components/account-book.tsx
+  { title: "Corporate requests, ready to quote", body: "Party size, budget, dates and dietary needs, all in one brief." }, // property portal
+  { title: "AI inquiry assistant", body: "A public inquiry page that answers questions from your venue's own facts, around the clock." }, // app/inquire/[venueId]
+  { title: "Quote from your phone", body: "A link in the email opens the request. No login." }, // lib/vendor/quote-link.ts
+  { title: "Book of business", body: "See every client company, when they're due to rebook, and what to offer them next." }, // property/_components/account-book.tsx
 ];
 
+// The venue's copy of the bill book is the pink duplicate.
 export function ForVenues() {
   return (
     <section id="venues" aria-labelledby="venues-title" className="bg-duplicate scroll-mt-20">
-      <div className="section-block container-public grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
-        <div>
+      <div className="section-block container-public">
+        <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeader
             id="venues-title"
             title="Win corporate business without the agency in between"
             body="Restaurants, hotels, experience studios, caterers and artists: get structured requests from companies and quote them directly."
           />
-          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline mt-8">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline">
             List your venue <ArrowRight className="size-4" aria-hidden />
           </Link>
         </div>
-        <div className="lg:pt-2">
-          <FeatureGrid items={VENUE_FEATURES} cols={2} />
-        </div>
+        <Ledger items={VENUE_FEATURES} copy="Venue's copy" className="mt-10" />
       </div>
     </section>
   );

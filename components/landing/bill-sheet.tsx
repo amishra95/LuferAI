@@ -26,9 +26,12 @@ export function BillSheet() {
             <p className="font-display font-wide text-lg font-bold tracking-wide uppercase sm:text-xl">Tax invoice</p>
             <p className="text-carbon/70 mt-0.5 text-caption">SAC 998596 · Lufer, Bengaluru</p>
           </div>
-          <p className="font-ledger text-right text-meta">
-            No. <span className="text-base font-bold">0419</span>
-          </p>
+          <div className="text-right">
+            <p className="font-ledger text-meta">
+              No. <span className="text-base font-bold">0419</span>
+            </p>
+            <p className="text-carbon/60 mt-1 text-[10px] font-semibold tracking-[0.2em] uppercase">Specimen</p>
+          </div>
         </div>
 
         <p className="border-ruling text-carbon/80 mt-4 border-y-[3px] border-double py-2 text-caption">
@@ -39,18 +42,18 @@ export function BillSheet() {
           <thead>
             <tr className="text-carbon/60 border-ruling border-b text-[11px] tracking-[0.08em] uppercase">
               <th className="py-2 font-semibold">Particulars</th>
-              <th className="py-2 text-right font-semibold">Qty</th>
-              <th className="hidden py-2 text-right font-semibold @md:table-cell">Rate ₹</th>
-              <th className="py-2 text-right font-semibold">Amount ₹</th>
+              <th className="py-2 pl-4 text-right font-semibold">Qty</th>
+              <th className="hidden py-2 pl-4 text-right font-semibold @[30rem]:table-cell">Rate ₹</th>
+              <th className="py-2 pl-4 text-right font-semibold">Amount ₹</th>
             </tr>
           </thead>
-          <tbody className="font-ledger text-meta @md:text-[15px]">
+          <tbody className="font-ledger text-meta @[30rem]:text-[15px]">
             {LINES.map((l) => (
               <tr key={l.item} className="border-ruling border-b">
                 <td className="py-2.5 pr-2">{l.item}</td>
-                <td className="py-2.5 text-right tabular-nums">{l.qty}</td>
-                <td className="hidden py-2.5 text-right tabular-nums @md:table-cell">{l.rate}</td>
-                <td className="py-2.5 text-right tabular-nums">{l.amount}</td>
+                <td className="py-2.5 pl-4 text-right tabular-nums">{l.qty}</td>
+                <td className="hidden py-2.5 pl-4 text-right tabular-nums @[30rem]:table-cell">{l.rate}</td>
+                <td className="py-2.5 pl-4 text-right tabular-nums">{l.amount}</td>
               </tr>
             ))}
           </tbody>
@@ -58,17 +61,16 @@ export function BillSheet() {
             <tr className="font-ledger border-carbon border-t-[3px] border-double text-[15px] font-bold sm:text-base">
               <td className="pt-3">Total</td>
               <td />
-              <td className="hidden @md:table-cell" />
+              <td className="hidden @[30rem]:table-cell" />
               <td className="pt-3 text-right tabular-nums">1,15,640</td>
             </tr>
           </tfoot>
         </table>
 
-        {/* Blank foot of the sheet, where the stamps land. */}
-        <div className="relative mt-4 h-20 sm:h-24">
-          <span className="bill-stamp bill-stamp-1 absolute top-3 left-0 sm:left-4">In policy</span>
-          <span className="bill-stamp bill-stamp-2 absolute right-0 bottom-1 sm:right-2">Approved</span>
-        </div>
+        {/* Stamped over the line items, ink multiplied into the print beneath. */}
+        {/* Positions keep clear of the figures at every sheet width: over the blank middle of the tax rows and of the Total row. */}
+        <span className="bill-stamp bill-stamp-1 absolute top-[57%] left-[30%]">In policy</span>
+        <span className="bill-stamp bill-stamp-2 absolute bottom-[5%] left-[22%] @[30rem]:left-[30%]">Approved</span>
       </div>
     </figure>
   );
