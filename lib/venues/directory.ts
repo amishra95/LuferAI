@@ -4,6 +4,7 @@ import { dataSource, listVenues } from "@/lib/data";
 import { listExtranetListings } from "@/lib/partner/service";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { fetchPartnersWithin, httpPartnerNetwork, mockPartnerNetwork, type DirectoryVenue, type PartnerStatus } from "@/lib/venues/partner-network";
+import { conciergePhotoUrl } from "@/lib/venues/concierge-photos";
 
 export type { DirectoryVenue, PartnerStatus, VenueTier } from "@/lib/venues/partner-network";
 
@@ -38,6 +39,7 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
       bookable: false,
       latitude: l.latitude,
       longitude: l.longitude,
+      photo_url: conciergePhotoUrl(l.partnerName, l.ref),
     }));
   } catch (err) {
     console.error("directory: extranet listings unavailable", err);
