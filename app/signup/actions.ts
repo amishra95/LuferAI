@@ -13,6 +13,8 @@ export interface SignupState {
   status: "idle" | "sent" | "error";
   message?: string;
   fieldErrors?: Partial<Record<SignupField | "account_type" | "password", string>>;
+  /** Where the confirmation went (status "sent"): the code form verifies against it. */
+  email?: string;
 }
 
 /**
@@ -64,5 +66,5 @@ export async function submitSignup(_prev: SignupState, form: FormData): Promise<
     }
     return { status: "error", message: "We couldn't send the confirmation email. Please try again shortly." };
   }
-  return { status: "sent", message: `Check ${parsed.value.email} and open the link to confirm it's you. Next time, sign in with your password.` };
+  return { status: "sent", email: parsed.value.email, message: `Check ${parsed.value.email} and open the link to confirm it's you. Next time, sign in with your password.` };
 }

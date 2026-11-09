@@ -14,6 +14,10 @@ import { createClient } from "@/lib/supabase/server";
 export interface MagicLinkState {
   status: "idle" | "sent" | "error";
   message?: string;
+  /** Where the email went (status "sent"): the code form verifies against it. */
+  email?: string;
+  /** Where the code form lands them: /password after "Forgot password?". */
+  next?: string;
 }
 
 /** Absolute /auth/callback URL for this deployment, carrying the post-login destination. */
@@ -86,27 +90,44 @@ export async function signInWithSso(_prev: SsoState, formData: FormData): Promis
 export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): Promise<MagicLinkState> {
   const email = String(formData.get("email") ?? "").trim();
   // "Forgot password?": the same sign-in link, landing on /password to set a new one.
-  const reset = formData.get("intent") === "reset";
+  const intent = formData.get("intent");
+  const reset = intent === "reset";
   const next = reset ? "/password" : safeNextPath(String(formData.get("next") ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Enter your email address first." };
   if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
 
   const supabase = await createClient();
+  // Signed up but never confirmed: send the confirmation email again.
+  if (intent === "confirm") {
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: await callbackUrl(next) } });
+    if (error) {
+      logAuthError("resend", error);
+      return { status: "error", message: magicLinkErrorMessage(error) };
+    }
+    return { status: "sent", email, next: next ?? "", message: `We sent a new confirmation email to ${email}.` };
+  }
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    // Portal accounts are provisioned by an admin (platform_users); don't self-register.
+    // Accounts are made at /signup (or by an admin); this form never creates one.
     options: { emailRedirectTo: await callbackUrl(next), shouldCreateUser: false },
   });
   if (error) {
     logAuthError("signInWithOtp", error);
     return { status: "error", message: magicLinkErrorMessage(error) };
   }
-  return { status: "sent", message: reset ? `Check ${email} for a link to set a new password.` : `Check ${email} for a sign-in link.` };
+  return {
+    status: "sent",
+    email,
+    next: next ?? "",
+    message: reset ? `Check ${email} for a link to set a new password.` : `Check ${email} for a sign-in link.`,
+  };
 }
 
 export interface PasswordState {
   status: "idle" | "error";
   message?: string;
+  /** Right password, email never confirmed: the form offers to resend the confirmation. */
+  unconfirmed?: boolean;
 }
 
 /**
@@ -127,7 +148,7 @@ export async function signInWithPassword(_prev: PasswordState, formData: FormDat
   if (error) {
     logAuthError("signInWithPassword", error);
     if (error.code === "email_not_confirmed") {
-      return { status: "error", message: "Confirm your email first: open the link we sent you." };
+      return { status: "error", unconfirmed: true, message: "Confirm your email first: open the link we sent you." };
     }
     if (error.status === 429 || error.code === "over_request_rate_limit") {
       return { status: "error", message: "Too many attempts. Wait a minute, then try again." };
@@ -136,6 +157,36 @@ export async function signInWithPassword(_prev: PasswordState, formData: FormDat
       return { status: "error", message: "Sign-in isn't working right now. Please try again shortly." };
     }
     return { status: "error", message: "Wrong email or password." };
+  }
+  redirect(await landingAfterSignIn(supabase, next));
+}
+
+export interface CodeState {
+  status: "idle" | "error";
+  message?: string;
+}
+
+/**
+ * The 6-digit code from a sign-in or confirmation email, for when the link
+ * won't do: opened on another device, or already used up by a corporate mail
+ * scanner that "clicks" links to check them.
+ */
+export async function verifyEmailCode(_prev: CodeState, formData: FormData): Promise<CodeState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const token = String(formData.get("code") ?? "").replace(/\s/g, "");
+  const next = safeNextPath(String(formData.get("next") ?? ""));
+  if (!/^\d{6,10}$/.test(token)) return { status: "error", message: "Enter the code from the email." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: "error", message: "Start again from the sign-in page." };
+  if (!isAuthConfigured()) return { status: "error", message: "Sign-in is unavailable: Supabase isn't configured." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error) {
+    logAuthError("verifyOtp", error);
+    if (error.status === 429 || error.code === "over_request_rate_limit") {
+      return { status: "error", message: "Too many attempts. Wait a minute, then try again." };
+    }
+    return { status: "error", message: "That code is wrong or has expired." };
   }
   redirect(await landingAfterSignIn(supabase, next));
 }

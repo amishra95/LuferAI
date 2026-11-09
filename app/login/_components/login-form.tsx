@@ -3,9 +3,11 @@
 import { useActionState, useState } from "react";
 import { Building2, CheckCircle2, Loader2, Mail } from "lucide-react";
 
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { sendMagicLink, signInWithGoogle, signInWithPassword, signInWithSso, type MagicLinkState, type PasswordState, type SsoState } from "../actions";
 
 /** `email`: prefilled from /login?email=… (team invite emails link there). */
@@ -13,6 +15,12 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
   const [state, linkAction, linkPending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
   const [pw, passwordAction, pwPending] = useActionState<PasswordState, FormData>(signInWithPassword, { status: "idle" });
   const busy = linkPending || pwPending;
+  // The link action with an intent ("reset": land on /password; "confirm": resend the confirmation).
+  // Set here, not as the button's name/value: React overrides the name of a button whose formAction is a server action.
+  const linkWith = (intent: "reset" | "confirm") => (formData: FormData) => {
+    formData.set("intent", intent);
+    linkAction(formData);
+  };
   const [sso, ssoAction, ssoPending] = useActionState<SsoState, FormData>(signInWithSso, { status: "idle" });
   const [ssoOpen, setSsoOpen] = useState(false);
 
@@ -51,10 +59,13 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
       </div>
 
       {state.status === "sent" ? (
-        <p role="status" className="flex items-start gap-2 text-body">
-          <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
-          {state.message}
-        </p>
+        <div className="grid gap-5">
+          <p role="status" className="flex items-start gap-2 text-body">
+            <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+            {state.message}
+          </p>
+          {state.email ? <EmailCodeForm email={state.email} next={state.next} /> : null}
+        </div>
       ) : (
         <form action={passwordAction} className="grid gap-3">
           <input type="hidden" name="next" value={next} />
@@ -77,9 +88,7 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
               {/* Same email link, landing on /password. formNoValidate: no password needed for this. */}
               <button
                 type="submit"
-                name="intent"
-                value="reset"
-                formAction={linkAction}
+                formAction={linkWith("reset")}
                 formNoValidate
                 disabled={busy}
                 className="text-link text-caption underline-offset-2 hover:underline"
@@ -87,15 +96,26 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
                 Forgot password?
               </button>
             </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              aria-invalid={pw.status === "error"}
-            />
-            {pw.status === "error" ? <p className="text-destructive text-caption">{pw.message}</p> : null}
+            <PasswordInput id="password" name="password" autoComplete="current-password" required aria-invalid={pw.status === "error"} />
+            {pw.status === "error" ? (
+              <p className="text-destructive text-caption">
+                {pw.message}
+                {pw.unconfirmed ? (
+                  <>
+                    {" "}
+                    <button
+                      type="submit"
+                      formAction={linkWith("confirm")}
+                      formNoValidate
+                      disabled={busy}
+                      className="text-link underline underline-offset-2"
+                    >
+                      Resend email
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
           </div>
           <Button type="submit" size="lg" disabled={busy}>
             {pwPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}

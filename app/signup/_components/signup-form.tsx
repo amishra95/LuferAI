@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
 
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PasswordInput } from "@/components/ui/password-input";
 import type { AccountType } from "@/lib/auth/onboarding";
 import { PASSWORD_MIN } from "@/lib/auth/password";
 import { PARTNER_KIND_LABEL, PARTNER_KINDS, type SignupField } from "@/lib/auth/signup-input";
@@ -50,10 +52,13 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
 
   if (state.status === "sent") {
     return (
-      <p role="status" className="flex items-start gap-2 text-body">
-        <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
-        {state.message}
-      </p>
+      <div className="grid gap-5">
+        <p role="status" className="flex items-start gap-2 text-body">
+          <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+          {state.message}
+        </p>
+        {state.email ? <EmailCodeForm email={state.email} /> : null}
+      </div>
     );
   }
 
@@ -82,10 +87,9 @@ export function SignupForm({ accountType }: { accountType: AccountType }) {
       </div>
 
       <Field id="password" label="Password" required error={e.password}>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="new-password"
           minLength={PASSWORD_MIN}
           maxLength={72}

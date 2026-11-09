@@ -5,10 +5,12 @@
       <tr><td>
         <p style="margin:0 0 24px;font-size:20px;font-weight:700;letter-spacing:-0.01em">Lufer</p>
         <h1 style="margin:0 0 12px;font-size:20px">Sign in to Lufer</h1>
-        <p style="margin:0 0 24px">Tap the button to sign in. The link works once and expires in one hour.</p>
+        <p style="margin:0 0 24px">Tap the button to sign in. The link and code work once and expire in one hour.</p>
         <p style="margin:0 0 24px">
           <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email" style="display:inline-block;background:#bf5700;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Sign in</a>
         </p>
+        <p style="margin:0 0 6px;color:#5E564C;font-size:14px">Or enter this code on Lufer:</p>
+        <p style="margin:0 0 24px;font-family:'Courier New',monospace;font-size:28px;font-weight:700;letter-spacing:0.2em">{{ .Token }}</p>
         <p style="margin:0;color:#5E564C;font-size:14px">If you didn't ask to sign in, you can ignore this email.</p>
       </td></tr>
     </table>
