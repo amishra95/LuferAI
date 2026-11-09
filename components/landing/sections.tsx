@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Check,
   Minus,
+  Plus,
   X,
 } from "lucide-react";
 
@@ -293,7 +294,7 @@ export function Faq() {
               <summary className="text-plum flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
                 {q}
                 <span aria-hidden className="border-ruling text-carbon grid size-7 shrink-0 place-items-center rounded-[3px] border transition-transform group-open:rotate-45">
-                  +
+                  <Plus className="size-4" strokeWidth={2} />
                 </span>
               </summary>
               <p className="text-ink-muted mt-3 pr-10">{a}</p>

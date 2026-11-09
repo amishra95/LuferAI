@@ -162,10 +162,10 @@
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
-  --radius-sm: 10px;
+  --radius-sm: 4px;
   --radius-md: var(--radius-control);
   --radius-lg: var(--radius-card);
-  --radius-xl: 18px;
+  --radius-xl: 10px;
   --radius-2xl: var(--radius-container);
 }
 
@@ -482,7 +482,7 @@ html:has(.lufer) {
   border-bottom: 3px double var(--color-line-strong);
 }
 
-/* Card: white surface (plum in dark), 1px frame border, 14px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
+/* Card: a white sheet (night surface in dark), 1px frame border, 8px radius, at most a hairline shadow. Pad p-5 (p-6 for large). */
 @utility panel {
   background: var(--color-surface);
   border: 1px solid var(--color-frame);
@@ -629,7 +629,7 @@ html:has(.lufer) {
   }
 }
 
-/* Green: the one primary action on a screen (Book, Confirm, Send, Apply). */
+/* Carbon (yellow on carbon): the one primary action on a screen (Book, Confirm, Send, Apply). */
 @utility btn-primary {
   background: var(--color-go);
   border-color: var(--color-go);

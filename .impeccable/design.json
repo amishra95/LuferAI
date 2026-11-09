@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T00:00:00Z",
+  "title": "Design System: Lufer",
+  "extensions": {
+    "colorMeta": {
+      "carbon": { "role": "primary", "displayName": "Carbon Ink Blue", "canonical": "#2b3a8c", "tonalRamp": ["#10142e", "#1f2a6b", "#2b3a8c", "#3c4ba3", "#6573c4", "#9aa8f5", "#c4ccf0", "#e8ebf9"] },
+      "carbon-deep": { "role": "primary", "displayName": "Carbon Deep", "canonical": "#1f2a6b" },
+      "carbon-light": { "role": "primary", "displayName": "Carbon Raised", "canonical": "#3c4ba3" },
+      "carbon-bright": { "role": "primary", "displayName": "Carbon Bright", "canonical": "#9aa8f5" },
+      "carbon-ink": { "role": "neutral", "displayName": "Carbon Type", "canonical": "#151a3b" },
+      "carbon-muted": { "role": "neutral", "displayName": "Faded Carbon", "canonical": "#545b82" },
+      "on-carbon-muted": { "role": "neutral", "displayName": "Cover Muted", "canonical": "#c4ccf0" },
+      "duplicate": { "role": "secondary", "displayName": "Duplicate Pink", "canonical": "#f6d9de", "tonalRamp": ["#4a2a30", "#7a4650", "#a86a76", "#cf95a0", "#e6b8c1", "#f6d9de", "#fae8eb", "#fdf5f6"] },
+      "triplicate": { "role": "secondary", "displayName": "Triplicate Yellow", "canonical": "#f7e9a8", "tonalRamp": ["#3d3200", "#6e5200", "#a98a12", "#e8c547", "#f2da78", "#f7e9a8", "#fbf2cc", "#fdf9e8"] },
+      "triplicate-deep": { "role": "secondary", "displayName": "Triplicate Deep", "canonical": "#e8c547" },
+      "stamp": { "role": "tertiary", "displayName": "Rubber-Stamp Violet", "canonical": "#6b3fa0", "tonalRamp": ["#2a1745", "#45276e", "#5a3190", "#6b3fa0", "#8f6bbd", "#b79ed6", "#ddd0ec", "#f0ecf6"] },
+      "stamp-ink": { "role": "tertiary", "displayName": "Stamp Ink", "canonical": "#5a3190" },
+      "ruling": { "role": "neutral", "displayName": "Ruling Blue", "canonical": "#d3d9ef" },
+      "paper": { "role": "neutral", "displayName": "Bill Paper", "canonical": "#f4f5fa" },
+      "white": { "role": "neutral", "displayName": "Original White", "canonical": "#ffffff" },
+      "night": { "role": "neutral", "displayName": "Night Cover", "canonical": "#10142e" },
+      "night-surface": { "role": "neutral", "displayName": "Night Sheet", "canonical": "#1a2049" },
+      "night-raised": { "role": "neutral", "displayName": "Night Raised", "canonical": "#242b5c" },
+      "night-line": { "role": "neutral", "displayName": "Night Rule", "canonical": "#2e3670" },
+      "mint": { "role": "status", "displayName": "Done Green", "canonical": "#3dd6b5" },
+      "mint-ink": { "role": "status", "displayName": "Done Green Ink", "canonical": "#0b6b57" },
+      "gold-ink": { "role": "status", "displayName": "Pending Ink", "canonical": "#6e5200" },
+      "error": { "role": "status", "displayName": "Refused Red", "canonical": "#e5484d" },
+      "diya-flame": { "role": "brand-mark", "displayName": "Diya Flame", "canonical": "#ff6b4a" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (wide)", "purpose": "Hero headline, closing CTA, wordmark and the TAX INVOICE sheet title. Anek Latin at width 118%." },
+      "headline": { "displayName": "Headline", "purpose": "Landing section headings, carbon on paper, normal width." },
+      "title": { "displayName": "Title", "purpose": "App page titles and legal sheet titles." },
+      "card-title": { "displayName": "Card Title", "purpose": "Sheet and card titles." },
+      "body": { "displayName": "Body", "purpose": "Running text." },
+      "meta": { "displayName": "Meta", "purpose": "Secondary lines and figure cells in tables." },
+      "label": { "displayName": "Label", "purpose": "Uppercase tracked column heads, stat-sheet heads, Particulars heads and stamp text, inside sheets only." },
+      "ledger": { "displayName": "Ledger (Courier Prime)", "purpose": "Written-in entries: line items, amounts, totals, bill numbers, numerals, copy marks." },
+      "code": { "displayName": "Code", "purpose": "Code, kbd, pre only." }
+    },
+    "shadows": [
+      { "name": "hairline", "value": "0 1px 2px rgb(21 26 59 / 0.05)", "purpose": "Every app sheet and card in light mode; none in dark mode." },
+      { "name": "loose-sheet", "value": "0 18px 40px -24px rgb(21 26 59 / 0.35)", "purpose": "Landing illustrative sheets (ledger sheets, product preview) lifted off the paper." },
+      { "name": "loose-sheet-on-carbon", "value": "0 24px 50px -24px rgb(0 0 0 / 0.55)", "purpose": "The hero bill sheet over the carbon cover." },
+      { "name": "double-rule", "value": "border-bottom: 3px double var(--color-line-strong)", "purpose": "Not a shadow: the bill book's double rule under sheet headers and above totals." }
+    ],
+    "motion": [
+      { "name": "state-change", "value": "100ms (background-color, border-color, color)", "purpose": "App buttons, fields and interactive sheets." },
+      { "name": "landing-state-change", "value": "150ms", "purpose": "Landing CTA hover." },
+      { "name": "stamp-land", "value": "420ms cubic-bezier(0.16, 1, 0.3, 1); scale 1.6 to 1, opacity 0 to 0.9; delays 500ms and 1050ms", "purpose": "The hero stamps landing once on load, IN POLICY then APPROVED. None under reduced motion." },
+      { "name": "running-pulse", "value": "opacity to 0.45, 1.6s ease-in-out infinite", "purpose": "Running state on a tool label." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "40rem" },
+      { "name": "md", "value": "48rem" },
+      { "name": "lg", "value": "64rem" },
+      { "name": "xl", "value": "80rem" },
+      { "name": "stamp-container", "value": "28rem (container query: smaller stamp on narrow sheets)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled action on a light screen: carbon with white text.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Plan an event</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid #b3b9d4; background: transparent; color: #151a3b; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 100ms, border-color 100ms, color 100ms; } .ds-btn:focus-visible { outline: 2px solid #2b3a8c; outline-offset: 2px; } .ds-btn-primary { background: #2b3a8c; border-color: #2b3a8c; color: #ffffff; } .ds-btn-primary:hover { background: #1f2a6b; border-color: #1f2a6b; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Default secondary action: transparent with a strong ruling border.",
+      "html": "<button class=\"ds-btn-outline\">Decline</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid #b3b9d4; background: transparent; color: #151a3b; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 100ms, border-color 100ms; } .ds-btn-outline:hover { background: #f7f8fc; border-color: #151a3b; } .ds-btn-outline:focus-visible { outline: 2px solid #2b3a8c; outline-offset: 2px; }"
+    },
+    {
+      "name": "Yellow Action on Carbon",
+      "kind": "button",
+      "refersTo": "button-primary-on-carbon",
+      "description": "On the carbon cover the only filled action is the yellow triplicate; others are white outlines.",
+      "html": "<div class=\"ds-cover\"><a class=\"ds-cta ds-cta-yellow\" href=\"#\">Plan your first event</a><a class=\"ds-cta ds-cta-ghost\" href=\"#\">List your venue</a></div>",
+      "css": ".ds-cover { display: flex; gap: 12px; padding: 24px; background: #2b3a8c; } .ds-cta { display: inline-flex; align-items: center; padding: 14px 28px; border-radius: 6px; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; text-decoration: none; transition: background-color 150ms; } .ds-cta:focus-visible { outline: 2px solid #e8c547; outline-offset: 2px; } .ds-cta-yellow { background: #f7e9a8; color: #151a3b; } .ds-cta-yellow:hover { background: #f9edb9; } .ds-cta-ghost { border: 1.5px solid rgb(255 255 255 / 0.45); color: #ffffff; } .ds-cta-ghost:hover { background: rgb(255 255 255 / 0.1); }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text input: 36px, near-square, focus turns the border carbon with a 1px ring.",
+      "html": "<label class=\"ds-field-label\">GSTIN *<input class=\"ds-field\" value=\"29ABCDE1234F1Z5\"></label>",
+      "css": ".ds-field-label { display: grid; gap: 6px; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #545b82; } .ds-field { height: 36px; width: 280px; border-radius: 6px; border: 1px solid #b3b9d4; background: #ffffff; padding: 0 12px; color: #151a3b; font: inherit; font-size: 15px; font-weight: 400; transition: border-color 100ms; } .ds-field:hover { border-color: #545b82; } .ds-field:focus { outline: none; border-color: #2b3a8c; box-shadow: 0 0 0 1px #2b3a8c; }"
+    },
+    {
+      "name": "Status Stamps",
+      "kind": "chip",
+      "refersTo": "stamp-badge",
+      "description": "App state as upright rubber stamps: the word leads, semantic ink confirms it.",
+      "html": "<div class=\"ds-stamps\"><span class=\"ds-stamp ds-stamp-ok\">Approved</span><span class=\"ds-stamp ds-stamp-warn\">Pending</span><span class=\"ds-stamp ds-stamp-bad\">Declined</span><span class=\"ds-stamp\">Deposit held</span></div>",
+      "css": ".ds-stamps { display: flex; gap: 8px; flex-wrap: wrap; } .ds-stamp { display: inline-flex; align-items: center; padding: 2px 8px; border: 1.5px solid currentColor; border-radius: 3px; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #2b3a8c; } .ds-stamp-ok { color: #0b6b57; background: #e1f5ee; } .ds-stamp-warn { color: #6e5200; background: #f7e9a8; } .ds-stamp-bad { color: #c13d44; background: #fdedee; }"
+    },
+    {
+      "name": "Landing Stamp",
+      "kind": "custom",
+      "refersTo": "bill-stamp",
+      "description": "The large violet rubber stamp that lands on the hero invoice, rotated, ink multiplied into the print.",
+      "html": "<div class=\"ds-stamp-paper\"><span class=\"ds-bill-stamp\">In policy</span></div>",
+      "css": ".ds-stamp-paper { padding: 32px; background: #ffffff; } .ds-bill-stamp { display: inline-block; padding: 5px 12px; border: 3px solid currentColor; border-radius: 6px; color: #6b3fa0; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; font-stretch: 118%; font-size: 1.15rem; font-weight: 800; letter-spacing: 0.08em; line-height: 1; text-transform: uppercase; mix-blend-mode: multiply; opacity: 0.9; rotate: -9deg; animation: ds-stamp-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both; } @keyframes ds-stamp-in { from { opacity: 0; scale: 1.6; } 60% { opacity: 0.95; } to { opacity: 0.9; scale: 1; } } @media (prefers-reduced-motion: reduce) { .ds-bill-stamp { animation: none; } }"
+    },
+    {
+      "name": "Sheet",
+      "kind": "card",
+      "refersTo": "sheet",
+      "description": "App card as a white sheet: 1px frame, 8px corners, hairline shadow, header on the double rule.",
+      "html": "<div class=\"ds-sheet\"><div class=\"ds-sheet-head\"><div class=\"ds-sheet-title\">Approval: Saffron Terrace</div><div class=\"ds-sheet-desc\">18 guests · ₹2,200 a head · over the ₹2,000 per-head cap</div></div><div class=\"ds-sheet-body\">Line items and actions sit here.</div></div>",
+      "css": ".ds-sheet { width: 420px; background: #ffffff; border: 1px solid rgb(60 75 163 / 0.3); border-radius: 8px; box-shadow: 0 1px 2px rgb(21 26 59 / 0.05); font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; color: #151a3b; } .ds-sheet-head { padding: 20px; border-bottom: 3px double #b3b9d4; } .ds-sheet-title { font-size: 16px; font-weight: 600; line-height: 1.3; } .ds-sheet-desc { margin-top: 2px; font-size: 13px; color: #545b82; } .ds-sheet-body { padding: 20px; font-size: 15px; }"
+    },
+    {
+      "name": "Ledger Sheet",
+      "kind": "custom",
+      "refersTo": "sheet",
+      "description": "Features as numbered, ruled particulars with a copy mark: the landing replacement for icon-card grids.",
+      "html": "<div class=\"ds-ledger\"><div class=\"ds-ledger-head\"><span class=\"ds-ledger-label\">Particulars</span><span class=\"ds-ledger-copy\">Finance copy</span></div><ol class=\"ds-ledger-rows\"><li><span class=\"ds-ledger-n\">01</span><b>Pre-spend policy</b><span>Per-head caps and approval chains, enforced before booking.</span></li><li><span class=\"ds-ledger-n\">02</span><b>Tally export</b><span>Tally Prime XML, plus PO ledgers per cost centre.</span></li></ol></div>",
+      "css": ".ds-ledger { width: 560px; background: #ffffff; border: 1px solid #d3d9ef; border-radius: 6px; box-shadow: 0 18px 40px -24px rgb(21 26 59 / 0.35); font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; color: #151a3b; } .ds-ledger-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 28px; border-bottom: 3px double #2b3a8c; } .ds-ledger-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(43 58 140 / 0.7); } .ds-ledger-copy { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #2b3a8c; } .ds-ledger-rows { list-style: none; margin: 0; padding: 0 28px; } .ds-ledger-rows li { display: grid; grid-template-columns: 2.5rem 11rem 1fr; gap: 0 24px; padding: 16px 0; border-bottom: 1px solid #d3d9ef; font-size: 15px; } .ds-ledger-rows li:last-child { border-bottom: 0; } .ds-ledger-rows b { color: #2b3a8c; font-weight: 600; } .ds-ledger-rows span:last-child { color: #545b82; } .ds-ledger-n { font-family: 'Courier Prime', ui-monospace, monospace; font-size: 13px; color: rgb(43 58 140 / 0.6); }"
+    },
+    {
+      "name": "Cover Sidebar",
+      "kind": "nav",
+      "refersTo": "sidebar-cover",
+      "description": "The app's navigation on the bill book's carbon cover.",
+      "html": "<nav class=\"ds-nav\"><p class=\"ds-nav-group\">Company</p><a class=\"ds-nav-item ds-nav-active\" href=\"#\">Home</a><a class=\"ds-nav-item\" href=\"#\">Venues</a><a class=\"ds-nav-item\" href=\"#\">Approvals</a></nav>",
+      "css": ".ds-nav { width: 220px; padding: 16px 12px; background: #2b3a8c; font-family: 'Anek Latin', ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column; gap: 2px; } .ds-nav-group { margin: 0 0 6px 8px; font-size: 12px; font-weight: 600; color: #c4ccf0; } .ds-nav-item { padding: 7px 8px; border-radius: 6px; color: #f4f5fa; font-size: 15px; text-decoration: none; transition: background-color 100ms; } .ds-nav-item:hover { background: #35449a; } .ds-nav-active { background: #3c4ba3; } .ds-nav-item:focus-visible { outline: 2px solid #e8c547; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The GST Bill Book",
+    "overview": "Lufer is drawn as the Indian duplicate/triplicate bill book every finance team already trusts. An event is written up once as line items on a white original sheet, stamped as it passes each check, and copied for everyone who needs it. Carbon-blue ink is the brand: it is the cover (site header, hero, app sidebar and top bar, the finance band) and the ink of everything printed on the sheets. Copies are coloured paper: the pink duplicate for the venue's side and secondary slips, the yellow triplicate for the one filled action on carbon, highlights and the closing call to action. Pale blue ruling divides rows; a double rule closes every sheet header and every total. State is a rubber stamp.\n\nThe world is calm, dense where the books are dense, and literal about its metaphor: tables are \"Particulars\", features are numbered line items, amounts are typed in Courier Prime as if filled in on the sheet, illustrative sheets carry a SPECIMEN mark. The public site is always light (paper and carbon in every OS theme); the app follows the OS into a night-blue dark mode where the same semantic roles re-resolve.\n\nThe category default this world replaces is a split hero of headline beside a dashboard screenshot over rows of icon cards. The hero is instead an open bill book page with stamps landing on it.",
+    "keyCharacteristics": [
+      "Carbon-blue cover, white sheets on cool paper, pink and yellow copies as secondary surfaces.",
+      "Pale blue single rules between rows; a 3px double rule under every sheet header and above every total.",
+      "State as rubber stamps: outlined, uppercase, tracked, near-square; rotated on the landing, upright in the app.",
+      "One family (Anek Latin) for every voice, widened through its wdth axis for display; Courier Prime only for written-in entries and amounts.",
+      "Near-square corners throughout (3 to 8px); flat app surfaces, softly lifted loose sheets on the landing."
+    ],
+    "rules": [
+      { "name": "The No-Hex Rule", "body": "Components use the semantic roles (canvas, surface, fg, fg-muted, line, line-strong, frame, link, focus, go, sage, warn, rose), never a palette hex. globals.css maps them for light, dark and carbon contexts; that mapping is the only place colour is decided.", "section": "colors" },
+      { "name": "The Carbon Context Rule", "body": "Anything placed on the cover sits inside a carbon context (the `.on-plum` class), which remaps the same semantic names: text turns paper white, the primary action turns triplicate yellow with carbon text, focus and selection turn yellow. Never hand-colour a component for carbon.", "section": "colors" },
+      { "name": "The One Filled Action Rule", "body": "One filled button per view. On light grounds it is carbon; on carbon it is the yellow copy. Every other action on carbon is a white outline.", "section": "colors" },
+      { "name": "The Flame Rule", "body": "Coral exists only in the Diya mark. Older class names that say \"coral\" now resolve to stamp violet.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "Anek Latin is the only interface face. Width, weight and case make the hierarchy; no second display face.", "section": "typography" },
+      { "name": "The Written-In Rule", "body": "Courier Prime appears only for what would be filled in by hand or typewriter on the sheet: entries, amounts, numbers. Never for headings, buttons, navigation or prose.", "section": "typography" },
+      { "name": "The Tabular Figures Rule", "body": "Money, counts, codes and timestamps use tabular digits (`figure` in Anek, or Courier Prime on sheets); right-aligned table cells hold figures.", "section": "typography" },
+      { "name": "The Flat Desk Rule", "body": "App surfaces are flat at rest. Depth comes from the frame border, the double rule and tonal steps; hover steps the border and background, never adds shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the semantic roles and let carbon contexts remap them; put anything on the cover inside a carbon context.",
+      "Do close every sheet header and every total with the 3px double rule.",
+      "Do write state as a stamp with a word: violet only on public pages; semantic ink (green, yellow, red, carbon) in the app.",
+      "Do set money, counts and codes in tabular figures, and written-in sheet entries in Courier Prime.",
+      "Do mark every illustrative sheet SPECIMEN.",
+      "Do use pink for the venue's copy and secondary slips, yellow for the single action on carbon and for highlights.",
+      "Do keep corners between 3px and 8px on controls and sheets (12px only for page-level blocks).",
+      "Do settle every animation immediately under reduced motion."
+    ],
+    "donts": [
+      "Don't build feature sections as grids of icon cards, or a hero of headline beside a dashboard screenshot; use ruled, numbered sheets and the bill book page.",
+      "Don't put a small uppercase kicker above a section heading; tracked labels belong inside sheets as column and copy heads.",
+      "Don't use coral anywhere but the Diya flame.",
+      "Don't set Courier Prime for headings, buttons, navigation or prose.",
+      "Don't use more than one filled button in a view, or a filled non-yellow button on carbon.",
+      "Don't add shadows to app surfaces beyond the hairline, or blur behind floating bars.",
+      "Don't rely on colour alone for state: a stamp has a word, a pill has a dot or icon, a change has a sign and arrow.",
+      "Don't put a hex value in a component (the Diya mark's fixed hexes are the one exception)."
+    ]
+  }
+}
