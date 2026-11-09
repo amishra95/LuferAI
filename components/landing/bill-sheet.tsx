@@ -14,7 +14,7 @@ const LINES = [
 
 export function BillSheet() {
   return (
-    <figure aria-hidden className="relative mx-auto w-full max-w-[34rem] select-none lg:mr-0">
+    <figure aria-hidden className="@container relative mx-auto w-full max-w-[34rem] select-none lg:mr-0">
       {/* The duplicate copy, pink, offset beneath the original. */}
       <div className="bg-duplicate absolute inset-0 translate-x-3 translate-y-4 rotate-[2.2deg] rounded-[6px] shadow-[0_18px_40px_-20px_rgb(0_0_0/0.45)]">
         <span className="font-ledger text-carbon/60 absolute bottom-2 left-5 text-[11px] tracking-[0.2em] uppercase">Duplicate</span>
@@ -40,16 +40,16 @@ export function BillSheet() {
             <tr className="text-carbon/60 border-ruling border-b text-[11px] tracking-[0.08em] uppercase">
               <th className="py-2 font-semibold">Particulars</th>
               <th className="py-2 text-right font-semibold">Qty</th>
-              <th className="hidden py-2 text-right font-semibold sm:table-cell">Rate ₹</th>
+              <th className="hidden py-2 text-right font-semibold @md:table-cell">Rate ₹</th>
               <th className="py-2 text-right font-semibold">Amount ₹</th>
             </tr>
           </thead>
-          <tbody className="font-ledger text-meta sm:text-[15px]">
+          <tbody className="font-ledger text-meta @md:text-[15px]">
             {LINES.map((l) => (
               <tr key={l.item} className="border-ruling border-b">
                 <td className="py-2.5 pr-2">{l.item}</td>
                 <td className="py-2.5 text-right tabular-nums">{l.qty}</td>
-                <td className="hidden py-2.5 text-right tabular-nums sm:table-cell">{l.rate}</td>
+                <td className="hidden py-2.5 text-right tabular-nums @md:table-cell">{l.rate}</td>
                 <td className="py-2.5 text-right tabular-nums">{l.amount}</td>
               </tr>
             ))}
@@ -58,7 +58,7 @@ export function BillSheet() {
             <tr className="font-ledger border-carbon border-t-[3px] border-double text-[15px] font-bold sm:text-base">
               <td className="pt-3">Total</td>
               <td />
-              <td className="hidden sm:table-cell" />
+              <td className="hidden @md:table-cell" />
               <td className="pt-3 text-right tabular-nums">1,15,640</td>
             </tr>
           </tfoot>

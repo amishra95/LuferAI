@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-/** Sign-in and sign-up frame: a back link to the home page, the wordmark above a centred form. */
+import { Logo } from "@/components/brand/logo";
+import { BillSheet } from "@/components/landing/bill-sheet";
+
+/**
+ * Sign-in and sign-up frame. From lg, the bill book's carbon cover sits beside the
+ * form with the same stamped invoice as the home page; on phones the cover
+ * shrinks to a band with the wordmark and the form follows on paper.
+ */
 export function AuthShell({
   children,
   wide = false,
@@ -10,28 +17,31 @@ export function AuthShell({
   wide?: boolean;
 }) {
   return (
-    <>
-      <Link
-        href="/"
-        className="text-fg-muted hover:text-fg fixed top-[calc(1rem+var(--app-safe-top))] left-4 z-10 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-medium"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Back
-      </Link>
-      <main
-        className={`mx-auto flex w-full flex-1 flex-col justify-center gap-4 px-4 pt-[calc(2.5rem+var(--app-safe-top))] pb-[calc(2.5rem+var(--app-safe-bottom))] ${wide ? "max-w-lg" : "max-w-sm"}`}
-      >
+    <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[1fr_1.1fr]">
+      <aside className="on-plum flex items-center justify-between px-4 pt-[calc(0.75rem+var(--app-safe-top))] pb-3 lg:flex-col lg:items-start lg:justify-between lg:px-12 lg:py-12">
+        <Link href="/" aria-label="Lufer home" className="rounded-md">
+          <Logo size="sm" tagline={false} tone="linen" />
+        </Link>
+        <div className="hidden w-full max-w-md self-center lg:block">
+          <BillSheet />
+        </div>
+        <p className="text-on-carbon-muted hidden text-meta lg:block">Your Corporate Entertainment Concierge</p>
         <Link
           href="/"
-          aria-label="Lufer home"
-          className="text-fg mb-2 w-fit self-center rounded-md"
+          className="text-on-carbon-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-medium hover:text-white lg:hidden"
         >
-          <span className="font-display text-[1.6rem] leading-none font-semibold tracking-tight">
-            Lufer
-          </span>
+          <ArrowLeft className="size-4" aria-hidden />
+          Back
         </Link>
-        {children}
+      </aside>
+
+      <main className="flex flex-1 flex-col px-4 pt-8 pb-[calc(2.5rem+var(--app-safe-bottom))] lg:px-12 lg:pt-10">
+        <Link href="/" className="text-fg-muted hover:text-fg hidden w-fit items-center gap-1.5 rounded-md py-1 text-meta font-medium lg:inline-flex">
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to home
+        </Link>
+        <div className={`mx-auto flex w-full flex-1 flex-col gap-4 lg:justify-center ${wide ? "max-w-lg" : "max-w-sm"}`}>{children}</div>
       </main>
-    </>
+    </div>
   );
 }
