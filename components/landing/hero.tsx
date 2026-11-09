@@ -28,7 +28,7 @@ export function SiteHeader() {
           <Link href="/login" className="text-on-carbon-muted hover:text-white rounded-md px-3 py-2">
             Sign in
           </Link>
-          <Link href="/signup" className="landing-btn landing-btn-primary landing-btn-sm">
+          <Link href="/signup" className="landing-btn landing-btn-ghost landing-btn-sm">
             Get started
           </Link>
         </nav>

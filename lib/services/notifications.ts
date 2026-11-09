@@ -105,7 +105,7 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
           "— Lufer",
         ];
     const text = lines.join("\n");
-    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${lines
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111111;line-height:1.5">${lines
       .map((l) => (l === signIn ? `<p><a href="${escHtml(signIn)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
       .join("")}</body></html>`;
     return await sendEmail({ to: app.email, subject, text, html });
@@ -137,7 +137,7 @@ export async function notifyMonthlyStatement(s: {
     const summary = `${s.bookingCount} booking${s.bookingCount === 1 ? "" : "s"} across ${s.vendorCount} vendor${s.vendorCount === 1 ? "" : "s"}. Total ${inr.format(s.total)} including GST; balance due ${inr.format(s.due)}.`;
     const subject = `Your Lufer statement for ${s.label} (${s.number})`;
     const text = `Your statement for ${s.label} is ready.\n\n${summary}\n\nView, print or download the CSV: ${url}\n\nEach line references the vendor's own GST tax invoice, which is what you claim input tax credit against.`;
-    const html = `<p>Your statement for <strong>${escHtml(s.label)}</strong> is ready.</p><p>${escHtml(summary)}</p><p><a href="${escHtml(url)}">View, print or download the CSV</a></p><p style="color:#57534e;font-size:12px">Each line references the vendor's own GST tax invoice, which is what you claim input tax credit against.</p>`;
+    const html = `<p>Your statement for <strong>${escHtml(s.label)}</strong> is ready.</p><p>${escHtml(summary)}</p><p><a href="${escHtml(url)}">View, print or download the CSV</a></p><p style="color:#5c574f;font-size:12px">Each line references the vendor's own GST tax invoice, which is what you claim input tax credit against.</p>`;
     const outcome = await sendEmail({ to: company.primary_contact_email, subject, text, html });
     if (outcome.status !== "sent") console.warn(`notify: statement email for ${s.number} ${outcome.status}:`, "reason" in outcome ? outcome.reason : outcome.error);
     return outcome;
@@ -150,7 +150,7 @@ export async function notifyMonthlyStatement(s: {
 /** Tells someone an Approver added them to their company, with where to sign in. Never throws. */
 export async function notifyTeamInvite(to: string, message: { subject: string; text: string; lines: string[] }, signInUrl: string): Promise<NotifyOutcome> {
   try {
-    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${message.lines
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111111;line-height:1.5">${message.lines
       .map((l) => (l === signInUrl ? `<p><a href="${escHtml(signInUrl)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
       .join("")}</body></html>`;
     return await sendEmail({ to, subject: message.subject, text: message.text, html });
@@ -161,7 +161,7 @@ export async function notifyTeamInvite(to: string, message: { subject: string; t
 }
 
 const plainHtml = (lines: string[]) =>
-  `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${lines
+  `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111111;line-height:1.5">${lines
     .map((l) => (l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
     .join("")}</body></html>`;
 

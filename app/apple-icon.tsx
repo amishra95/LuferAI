@@ -9,10 +9,10 @@ export const contentType = "image/png";
 export default function AppleIcon() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#2B3A8C" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111111" }}>
         <svg width="120" height="120" viewBox="0 0 64 64">
-          <path d={DIYA_FLAME} fill="#FF6B4A" />
-          <path d={DIYA_BOWL} fill="#FFFFFF" />
+          <path d={DIYA_FLAME} fill="#FF4D1A" />
+          <path d={DIYA_BOWL} fill="#F5F2EC" />
         </svg>
       </div>
     ),

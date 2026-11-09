@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 
 /*
- * Lufer brand: the Diya mark (a lamp bowl with a coral flame: hospitality and
+ * Lufer brand: the Diya mark (a lamp bowl with a flame: hospitality and
  * celebration) beside "Lufer" in wide Anek Latin, optionally with the tagline
- * beneath. The bowl is carbon ink (white on carbon grounds); the coral flame is
- * the one colour reserved for the mark. Hexes are fixed so the mark reads the
- * same in dark mode. The same paths are in app/icon.svg, app/apple-icon.tsx and
+ * beneath. The bowl is jet black (soft white on ink grounds) and the flame is
+ * flame orange. Fills read the palette tokens (fixed tokens, not semantic roles),
+ * so the mark follows globals.css and reads the same in dark mode. The same paths are in app/icon.svg, app/apple-icon.tsx and
  * app/opengraph-image.tsx (keep them in step: DIYA_FLAME / DIYA_BOWL).
  */
 
@@ -13,16 +13,16 @@ import { cn } from "@/lib/utils";
 export const DIYA_FLAME = "M32 5C32 5 42.5 16 42.5 23C42.5 28.8 37.8 32 32 32C26.2 32 21.5 28.8 21.5 23C21.5 16 32 5 32 5Z";
 export const DIYA_BOWL = "M6 36H58C58 49 46.4 59 32 59C17.6 59 6 49 6 36Z";
 
-const CARBON = "#2b3a8c";
-const WHITE = "#ffffff";
-const CORAL = "#ff6b4a";
+const INK = "var(--color-ink)";
+const PAPER = "var(--color-paper)";
+const FLAME = "var(--color-accent)";
 
-/** The Diya mark alone. `tone`: the bowl's colour, carbon on light grounds ("plum"), white on carbon ("linen"). */
+/** The Diya mark alone. `tone`: the bowl's colour, ink on light grounds ("plum"), soft white on ink ("linen"). */
 export function DiyaMark({ tone = "plum", className, title }: { tone?: "plum" | "linen"; className?: string; title?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={cn("shrink-0", className)} role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
-      <path d={DIYA_FLAME} fill={CORAL} />
-      <path d={DIYA_BOWL} fill={tone === "linen" ? WHITE : CARBON} />
+      <path d={DIYA_FLAME} fill={FLAME} />
+      <path d={DIYA_BOWL} fill={tone === "linen" ? PAPER : INK} />
     </svg>
   );
 }
@@ -35,7 +35,7 @@ export function Logo({
 }: {
   size?: "sm" | "md" | "lg";
   tagline?: boolean;
-  /** Carbon on light grounds (default, "plum"), white on carbon ("linen"). */
+  /** Ink on light grounds (default, "plum"), soft white on ink ("linen"). */
   tone?: "plum" | "linen";
   className?: string;
 }) {

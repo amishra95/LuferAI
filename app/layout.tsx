@@ -14,10 +14,10 @@ const courierPrime = Courier_Prime({ subsets: ["latin"], weight: ["400", "700"],
 const geistMono = GeistMono;
 
 export const viewport: Viewport = {
-  // Carbon brand bar (light) / night canvas (dark); mirrors --color-carbon and --color-night.
+  // Jet black in both schemes (the ink cover / dark canvas); mirrors --color-ink.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#2B3A8C" },
-    { media: "(prefers-color-scheme: dark)", color: "#10142E" },
+    { media: "(prefers-color-scheme: light)", color: "#111111" },
+    { media: "(prefers-color-scheme: dark)", color: "#111111" },
   ],
   colorScheme: "light dark",
   // Edge-to-edge (incl. Capacitor shells); layouts pad via --app-safe-* in globals.css.
