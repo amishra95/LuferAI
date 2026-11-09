@@ -5,45 +5,73 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 /*
- * Velvet Night: the one source of truth for colour, type and shape.
- * Components use the semantic names (canvas, surface, fg, line, sage, warn,
- * rose…); this file maps them onto the palette for light, dark and plum
+ * Bill Book: the one source of truth for colour, type and shape.
+ * Lufer is drawn as an Indian GST bill book: carbon-blue ink on white original
+ * sheets, pink and yellow duplicate copies, pale blue ruling, violet rubber
+ * stamps for state. Components use the semantic names (canvas, surface, fg,
+ * line, sage, warn, rose…); this file maps them for light, dark and carbon
  * (.on-plum) contexts. No component should carry a hex value.
  *
- *   plum     brand: header, nav, logo, hero          go      primary action (green), one per screen
- *   coral    brand accent: logo rule, hero glow      mint    success: available, confirmed
- *   gold     highlights: top pick, savings, rewards
- *   linen    app background                          ink     text
+ *   carbon       brand ink: header, nav, hero, primary action on light
+ *   duplicate    pink copy: secondary sheets, held/pending fills
+ *   triplicate   yellow copy: primary action on carbon, highlights, top pick
+ *   stamp        violet rubber stamp: approved / in policy / accent
+ *   ruling       pale blue lines and borders on light
+ *   paper        app background            carbon-ink   text
  *
- * Type: Plus Jakarta Sans for UI (tabular digits for figures), Fraunces for
- * display headings, Geist Mono for code only.
+ * The older names (plum, coral, go, gold, linen, sand, ink…) are kept as
+ * aliases of these so existing class names re-resolve; new code uses the
+ * bill-book names.
+ *
+ * Type: Anek Latin (Ek Type) for every voice, wide for display; Courier Prime
+ * only for written-in entries and amounts on bill sheets; Geist Mono for code.
  */
 @theme {
   /* Palette ------------------------------------------------------------ */
-  --color-plum: #2a1b3d;
-  --color-plum-light: #3a2a50;
-  --color-coral: #ff6b4a;
-  --color-coral-hover: #e85a3a;
-  /* White on coral is 2.8:1 (fails WCAG AA); ink is 6.3:1. */
-  --color-on-coral: #1a1523;
-  /* Primary actions (emerald-700/800): white on it is 5.5:1 (emerald-600 would be 3.8:1). */
-  --color-go: #047857;
-  --color-go-hover: #065f46;
+  --color-carbon: #2b3a8c;
+  --color-carbon-deep: #1f2a6b;
+  --color-carbon-light: #3c4ba3; /* raised surfaces on carbon */
+  --color-carbon-bright: #9aa8f5; /* carbon as text/action on dark grounds */
+  --color-carbon-ink: #151a3b;
+  --color-carbon-muted: #545b82; /* 6.3:1 on paper */
+  --color-on-carbon-muted: #c4ccf0;
+  --color-duplicate: #f6d9de;
+  --color-triplicate: #f7e9a8;
+  --color-triplicate-deep: #e8c547;
+  --color-stamp: #6b3fa0;
+  --color-stamp-ink: #5a3190;
+  --color-stamp-soft: color-mix(in srgb, var(--color-stamp) 10%, var(--color-white));
+  --color-ruling: #d3d9ef;
+  --color-paper: #f4f5fa;
+  --color-night: #10142e; /* dark canvas */
+  --color-night-surface: #1a2049;
+  --color-night-raised: #242b5c;
+  --color-night-line: #2e3670;
+
+  /* Aliases of the earlier palette names (see above). */
+  --color-plum: var(--color-carbon);
+  --color-plum-light: var(--color-carbon-light);
+  --color-coral: var(--color-stamp);
+  --color-coral-hover: var(--color-stamp-ink);
+  --color-on-coral: #ffffff; /* white on stamp violet: 7.6:1 */
+  /* Primary action on light grounds: carbon with white text (10.3:1). On carbon it turns triplicate (.on-plum). */
+  --color-go: var(--color-carbon);
+  --color-go-hover: var(--color-carbon-deep);
   --color-on-go: #ffffff;
-  --color-gold: #f2c14e;
-  --color-gold-soft: #fdf1d3;
-  --color-gold-ink: #8a5a00;
+  --color-gold: var(--color-triplicate-deep);
+  --color-gold-soft: var(--color-triplicate);
+  --color-gold-ink: #6e5200;
   --color-mint: #3dd6b5;
-  --color-mint-soft: #e3f9f3;
+  --color-mint-soft: #e1f5ee;
   --color-mint-ink: #0b6b57;
-  --color-coral-soft: color-mix(in srgb, var(--color-coral) 12%, var(--color-white));
-  --color-coral-ink: #b8401f; /* coral as text: 5.1:1 on linen, 4.9:1 on coral-soft */
-  --color-linen: #faf6f0;
+  --color-coral-soft: var(--color-stamp-soft);
+  --color-coral-ink: var(--color-stamp-ink); /* 8.4:1 on paper */
+  --color-linen: var(--color-paper);
   --color-white: #ffffff;
-  --color-sand: #ece4d8; /* card borders on light */
-  --color-ink: #1a1523;
-  --color-ink-muted: #6b6275;
-  --color-on-plum-muted: #c9beda;
+  --color-sand: var(--color-ruling); /* card borders on light */
+  --color-ink: var(--color-carbon-ink);
+  --color-ink-muted: var(--color-carbon-muted);
+  --color-on-plum-muted: var(--color-on-carbon-muted);
   --color-error: #e5484d;
   /* Error as text or a filled button: #e5484d alone is 3.6:1 on linen. */
   --color-error-ink: color-mix(in srgb, var(--color-error) 80%, var(--color-ink));
@@ -94,21 +122,23 @@
   --text-caption--line-height: 1.5;
 
   /* Shape --------------------------------------------------------------- */
-  --radius-control: 12px; /* buttons, inputs */
-  --radius-card: 14px;
-  --radius-badge: 9999px; /* badges, status pills, step indicators */
-  --radius-tile: 6px; /* monogram tile, key caps */
-  --radius-container: 24px;
-  --shadow-card: 0 1px 2px rgb(26 21 35 / 0.04);
+  /* Bill-book shape: sheets have barely rounded corners; stamps are near-square. */
+  --radius-control: 6px; /* buttons, inputs */
+  --radius-card: 8px; /* sheets */
+  --radius-badge: 3px; /* stamps, pills, step indicators */
+  --radius-tile: 4px; /* monogram tile, key caps */
+  --radius-container: 12px;
+  --shadow-card: 0 1px 2px rgb(21 26 59 / 0.05);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-anek), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-anek), ui-sans-serif, system-ui, sans-serif;
+  --font-ledger: var(--font-courier-prime), ui-monospace, monospace;
   /* Figures (money, counts, timestamps) use the UI face with tabular digits; see `figure`. */
-  --font-mono: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-anek), ui-sans-serif, system-ui, sans-serif;
   --font-code: var(--font-geist-mono), ui-monospace, monospace;
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -139,37 +169,50 @@
   --radius-2xl: var(--radius-container);
 }
 
-/* Dark: ink canvas, plum cards, plum-light borders. Coral, gold and mint stay. */
+/* Dark: night canvas and surfaces, carbon-bright for links and focus. Stamp, triplicate and mint stay. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: var(--color-ink);
-    --color-elevated: var(--color-plum);
-    --color-surface: var(--color-plum);
-    --color-surface-raised: var(--color-plum-light);
-    --color-surface-hover: color-mix(in srgb, var(--color-plum-light) 55%, var(--color-plum));
-    --color-line: var(--color-plum-light);
-    --color-line-strong: color-mix(in srgb, var(--color-plum-light) 70%, var(--color-on-plum-muted));
-    --color-frame: color-mix(in srgb, var(--color-plum-light) 20%, transparent);
-    --color-fg: var(--color-linen);
-    --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-plum-muted));
-    --color-fg-subtle: var(--color-on-plum-muted);
-    --color-fg-faint: var(--color-on-plum-muted);
-    --color-link: var(--color-on-plum-muted);
-    --color-focus: var(--color-gold);
-    --color-selected: var(--color-on-plum-muted);
-    --color-on-selected: var(--color-ink);
+    --color-canvas: var(--color-night);
+    --color-elevated: var(--color-night-surface);
+    --color-surface: var(--color-night-surface);
+    --color-surface-raised: var(--color-night-raised);
+    --color-surface-hover: color-mix(in srgb, var(--color-night-raised) 55%, var(--color-night-surface));
+    --color-line: var(--color-night-line);
+    --color-line-strong: color-mix(in srgb, var(--color-night-line) 70%, var(--color-on-carbon-muted));
+    --color-frame: color-mix(in srgb, var(--color-night-line) 60%, transparent);
+    --color-fg: var(--color-paper);
+    --color-fg-muted: color-mix(in srgb, var(--color-paper) 55%, var(--color-on-carbon-muted));
+    --color-fg-subtle: var(--color-on-carbon-muted);
+    --color-fg-faint: var(--color-on-carbon-muted);
+    --color-link: var(--color-carbon-bright);
+    --color-focus: var(--color-triplicate);
+    --color-selected: var(--color-carbon-bright);
+    --color-on-selected: var(--color-night);
     --color-sage: var(--color-mint);
-    --color-warn: var(--color-gold);
-    --color-rose: color-mix(in srgb, var(--color-error) 70%, var(--color-linen));
+    --color-warn: var(--color-triplicate-deep);
+    --color-rose: color-mix(in srgb, var(--color-error) 70%, var(--color-paper));
     --color-success-soft: color-mix(in srgb, var(--color-mint) 16%, transparent);
-    --color-warn-soft: color-mix(in srgb, var(--color-gold) 16%, transparent);
+    --color-warn-soft: color-mix(in srgb, var(--color-triplicate-deep) 16%, transparent);
     --color-danger-soft: color-mix(in srgb, var(--color-error) 18%, transparent);
+    --color-go: var(--color-carbon-bright);
+    --color-go-hover: color-mix(in srgb, var(--color-carbon-bright) 85%, var(--color-white));
+    --color-on-go: var(--color-night);
     --shadow-card: none;
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  .on-plum:not(.landing .on-plum) {
+    --color-canvas: var(--color-carbon-deep);
+    --color-surface: var(--color-carbon);
+    --color-surface-raised: var(--color-carbon);
+    --color-line: var(--color-carbon);
+    background-color: var(--color-carbon-deep) !important;
+  }
+}
+
 /*
- * Plum brand areas (header, nav, hero): the same semantic names, remapped so
+ * Carbon brand areas (still named .on-plum) (header, nav, hero): the same semantic names, remapped so
  * anything inside reads correctly on plum without per-component colours.
  */
 @layer base {
@@ -192,6 +235,9 @@
     --color-sage: var(--color-mint);
     --color-warn: var(--color-gold);
     --color-rose: color-mix(in srgb, var(--color-error) 70%, var(--color-linen));
+    --color-go: var(--color-triplicate);
+    --color-go-hover: color-mix(in srgb, var(--color-triplicate) 80%, var(--color-white));
+    --color-on-go: var(--color-carbon-ink);
     background-color: var(--color-plum);
     color: var(--color-fg);
   }
@@ -207,8 +253,8 @@
   --card-foreground: var(--color-fg);
   --popover: var(--color-elevated);
   --popover-foreground: var(--color-fg);
-  --primary: var(--color-coral);
-  --primary-foreground: var(--color-on-coral);
+  --primary: var(--color-go);
+  --primary-foreground: var(--color-on-go);
   --secondary: var(--color-surface-raised);
   --secondary-foreground: var(--color-fg);
   --muted: var(--color-surface-raised);
@@ -222,7 +268,7 @@
   --success: var(--color-sage);
   --warning: var(--color-warn);
   --brand: var(--color-plum);
-  /* Chart series: plum first, then muted tones (series are always labelled); error for failures. */
+  /* Chart series: carbon first, then muted tones (series are always labelled); error for failures. */
   --chart-1: var(--color-plum);
   --chart-2: var(--color-ink-muted);
   --chart-3: var(--color-on-plum-muted);
@@ -242,7 +288,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --chart-1: var(--color-on-plum-muted);
+    --chart-1: var(--color-carbon-bright);
     --chart-2: var(--color-gold);
     --chart-3: var(--color-mint);
   }
@@ -301,7 +347,7 @@
   border: 1px solid var(--color-line-strong);
   background: var(--color-surface);
   color: var(--color-fg);
-  font: 600 12px/1.2 var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  font: 600 12px/1.2 var(--font-anek), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
@@ -365,7 +411,7 @@
   border: 1.5px dashed var(--color-plum);
   background: var(--color-canvas);
   color: var(--color-fg);
-  font: 600 11px/1.2 var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  font: 600 11px/1.2 var(--font-anek), ui-sans-serif, system-ui, sans-serif;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -421,6 +467,17 @@ html:has(.lufer) {
   :focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+  }
+
+  /* Display type is Anek Latin set wide, like a printed bill-book header. */
+  .font-display {
+    font-stretch: 112%;
+    letter-spacing: -0.01em;
+  }
+
+  /* A sheet's header sits on the bill book's double rule. */
+  [data-slot="card-header"].border-b {
+    border-bottom: 3px double var(--color-line-strong);
   }
 }
 
@@ -488,6 +545,11 @@ html:has(.lufer) {
   @media (width >= 64rem) {
     padding-block: 4rem;
   }
+}
+
+/* Bill-book header width: Anek Latin's wdth axis, used for display type and the wordmark. */
+@utility font-wide {
+  font-stretch: 118%;
 }
 
 /* Data tables: scrolls sideways inside a framed, rounded box. */
@@ -647,21 +709,27 @@ html:has(.lufer) {
   white-space: nowrap;
 }
 
-/* Soft badges: tinted background, dark text of the same family. */
+/* Status stamps: a rubber-stamp outline in the state colour over a faint wash, uppercase and tracked. */
 @utility badge-success {
   background: var(--color-success-soft);
-  border-color: transparent;
+  border-color: currentColor;
   color: var(--color-sage);
 }
 @utility badge-warn {
   background: var(--color-warn-soft);
-  border-color: transparent;
+  border-color: currentColor;
   color: var(--color-warn);
 }
 @utility badge-danger {
   background: var(--color-danger-soft);
-  border-color: transparent;
+  border-color: currentColor;
   color: var(--color-rose);
+}
+@utility badge-stamp {
+  border-width: 1.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 
 /* Solid status dot: 6px, no animation. Set the colour with bg-sage / bg-warn / bg-rose / bg-fg-faint. */
@@ -707,39 +775,32 @@ html:has(.lufer) {
 /* ------------------------------------------------------------------------- */
 
 /*
- * Editorial linen: the landing stays light in every OS theme, so it uses the
- * palette directly (linen, plum, sand, coral) rather than the semantic roles.
+ * The bill book, open: carbon cover (header, hero, finance band), white sheets
+ * on paper, the pink duplicate for venues, the yellow triplicate for the close.
+ * Light in every OS theme, so it uses the palette directly.
  */
 @layer base {
   .landing {
     color-scheme: light;
-    background: var(--color-linen);
-    color: var(--color-plum);
+    background: var(--color-paper);
+    color: var(--color-carbon-ink);
   }
 }
 
 html:has(.landing) {
-  background: var(--color-linen);
+  background: var(--color-paper);
 }
 
-/* Light card: white over linen, warm sand border. Static: nothing on the landing that isn't a link moves on hover. */
-@utility landing-card {
-  background: var(--color-white);
-  border: 1px solid var(--color-sand);
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px rgb(42 27 61 / 0.05);
-}
-
-/* Pill CTAs. Green carries white text (5.5:1). */
+/* CTAs: near-square like a printed button. Primary is carbon on paper and the yellow copy on carbon (--color-go, see .on-plum). */
 @utility landing-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 9999px;
-  padding: 0.875rem 1.75rem; /* py-3.5 px-7 */
-  font-size: var(--text-body);
-  font-weight: 500;
+  border-radius: 6px;
+  padding: 0.875rem 1.75rem;
+  font-size: 1rem;
+  font-weight: 600;
   white-space: nowrap;
   transition:
     background-color 150ms,
@@ -748,59 +809,91 @@ html:has(.landing) {
 @utility landing-btn-primary {
   background: var(--color-go);
   color: var(--color-on-go);
-  box-shadow: 0 1px 2px rgb(42 27 61 / 0.08);
   &:hover {
     background: var(--color-go-hover);
   }
 }
 @utility landing-btn-outline {
-  border: 1px solid color-mix(in srgb, var(--color-plum) 20%, transparent);
-  color: var(--color-plum);
+  border: 1.5px solid var(--color-carbon);
+  color: var(--color-carbon);
   &:hover {
-    background: color-mix(in srgb, var(--color-plum) 5%, transparent);
+    background: color-mix(in srgb, var(--color-carbon) 7%, transparent);
   }
 }
-
 @utility landing-btn-sm {
   padding: 0.5rem 1rem;
   font-size: var(--text-meta);
 }
-/* On plum: a quiet outline that keeps green the only filled action. */
+/* On carbon: a white outline that keeps yellow the only filled action. */
 @utility landing-btn-ghost {
-  border: 1px solid color-mix(in srgb, var(--color-linen) 25%, transparent);
-  color: var(--color-linen);
+  border: 1.5px solid color-mix(in srgb, var(--color-white) 45%, transparent);
+  color: var(--color-white);
   &:hover {
-    background: color-mix(in srgb, var(--color-linen) 8%, transparent);
+    background: color-mix(in srgb, var(--color-white) 10%, transparent);
   }
 }
 
+/* A rubber stamp: violet outline, uppercase, tracked, set at an angle. */
+@utility bill-stamp {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border: 3px solid currentColor;
+  border-radius: 6px;
+  color: var(--color-stamp);
+  font-family: var(--font-display);
+  font-stretch: 118%;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+}
+/* The small upright stamp used in lists. */
+@utility bill-stamp-sm {
+  display: inline-block;
+  padding: 0.0625rem 0.4rem;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.1rem;
+  text-transform: uppercase;
+}
+
 @layer components {
-  /* Sticky bar: linen glass, hairline appears once content scrolls under it. */
   .landing-header {
-    background: color-mix(in srgb, var(--color-linen) 82%, transparent);
-    backdrop-filter: saturate(1.4) blur(12px);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-sand) 70%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-white) 12%, transparent);
   }
 
-  /* One warm wash behind the hero, then flat linen for the rest of the page. */
-  .landing-hero {
-    background: radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-coral) 12%, transparent), transparent 60%);
+  /* Stamps land once, in order: IN POLICY, then APPROVED. */
+  .bill-stamp-1 {
+    rotate: -9deg;
+    animation: bill-stamp-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 500ms both;
   }
-
-  /* Coral highlighter under a phrase in the headline. */
-  .landing-underline {
-    background: linear-gradient(transparent 62%, color-mix(in srgb, var(--color-coral) 30%, transparent) 62%);
-    padding-inline: 0.05em;
-  }
-
-  /* Plum band (finance, closing CTA) inside the always-light landing. */
-  .landing-dark {
-    color-scheme: dark;
-    background: var(--color-plum);
+  .bill-stamp-2 {
+    rotate: 6deg;
+    animation: bill-stamp-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 1050ms both;
   }
 
   .landing-faq summary::-webkit-details-marker {
     display: none;
+  }
+}
+
+@keyframes bill-stamp-in {
+  from {
+    opacity: 0;
+    scale: 1.6;
+  }
+  60% {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0.9;
+    scale: 1;
   }
 }
 

@@ -33,10 +33,10 @@ import { entityName } from "@/lib/legal";
 function SectionHeader({ title, body, id, center }: { title: string; body?: string; id: string; center?: boolean }) {
   return (
     <header className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
-      <h2 id={id} className="font-display text-plum text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+      <h2 id={id} className="font-display text-carbon text-3xl font-bold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
         {title}
       </h2>
-      {body ? <p className="text-ink-muted mt-4 text-pretty sm:text-lg">{body}</p> : null}
+      {body ? <p className="text-ink-muted mt-4 text-lg text-pretty">{body}</p> : null}
     </header>
   );
 }
@@ -65,14 +65,14 @@ export function Workflow() {
         <div className="lg:sticky lg:top-24 lg:order-2 lg:pb-10">
           <ProductPreview />
         </div>
-        <ol className="divide-sand border-sand divide-y border-y">
+        <ol className="border-ruling rounded-[6px] border bg-white px-5 sm:px-7">
           {STEPS.map(({ title, body }, i) => (
-            <li key={title} className="grid grid-cols-[2.25rem_1fr] gap-x-3 py-5 sm:grid-cols-[3rem_1fr]">
-              <span aria-hidden className="font-display text-coral-ink pt-0.5 text-lg font-semibold tabular-nums">
+            <li key={title} className="border-ruling grid grid-cols-[2.25rem_1fr] gap-x-3 border-b py-5 last:border-0 sm:grid-cols-[3rem_1fr]">
+              <span aria-hidden className="font-ledger text-stamp pt-1 text-base font-bold tabular-nums">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div>
-                <h3 className="font-display text-plum text-xl font-semibold">{title}</h3>
+                <h3 className="font-display text-carbon text-xl font-bold">{title}</h3>
                 <p className="text-ink-muted mt-1 text-body">{body}</p>
               </div>
             </li>
@@ -109,7 +109,7 @@ function FeatureGrid({ items, cols = 3 }: { items: Feature[]; cols?: 2 | 3 }) {
         <li key={title} className="flex gap-3">
           <Icon className="text-coral-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
           <div>
-            <p className="text-plum font-semibold">{title}</p>
+            <p className="text-carbon-ink font-semibold">{title}</p>
             <p className="text-ink-muted mt-1 text-body">{body}</p>
           </div>
         </li>
@@ -127,28 +127,28 @@ export function Audiences() {
           title="Plan it like you have an events team"
           body="Offsites, all-hands, client dinners, Diwali parties. Tell Lufer what you need and get options you can actually book, inside your company's rules."
         />
-        <div className="border-sand mt-10 border-t pt-8">
+        <div className="border-ruling mt-10 border-t-[3px] border-double pt-8">
           <FeatureGrid items={ORGANISERS} />
         </div>
       </section>
 
-      <section id="finance" aria-labelledby="finance-title" className="on-plum landing-dark scroll-mt-16">
+      <section id="finance" aria-labelledby="finance-title" className="on-plum scroll-mt-16">
         <div className="section-block container-public">
           <header className="max-w-2xl">
-            <h2 id="finance-title" className="font-display text-linen text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            <h2 id="finance-title" className="font-display text-3xl font-bold tracking-tight text-balance text-white sm:text-[2.6rem] sm:leading-[1.05]">
               Every rupee approved before it&apos;s spent, and reconciled after
             </h2>
-            <p className="text-on-plum-muted mt-4 sm:text-lg">
+            <p className="text-on-carbon-muted mt-4 text-lg">
               One supplier on your books, policy checked up front, and GST you can claim.
             </p>
           </header>
           <ul className="mt-12 grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
             {FINANCE.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="flex gap-3 border-t border-white/15 py-6">
-                <Icon className="text-gold mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+              <li key={title} className="flex gap-3 border-t border-white/20 py-6">
+                <Icon className="text-triplicate mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
                 <div>
-                  <p className="text-linen font-semibold">{title}</p>
-                  <p className="text-on-plum-muted mt-1 text-body">{body}</p>
+                  <p className="font-semibold text-white">{title}</p>
+                  <p className="text-on-carbon-muted mt-1 text-body">{body}</p>
                 </div>
               </li>
             ))}
@@ -170,8 +170,8 @@ const VENUE_FEATURES: Feature[] = [
 
 export function ForVenues() {
   return (
-    <section id="venues" aria-labelledby="venues-title" className="section-block container-public scroll-mt-20">
-      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
+    <section id="venues" aria-labelledby="venues-title" className="bg-duplicate scroll-mt-20">
+      <div className="section-block container-public grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
           <SectionHeader
             id="venues-title"
@@ -212,14 +212,14 @@ export function Comparison() {
   return (
     <section aria-labelledby="compare-title" className="section-block container-public">
       <SectionHeader id="compare-title" title="Compared with how it's usually done" center />
-      <div className="landing-card mt-10 hidden overflow-hidden p-0 sm:block">
+      <div className="border-ruling mt-10 hidden overflow-hidden rounded-[6px] border bg-white sm:block">
         <table className="w-full text-left text-body">
           <thead>
-            <tr className="border-sand border-b">
+            <tr className="border-carbon border-b-[3px] border-double">
               <th scope="col" className="text-ink-muted p-4 font-medium">
                 <span className="sr-only">Capability</span>
               </th>
-              <th scope="col" className="bg-coral-soft/60 text-plum p-4 text-center font-semibold">Lufer</th>
+              <th scope="col" className="bg-triplicate text-carbon p-4 text-center font-bold tracking-[0.06em] uppercase">Lufer</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Event agency</th>
               <th scope="col" className="text-ink-muted p-4 text-center font-medium">Email & spreadsheets</th>
             </tr>
@@ -228,7 +228,7 @@ export function Comparison() {
             {ROWS.map((r) => (
               <tr key={r.label} className="border-sand border-b last:border-0">
                 <th scope="row" className="text-plum p-4 font-medium">{r.label}</th>
-                <td className="bg-coral-soft/30 p-4 text-center"><Mark value={r.lufer} /></td>
+                <td className="bg-triplicate/45 p-4 text-center"><Mark value={r.lufer} /></td>
                 <td className="p-4 text-center"><Mark value={r.agency} /></td>
                 <td className="p-4 text-center"><Mark value={r.manual} /></td>
               </tr>
@@ -237,9 +237,9 @@ export function Comparison() {
         </table>
       </div>
 
-      <div className="landing-card mt-8 overflow-hidden p-0 sm:hidden">
-        <div aria-hidden className="border-sand text-ink-muted grid grid-cols-3 border-b text-center text-caption font-medium">
-          <span className="bg-coral-soft/60 text-plum py-3 font-semibold">Lufer</span>
+      <div className="border-ruling mt-8 overflow-hidden rounded-[6px] border bg-white sm:hidden">
+        <div aria-hidden className="border-carbon text-ink-muted grid grid-cols-3 border-b-[3px] border-double text-center text-caption font-medium">
+          <span className="bg-triplicate text-carbon py-3 font-bold tracking-[0.06em] uppercase">Lufer</span>
           <span className="py-3">Event agency</span>
           <span className="py-3">Email & sheets</span>
         </div>
@@ -255,7 +255,7 @@ export function Comparison() {
                     ["Email & spreadsheets", r.manual],
                   ] as const
                 ).map(([who, v], i) => (
-                  <div key={who} className={`px-2 pt-2 pb-4 ${i === 0 ? "bg-coral-soft/30" : ""}`}>
+                  <div key={who} className={`px-2 pt-2 pb-4 ${i === 0 ? "bg-triplicate/45" : ""}`}>
                     <dt className="sr-only">{who}</dt>
                     <dd>
                       <Mark value={v} />
@@ -310,7 +310,7 @@ export function Faq() {
             <details key={q} className="landing-faq group py-5">
               <summary className="text-plum flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
                 {q}
-                <span aria-hidden className="border-sand text-plum/60 grid size-7 shrink-0 place-items-center rounded-full border transition-transform group-open:rotate-45">
+                <span aria-hidden className="border-ruling text-carbon grid size-7 shrink-0 place-items-center rounded-[3px] border transition-transform group-open:rotate-45">
                   +
                 </span>
               </summary>
@@ -328,15 +328,15 @@ export function Faq() {
 export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="container-public pb-16">
-      <div className="on-plum landing-dark rounded-[1.75rem] px-6 py-14 text-center sm:px-12 lg:py-20">
-        <h2 id="cta-title" className="font-display text-linen mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+      <div className="bg-triplicate rounded-[6px] px-6 py-14 text-center sm:px-12 lg:py-20">
+        <h2 id="cta-title" className="font-display font-wide text-carbon mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance sm:text-5xl">
           Your next offsite, without the week of emails
         </h2>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
             Plan your first event <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link href="/signup?type=venue" className="landing-btn landing-btn-ghost w-full sm:w-auto">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline w-full sm:w-auto">
             I run a venue
           </Link>
         </div>
@@ -363,7 +363,7 @@ const LEGAL_LINKS = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-sand border-t">
+    <footer className="border-carbon border-t-[3px] border-double">
       <div className="container-public flex flex-col items-center justify-between gap-6 py-10 sm:flex-row">
         <div className="text-center sm:text-left">
           <Logo size="sm" tagline={false} className="sm:items-start" />

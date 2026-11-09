@@ -105,7 +105,7 @@ export async function notifyApplicationDecision(app: { email: string; full_name:
           "— Lufer",
         ];
     const text = lines.join("\n");
-    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${lines
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${lines
       .map((l) => (l === signIn ? `<p><a href="${escHtml(signIn)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
       .join("")}</body></html>`;
     return await sendEmail({ to: app.email, subject, text, html });
@@ -150,7 +150,7 @@ export async function notifyMonthlyStatement(s: {
 /** Tells someone an Approver added them to their company, with where to sign in. Never throws. */
 export async function notifyTeamInvite(to: string, message: { subject: string; text: string; lines: string[] }, signInUrl: string): Promise<NotifyOutcome> {
   try {
-    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${message.lines
+    const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${message.lines
       .map((l) => (l === signInUrl ? `<p><a href="${escHtml(signInUrl)}">Sign in to Lufer</a></p>` : l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
       .join("")}</body></html>`;
     return await sendEmail({ to, subject: message.subject, text: message.text, html });
@@ -161,7 +161,7 @@ export async function notifyTeamInvite(to: string, message: { subject: string; t
 }
 
 const plainHtml = (lines: string[]) =>
-  `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2a1b3d;line-height:1.5">${lines
+  `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2b3a8c;line-height:1.5">${lines
     .map((l) => (l ? `<p style="margin:0">${escHtml(l)}</p>` : "<br>"))
     .join("")}</body></html>`;
 
