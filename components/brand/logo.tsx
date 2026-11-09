@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 /*
  * Lufer brand: the Diya mark (a lamp bowl with a flame: hospitality and
  * celebration) beside "Lufer" in wide Anek Latin, optionally with the tagline
- * beneath. The bowl is jet black (soft white on ink grounds) and the flame is
- * flame orange. Fills read the palette tokens (fixed tokens, not semantic roles),
+ * beneath. The bowl is ink black (cream on ink grounds) and the flame is
+ * burnt orange. Fills read the palette tokens (fixed tokens, not semantic roles),
  * so the mark follows globals.css and reads the same in dark mode. The same paths are in app/icon.svg, app/apple-icon.tsx and
  * app/opengraph-image.tsx (keep them in step: DIYA_FLAME / DIYA_BOWL).
  */
@@ -17,7 +17,7 @@ const INK = "var(--color-ink)";
 const PAPER = "var(--color-paper)";
 const FLAME = "var(--color-accent)";
 
-/** The Diya mark alone. `tone`: the bowl's colour, ink on light grounds ("plum"), soft white on ink ("linen"). */
+/** The Diya mark alone. `tone`: the bowl's colour, ink on light grounds ("plum"), cream on ink ("linen"). */
 export function DiyaMark({ tone = "plum", className, title }: { tone?: "plum" | "linen"; className?: string; title?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={cn("shrink-0", className)} role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
@@ -35,7 +35,7 @@ export function Logo({
 }: {
   size?: "sm" | "md" | "lg";
   tagline?: boolean;
-  /** Ink on light grounds (default, "plum"), soft white on ink ("linen"). */
+  /** Ink on light grounds (default, "plum"), cream on ink ("linen"). */
   tone?: "plum" | "linen";
   className?: string;
 }) {

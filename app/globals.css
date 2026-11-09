@@ -5,22 +5,21 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 /*
- * Bill Book in Jet Black, Soft White and Flame Orange: the one source of truth
- * for colour, type and shape. Components use the semantic names (canvas,
- * surface, fg, line, sage, warn, rose…); this file maps them for light, dark
- * and ink (.on-plum) contexts. No component should carry a hex value.
+ * Bill Book in Cream, Ink Black and Burnt Orange: the one source of truth for
+ * colour, type and shape. Components use the semantic names (canvas, surface,
+ * fg, line, sage, warn, rose…); this file maps them for light, dark and ink
+ * (.on-plum) contexts. No component should carry a hex value.
  *
- *   ink / ink-raised        jet black: dark grounds and cards on them, text on light
- *   paper / paper-raised    soft white: light grounds and cards on them, text on dark
- *   muted-light / -dark     secondary text on paper / on ink
- *   border-light / -dark    lines on paper / on ink
- *   accent                  flame orange, emphasis only: the primary action, active
+ *   paper / paper-raised    cream: the base ground, and cards on it
+ *   paper-deep              a deeper cream: the copy under a sheet, the venue band
+ *   ink / ink-raised        ink black, the second colour: the cover (header,
+ *                           sidebar, hero, finance band), text on cream, dark mode
+ *   muted-light / -dark     secondary text on cream / on ink
+ *   border-light / -dark    lines on cream / on ink
+ *   accent                  burnt orange, emphasis only: the primary action, active
  *                           and selected states, focus, stamps and small highlights.
- *                           Never a large background or body text. Text on it is ink.
- *   accent-text             orange for links and text on light grounds
- *
- * The landing is dark-first (ink ground, paper text); app and finance screens
- * are light-first (paper ground, ink text) with an ink cover (header, sidebar).
+ *                           White text on it. accent-text is the orange for links and
+ *                           text on cream; accent-bright is the orange on ink.
  *
  * The bill-book names (carbon, duplicate, triplicate, stamp, ruling, night…)
  * and the older names (plum, coral, go, gold, linen, sand…) are aliases mapped
@@ -31,33 +30,35 @@
  */
 @theme {
   /* Palette ------------------------------------------------------------ */
-  --color-ink: #111111;
-  --color-ink-raised: #1c1c1c;
-  --color-paper: #f5f2ec;
-  --color-paper-raised: #ffffff;
-  --color-muted-light: #5c574f; /* 6.4:1 on paper */
-  --color-muted-dark: #b8b2a7; /* 9.0:1 on ink */
-  --color-border-light: #e4dfd5;
-  --color-border-dark: #2e2e2e;
-  --color-accent: #ff4d1a;
-  --color-accent-hover: #e63e0d;
-  --color-on-accent: #111111; /* 5.7:1 on accent, 4.6:1 on hover; never white */
-  --color-accent-text: #c2380a; /* 4.9:1 on paper, 5.4:1 on white */
-  --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, var(--color-paper-raised));
-  /* Focus: #ff4d1a is 2.97:1 on paper, so light grounds ring in accent-text (4.9:1); dark grounds use accent. */
+  --color-paper: #f3ebdd; /* cream */
+  --color-paper-raised: #fcf8f1;
+  --color-paper-deep: #eaddc6;
+  --color-ink: #1a1714; /* ink black: 15.1:1 on cream */
+  --color-ink-raised: #28231f;
+  --color-muted-light: #5e564c; /* 6.1:1 on cream */
+  --color-muted-dark: #b9afa2; /* 8.3:1 on ink */
+  --color-border-light: #e2d6c2;
+  --color-border-dark: #3a332d;
+  --color-accent: #bf5700; /* burnt orange: white text 4.6:1, edge 3.9:1 on cream */
+  --color-accent-hover: #a34a00;
+  --color-on-accent: #ffffff;
+  --color-accent-text: #a3420b; /* 5.3:1 on cream */
+  --color-accent-bright: #e07a2e; /* orange as text, links and focus on ink: 5.9:1 */
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, var(--color-paper-raised));
+  /* Focus: accent-text on cream (5.3:1), accent-bright on ink (5.9:1). */
   --color-focus-light: var(--color-accent-text);
-  --color-focus-dark: var(--color-accent);
+  --color-focus-dark: var(--color-accent-bright);
 
   /* Bill-book names, by role. */
   --color-carbon: var(--color-ink); /* cover ground, headings on light */
   --color-carbon-deep: var(--color-ink);
   --color-carbon-light: var(--color-ink-raised); /* raised surfaces on the cover */
-  --color-carbon-bright: var(--color-accent); /* action on dark grounds */
+  --color-carbon-bright: var(--color-accent-bright); /* orange on dark grounds */
   --color-carbon-ink: var(--color-ink);
   --color-carbon-muted: var(--color-muted-light);
   --color-on-carbon-muted: var(--color-muted-dark);
-  --color-duplicate: var(--color-paper); /* the copy under a white sheet */
-  --color-triplicate: var(--color-accent); /* primary action on ink */
+  --color-duplicate: var(--color-paper-deep); /* the copy under a sheet */
+  --color-triplicate: var(--color-accent);
   --color-triplicate-deep: #b54708; /* warning amber, kept apart from the brand orange */
   --color-stamp: var(--color-accent-text); /* stamps on white sheets */
   --color-stamp-ink: var(--color-accent-text);
@@ -74,7 +75,7 @@
   --color-coral: var(--color-accent);
   --color-coral-hover: var(--color-accent-hover);
   --color-on-coral: var(--color-on-accent);
-  /* The primary action: flame orange with ink text, light and dark alike. */
+  /* The primary action: burnt orange with white text, light and dark alike. */
   --color-go: var(--color-accent);
   --color-go-hover: var(--color-accent-hover);
   --color-on-go: var(--color-on-accent);
@@ -91,7 +92,7 @@
   --color-sand: var(--color-border-light);
   --color-ink-muted: var(--color-muted-light);
   --color-on-plum-muted: var(--color-muted-dark);
-  /* Error is clearly redder than the accent. #d92d20 is 4.3:1 on paper, so error text uses #b42318 (6.0:1). */
+  /* Error is clearly redder than the burnt orange; error text uses #b42318. */
   --color-error: #d92d20;
   --color-error-ink: #b42318;
   --color-error-soft: color-mix(in srgb, var(--color-error) 10%, var(--color-white));
@@ -201,7 +202,7 @@
     --color-fg-muted: color-mix(in srgb, var(--color-paper) 55%, var(--color-on-carbon-muted));
     --color-fg-subtle: var(--color-on-carbon-muted);
     --color-fg-faint: var(--color-on-carbon-muted);
-    --color-link: var(--color-accent);
+    --color-link: var(--color-accent-bright);
     --color-focus: var(--color-focus-dark);
     --color-selected: var(--color-accent);
     --color-on-selected: var(--color-on-accent);
@@ -241,7 +242,7 @@
     --color-fg-muted: color-mix(in srgb, var(--color-linen) 55%, var(--color-on-plum-muted));
     --color-fg-subtle: var(--color-on-plum-muted);
     --color-fg-faint: var(--color-on-plum-muted);
-    --color-link: var(--color-accent);
+    --color-link: var(--color-accent-bright);
     --color-focus: var(--color-focus-dark);
     --color-selected: var(--color-accent);
     --color-on-selected: var(--color-on-accent);
@@ -642,7 +643,7 @@ html:has(.lufer) {
 /* Carbon (yellow on carbon): the one primary action on a screen (Book, Confirm, Send, Apply). */
 @utility btn-primary {
   background: var(--color-go);
-  /* The darker orange edge keeps the button 3:1 against paper (#ff4d1a alone is 2.97:1). */
+  /* The hover shade as the edge: 5.0:1 against cream. */
   border-color: var(--color-go-hover);
   color: var(--color-on-go);
   &:hover {
@@ -787,23 +788,23 @@ html:has(.lufer) {
 /* ------------------------------------------------------------------------- */
 
 /*
- * The bill book, open on a dark desk: ink ground and paper text (dark-first in
- * every OS theme), white sheets lifted off it, flame-orange calls to action.
- * Uses the palette directly.
+ * The bill book, open on cream: ink cover (header, hero, finance band, close),
+ * sheets on cream, the deeper cream for venues, burnt-orange calls to action.
+ * Light in every OS theme, so it uses the palette directly.
  */
 @layer base {
   .landing {
-    color-scheme: dark;
-    background: var(--color-ink);
-    color: var(--color-paper);
+    color-scheme: light;
+    background: var(--color-paper);
+    color: var(--color-ink);
   }
 }
 
 html:has(.landing) {
-  background: var(--color-ink);
+  background: var(--color-paper);
 }
 
-/* CTAs: near-square like a printed button. Primary is flame orange with ink text; at most one per screen. */
+/* CTAs: near-square like a printed button. Primary is burnt orange with white text; at most one per screen. */
 @utility landing-btn {
   display: inline-flex;
   align-items: center;
@@ -825,12 +826,12 @@ html:has(.landing) {
     background: var(--color-go-hover);
   }
 }
-/* Secondary on the dark landing: a soft-white outline. */
+/* Secondary on cream: an ink outline. */
 @utility landing-btn-outline {
-  border: 1.5px solid color-mix(in srgb, var(--color-paper) 45%, transparent);
-  color: var(--color-paper);
+  border: 1.5px solid var(--color-ink);
+  color: var(--color-ink);
   &:hover {
-    background: color-mix(in srgb, var(--color-paper) 10%, transparent);
+    background: color-mix(in srgb, var(--color-ink) 6%, transparent);
   }
 }
 @utility landing-btn-sm {
@@ -846,7 +847,7 @@ html:has(.landing) {
   }
 }
 
-/* A rubber stamp: orange outline (accent-text on white sheets), uppercase, tracked, set at an angle. */
+/* A rubber stamp: burnt-orange outline (accent-text on sheets), uppercase, tracked, set at an angle. */
 @utility bill-stamp {
   display: inline-block;
   padding: 0.3rem 0.75rem;

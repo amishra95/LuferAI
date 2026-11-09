@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/landing/hero";
 import { SiteFooter } from "@/components/landing/sections";
 import { LEGAL } from "@/lib/legal";
 
-/** Landing chrome (dark) around policy text set on a white sheet. Server-rendered, no page JS. */
+/** Landing chrome around policy text set on a white sheet. Server-rendered, no page JS. */
 export function LegalPage({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
   return (
     <div className="landing flex flex-1 flex-col">

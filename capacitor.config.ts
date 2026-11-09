@@ -15,8 +15,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * store review before shipping a remote-URL build.
  */
 const serverUrl = process.env.CAP_SERVER_URL?.replace(/\/$/, "");
-// Jet black (--color-ink in app/globals.css): the brand bar behind the status bar.
-const plum = "#111111";
+// Ink black (--color-ink in app/globals.css): the brand bar behind the status bar.
+const plum = "#1A1714";
 
 const config: CapacitorConfig = {
   appId: "com.luferai.app",

@@ -21,10 +21,10 @@ import { entityName } from "@/lib/legal";
 function SectionHeader({ title, body, id, center }: { title: string; body?: string; id: string; center?: boolean }) {
   return (
     <header className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
-      <h2 id={id} className="font-display text-paper text-3xl font-bold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
+      <h2 id={id} className="font-display text-carbon text-3xl font-bold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
         {title}
       </h2>
-      {body ? <p className="text-muted-dark mt-4 text-lg text-pretty">{body}</p> : null}
+      {body ? <p className="text-ink-muted mt-4 text-lg text-pretty">{body}</p> : null}
     </header>
   );
 }
@@ -96,7 +96,7 @@ const FINANCE: Feature[] = [
 /** A bill-book sheet of particulars: one numbered, ruled row per feature, marked with whose copy it is. */
 function Ledger({ items, copy, className = "" }: { items: Feature[]; copy: string; className?: string }) {
   return (
-    <div className={`border-ruling text-carbon-ink rounded-[6px] border bg-white shadow-[0_18px_40px_-24px_rgb(0_0_0/0.5)] ${className}`}>
+    <div className={`border-ruling text-carbon-ink rounded-[6px] border bg-white shadow-[0_18px_40px_-24px_rgb(21_26_59/0.35)] ${className}`}>
       <div className="border-carbon flex items-baseline justify-between gap-4 border-b-[3px] border-double px-5 py-3 sm:px-7">
         <span className="text-carbon/70 text-[11px] font-semibold tracking-[0.12em] uppercase">Particulars</span>
         <span className="font-ledger text-carbon text-caption tracking-[0.12em] uppercase">{copy}</span>
@@ -126,7 +126,7 @@ export function Audiences() {
         <Ledger items={ORGANISERS} copy="Organiser's copy" className="mt-10" />
       </section>
 
-      <section id="finance" aria-labelledby="finance-title" className="on-plum border-border-dark scroll-mt-16 border-y">
+      <section id="finance" aria-labelledby="finance-title" className="on-plum scroll-mt-16">
         <div className="section-block container-public">
           <header className="max-w-2xl">
             <h2 id="finance-title" className="font-display text-3xl font-bold tracking-tight text-balance text-white sm:text-[2.6rem] sm:leading-[1.05]">
@@ -155,7 +155,7 @@ const VENUE_FEATURES: Feature[] = [
 // The venue's copy of the bill book is the pink duplicate.
 export function ForVenues() {
   return (
-    <section id="venues" aria-labelledby="venues-title" className="bg-ink-raised border-border-dark border-y scroll-mt-20">
+    <section id="venues" aria-labelledby="venues-title" className="bg-duplicate scroll-mt-20">
       <div className="section-block container-public">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeader
@@ -288,16 +288,16 @@ export function Faq() {
     <section id="faq" aria-labelledby="faq-title" className="section-block container-public scroll-mt-20">
       <div className="grid gap-10 lg:grid-cols-[1fr_1.6fr]">
         <SectionHeader id="faq-title" title="Questions teams ask us" />
-        <div className="divide-border-dark border-border-dark divide-y border-y">
+        <div className="divide-sand border-sand divide-y border-y">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="landing-faq group py-5">
-              <summary className="text-paper flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
+              <summary className="text-plum flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
                 {q}
-                <span aria-hidden className="border-border-dark text-paper grid size-7 shrink-0 place-items-center rounded-[3px] border transition-transform group-open:rotate-45">
+                <span aria-hidden className="border-ruling text-carbon grid size-7 shrink-0 place-items-center rounded-[3px] border transition-transform group-open:rotate-45">
                   <Plus className="size-4" strokeWidth={2} />
                 </span>
               </summary>
-              <p className="text-muted-dark mt-3 pr-10">{a}</p>
+              <p className="text-ink-muted mt-3 pr-10">{a}</p>
             </details>
           ))}
         </div>
@@ -311,15 +311,15 @@ export function Faq() {
 export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="container-public pb-16">
-      <div className="bg-ink-raised border-border-dark border rounded-[6px] px-6 py-14 text-center sm:px-12 lg:py-20">
-        <h2 id="cta-title" className="font-display font-wide text-paper mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance sm:text-5xl">
+      <div className="on-plum rounded-[6px] px-6 py-14 text-center sm:px-12 lg:py-20">
+        <h2 id="cta-title" className="font-display font-wide mx-auto max-w-3xl text-white text-3xl font-bold tracking-tight text-balance sm:text-5xl">
           Your next offsite, without the week of emails
         </h2>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
             Plan your first event <ArrowRight className="size-4" aria-hidden />
           </Link>
-          <Link href="/signup?type=venue" className="landing-btn landing-btn-outline w-full sm:w-auto">
+          <Link href="/signup?type=venue" className="landing-btn landing-btn-ghost w-full sm:w-auto">
             I run a venue
           </Link>
         </div>
@@ -346,25 +346,25 @@ const LEGAL_LINKS = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-border-dark border-t-[3px] border-double">
+    <footer className="border-carbon border-t-[3px] border-double">
       <div className="container-public flex flex-col items-center justify-between gap-6 py-10 sm:flex-row">
         <div className="text-center sm:text-left">
-          <Logo size="sm" tagline={false} tone="linen" className="sm:items-start" />
+          <Logo size="sm" tagline={false} className="sm:items-start" />
         </div>
-        <nav aria-label="Footer" className="text-muted-dark flex flex-wrap justify-center gap-x-5 gap-y-2 text-meta">
+        <nav aria-label="Footer" className="text-plum/75 flex flex-wrap justify-center gap-x-5 gap-y-2 text-meta">
           {FOOTER_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-paper">
+            <Link key={l.href} href={l.href} className="hover:text-plum">
               {l.label}
             </Link>
           ))}
         </nav>
       </div>
-      <div className="border-border-dark border-t">
+      <div className="border-sand border-t">
         <div className="container-public flex flex-col items-center justify-between gap-3 py-5 sm:flex-row">
-          <p className="text-muted-dark text-caption">© {new Date().getFullYear()} {entityName()}</p>
-          <nav aria-label="Legal" className="text-muted-dark flex flex-wrap justify-center gap-x-5 gap-y-2 text-caption">
+          <p className="text-ink-muted text-caption">© {new Date().getFullYear()} {entityName()}</p>
+          <nav aria-label="Legal" className="text-ink-muted flex flex-wrap justify-center gap-x-5 gap-y-2 text-caption">
             {LEGAL_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="hover:text-paper">
+              <Link key={l.href} href={l.href} className="hover:text-plum">
                 {l.label}
               </Link>
             ))}

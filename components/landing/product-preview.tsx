@@ -16,7 +16,7 @@ const VENUES = [
 export function ProductPreview() {
   return (
     <div aria-hidden className="relative mx-auto w-full max-w-xl select-none">
-      <div className="border-ruling relative rounded-[6px] border bg-white p-4 shadow-[0_20px_44px_-24px_rgb(0_0_0/0.5)] sm:p-5">
+      <div className="border-ruling relative rounded-[6px] border bg-white p-4 shadow-[0_20px_44px_-24px_rgb(21_26_59/0.35)] sm:p-5">
         {/* Brief */}
         <div className="flex items-start gap-3">
           <span className="bg-carbon grid size-8 shrink-0 place-items-center rounded-[4px] text-caption font-semibold text-white">PS</span>
@@ -55,7 +55,7 @@ export function ProductPreview() {
       </div>
 
       {/* The pink duplicate slip with the tax split */}
-      <div className="bg-duplicate text-carbon relative -mt-4 ml-auto w-[82%] rotate-[1.5deg] rounded-[4px] p-4 shadow-[0_16px_34px_-18px_rgb(0_0_0/0.55)] sm:-mt-8 sm:w-72">
+      <div className="bg-duplicate text-carbon relative -mt-4 ml-auto w-[82%] rotate-[1.5deg] rounded-[4px] p-4 shadow-[0_16px_34px_-18px_rgb(21_26_59/0.45)] sm:-mt-8 sm:w-72">
         <p className="text-[11px] font-semibold tracking-[0.14em] uppercase">Tax invoice · SAC 998596</p>
         <dl className="font-ledger mt-2 space-y-1 text-caption tabular-nums">
           <div className="flex justify-between"><dt>Taxable value</dt><dd>₹98,000</dd></div>

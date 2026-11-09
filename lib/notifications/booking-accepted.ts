@@ -74,17 +74,17 @@ export function bookingAcceptedMessage(b: AcceptedBooking): { subject: string; t
     "— Lufer",
   ].join("\n");
 
-  const html = `<!doctype html><html><body style="margin:0;background:#f5f2ec;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111111">
+  const html = `<!doctype html><html><body style="margin:0;background:#F3EBDD;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#1A1714">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e4dfd5;border-radius:16px">
-<tr><td style="padding:28px 28px 8px"><p style="margin:0;font-size:13px;color:#5c574f">Lufer</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #E2D6C2;border-radius:16px">
+<tr><td style="padding:28px 28px 8px"><p style="margin:0;font-size:13px;color:#5E564C">Lufer</p>
 <h1 style="margin:8px 0 0;font-size:22px;line-height:1.3">${esc(b.venueName)} accepted your event request</h1></td></tr>
 <tr><td style="padding:8px 28px 0;font-size:15px;line-height:1.5"><p style="margin:0 0 12px">${esc(greeting)}</p><p style="margin:0">${esc(intro)}</p></td></tr>
 <tr><td style="padding:20px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">
-${rows.map(([k, v], i) => `<tr><td style="padding:6px 0;color:#5c574f${i === rows.length - 1 ? ";border-top:1px solid #e4dfd5;padding-top:10px;color:#111111;font-weight:600" : ""}">${esc(k)}</td><td align="right" style="padding:6px 0${i === rows.length - 1 ? ";border-top:1px solid #e4dfd5;padding-top:10px;font-weight:600" : ""}">${esc(v)}</td></tr>`).join("\n")}
+${rows.map(([k, v], i) => `<tr><td style="padding:6px 0;color:#5E564C${i === rows.length - 1 ? ";border-top:1px solid #E2D6C2;padding-top:10px;color:#1A1714;font-weight:600" : ""}">${esc(k)}</td><td align="right" style="padding:6px 0${i === rows.length - 1 ? ";border-top:1px solid #E2D6C2;padding-top:10px;font-weight:600" : ""}">${esc(v)}</td></tr>`).join("\n")}
 </table></td></tr>
-<tr><td style="padding:24px 28px"><a href="${esc(b.bookingUrl)}" style="display:inline-block;background:#ff4d1a;color:#111111;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:9999px">View booking voucher</a></td></tr>
-<tr><td style="padding:0 28px 28px;font-size:12px;color:#5c574f">GST is invoiced under SAC 998596 and claimable as input tax credit.</td></tr>
+<tr><td style="padding:24px 28px"><a href="${esc(b.bookingUrl)}" style="display:inline-block;background:#bf5700;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:9999px">View booking voucher</a></td></tr>
+<tr><td style="padding:0 28px 28px;font-size:12px;color:#5E564C">GST is invoiced under SAC 998596 and claimable as input tax credit.</td></tr>
 </table></td></tr></table></body></html>`;
 
   return { subject, text, html };
