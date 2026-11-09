@@ -4,9 +4,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-/** Badge: a rubber stamp. Outlined in its state colour, uppercase, always carrying a text label (never colour alone). */
+/** Badge: a quiet outline on its status tint, sentence case, always carrying a text label (never colour alone). */
 const badgeVariants = cva(
-  "badge-stamp inline-flex w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border px-2 py-0.5 text-[11px] leading-4 tabular-nums whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
+  "badge-stamp inline-flex w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-badge border px-2 py-0.5 text-caption leading-4 tabular-nums whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {

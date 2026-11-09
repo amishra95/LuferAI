@@ -21,7 +21,7 @@ import { entityName } from "@/lib/legal";
 function SectionHeader({ title, body, id, center }: { title: string; body?: string; id: string; center?: boolean }) {
   return (
     <header className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
-      <h2 id={id} className="font-display text-ink text-3xl font-bold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
+      <h2 id={id} className="font-display text-ink text-3xl font-semibold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
         {title}
       </h2>
       {body ? <p className="text-ink-muted mt-4 text-lg text-pretty">{body}</p> : null}
@@ -61,7 +61,7 @@ export function Workflow() {
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h3 className="font-display text-ink text-xl font-bold">{title}</h3>
+                  <h3 className="font-display text-ink text-xl font-semibold">{title}</h3>
                   {"stamp" in rest ? <span className="bill-stamp-sm bg-success-tint text-success-ink -rotate-3">{rest.stamp}</span> : null}
                 </div>
                 <p className="text-ink-muted mt-1 text-body">{body}</p>
@@ -129,7 +129,7 @@ export function Audiences() {
       <section id="finance" aria-labelledby="finance-title" className="on-ink scroll-mt-16">
         <div className="section-block container-public">
           <header className="max-w-2xl">
-            <h2 id="finance-title" className="font-display text-3xl font-bold tracking-tight text-balance text-on-ink sm:text-[2.6rem] sm:leading-[1.05]">
+            <h2 id="finance-title" className="font-display text-3xl font-semibold tracking-tight text-balance text-on-ink sm:text-[2.6rem] sm:leading-[1.05]">
               Every rupee approved before it&apos;s spent, and reconciled after
             </h2>
             <p className="text-on-ink-muted mt-4 text-lg">
@@ -311,7 +311,7 @@ export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="container-public pb-16">
       <div className="on-ink rounded-[6px] px-6 py-14 text-center sm:px-12 lg:py-20">
-        <h2 id="cta-title" className="font-display font-wide mx-auto max-w-3xl text-on-ink text-3xl font-bold tracking-tight text-balance sm:text-5xl">
+        <h2 id="cta-title" className="font-display font-wide mx-auto max-w-3xl text-on-ink text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
           Your next offsite, without the week of emails
         </h2>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

@@ -87,19 +87,6 @@ import { SettlementCard } from "@/components/finance/settlement-card";
 import { settlementsFor } from "@/lib/finance/settlement-store";
 
 
-const HOUR = new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" });
-/** Time-of-day greeting in India time. */
-function greeting(now = new Date()) {
-  const h = Number(HOUR.format(now)) % 24;
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-}
-
-/** "Priya Rao" → "Priya"; an email standing in for a name ("silva.radrian@…") → "Silva". */
-function firstNameOf(name: string): string | null {
-  const word = (name.includes("@") ? name.split("@")[0].split(/[._\-+\d]/) : name.trim().split(/\s+/)).find(Boolean);
-  return word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : null;
-}
-
 const MONTH = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 const MONTH_SHORT = new Intl.DateTimeFormat("en-IN", { month: "long", timeZone: "Asia/Kolkata" });
 
@@ -314,9 +301,8 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
     </section>
   );
 
-  // Employees get a greeting; everyone else sees the company name.
-  const firstName = user ? firstNameOf(user.name) : null;
-  const title = spendTab ? "Spend" : user ? (firstName ? `${greeting()}, ${firstName}` : greeting()) : company.legal_name;
+  // The title names the context: the company's events (Spend on its tab), never a greeting.
+  const title = spendTab ? "Spend" : company.legal_name;
 
   return (
     <PortalShell

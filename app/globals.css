@@ -516,13 +516,11 @@ html:has(.lufer) {
   border-radius: var(--radius-card);
 }
 
-/* Column heading: small, uppercase, muted. */
+/* Column heading: small, sentence case, muted. */
 @utility table-head {
   font-size: var(--text-caption);
   line-height: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--color-fg-muted);
 }
 
@@ -683,11 +681,10 @@ html:has(.lufer) {
   border-color: currentColor;
   color: var(--color-rose);
 }
+/* Status badges: a quiet outline on the status tint, sentence case. */
 @utility badge-stamp {
-  border-width: 1.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  border-width: 1px;
+  font-weight: 500;
 }
 
 /* Solid status dot: 6px, no animation. Set the colour with bg-sage / bg-warn / bg-rose / bg-fg-faint. */

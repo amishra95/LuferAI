@@ -42,12 +42,12 @@ export function Hero() {
     <section aria-labelledby="hero-title" className="relative overflow-hidden">
       <div className="container-public grid items-center gap-14 pt-12 pb-16 lg:grid-cols-[1.1fr_1fr] lg:gap-14 lg:pt-20 lg:pb-24">
         <div>
-          <h1 id="hero-title" className="font-display font-wide text-[2.4rem] leading-[1] font-bold tracking-tight text-balance text-ink sm:text-[3.4rem] xl:text-[3.9rem]">
-            Team offsites, client dinners and events, booked in minutes.
+          <h1 id="hero-title" className="font-display font-wide text-[2.4rem] leading-[1] font-semibold tracking-tight text-balance text-ink sm:text-[3.4rem] xl:text-[3.9rem]">
+            Team offsites, client dinners and events, booked inside your policy
           </h1>
 
           <p className="text-ink-muted mt-7 max-w-xl text-lg text-pretty sm:text-xl">
-            Bengaluru venues that fit your policy, quotes direct from them, approvals before any spend and a GST invoice for every booking.
+            Bengaluru venues that fit your policy, quotes direct from them, approvals before any spend and a GST invoice for every booking
           </p>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">

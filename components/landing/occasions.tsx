@@ -47,7 +47,7 @@ export function Occasions() {
   return (
     <section aria-labelledby="occasions-title" className="section-block container-public">
       <div className="max-w-2xl">
-        <h2 id="occasions-title" className="font-display text-ink text-3xl font-bold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
+        <h2 id="occasions-title" className="font-display text-ink text-3xl font-semibold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.05]">
           The places your team will remember
         </h2>
         <p className="text-ink-muted mt-4 text-lg text-pretty">
@@ -62,7 +62,7 @@ export function Occasions() {
               <Image src={o.src} alt={o.alt} fill sizes="(min-width: 1152px) 34rem, (min-width: 640px) 50vw, 100vw" className={`object-cover ${o.position}`} />
             </div>
             <div className="mt-3 flex items-baseline gap-3">
-              <h3 className="font-display text-ink shrink-0 text-xl font-bold">{o.title}</h3>
+              <h3 className="font-display text-ink shrink-0 text-xl font-semibold">{o.title}</h3>
               <span aria-hidden className="border-ink/30 mb-1 flex-1 border-b-2 border-dotted" />
             </div>
             <p className="text-ink-muted mt-1 text-body">{o.body}</p>

@@ -32,7 +32,7 @@ export default function OpengraphImage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, maxWidth: 980 }}>
-            Team offsites, client dinners and events, booked in minutes.
+            Team offsites, client dinners and events, booked inside your policy
           </div>
           <div style={{ marginTop: 28, paddingTop: 24, borderTop: "3px solid #E2D6C2", fontSize: 30, color: "#5E564C" }}>
             Direct venue quotes · Approvals before spend · GST invoices

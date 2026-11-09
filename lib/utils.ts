@@ -1,5 +1,11 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// The project's type scale (globals.css --text-*). Without it tailwind-merge reads
+// `text-caption` as a colour and drops it next to `text-fg-muted` (or the reverse).
+const twMerge = extendTailwindMerge({
+  extend: { classGroups: { "font-size": [{ text: ["hero", "title", "section", "card-title", "body", "meta", "caption"] }] } },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

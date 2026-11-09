@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import type { Side } from "@/types/navigation";
 
 /** Each side's mark: the dot beside its label and the rail on the current page. */
-export const SIDE_ACCENT: Record<Side, string> = { company: "bg-warning", venue: "bg-success", operator: "bg-accent" };
+// Side markers stay neutral: status colours carry meaning, so they never decorate.
+export const SIDE_ACCENT: Record<Side, string> = { company: "bg-fg-faint", venue: "bg-fg-faint", operator: "bg-fg-faint" };
 
 /** Monogram: the brand mark, derived from the workspace name. */
 export function Monogram({ name, className }: { name: string; className?: string }) {
@@ -128,10 +129,10 @@ export function Sidebar({
                             active ? "bg-surface-raised text-accent-text" : "text-fg-subtle hover:bg-surface-raised hover:text-fg"
                           )}
                         >
-                          {/* The side's colour marks the current page. */}
-                          {active && <span aria-hidden className={cn("absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full", SIDE_ACCENT[groupSide])} />}
+                          {/* The accent marks the current page. */}
+                          {active && <span aria-hidden className="bg-accent absolute top-2 bottom-2 -left-2.5 w-[3px] rounded-r-full" />}
                           <Icon
-                            className={cn("size-[15px] shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
+                            className={cn("size-4 shrink-0 transition-colors", active ? "text-fg" : "text-fg-faint group-hover:text-fg-muted")}
                             strokeWidth={1.75}
                             aria-hidden
                           />
