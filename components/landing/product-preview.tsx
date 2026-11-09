@@ -16,8 +16,6 @@ const VENUES = [
 export function ProductPreview() {
   return (
     <div aria-hidden className="landing-preview relative mx-auto w-full max-w-xl select-none lg:mx-0 lg:justify-self-end">
-      <div className="landing-glow" />
-
       <div className="border-sand relative rounded-[1.25rem] border bg-white/90 p-4 shadow-[0_24px_60px_-20px_rgb(42_27_61/0.35)] backdrop-blur sm:p-5">
         {/* Brief */}
         <div className="flex items-start gap-3">
@@ -37,9 +35,9 @@ export function ProductPreview() {
             <li key={v.name} className={`rounded-xl border p-3 ${v.top ? "border-coral/40 bg-coral-soft/50" : "border-sand bg-white"}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-plum truncate text-meta font-semibold">
-                    {v.name}
-                    {v.top ? <span className="bg-gold-soft text-gold-ink ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Top pick</span> : null}
+                  <p className="text-plum flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-meta font-semibold">
+                    <span>{v.name}</span>
+                    {v.top ? <span className="bg-gold-soft text-gold-ink shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Top pick</span> : null}
                   </p>
                   <p className="text-ink-muted mt-0.5 flex items-center gap-1 text-caption">
                     <MapPin className="size-3" /> {v.area} · {v.km}
@@ -69,7 +67,7 @@ export function ProductPreview() {
       </div>
 
       {/* Floating GST card */}
-      <div className="border-sand landing-float relative -mt-6 ml-auto w-[78%] rounded-2xl border bg-white p-4 shadow-[0_18px_40px_-18px_rgb(42_27_61/0.4)] sm:-mt-10 sm:w-64 lg:absolute lg:-right-6 lg:-bottom-10 lg:mt-0">
+      <div className="border-sand relative -mt-6 ml-auto w-[78%] rounded-2xl border bg-white p-4 shadow-[0_18px_40px_-18px_rgb(42_27_61/0.4)] sm:-mt-10 sm:w-64 lg:absolute lg:-right-6 lg:-bottom-10 lg:mt-0">
         <p className="text-ink-muted text-[11px] font-semibold tracking-[0.14em] uppercase">Tax invoice · SAC 998596</p>
         <dl className="text-plum mt-2 space-y-1 text-caption tabular-nums">
           <div className="flex justify-between"><dt className="text-ink-muted">Taxable value</dt><dd>₹98,000</dd></div>

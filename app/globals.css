@@ -482,11 +482,11 @@ html:has(.lufer) {
   }
 }
 
-/* Vertical rhythm between major blocks of the public site (py-12, py-20 from lg). */
+/* Vertical rhythm between major blocks of the public site: 80px between sections on phones, 128px from lg. */
 @utility section-block {
-  padding-block: 2rem;
+  padding-block: 2.5rem;
   @media (width >= 64rem) {
-    padding-block: 3rem;
+    padding-block: 4rem;
   }
 }
 
@@ -722,25 +722,12 @@ html:has(.landing) {
   background: var(--color-linen);
 }
 
-/* Light card: white at 80% over linen, warm sand border, lifts on hover. */
+/* Light card: white over linen, warm sand border. Static: nothing on the landing that isn't a link moves on hover. */
 @utility landing-card {
-  background: color-mix(in srgb, var(--color-white) 80%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--color-white);
   border: 1px solid var(--color-sand);
   border-radius: 1rem;
   box-shadow: 0 1px 2px rgb(42 27 61 / 0.05);
-  transition:
-    box-shadow 300ms,
-    transform 300ms,
-    border-color 300ms;
-  &:hover,
-  &:has(:focus-visible) {
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--color-coral) 35%, var(--color-sand));
-    box-shadow:
-      0 4px 6px -1px rgb(42 27 61 / 0.08),
-      0 2px 4px -2px rgb(42 27 61 / 0.06);
-  }
 }
 
 /* Pill CTAs. Green carries white text (5.5:1). */
@@ -795,22 +782,9 @@ html:has(.landing) {
     border-bottom: 1px solid color-mix(in srgb, var(--color-sand) 70%, transparent);
   }
 
-  /* Warm wash behind the hero: coral and gold radials over linen, plus a faint grid. */
+  /* One warm wash behind the hero, then flat linen for the rest of the page. */
   .landing-hero {
-    background:
-      radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-coral) 16%, transparent), transparent 60%),
-      radial-gradient(40rem 26rem at 0% 20%, color-mix(in srgb, var(--color-gold) 18%, transparent), transparent 60%);
-  }
-  .landing-hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--color-plum) 5%, transparent) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+    background: radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-coral) 12%, transparent), transparent 60%);
   }
 
   /* Coral highlighter under a phrase in the headline. */
@@ -819,47 +793,14 @@ html:has(.landing) {
     padding-inline: 0.05em;
   }
 
-  .landing-glow {
-    position: absolute;
-    inset: 8% -6% -4% 8%;
-    border-radius: 2rem;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-coral) 35%, transparent), transparent);
-    filter: blur(40px);
-    opacity: 0.6;
-    pointer-events: none;
-  }
-  .landing-glow-cta {
-    inset: -40% 20% 40% 20%;
-    opacity: 0.45;
-  }
-
-  .landing-float {
-    animation: landing-float 6s ease-in-out infinite;
-  }
-  .landing-float-delayed {
-    animation: landing-float 7s ease-in-out 1.5s infinite;
-  }
-
   /* Plum band (finance, closing CTA) inside the always-light landing. */
   .landing-dark {
     color-scheme: dark;
-    background:
-      radial-gradient(50rem 24rem at 100% 0%, color-mix(in srgb, var(--color-coral) 14%, transparent), transparent 60%),
-      var(--color-plum);
+    background: var(--color-plum);
   }
 
   .landing-faq summary::-webkit-details-marker {
     display: none;
-  }
-}
-
-@keyframes landing-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
   }
 }
 

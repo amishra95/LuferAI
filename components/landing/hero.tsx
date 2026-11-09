@@ -11,7 +11,7 @@ const NAV = [
   { href: "#faq", label: "FAQ" },
 ];
 
-// Sticky, blurred over linen; the coral CTA is the one primary action on every screen.
+// Sticky, blurred over linen; the green CTA is the one filled action on every screen.
 export function SiteHeader() {
   return (
     <header className="landing-header sticky top-0 z-40 pt-[var(--app-safe-top)]">

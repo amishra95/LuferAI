@@ -7,9 +7,7 @@ import {
   ClipboardCheck,
   FileSpreadsheet,
   Gauge,
-  Handshake,
   Inbox,
-  MapPinned,
   Minus,
   ReceiptText,
   ScanText,
@@ -17,13 +15,11 @@ import {
   Sparkles,
   Store,
   Users,
-  WalletCards,
   X,
   type LucideIcon,
 } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
-import { IconTile } from "@/components/landing/icon-tile";
 import { ProductPreview } from "@/components/landing/product-preview";
 import { entityName } from "@/lib/legal";
 
@@ -48,14 +44,15 @@ function SectionHeader({ title, body, id, center }: { title: string; body?: stri
 /* Workflow --------------------------------------------------------------- */
 
 const STEPS = [
-  { icon: Sparkles, title: "Brief", body: "Type it in plain English, or let the AI concierge turn a quick chat into a structured RFP." }, // /api/ai/generate-brief
-  { icon: MapPinned, title: "Compare", body: "See matched venues with distance from your office, in-policy flags and what coworkers booked." }, // lib/venues signals, PostGIS
-  { icon: Handshake, title: "Get direct quotes", body: "The RFP goes to matching venues, who quote you directly. Dates are held while you decide." }, // /api/ai/rfp-broadcast, lib/locks
-  { icon: ShieldCheck, title: "Approve", body: "Policy is checked before any spend. Anything over a limit goes to the right approver first." }, // lib/policies, lib/approvals
-  { icon: WalletCards, title: "Pay", body: "Pay the deposit online. Venues are paid out on clear terms once the event is completed." }, // /api/payments, lib/marketplace/settlement.ts
-  { icon: ReceiptText, title: "Reconcile", body: "You get a GST tax invoice for every booking, with a Tally export for your books." }, // lib/finance
-] satisfies { icon: LucideIcon; title: string; body: string }[];
+  { title: "Brief", body: "Type it in plain English, or let the AI concierge turn a quick chat into a structured RFP." }, // /api/ai/generate-brief
+  { title: "Compare", body: "See matched venues with distance from your office, in-policy flags and what coworkers booked." }, // lib/venues signals, PostGIS
+  { title: "Get direct quotes", body: "The RFP goes to matching venues, who quote you directly. Dates are held while you decide." }, // /api/ai/rfp-broadcast, lib/locks
+  { title: "Approve", body: "Policy is checked before any spend. Anything over a limit goes to the right approver first." }, // lib/policies, lib/approvals
+  { title: "Pay", body: "Pay the deposit online. Venues are paid out on clear terms once the event is completed." }, // /api/payments, lib/marketplace/settlement.ts
+  { title: "Reconcile", body: "You get a GST tax invoice for every booking, with a Tally export for your books." }, // lib/finance
+] satisfies { title: string; body: string }[];
 
+// The order is the point (policy before payment), so the steps keep their numbers.
 export function Workflow() {
   return (
     <section id="how-it-works" aria-labelledby="how-title" className="section-block container-public scroll-mt-20">
@@ -64,21 +61,24 @@ export function Workflow() {
         title="From “we need a venue” to a reconciled invoice"
         body="Six steps that usually take a week of emails, calls and spreadsheets, handled in one place."
       />
-      <div className="mt-12 flex justify-center">
-        <ProductPreview />
+      <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+        <div className="lg:sticky lg:top-24 lg:order-2 lg:pb-10">
+          <ProductPreview />
+        </div>
+        <ol className="divide-sand border-sand divide-y border-y">
+          {STEPS.map(({ title, body }, i) => (
+            <li key={title} className="grid grid-cols-[2.25rem_1fr] gap-x-3 py-5 sm:grid-cols-[3rem_1fr]">
+              <span aria-hidden className="font-display text-coral-ink pt-0.5 text-lg font-semibold tabular-nums">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <h3 className="font-display text-plum text-xl font-semibold">{title}</h3>
+                <p className="text-ink-muted mt-1 text-body">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
-      <ol className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {STEPS.map(({ icon, title, body }, i) => (
-          <li key={title} className="landing-card relative flex flex-col p-6">
-            <div className="flex items-center justify-between">
-              <IconTile icon={icon} accent={i % 2 ? "plum" : "coral"} />
-              <span className="font-display text-plum/15 text-4xl leading-none font-semibold tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-            </div>
-            <h3 className="font-display text-plum mt-5 text-xl font-semibold">{title}</h3>
-            <p className="text-plum/75 mt-2 text-meta">{body}</p>
-          </li>
-        ))}
-      </ol>
     </section>
   );
 }
@@ -104,13 +104,13 @@ const FINANCE: Feature[] = [
 
 function FeatureGrid({ items, cols = 3 }: { items: Feature[]; cols?: 2 | 3 }) {
   return (
-    <ul className={`mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""}`}>
+    <ul className={`grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""}`}>
       {items.map(({ icon: Icon, title, body }) => (
         <li key={title} className="flex gap-3">
           <Icon className="text-coral-ink mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
           <div>
             <p className="text-plum font-semibold">{title}</p>
-            <p className="text-ink-muted text-meta">{body}</p>
+            <p className="text-ink-muted mt-1 text-body">{body}</p>
           </div>
         </li>
       ))}
@@ -122,17 +122,13 @@ export function Audiences() {
   return (
     <>
       <section aria-labelledby="organisers-title" className="section-block container-public">
-        <div className="landing-card grid gap-10 p-8 lg:grid-cols-[1fr_1.4fr] lg:p-12">
-          <div>
-            <h2 id="organisers-title" className="font-display text-plum text-3xl font-semibold tracking-tight">
-              Plan it like you have an events team
-            </h2>
-            <p className="text-ink-muted mt-4">
-              Offsites, all-hands, client dinners, Diwali parties. Tell Lufer what you need and get options you can
-              actually book, inside your company&apos;s rules.
-            </p>
-          </div>
-          <FeatureGrid items={ORGANISERS} cols={2} />
+        <SectionHeader
+          id="organisers-title"
+          title="Plan it like you have an events team"
+          body="Offsites, all-hands, client dinners, Diwali parties. Tell Lufer what you need and get options you can actually book, inside your company's rules."
+        />
+        <div className="border-sand mt-10 border-t pt-8">
+          <FeatureGrid items={ORGANISERS} />
         </div>
       </section>
 
@@ -146,12 +142,14 @@ export function Audiences() {
               One supplier on your books, policy checked up front, and GST you can claim.
             </p>
           </header>
-          <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-12 grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
             {FINANCE.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
-                <Icon className="text-gold size-5" strokeWidth={1.75} aria-hidden />
-                <p className="text-linen mt-4 font-semibold">{title}</p>
-                <p className="text-on-plum-muted mt-1 text-meta">{body}</p>
+              <li key={title} className="flex gap-3 border-t border-white/15 py-6">
+                <Icon className="text-gold mt-0.5 size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+                <div>
+                  <p className="text-linen font-semibold">{title}</p>
+                  <p className="text-on-plum-muted mt-1 text-body">{body}</p>
+                </div>
               </li>
             ))}
           </ul>
@@ -173,7 +171,7 @@ const VENUE_FEATURES: Feature[] = [
 export function ForVenues() {
   return (
     <section id="venues" aria-labelledby="venues-title" className="section-block container-public scroll-mt-20">
-      <div className="grid items-center gap-10 lg:grid-cols-2">
+      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
           <SectionHeader
             id="venues-title"
@@ -184,7 +182,9 @@ export function ForVenues() {
             List your venue <ArrowRight className="size-4" aria-hidden />
           </Link>
         </div>
-        <FeatureGrid items={VENUE_FEATURES} cols={2} />
+        <div className="lg:pt-2">
+          <FeatureGrid items={VENUE_FEATURES} cols={2} />
+        </div>
       </div>
     </section>
   );
@@ -212,8 +212,8 @@ export function Comparison() {
   return (
     <section aria-labelledby="compare-title" className="section-block container-public">
       <SectionHeader id="compare-title" title="Compared with how it's usually done" center />
-      <div className="landing-card mt-10 overflow-x-auto p-0 hover:translate-y-0">
-        <table className="w-full min-w-[36rem] text-left text-meta">
+      <div className="landing-card mt-10 hidden overflow-hidden p-0 sm:block">
+        <table className="w-full text-left text-body">
           <thead>
             <tr className="border-sand border-b">
               <th scope="col" className="text-ink-muted p-4 font-medium">
@@ -235,6 +235,37 @@ export function Comparison() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="landing-card mt-8 overflow-hidden p-0 sm:hidden">
+        <div aria-hidden className="border-sand text-ink-muted grid grid-cols-3 border-b text-center text-caption font-medium">
+          <span className="bg-coral-soft/60 text-plum py-3 font-semibold">Lufer</span>
+          <span className="py-3">Event agency</span>
+          <span className="py-3">Email & sheets</span>
+        </div>
+        <ul>
+          {ROWS.map((r) => (
+            <li key={r.label} className="border-sand border-b last:border-0">
+              <p className="text-plum px-4 pt-4 font-medium">{r.label}</p>
+              <dl className="grid grid-cols-3 text-center">
+                {(
+                  [
+                    ["Lufer", r.lufer],
+                    ["Event agency", r.agency],
+                    ["Email & spreadsheets", r.manual],
+                  ] as const
+                ).map(([who, v], i) => (
+                  <div key={who} className={`px-2 pt-2 pb-4 ${i === 0 ? "bg-coral-soft/30" : ""}`}>
+                    <dt className="sr-only">{who}</dt>
+                    <dd>
+                      <Mark value={v} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -297,12 +328,11 @@ export function Faq() {
 export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="container-public pb-16">
-      <div className="on-plum landing-dark relative overflow-hidden rounded-[1.75rem] px-6 py-14 text-center sm:px-12">
-        <div aria-hidden className="landing-glow landing-glow-cta" />
-        <h2 id="cta-title" className="font-display text-linen relative mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+      <div className="on-plum landing-dark rounded-[1.75rem] px-6 py-14 text-center sm:px-12 lg:py-20">
+        <h2 id="cta-title" className="font-display text-linen mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Your next offsite, without the week of emails
         </h2>
-        <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/signup" className="landing-btn landing-btn-primary w-full sm:w-auto">
             Plan your first event <ArrowRight className="size-4" aria-hidden />
           </Link>
