@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
   no_access: "This account has no access yet. Create an account below.",
-  link_invalid: "That link has expired. Request a new one.",
+  link_invalid: "That link has expired or was already used. Sign in below, or request a new link.",
   oauth_failed: "Google sign-in failed. Try again.",
   auth_unconfigured: "Sign-in is unavailable: Supabase isn't configured (see .env.example).",
 };

@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Search } from "lucide-react";
+import { KeyRound, LogOut, Menu, Search } from "lucide-react";
 
 import { signOut } from "@/app/login/actions";
 
@@ -110,6 +110,9 @@ export function Header({
       {account ? (
         <form action={signOut} className="flex items-center gap-2">
           {account.email && <span className="text-fg-subtle hidden text-meta lg:inline">{account.email}</span>}
+          <Link href="/password" aria-label="Password" title="Password" className="btn btn-ghost btn-icon">
+            <KeyRound className="size-4" aria-hidden />
+          </Link>
           <button type="submit" aria-label="Sign out" title="Sign out" className="btn btn-ghost btn-icon">
             <LogOut className="size-4" aria-hidden />
           </button>

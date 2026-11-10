@@ -3,14 +3,24 @@
 import { useActionState, useState } from "react";
 import { Building2, CheckCircle2, Loader2, Mail } from "lucide-react";
 
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendMagicLink, signInWithGoogle, signInWithSso, type MagicLinkState, type SsoState } from "../actions";
+import { PasswordInput } from "@/components/ui/password-input";
+import { sendMagicLink, signInWithGoogle, signInWithPassword, signInWithSso, type MagicLinkState, type PasswordState, type SsoState } from "../actions";
 
 /** `email`: prefilled from /login?email=… (team invite emails link there). */
 export function LoginForm({ next, email }: { next: string; email?: string }) {
-  const [state, formAction, pending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
+  const [state, linkAction, linkPending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
+  const [pw, passwordAction, pwPending] = useActionState<PasswordState, FormData>(signInWithPassword, { status: "idle" });
+  const busy = linkPending || pwPending;
+  // The link action with an intent ("reset": land on /password; "confirm": resend the confirmation).
+  // Set here, not as the button's name/value: React overrides the name of a button whose formAction is a server action.
+  const linkWith = (intent: "reset" | "confirm") => (formData: FormData) => {
+    formData.set("intent", intent);
+    linkAction(formData);
+  };
   const [sso, ssoAction, ssoPending] = useActionState<SsoState, FormData>(signInWithSso, { status: "idle" });
   const [ssoOpen, setSsoOpen] = useState(false);
 
@@ -49,12 +59,15 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
       </div>
 
       {state.status === "sent" ? (
-        <p role="status" className="flex items-start gap-2 text-body">
-          <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
-          {state.message}
-        </p>
+        <div className="grid gap-5">
+          <p role="status" className="flex items-start gap-2 text-body">
+            <CheckCircle2 className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+            {state.message}
+          </p>
+          {state.email ? <EmailCodeForm email={state.email} next={state.next} /> : null}
+        </div>
       ) : (
-        <form action={formAction} className="grid gap-3">
+        <form action={passwordAction} className="grid gap-3">
           <input type="hidden" name="next" value={next} />
           <div className="grid gap-2">
             <Label htmlFor="email">Work email</Label>
@@ -62,15 +75,54 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
               id="email"
               name="email"
               type="email"
-              autoComplete="email"
+              autoComplete="username"
               defaultValue={email}
               required
               aria-invalid={state.status === "error"}
             />
             {state.status === "error" ? <p className="text-destructive text-caption">{state.message}</p> : null}
           </div>
-          <Button type="submit" size="lg" disabled={pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
+          <div className="grid gap-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label htmlFor="password">Password</Label>
+              {/* Same email link, landing on /password. formNoValidate: no password needed for this. */}
+              <button
+                type="submit"
+                formAction={linkWith("reset")}
+                formNoValidate
+                disabled={busy}
+                className="text-link text-caption underline-offset-2 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+            <PasswordInput id="password" name="password" autoComplete="current-password" required aria-invalid={pw.status === "error"} />
+            {pw.status === "error" ? (
+              <p className="text-destructive text-caption">
+                {pw.message}
+                {pw.unconfirmed ? (
+                  <>
+                    {" "}
+                    <button
+                      type="submit"
+                      formAction={linkWith("confirm")}
+                      formNoValidate
+                      disabled={busy}
+                      className="text-link underline underline-offset-2"
+                    >
+                      Resend email
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+          <Button type="submit" size="lg" disabled={busy}>
+            {pwPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+            Sign in
+          </Button>
+          <Button type="submit" variant="ghost" formAction={linkAction} formNoValidate disabled={busy}>
+            {linkPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Mail className="size-4" aria-hidden />}
             Email me a sign-in link
           </Button>
         </form>
