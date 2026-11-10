@@ -67,14 +67,21 @@ export function CompanySetup({
             {initial.gstin ? (
               <input value={initial.gstin} readOnly disabled className="field font-mono" />
             ) : (
-              <input
-                value={values.gstin}
-                onChange={(e) => setValues((v) => ({ ...v, gstin: e.target.value.toUpperCase() }))}
-                disabled={!canManage}
-                maxLength={15}
-                autoCapitalize="characters"
-                className="field font-mono uppercase"
-              />
+              <>
+                <input
+                  value={values.gstin}
+                  onChange={(e) => setValues((v) => ({ ...v, gstin: e.target.value.toUpperCase() }))}
+                  disabled={!canManage}
+                  maxLength={15}
+                  autoCapitalize="characters"
+                  placeholder="e.g. 29ABCDE1234F1Z5"
+                  aria-describedby="gstin-hint"
+                  className="field font-mono uppercase"
+                />
+                <span id="gstin-hint" className="text-fg-subtle text-caption">
+                  Needed before your first booking
+                </span>
+              </>
             )}
           </label>
           <label className="grid gap-1.5">
@@ -97,8 +104,9 @@ export function CompanySetup({
           </label>
         </div>
 
-        <fieldset className="grid gap-4 sm:grid-cols-3">
-          <legend className="label-mono mb-3">Per head, before GST</legend>
+        {/* More space above the group's label than below it, so it heads its three fields. */}
+        <fieldset className="mt-3 grid gap-4 sm:grid-cols-3">
+          <legend className="label-mono mb-2">Per head, before GST</legend>
           {money("autoApprovePerHead", "Auto-approved up to")}
           {money("managerPerHead", "Manager approval up to")}
           {money("maxPerHead", "Never above")}
