@@ -6,6 +6,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canAccess, homeFor, portalFor, safeNextPath } from "@/lib/auth/roles";
 import { getCurrentMember } from "@/lib/auth/session";
+import { signInProviders } from "@/lib/supabase/providers";
 import { LoginForm } from "./_components/login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -30,6 +31,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   }
 
   const errorMessage = typeof error === "string" ? ERRORS[error] : undefined;
+  const providers = await signInProviders();
 
   return (
     <AuthShell>
@@ -43,7 +45,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               {errorMessage}
             </p>
           ) : null}
-          <LoginForm next={next ?? ""} email={email} />
+          <LoginForm next={next ?? ""} email={email} providers={providers} />
         </CardContent>
       </Card>
       <p className="text-fg-subtle text-center text-meta">
