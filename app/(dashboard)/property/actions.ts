@@ -17,6 +17,7 @@ import type { BookingStatus } from "@/lib/supabase/database.types";
 import { notifyVenueAccepted } from "@/lib/services/notifications";
 import { publishBooking } from "@/lib/telemetry/live";
 import { tracer } from "@/lib/tracer";
+import { queueTaxInvoice } from "@/lib/finance/tax-invoice-queue";
 import { getVenuePricing, PricingError, saveCancellationTerms, saveMenuPackage, saveMinimumSpend, saveVenuePricing } from "@/lib/venues/pricing-store";
 import { setInquiryStatus } from "@/lib/venues/inquiry-store";
 import { attachVenuePhoto, createPhotoUpload, PhotoError, removeVenuePhoto, setVenueCover } from "@/lib/venues/photo-store";
@@ -75,6 +76,8 @@ export async function respondToBooking(formData: FormData) {
     await updateBookingStatus(bookingId, next, { venueId });
     // Declining releases the client's deposit.
     if (next === "CANCELLED") await settleDeposit(bookingId, "void");
+    // The event happened: issue the tax invoice (lib/finance/tax-invoice.ts) after the response.
+    if (next === "COMPLETED") after(() => queueTaxInvoice(bookingId));
   }
 
   // Live: the company's client users (and admins) hear it at once; the client portal

@@ -10,7 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePortal } from "@/lib/auth/session";
 import { dataSource, findExpenseExport, getEventPlan, getEventRoom, listEventCheckins, listPortalUsers } from "@/lib/data";
 import { seedActivity } from "@/lib/events/activity";
-import { depositReadiness, invoiceLines, receiptReadiness, type Readiness } from "@/lib/events/finance";
+import { depositReadiness, invoiceLines, receiptReadiness, taxInvoiceReadiness, type Readiness } from "@/lib/events/finance";
+import { getTaxInvoiceDocument, isIssuedInvoice, listCompanies } from "@/lib/data";
+import { invoiceWaitingReason } from "@/lib/finance/billing-rules";
+import { billedByContract, listReceiptVouchers } from "@/lib/finance/billing-store";
 import { checkInBlocker, planStatus } from "@/lib/events/plan";
 import { todayInIndia } from "@/lib/gst-engine";
 import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
@@ -86,6 +89,16 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
   const lines = invoiceLines(booking);
   const deposit = depositReadiness(booking.status, payment ? { status: payment.status, amount_inr: Number(payment.amount_inr) } : null, paymentsEnabled());
   const receipt = receiptReadiness(booking.status, receiptExport?.status ?? null);
+  // Tax invoice after the event; receipt voucher for a deposit (lib/finance/tax-invoice.ts, billing-store.ts).
+  const [taxDoc, vouchers, contractBilled, companyRow] = await Promise.all([
+    getTaxInvoiceDocument(booking.id),
+    listReceiptVouchers(booking.id),
+    billedByContract(booking.id),
+    listCompanies().then((cs) => cs.find((c) => c.id === booking.company_id)),
+  ]);
+  const issued = isIssuedInvoice(taxDoc) ? { invoiceNumber: taxDoc!.invoice_number! } : null;
+  const taxInvoice = taxInvoiceReadiness(booking.status, issued, invoiceWaitingReason(booking, { billing_address: companyRow?.billing_address ?? null }, today), contractBilled);
+  const voucher = vouchers[0] ?? null;
   const dietary = summarizeDietary(attendees);
   const checkInReason = checkInBlocker(booking.status, booking.event_date, today);
   const canCheckIn = canPlan && checkins.ready && checkInReason === null;
@@ -240,6 +253,22 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 </dl>
                 <ul className="grid gap-2 text-meta">
                   <ReadinessRow item={deposit} badge={payment ? <PaymentStatusBadge status={payment.status} /> : null} />
+                  {voucher ? (
+                    <ReadinessRow
+                      item={{ tone: "done", label: `Receipt voucher ${voucher.voucher_number}`, hint: `Deposit of ${formatINR(voucher.amount_inr)} received on ${formatDate(voucher.issued_on)}.` }}
+                      action={<a href={`/api/bookings/${booking.id}/receipt-voucher`} target="_blank" rel="noopener" className="text-fg hover:underline">Open</a>}
+                    />
+                  ) : null}
+                  <ReadinessRow
+                    item={taxInvoice}
+                    action={
+                      issued ? (
+                        <a href={`/api/bookings/${booking.id}/tax-invoice`} target="_blank" rel="noopener" className="text-fg hover:underline">Open</a>
+                      ) : taxInvoice.label === "Add your billing address" && role === "APPROVER" ? (
+                        <Link href="/governance#setup" className="text-fg hover:underline">Add</Link>
+                      ) : null
+                    }
+                  />
                   <ReadinessRow item={receipt} action={receiptExport ? <a href={`/api/exports/${receiptExport.id}`} download className="text-fg hover:underline">Download</a> : null} />
                 </ul>
               </CardContent>

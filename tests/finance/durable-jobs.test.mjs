@@ -280,3 +280,59 @@ test("queueTaxInvoice: starts the workflow when the runtime is up; otherwise ren
   await queueTaxInvoice(CONFIRMED);
   assert.equal((await getTaxInvoiceDocument(CONFIRMED)).status, "rendered");
 });
+
+// ----------------------------------------------------------------------------
+// Issuing after the event (migration 20261116000000)
+// ----------------------------------------------------------------------------
+
+const { issueTaxInvoiceDocument } = await import("../../lib/finance/tax-invoice.ts");
+const { listBookings, listCompanies } = await import("../../lib/data/index.ts");
+
+test("tax invoice: issued numbered, dated the day of issue, with both addresses and a signatory", async () => {
+  const outcome = await issueTaxInvoiceDocument(COMPLETED, "2026-11-20");
+  assert.equal(outcome.status, "rendered");
+  const doc = await getTaxInvoiceDocument(COMPLETED);
+  assert.match(doc.invoice_number, /^2026-27\/\d{6}$/);
+  assert.equal(doc.issued_on, "2026-11-20");
+  assert.match(doc.html, new RegExp(`Invoice no\\. ${doc.invoice_number.replace("/", "\\/")} · date 2026-11-20`));
+  const [b] = await listBookings({ ids: [COMPLETED] });
+  const company = (await listCompanies()).find((c) => c.id === b.company_id);
+  assert.ok(doc.html.includes(company.billing_address.replace(/&/g, "&amp;")), "the Bill to address");
+  assert.match(doc.html, /Authorised signatory/);
+  assert.doesNotMatch(doc.html, /not yet numbered/);
+});
+
+test("tax invoice: waits (records nothing) until the event has happened, and until the billing address is in", async () => {
+  const [b] = await listBookings({ ids: [CONFIRMED] });
+  const before = new Date(Date.parse(`${b.event_date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  assert.deepEqual(await issueTaxInvoiceDocument(CONFIRMED, before), { status: "waiting", reason: "The event hasn't happened yet." });
+  assert.equal(await getTaxInvoiceDocument(CONFIRMED), null);
+
+  const after_ = new Date(Date.parse(`${b.event_date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  let saved;
+  await mutateDb((db) => {
+    const c = db.companies.find((x) => x.id === b.company_id);
+    saved = c.billing_address;
+    c.billing_address = null;
+  });
+  try {
+    assert.deepEqual(await issueTaxInvoiceDocument(CONFIRMED, after_), { status: "waiting", reason: "The company hasn't added its billing address." });
+    assert.equal(await getTaxInvoiceDocument(CONFIRMED), null);
+  } finally {
+    await mutateDb((db) => {
+      db.companies.find((x) => x.id === b.company_id).billing_address = saved;
+    });
+  }
+  assert.equal((await issueTaxInvoiceDocument(CONFIRMED, after_)).status, "rendered", "the day after the event, with the address");
+});
+
+test("tax invoice: an unnumbered draft from the old render-at-confirmation flow is replaced; an issued one never is", async () => {
+  await mutateDb((db) => {
+    db.taxInvoiceDocuments.push({ booking_id: COMPLETED, tenant_id: "x", status: "rendered", invoice_number: null, issued_on: null, advance_inr: 0, receipt_voucher_number: null, html: "<p>draft</p>", html_sha256: "0".repeat(64), attempts: 1, error: null, rendered_at: "2026-10-01T00:00:00Z", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" });
+  });
+  assert.equal((await issueTaxInvoiceDocument(COMPLETED, "2026-11-20")).status, "rendered");
+  const issued = await getTaxInvoiceDocument(COMPLETED);
+  assert.ok(issued.invoice_number);
+  assert.deepEqual(await issueTaxInvoiceDocument(COMPLETED, "2026-12-01"), { status: "unchanged", sha256: issued.html_sha256 });
+  assert.equal((await getTaxInvoiceDocument(COMPLETED)).invoice_number, issued.invoice_number);
+});

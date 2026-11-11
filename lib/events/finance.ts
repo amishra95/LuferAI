@@ -94,7 +94,26 @@ export function depositReadiness(bookingStatus: string, payment: { status: strin
 export function receiptReadiness(bookingStatus: string, exportStatus: string | null): Readiness {
   if (exportStatus === "failed" || exportStatus === "dead_lettered") return { tone: "problem", label: "Receipt export failed", hint: "The receipt couldn't reach your expense system. An Approver can retry the sync." };
   if (exportStatus) return { tone: "done", label: "Receipt ready", hint: "The structured receipt was exported to finance." };
+  if (bookingStatus === "CANCELLED") return { tone: "none", label: "No receipt", hint: "Cancelled, so nothing was exported." };
+  if (["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Receipt export pending", hint: "Confirmed; the receipt hasn't been exported to finance yet." };
+  return { tone: "waiting", label: "Receipt on confirmation", hint: "The structured receipt goes to your expense system when the venue confirms." };
+}
+
+/**
+ * The GST tax invoice (lib/finance/tax-invoice.ts): issued after the event,
+ * numbered, once the company's billing address is in. `waiting` is
+ * lib/finance/billing-rules.ts invoiceWaitingReason.
+ */
+export function taxInvoiceReadiness(
+  bookingStatus: string,
+  issued: { invoiceNumber: string } | null,
+  waiting: "event" | "address" | null,
+  billedByContract = false
+): Readiness {
+  if (issued) return { tone: "done", label: `Tax invoice ${issued.invoiceNumber}`, hint: "Issued after the event and emailed to your company." };
   if (bookingStatus === "CANCELLED") return { tone: "none", label: "No invoice", hint: "Cancelled, so no invoice was issued." };
-  if (["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Invoice issued · receipt pending", hint: "Confirmed; the receipt hasn't been exported to finance yet." };
-  return { tone: "waiting", label: "Invoice on confirmation", hint: "The tax invoice and receipt are issued when the venue confirms." };
+  if (billedByContract) return { tone: "none", label: "Billed by contract", hint: "The instalment invoices are on the contract." };
+  if (waiting === "address") return { tone: "problem", label: "Add your billing address", hint: "The tax invoice is ready to issue once your billing address is in company setup." };
+  if (waiting === null && ["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Invoice being issued", hint: "It's due now and will appear here shortly." };
+  return { tone: "waiting", label: "Invoice after the event", hint: "The tax invoice is issued once the event has happened." };
 }

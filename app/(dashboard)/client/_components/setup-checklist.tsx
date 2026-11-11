@@ -4,8 +4,8 @@ import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * First-run setup on Home, for Approvers: office area, an approver on the
- * chain, per-head limits. Without them venue cards can't show distance or
+ * First-run setup on Home, for Approvers: GSTIN and billing address (tax
+ * invoices), office area, an approver on the chain, per-head limits. Without them venue cards can't show distance or
  * "In policy", and sign-offs have nobody to go to. Hidden once all are done.
  */
 export function SetupChecklist({ items }: { items: readonly { key: string; label: string; done: boolean }[] }) {

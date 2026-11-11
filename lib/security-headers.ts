@@ -34,7 +34,7 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 export const DOCUMENT_POLICY = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
 /** Routes that serve generated documents, as next.config `headers()` sources. */
-export const DOCUMENT_ROUTES = ["/api/bookings/:id/tax-invoice", "/api/contracts/:id/document"];
+export const DOCUMENT_ROUTES = ["/api/bookings/:id/tax-invoice", "/api/bookings/:id/receipt-voucher", "/api/contracts/:id/document"];
 
 const RAZORPAY = ["https://checkout.razorpay.com", "https://api.razorpay.com"];
 

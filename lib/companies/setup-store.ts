@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { officeArea, type CompanySetup } from "./setup";
 
 /**
- * Saves a company's office area and per-head approval tiers (live data only;
+ * Saves a company's billing address, office area and per-head approval tiers (live data only;
  * callers check the member may manage the company's governance first).
  */
 export async function saveCompanySetup(companyId: string, setup: CompanySetup): Promise<void> {
@@ -13,7 +13,7 @@ export async function saveCompanySetup(companyId: string, setup: CompanySetup): 
   const office = area
     ? { office_latitude: area.latitude, office_longitude: area.longitude, office_label: area.label }
     : { office_latitude: null, office_longitude: null };
-  const { error: officeError } = await db.from("companies").update(office).eq("id", companyId);
+  const { error: officeError } = await db.from("companies").update({ ...office, billing_address: setup.billingAddress }).eq("id", companyId);
   if (officeError) throw officeError;
 
   const { error: policyError } = await db.from("corporate_policies").upsert(

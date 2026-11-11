@@ -1451,38 +1451,52 @@ export async function getTaxInvoiceDocument(bookingId: string): Promise<TaxInvoi
 }
 
 export type TaxInvoiceOutcome =
-  | { status: "rendered"; invoice_number: string | null; html: string; html_sha256: string }
+  | { status: "rendered"; invoice_number: string; issued_on: string; advance_inr: number; receipt_voucher_number: string | null; html: string; html_sha256: string }
   | { status: "failed" | "dead_lettered"; error: string };
 
+/** An issued invoice (numbered) is final. Older unnumbered drafts, rendered at confirmation, aren't. */
+export const isIssuedInvoice = (d: Pick<TaxInvoiceDocument, "status" | "invoice_number"> | null | undefined) => d?.status === "rendered" && d.invoice_number !== null;
+
 /**
- * Records a render attempt for a booking's tax invoice, one row per booking:
- * the document, or the failure (attempts + 1). A rendered document is final, so
- * a later failure or dead-letter never overwrites it. Returns the row.
+ * Records an attempt to issue a booking's tax invoice, one row per booking:
+ * the document, or the failure (attempts + 1). An issued (numbered) invoice is
+ * final, so nothing overwrites it; an unnumbered draft from the old
+ * render-at-confirmation flow is replaced when the invoice is issued. Returns the row.
  */
 export async function recordTaxInvoiceDocument(bookingId: string, tenantId: string, outcome: TaxInvoiceOutcome): Promise<TaxInvoiceDocument> {
   const now = new Date().toISOString();
   const values =
     outcome.status === "rendered"
-      ? { status: "rendered", invoice_number: outcome.invoice_number, html: outcome.html, html_sha256: outcome.html_sha256, rendered_at: now, error: null }
+      ? {
+          status: "rendered",
+          invoice_number: outcome.invoice_number,
+          issued_on: outcome.issued_on,
+          advance_inr: outcome.advance_inr,
+          receipt_voucher_number: outcome.receipt_voucher_number,
+          html: outcome.html,
+          html_sha256: outcome.html_sha256,
+          rendered_at: now,
+          error: null,
+        }
       : { status: outcome.status, error: outcome.error.slice(0, 500) };
   // Dead-lettering closes out the attempts already counted; it isn't one itself.
   const counts = outcome.status !== "dead_lettered";
   if (local()) {
     return mutateDb((db) => {
       const current = db.taxInvoiceDocuments.find((d) => d.booking_id === bookingId);
-      if (current?.status === "rendered") return { ...current };
+      if (isIssuedInvoice(current)) return { ...current! };
       if (current) {
         Object.assign(current, values, { attempts: current.attempts + (counts ? 1 : 0), updated_at: now });
         return { ...current };
       }
-      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, html: null, html_sha256: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
+      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, issued_on: null, advance_inr: 0, receipt_voucher_number: null, html: null, html_sha256: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
       db.taxInvoiceDocuments.push(row);
       return { ...row };
     });
   }
   const db = createAdminClient();
   const current = await getTaxInvoiceDocument(bookingId);
-  if (current?.status === "rendered") return current;
+  if (isIssuedInvoice(current)) return current!;
   if (!current) {
     const { data, error } = await db.from("tax_invoice_documents").insert({ booking_id: bookingId, tenant_id: tenantId, ...values }).select("*").single();
     // Another attempt inserted first: record against its row.
@@ -1494,7 +1508,7 @@ export async function recordTaxInvoiceDocument(bookingId: string, tenantId: stri
     .from("tax_invoice_documents")
     .update({ ...values, attempts: current.attempts + (counts ? 1 : 0) })
     .eq("booking_id", bookingId)
-    .neq("status", "rendered")
+    .or("status.neq.rendered,invoice_number.is.null")
     .select("*")
     .maybeSingle();
   if (error) throw error;
@@ -2484,6 +2498,7 @@ export async function decideSignupApplication(applicationId: string, decision: "
             monthly_spend_limit_inr: 0,
             expense_provider: "webhook",
             contracts_required: false,
+            billing_address: null,
             office_latitude: null,
             office_longitude: null,
             office_label: "office",
