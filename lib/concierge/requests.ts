@@ -20,6 +20,22 @@ export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
 
 export const isOpenStatus = (s: string) => s === "new" || s === "working";
 
+/** Until it's booked or closed, the company can withdraw a request (Home → Requests). */
+export const isWithdrawable = (s: string) => s === "new" || s === "working" || s === "options_sent";
+
+/** The note a withdrawn request carries (shown to the company and in /admin/requests). */
+export const WITHDRAWN_NOTE = "Withdrawn by the company";
+
+/** The requester, or an Approver of the company, may withdraw it; Lufer admins too. */
+export function mayWithdrawRequest(
+  who: { role: string; userId: string; companyId: string | null; corporateRole: string | null },
+  request: { company_id: string | null; requested_by: string | null }
+): boolean {
+  if (who.role === "ADMIN") return true;
+  if (who.role !== "CLIENT" || !who.companyId || request.company_id !== who.companyId) return false;
+  return who.corporateRole === "APPROVER" || request.requested_by === who.userId;
+}
+
 /** Pill tone per status (components/portal/pills.tsx). */
 export const REQUEST_STATUS_TONE: Record<RequestStatus, "warn" | "neutral" | "ok"> = {
   new: "warn",

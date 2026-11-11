@@ -22,6 +22,7 @@ const OUTCOME: Record<ApprovalRequestView["outcome"], { label: string; tone: Pil
   pending: { label: "In progress", tone: "warn" },
   approved: { label: "Approved", tone: "ok" },
   rejected: { label: "Rejected", tone: "error" },
+  withdrawn: { label: "Withdrawn", tone: "neutral" },
 };
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });

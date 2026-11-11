@@ -1,11 +1,16 @@
 import { Pill } from "@/components/portal/pills";
+import { WithdrawRequest } from "./withdraw-request";
 import { REQUEST_STATUS_LABEL, REQUEST_STATUS_TONE, requestSummary, statusOf } from "@/lib/concierge/requests";
 import type { ConciergeRequest } from "@/lib/supabase/database.types";
 
 const sentOn = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
-/** A company's quote requests and briefs on Home, with where each stands and Lufer's latest note. */
-export function RequestList({ requests }: { requests: ConciergeRequest[] }) {
+/**
+ * A company's quote requests and briefs on Home, with where each stands and
+ * Lufer's latest note. `withdrawable`: ids this member may withdraw (open, and
+ * theirs or they're an Approver).
+ */
+export function RequestList({ requests, withdrawable = [] }: { requests: ConciergeRequest[]; withdrawable?: readonly string[] }) {
   if (requests.length === 0) return null;
   return (
     <section aria-labelledby="requests-heading" className="mb-10">
@@ -24,7 +29,10 @@ export function RequestList({ requests }: { requests: ConciergeRequest[] }) {
                   {r.note ? ` · ${r.note}` : ""}
                 </p>
               </div>
-              <Pill tone={REQUEST_STATUS_TONE[status]}>{REQUEST_STATUS_LABEL[status]}</Pill>
+              <span className="flex items-center gap-2">
+                {withdrawable.includes(r.id) ? <WithdrawRequest requestId={r.id} /> : null}
+                <Pill tone={REQUEST_STATUS_TONE[status]}>{REQUEST_STATUS_LABEL[status]}</Pill>
+              </span>
             </li>
           );
         })}

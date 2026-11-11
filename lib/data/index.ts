@@ -40,7 +40,8 @@ import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policie
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
-import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
+import { BOOKING_CANCELLATION_DEFAULTS, BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
+import { parseCancellationTerms, type CancellationTier } from "@/lib/venues/profile";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 import { listedGstin } from "@/lib/venues/gstin";
 import { billableGstin } from "@/lib/companies/gstin";
@@ -504,6 +505,7 @@ export async function createBookingRequest(
       ...row,
       ...BOOKING_ITC_DEFAULTS,
       ...BOOKING_CRM_DEFAULTS,
+      ...BOOKING_CANCELLATION_DEFAULTS,
       total_amount_inr: total,
       sac_code: "998596",
       gst_type: mockGstType(db, input.company_id, input.venue_id, row.billing_gstin),
@@ -806,6 +808,55 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
   const { data, error } = await query.select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("Booking not found");
+}
+
+/**
+ * Records a company's request to cancel a confirmed booking (migration
+ * 20261115000000), once: false if it was already requested or the booking
+ * isn't the company's. The booking stays CONFIRMED until Lufer settles it.
+ */
+export async function recordCancellationRequest(id: string, companyId: string, by: string, reason: string | null): Promise<boolean> {
+  const at = new Date().toISOString();
+  if (local()) {
+    let recorded = false;
+    await mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id && x.company_id === companyId);
+      if (!b || b.cancellation_requested_at) return;
+      Object.assign(b, { cancellation_requested_at: at, cancellation_requested_by: by, cancellation_reason: reason, updated_at: at });
+      recorded = true;
+    });
+    return recorded;
+  }
+  const { data, error } = await createAdminClient()
+    .from("bookings")
+    .update({ cancellation_requested_at: at, cancellation_requested_by: by, cancellation_reason: reason })
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .is("cancellation_requested_at", null)
+    .select("id");
+  if (error) throw error;
+  return data.length > 0;
+}
+
+/** Saves why a booking was cancelled outright (optional; the status change carries the rest). */
+export async function saveCancellationReason(id: string, reason: string): Promise<void> {
+  if (local()) {
+    await mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id);
+      if (b) b.cancellation_reason = reason;
+    });
+    return;
+  }
+  const { error } = await createAdminClient().from("bookings").update({ cancellation_reason: reason }).eq("id", id);
+  if (error) throw error;
+}
+
+/** A venue's cancellation tiers (most notice first); empty when it set none. */
+export async function venueCancellationTerms(venueId: string): Promise<CancellationTier[]> {
+  if (local()) return parseCancellationTerms((await readDb()).venues.find((v) => v.id === venueId)?.cancellation_terms ?? []);
+  const { data, error } = await createAdminClient().from("venues").select("cancellation_terms").eq("id", venueId).maybeSingle();
+  if (error) throw error;
+  return parseCancellationTerms(data?.cancellation_terms ?? []);
 }
 
 /** Sets a booking's cost centre (expense metadata), scoped to its company. */

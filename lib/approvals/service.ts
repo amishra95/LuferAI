@@ -77,10 +77,14 @@ export async function releaseExpiredHolds(): Promise<number> {
  * Pending approvals this member should decide: their own queue, or all for an admin.
  * Queued steps (waiting for an earlier approver, migration 0030) appear once it's their turn.
  */
+type ApprovalDetailLike = Parameters<typeof isActionable>[0] & { booking: { status: string } };
+
 export async function approvalQueue(member: Member, companyId: string): Promise<ApprovalRow[]> {
-  if (member.role === "ADMIN") return (await listApprovals({ tenantId: companyId, status: "PENDING" })).filter(isActionable);
+  // A request withdrawn by its company (subject no longer PENDING_APPROVAL) has nothing left to decide.
+  const open = (a: ApprovalDetailLike) => isActionable(a) && a.booking.status === "PENDING_APPROVAL";
+  if (member.role === "ADMIN") return (await listApprovals({ tenantId: companyId, status: "PENDING" })).filter(open);
   if (!member.canApprove || member.companyId !== companyId) return [];
-  return (await listApprovals({ tenantId: companyId, approverId: member.userId, status: "PENDING" })).filter(isActionable);
+  return (await listApprovals({ tenantId: companyId, approverId: member.userId, status: "PENDING" })).filter(open);
 }
 
 export interface OrderItemisation {

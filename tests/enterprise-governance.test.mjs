@@ -440,6 +440,20 @@ test("db: the overdue sweep escalates past-deadline steps only; portal users can
   }
 });
 
+test("db: the overdue sweep skips a request the company withdrew (migration 20261115000000)", async () => {
+  await scratch(async (tx) => {
+    const ruleId = await newRule(tx, { levels: 1, sla: 1 });
+    const withdrawn = await newBooking(tx);
+    const [step] = await raise(tx, withdrawn, [U.manager], ruleId);
+    await tx.query(`update booking_approvals set due_at = now() - interval '1 hour' where id = $1`, [step]);
+    await tx.query(`update bookings set status = 'CANCELLED' where id = $1`, [withdrawn]);
+
+    assert.equal((await one(tx, `select escalate_overdue_approvals() n`)).n, 0);
+    assert.equal((await one(tx, `select status from booking_approvals where id = $1`, [step])).status, "PENDING", "left as it was, not handed up the chain");
+    assert.equal((await approvalsOf(tx, withdrawn)).length, 1, "no escalated copy");
+  });
+});
+
 test("db: overlapping active rules in one scope are refused; other teams, touching bands and paused rules are fine", async () => {
   await scratch(async (tx) => {
     await newRule(tx, { min: 100000, max: 500000 });

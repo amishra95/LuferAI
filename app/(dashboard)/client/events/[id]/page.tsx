@@ -24,6 +24,9 @@ import { ActivityTicker, EventRoom, RoomPresence, SectionPresence } from "./_com
 import { EventPlanEditor, PlanStatusBadge, SignOffButton, SignOffTrail } from "./_components/event-plan";
 import { GuestList, type GuestRow } from "./_components/guest-list";
 import { ScheduleForm } from "./_components/schedule-form";
+import { CancelEvent } from "./_components/cancel-event";
+import { cancelModeFor, mayCancel, refundEstimate, refundLine } from "@/lib/bookings/cancellation";
+import { venueCancellationTerms } from "@/lib/data";
 
 const time = (t: string) => t.slice(0, 5);
 
@@ -69,6 +72,10 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
     latestPayments([booking.id]),
     findExpenseExport(booking.id, "booking.confirmed"),
   ]);
+  // Cancelling (lib/bookings/cancellation.ts): the requester or an Approver; admins close confirmed ones.
+  const cancelMode = mayCancel(member, booking) ? cancelModeFor(booking, today, { admin: member.role === "ADMIN" }) : null;
+  const cancelTerms = cancelMode === "request" ? await venueCancellationTerms(booking.venue_id) : null;
+  const cancelEstimate = cancelTerms ? refundEstimate(cancelTerms, booking, today) : null;
   const people = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const activity = seedActivity({ attendees, workspace, people });
 
@@ -278,6 +285,24 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 </a>
               </CardContent>
             </Card>
+
+            {cancelMode ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{cancelMode === "request" ? "Cancel booking" : "Cancel"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CancelEvent
+                    bookingId={booking.id}
+                    mode={cancelMode}
+                    refund={cancelEstimate ? refundLine(cancelEstimate) : null}
+                    terms={cancelEstimate?.known ? cancelEstimate.terms : null}
+                    requestedOn={booking.cancellation_requested_at ? formatDate(booking.cancellation_requested_at.slice(0, 10)) : null}
+                    admin={member.role === "ADMIN"}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         </div>
       </EventRoom>

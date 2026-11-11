@@ -589,6 +589,9 @@ export type Database = {
           alcohol_included: boolean
           billing_gstin: string | null
           budget_per_head_inr: number
+          cancellation_reason: string | null
+          cancellation_requested_at: string | null
+          cancellation_requested_by: string | null
           commission_rate: number
           company_id: string
           cost_center: string | null
@@ -627,6 +630,9 @@ export type Database = {
           alcohol_included?: boolean
           billing_gstin?: string | null
           budget_per_head_inr: number
+          cancellation_reason?: string | null
+          cancellation_requested_at?: string | null
+          cancellation_requested_by?: string | null
           commission_rate: number
           company_id: string
           cost_center?: string | null
@@ -665,6 +671,9 @@ export type Database = {
           alcohol_included?: boolean
           billing_gstin?: string | null
           budget_per_head_inr?: number
+          cancellation_reason?: string | null
+          cancellation_requested_at?: string | null
+          cancellation_requested_by?: string | null
           commission_rate?: number
           company_id?: string
           cost_center?: string | null
