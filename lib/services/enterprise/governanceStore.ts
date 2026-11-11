@@ -224,9 +224,14 @@ export interface ApprovalRequestView {
   requesterName: string;
   reason: string | null;
   createdAt: string;
-  outcome: "pending" | "approved" | "rejected";
+  /** "withdrawn": the company cancelled the request before every sign-off was in. */
+  outcome: "pending" | "approved" | "rejected" | "withdrawn";
   steps: (StepProgress & { approverName: string; escalatedFromNames: string[] })[];
 }
+
+/** A request still pending on paper whose subject was cancelled was withdrawn by the company. */
+const withdrawnOr = (outcome: "pending" | "approved" | "rejected", subjectStatus: string): ApprovalRequestView["outcome"] =>
+  outcome === "pending" && subjectStatus === "CANCELLED" ? "withdrawn" : outcome;
 
 /** The company's approval requests, newest first, each with its steps in order. */
 export async function listApprovalRequests(tenantId: string, filter: { outcome?: ApprovalRequestView["outcome"] } = {}): Promise<ApprovalRequestView[]> {
@@ -246,7 +251,7 @@ export async function listApprovalRequests(tenantId: string, filter: { outcome?:
       requesterName: first.requester_name,
       reason: first.reason,
       createdAt: first.created_at,
-      outcome: requestOutcome(approvals),
+      outcome: withdrawnOr(requestOutcome(approvals), first.booking.status),
       steps: chainProgress(approvals).map((s) => ({
         ...s,
         approverName: names.get(s.approval.approver_id) ?? "Unknown user",

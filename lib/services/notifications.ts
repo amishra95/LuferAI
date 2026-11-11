@@ -184,6 +184,17 @@ export async function notifyConciergeRequest(
   return { delivered: true };
 }
 
+/** A message to Lufer ops (CONCIERGE_EMAIL), reply-to whoever it's about. Never throws. */
+export async function notifyOps(message: { subject: string; lines: string[] }, replyTo?: string): Promise<NotifyOutcome> {
+  const to = process.env.CONCIERGE_EMAIL?.trim();
+  if (!to) return { status: "skipped", reason: "CONCIERGE_EMAIL is not set." };
+  try {
+    return await sendEmail({ to, subject: message.subject, text: message.lines.join("\n"), html: plainHtml(message.lines), ...(replyTo && { replyTo }) });
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /** A venue alert (lib/venues/alerts.ts). Never throws. */
 export async function sendVenueAlert(to: string, message: { subject: string; lines: string[] }): Promise<NotifyOutcome> {
   try {

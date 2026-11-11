@@ -74,6 +74,7 @@ import { VenueExplorer } from "./_components/venue-explorer";
 import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
 import { listDirectory } from "@/lib/venues/directory";
 import { RequestList } from "@/components/concierge/request-list";
+import { isWithdrawable, mayWithdrawRequest } from "@/lib/concierge/requests";
 import { listCompanyRequests } from "@/lib/concierge/request-store";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
@@ -656,7 +657,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
           {setup && activeTab === "bookings" ? <SetupChecklist items={setup} /> : null}
 
-          <RequestList requests={requests} />
+          <RequestList requests={requests} withdrawable={requests.filter((r) => isWithdrawable(r.status) && mayWithdrawRequest(member, r)).map((r) => r.id)} />
 
           {canRequest ? (
             <div className="mb-10 space-y-10">

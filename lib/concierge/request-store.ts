@@ -1,6 +1,6 @@
 import "server-only";
 
-import { conciergeAlertText, type NewConciergeRequest, type RequestUpdate } from "@/lib/concierge/requests";
+import { conciergeAlertText, WITHDRAWN_NOTE, type NewConciergeRequest, type RequestUpdate } from "@/lib/concierge/requests";
 import { sendTelegram } from "@/lib/services/telegram";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ConciergeRequest } from "@/lib/supabase/database.types";
@@ -60,6 +60,24 @@ export async function listAllRequests(limit = 200): Promise<AdminRequest[]> {
 
 export async function updateConciergeRequest(u: RequestUpdate): Promise<boolean> {
   const { data, error } = await createAdminClient().from("concierge_requests").update({ status: u.status, note: u.note }).eq("id", u.id).select("id");
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
+export async function getConciergeRequest(id: string): Promise<ConciergeRequest | null> {
+  const { data, error } = await createAdminClient().from("concierge_requests").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Closes a request the company withdrew, if it's still open (false: already booked or closed). */
+export async function withdrawConciergeRequest(id: string): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("concierge_requests")
+    .update({ status: "closed", note: WITHDRAWN_NOTE })
+    .eq("id", id)
+    .in("status", ["new", "working", "options_sent"])
+    .select("id");
   if (error) throw error;
   return (data ?? []).length > 0;
 }
