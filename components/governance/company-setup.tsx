@@ -8,13 +8,13 @@ import { SectionLabel } from "@/components/dashboard/page-header";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { OFFICE_AREAS, type OfficeAreaKey } from "@/lib/companies/setup";
 
-type Values = { gstin: string; officeArea: OfficeAreaKey | ""; autoApprovePerHead: string; managerPerHead: string; maxPerHead: string; maxDistanceKm: string };
+type Values = { gstin: string; billingAddress: string; officeArea: OfficeAreaKey | ""; autoApprovePerHead: string; managerPerHead: string; maxPerHead: string; maxDistanceKm: string };
 
 const str = (n: number | null | undefined) => (n == null ? "" : String(n));
 
 /**
  * The company's GSTIN (added once, if it signed up without one: bookings need
- * it), office area (distance on venue cards, the distance rule) and per-head
+ * it), billing address (the "Bill to" on tax invoices, which wait for it), office area (distance on venue cards, the distance rule) and per-head
  * approval tiers (the policy badge on venue cards). Blank = no limit.
  */
 export function CompanySetup({
@@ -23,11 +23,12 @@ export function CompanySetup({
   canManage,
 }: {
   companyId: string | null;
-  initial: { gstin: string | null; officeArea: string | null; autoApprovePerHead: number | null; managerPerHead: number | null; maxPerHead: number | null; maxDistanceKm: number | null };
+  initial: { gstin: string | null; billingAddress: string | null; officeArea: string | null; autoApprovePerHead: number | null; managerPerHead: number | null; maxPerHead: number | null; maxDistanceKm: number | null };
   canManage: boolean;
 }) {
   const [values, setValues] = useState<Values>({
     gstin: "",
+    billingAddress: initial.billingAddress ?? "",
     officeArea: (initial.officeArea ?? "") as OfficeAreaKey | "",
     autoApprovePerHead: str(initial.autoApprovePerHead),
     managerPerHead: str(initial.managerPerHead),
@@ -35,7 +36,7 @@ export function CompanySetup({
     maxDistanceKm: str(initial.maxDistanceKm),
   });
   const act = useAction<{ ok: true }>();
-  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setValues((v) => ({ ...v, [key]: e.target.value }) as Values);
+  const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setValues((v) => ({ ...v, [key]: e.target.value }) as Values);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +77,18 @@ export function CompanySetup({
                 className="field font-mono uppercase"
               />
             )}
+          </label>
+          <label className="grid gap-1.5 sm:col-span-2">
+            <span className="text-fg text-meta font-medium">Billing address</span>
+            <textarea
+              value={values.billingAddress}
+              onChange={set("billingAddress")}
+              disabled={!canManage}
+              rows={2}
+              maxLength={500}
+              autoComplete="street-address"
+              className="field field-sizing-content h-auto min-h-16 resize-none py-2"
+            />
           </label>
           <label className="grid gap-1.5">
             <span className="text-fg text-meta font-medium">Office area</span>

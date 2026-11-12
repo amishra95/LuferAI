@@ -18,8 +18,14 @@ export interface TaxInvoiceSubject {
   partySize: number;
   supplierName: string;
   supplierCity: string | null;
+  /** The venue's address (venues.address). */
+  supplierAddress?: string | null;
   recipientName: string;
+  /** The company's billing address (companies.billing_address). */
+  recipientAddress?: string | null;
   invoice: TaxInvoicePayload;
+  /** A deposit already received against this supply, and its receipt voucher. */
+  advance?: { amount: number; voucherNumber: string | null } | null;
 }
 
 const STYLE = `
@@ -36,6 +42,7 @@ const STYLE = `
   th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
   tr.total td { border-top: 2px solid #1c1917; font-weight: bold; }
   .note { color: #57534e; font-size: 12px; margin-top: 1.5rem; }
+  .sign { margin-top: 2.5rem; text-align: right; }
   @page { margin: 18mm; }
   @media print { body { margin: 0 auto; } }
 `;
@@ -45,8 +52,8 @@ const money = (n: number) => escapeHtml(inr.format(n));
 const row = (cells: string[], cls = "") => `<tr${cls ? ` class="${cls}"` : ""}>${cells.join("")}</tr>`;
 const td = (text: string, num = false) => `<td${num ? ' class="num"' : ""}>${text}</td>`;
 
-function party(heading: string, name: string, gstin: string, state: string, city: string | null = null): string {
-  const lines = [name, city, `GSTIN ${gstin}`, `State: ${state}`].filter((l): l is string => Boolean(l));
+function party(heading: string, name: string, gstin: string, state: string, city: string | null = null, address: string | null = null): string {
+  const lines = [name, address, address ? null : city, `GSTIN ${gstin}`, `State: ${state}`].filter((l): l is string => Boolean(l));
   return `<div><h2>${escapeHtml(heading)}</h2>${lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("")}</div>`;
 }
 
@@ -67,6 +74,12 @@ export function renderTaxInvoice(subject: TaxInvoiceSubject): { html: string; sh
     ...heads.map(([head, tax]) => row([td(escapeHtml(`${head} @ ${tax.rate_percent}%`)), td(""), td(""), td(money(tax.amount), true)])),
     row([td("Total tax"), td(""), td(""), td(money(invoice.total_tax), true)]),
     row([td("Invoice total"), td(""), td(""), td(money(invoice.invoice_total), true)], "total"),
+    ...(subject.advance && subject.advance.amount > 0
+      ? [
+          row([td(escapeHtml(`Less: advance received${subject.advance.voucherNumber ? ` (receipt voucher ${subject.advance.voucherNumber})` : ""}`)), td(""), td(""), td(`− ${money(subject.advance.amount)}`, true)]),
+          row([td("Balance payable"), td(""), td(""), td(money(Math.max(0, Math.round((invoice.invoice_total - subject.advance.amount) * 100) / 100)), true)], "total"),
+        ]
+      : []),
   ].join("");
 
   const meta = [
@@ -83,11 +96,67 @@ export function renderTaxInvoice(subject: TaxInvoiceSubject): { html: string; sh
     `<h1>Tax Invoice</h1>` +
     `<div class="meta">${escapeHtml(meta)}</div>` +
     `<div class="parties">` +
-    party("Supplier", subject.supplierName, invoice.supplier.gstin, invoice.supplier.state_name, subject.supplierCity) +
-    party("Bill to", subject.recipientName, invoice.recipient.gstin, invoice.recipient.state_name) +
+    party("Supplier", subject.supplierName, invoice.supplier.gstin, invoice.supplier.state_name, subject.supplierCity, subject.supplierAddress ?? null) +
+    party("Bill to", subject.recipientName, invoice.recipient.gstin, invoice.recipient.state_name, null, subject.recipientAddress ?? null) +
     `</div>` +
     `<table>${lines}</table>` +
     `<p class="note">Amounts in ${escapeHtml(invoice.currency)}. Tax payable on reverse charge: No.${number ? "" : " This invoice is numbered when issued in the supplier's series."}</p>` +
+    (number ? `<p class="sign">For ${escapeHtml(subject.supplierName)}<br>Authorised signatory</p><p class="note">Computer-generated invoice.</p>` : "") +
     `</body></html>`;
   return { html, sha256: sha256(html), invoiceNumber: number };
+}
+
+export interface ReceiptVoucherSubject {
+  voucherNumber: string;
+  issuedOn: string;
+  bookingId: string;
+  eventDate: string;
+  partySize: number;
+  supplierName: string;
+  supplierCity: string | null;
+  supplierAddress: string | null;
+  recipientName: string;
+  recipientAddress: string | null;
+  /** The booking's GST snapshot: parties, SAC, rate and place of supply. */
+  invoice: TaxInvoicePayload;
+  /** Amount received, GST included, and its split (lib/finance/billing-rules.ts splitInclusive). */
+  received: { total: number; taxable: number; cgst: number; sgst: number; igst: number; tax: number };
+  paymentRef: string | null;
+}
+
+/** A receipt voucher for an advance (the deposit). Same subject → same bytes → same hash. */
+export function renderReceiptVoucher(v: ReceiptVoucherSubject): { html: string; sha256: string } {
+  const { invoice, received } = v;
+  const half = invoice.tax.rate_percent / 2;
+  const heads =
+    invoice.gst_type === "IGST"
+      ? [[`IGST @ ${invoice.tax.rate_percent}%`, received.igst] as const]
+      : [[`CGST @ ${half}%`, received.cgst] as const, [`SGST @ ${half}%`, received.sgst] as const];
+  const lines = [
+    row([`<th>Description</th>`, `<th>${escapeHtml(invoice.tax.kind)}</th>`, `<th class="num">Amount</th>`]),
+    row([td(escapeHtml(`Advance for ${invoice.sac.description} · event on ${v.eventDate} · ${v.partySize} guests`)), td(escapeHtml(invoice.sac.code)), td(money(received.taxable), true)]),
+    ...heads.map(([label, amount]) => row([td(escapeHtml(label)), td(""), td(money(amount), true)])),
+    row([td("Amount received"), td(""), td(money(received.total), true)], "total"),
+  ].join("");
+  const meta = [
+    `Voucher no. ${v.voucherNumber}`,
+    `date ${v.issuedOn}`,
+    `booking ${v.bookingId}`,
+    `place of supply ${invoice.place_of_supply.state_name} (${invoice.place_of_supply.state_code})`,
+    ...(v.paymentRef ? [`payment ${v.paymentRef}`] : []),
+  ].join(" · ");
+  const html =
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<title>${escapeHtml(`Receipt Voucher ${v.voucherNumber}`)}</title><style>${STYLE}</style></head><body>` +
+    `<h1>Receipt Voucher</h1>` +
+    `<div class="meta">${escapeHtml(meta)}</div>` +
+    `<div class="parties">` +
+    party("Supplier", v.supplierName, invoice.supplier.gstin, invoice.supplier.state_name, v.supplierCity, v.supplierAddress) +
+    party("Received from", v.recipientName, invoice.recipient.gstin, invoice.recipient.state_name, null, v.recipientAddress) +
+    `</div>` +
+    `<table>${lines}</table>` +
+    `<p class="note">Advance received against a supply of services not yet made; the tax invoice follows after the event and sets this amount against it. Amounts in ${escapeHtml(invoice.currency)}. Tax payable on reverse charge: No.</p>` +
+    `<p class="sign">For ${escapeHtml(v.supplierName)}<br>Authorised signatory</p><p class="note">Computer-generated receipt voucher.</p>` +
+    `</body></html>`;
+  return { html, sha256: sha256(html) };
 }

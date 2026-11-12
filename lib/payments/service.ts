@@ -6,6 +6,7 @@ import { calculateGst, roundInr, splitCommission, type TaxInvoicePayload } from 
 import { applyTransferUpdate, syncOrderSettlement } from "@/lib/marketplace/service";
 import { depositFor } from "@/lib/quotes";
 import { depositRateFor } from "@/lib/rates/venue-pricing";
+import { issueReceiptVoucher } from "@/lib/finance/billing-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
@@ -354,6 +355,8 @@ export async function settleDeposit(bookingId: string, action: "capture" | "void
           .from("payments")
           .update({ status: "captured", captured_at: new Date().toISOString(), last_error: null })
           .eq("id", payment.id);
+        // The deposit is now an advance received: issue its receipt voucher (the daily sweep retries a failure).
+        await issueReceiptVoucher(payment.id).catch((err) => console.error(`receipt voucher for payment ${payment.id} failed`, err));
       } else {
         const released = await gateway.void(payment.provider_payment_id);
         await db

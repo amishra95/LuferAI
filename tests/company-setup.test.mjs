@@ -7,7 +7,7 @@ const blank = { officeArea: "", autoApprovePerHead: "", managerPerHead: "", maxP
 
 test("blank fields mean no limit and no office", () => {
   const r = CompanySetupInput.parse(blank);
-  assert.deepEqual(r, { officeArea: "", autoApprovePerHead: null, managerPerHead: null, maxPerHead: null, maxDistanceKm: null, gstin: null });
+  assert.deepEqual(r, { officeArea: "", autoApprovePerHead: null, managerPerHead: null, maxPerHead: null, maxDistanceKm: null, billingAddress: null, gstin: null });
 });
 
 test("per-head limits parse from form strings and must not decrease", () => {
@@ -28,6 +28,15 @@ test("office areas are presets only", () => {
 });
 
 test("setup checklist", () => {
-  const gaps = setupGaps({ hasGstin: false, hasOffice: true, approvers: 0, hasPerHeadTiers: false });
-  assert.deepEqual(gaps.map((g) => [g.key, g.done]), [["gstin", false], ["office", true], ["approvers", false], ["limits", false]]);
+  const gaps = setupGaps({ hasGstin: false, hasBillingAddress: false, hasOffice: true, approvers: 0, hasPerHeadTiers: false });
+  assert.deepEqual(gaps.map((g) => [g.key, g.done]), [["gstin", false], ["address", false], ["office", true], ["approvers", false], ["limits", false]]);
+});
+
+test("billing address: trimmed, lines joined with commas, blank means none, 10–500 characters", () => {
+  const blank = { officeArea: "", autoApprovePerHead: "", managerPerHead: "", maxPerHead: "", maxDistanceKm: "" };
+  assert.equal(CompanySetupInput.parse({ ...blank, billingAddress: "   " }).billingAddress, null);
+  assert.equal(CompanySetupInput.parse({ ...blank, billingAddress: " 4th Floor, Prestige Tech Park\n  Outer Ring Road\nBengaluru 560103 " }).billingAddress, "4th Floor, Prestige Tech Park, Outer Ring Road, Bengaluru 560103");
+  const short = CompanySetupInput.safeParse({ ...blank, billingAddress: "Blr" });
+  assert.equal(short.success, false);
+  assert.match(short.error.issues[0].message, /street, city and PIN/);
 });

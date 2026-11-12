@@ -4,6 +4,7 @@ import { CalendarClock, CalendarX2, Check, CheckCheck, ClipboardList, FileSignat
 
 import { EmptyState } from "@/components/portal/empty-state";
 import { NavBadges } from "@/components/dashboard/nav-badges";
+import { issuedInvoiceNumbers } from "@/lib/finance/billing-store";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { segmentClass } from "@/components/portal/segment";
 import { StatCard } from "@/components/portal/stat-card";
@@ -117,6 +118,11 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       return [];
     }),
   ]);
+  // Issued tax invoices for the booking history (lib/finance/tax-invoice.ts).
+  const invoiceNumbers = await issuedInvoiceNumbers(bookings.map((b) => b.id)).catch((err) => {
+    console.error("property: could not load invoice numbers", err);
+    return new Map<string, string>();
+  });
   // Median hours to accept over the signal window; companies see it on the venue's card.
   const replyHours = live ? (await venueResponseHours()).get(venue.id) : undefined;
   const platform = platformState.settings;
@@ -726,6 +732,7 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                     <TableHead>Client</TableHead>
                     <TableHead className="text-right">Payout</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -745,6 +752,15 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                           </form>
                         ) : (
                           <BookingStatusBadge status={b.status} />
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {invoiceNumbers.get(b.id) ? (
+                          <a href={`/api/bookings/${b.id}/tax-invoice`} target="_blank" rel="noopener" className="text-fg hover:underline">
+                            {invoiceNumbers.get(b.id)}
+                          </a>
+                        ) : (
+                          <span className="text-fg-faint">—</span>
                         )}
                       </TableCell>
                     </TableRow>

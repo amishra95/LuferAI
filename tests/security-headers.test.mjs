@@ -59,7 +59,7 @@ test("generated documents get a policy that blocks everything but inline styles"
   assert.deepEqual(d["default-src"], ["'none'"]);
   assert.deepEqual(d["style-src"], ["'unsafe-inline'"]);
   assert.deepEqual(d["frame-ancestors"], ["'none'"]);
-  assert.deepEqual(DOCUMENT_ROUTES, ["/api/bookings/:id/tax-invoice", "/api/contracts/:id/document"]);
+  assert.deepEqual(DOCUMENT_ROUTES, ["/api/bookings/:id/tax-invoice", "/api/bookings/:id/receipt-voucher", "/api/contracts/:id/document"]);
 });
 
 test("the report-only policy allows the Sentry ingest host from the DSN", () => {

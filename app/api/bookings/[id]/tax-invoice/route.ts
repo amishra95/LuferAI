@@ -1,11 +1,11 @@
 import { getCurrentMember } from "@/lib/auth/session";
-import { getTaxInvoiceDocument, listBookings } from "@/lib/data";
+import { getTaxInvoiceDocument, isIssuedInvoice, listBookings } from "@/lib/data";
 import { DOCUMENT_POLICY } from "@/lib/security-headers";
 
 /**
- * GET /api/bookings/<id>/tax-invoice: the booking's GST tax invoice as rendered
- * by workflows/tax-invoice.ts, a print-ready HTML page (use the browser's Save
- * as PDF). ?download=1 sends it as an attachment. Only the booking's company,
+ * GET /api/bookings/<id>/tax-invoice: the booking's GST tax invoice as issued
+ * after the event by workflows/tax-invoice.ts, a print-ready HTML page (use the
+ * browser's Save as PDF). Unnumbered drafts from before issuing aren't served. ?download=1 sends it as an attachment. Only the booking's company,
  * its venue and admins can open it.
  */
 export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id]/tax-invoice">) {
@@ -18,18 +18,18 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
     const [booking] = scope ? await listBookings({ ...scope, ids: [id] }) : [];
     if (!booking) return Response.json({ error: "not_found" }, { status: 404 });
     const doc = await getTaxInvoiceDocument(id);
-    if (!doc || doc.status !== "rendered" || !doc.html) return Response.json({ error: "not_rendered", status: doc?.status ?? null }, { status: 404 });
+    if (!isIssuedInvoice(doc) || !doc!.html) return Response.json({ error: "not_issued", status: doc?.status ?? null }, { status: 404 });
 
     const download = new URL(request.url).searchParams.get("download") === "1";
-    const filename = (doc.invoice_number ?? `tax-invoice-${id.slice(0, 8)}`).replace(/[^A-Za-z0-9._-]/g, "-");
-    return new Response(doc.html, {
+    const filename = `tax-invoice-${doc!.invoice_number}`.replace(/[^A-Za-z0-9._-]/g, "-");
+    return new Response(doc!.html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "private, no-store",
         // The document is static HTML we generated; nothing in it should run or load.
         "Content-Security-Policy": DOCUMENT_POLICY,
         "X-Content-Type-Options": "nosniff",
-        "X-Content-SHA256": doc.html_sha256 ?? "",
+        "X-Content-SHA256": doc!.html_sha256 ?? "",
         ...(download ? { "Content-Disposition": `attachment; filename="${filename}.html"` } : {}),
       },
     });
