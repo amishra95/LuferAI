@@ -15,20 +15,11 @@ export interface HostPhoto {
   url: string;
 }
 
-/** The server side of the manager; the host's own actions unless a page passes others (admin photos). */
-export interface PhotoActions {
-  start: typeof startPhotoUploadAction;
-  attach: typeof attachPhotoAction;
-  update: typeof updatePhotoAction;
-}
-
-const HOST_ACTIONS: PhotoActions = { start: startPhotoUploadAction, attach: attachPhotoAction, update: updatePhotoAction };
-
 /**
  * The venue's listing photos: cover first, add (uploaded from the browser
  * straight to Storage through a signed slot), make cover, remove.
  */
-export function PhotoManager({ venueId, venueName, photos, actions = HOST_ACTIONS }: { venueId: string; venueName: string; photos: HostPhoto[]; actions?: PhotoActions }) {
+export function PhotoManager({ venueId, venueName, photos }: { venueId: string; venueName: string; photos: HostPhoto[] }) {
   const input = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<HostFormState>(IDLE);
   const [pending, startTransition] = useTransition();
@@ -36,11 +27,11 @@ export function PhotoManager({ venueId, venueName, photos, actions = HOST_ACTION
 
   const upload = (file: File) =>
     startTransition(async () => {
-      const slot = await actions.start({ venueId, type: file.type, size: file.size });
+      const slot = await startPhotoUploadAction({ venueId, type: file.type, size: file.size });
       if (!slot.ok) return setState({ status: "error", message: slot.error });
       const { error } = await createClient().storage.from(PHOTO_BUCKET).uploadToSignedUrl(slot.path, slot.token, file, { contentType: file.type });
       if (error) return setState({ status: "error", message: "The upload failed. Check your connection and try again." });
-      setState(await actions.attach({ venueId, path: slot.path }));
+      setState(await attachPhotoAction({ venueId, path: slot.path }));
     });
 
   return (
@@ -54,7 +45,7 @@ export function PhotoManager({ venueId, venueName, photos, actions = HOST_ACTION
               {i === 0 ? <span className="bg-surface/90 text-fg absolute top-2 left-2 rounded px-1.5 py-0.5 text-caption font-medium">Cover</span> : null}
               <div className="flex justify-end gap-1 p-1">
                 {i > 0 ? (
-                  <form action={actions.update}>
+                  <form action={updatePhotoAction}>
                     <input type="hidden" name="venue_id" value={venueId} />
                     <input type="hidden" name="photo" value={p.ref} />
                     <Button type="submit" name="intent" value="cover" size="sm" variant="ghost" aria-label={`Make photo ${i + 1} the cover`}>
@@ -62,7 +53,7 @@ export function PhotoManager({ venueId, venueName, photos, actions = HOST_ACTION
                     </Button>
                   </form>
                 ) : null}
-                <form action={actions.update}>
+                <form action={updatePhotoAction}>
                   <input type="hidden" name="venue_id" value={venueId} />
                   <input type="hidden" name="photo" value={p.ref} />
                   <Button type="submit" name="intent" value="remove" size="sm" variant="ghost" aria-label={`Remove photo ${i + 1}`}>

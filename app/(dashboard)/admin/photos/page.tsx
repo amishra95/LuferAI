@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
 
 import { PortalShell } from "@/components/portal/portal-shell";
-import { VenuePhoto } from "@/components/venues/venue-photo";
 import { requirePortal } from "@/lib/auth/session";
 import { dataSource } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
-import { MAX_PHOTOS } from "@/lib/venues/photos";
-import { PhotoManager, type PhotoActions } from "../../property/_components/photo-manager";
-import { attachAdminPhotoAction, startAdminPhotoUploadAction, updateAdminPhotoAction } from "./actions";
+import { PhotoCard } from "./photo-card";
 
 export const metadata: Metadata = { title: "Venue photos" };
-
-const ACTIONS: PhotoActions = { start: startAdminPhotoUploadAction, attach: attachAdminPhotoAction, update: updateAdminPhotoAction };
 
 interface Row {
   key: string;
@@ -43,35 +38,15 @@ async function load(): Promise<{ listings: Row[]; venues: Row[] }> {
 
 function Section({ title, rows }: { title: string; rows: Row[] }) {
   if (rows.length === 0) return null;
+  const missing = rows.filter((r) => r.photos.length === 0).length;
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-4">
       <h2 className="text-fg text-body font-medium">
-        {title} <span className="text-fg-subtle font-normal">{rows.length}</span>
+        {title} <span className="text-fg-subtle font-normal">{missing > 0 ? `${missing} of ${rows.length} without photos` : rows.length}</span>
       </h2>
-      <ul className="border-line divide-line divide-y rounded-lg border">
+      <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
         {rows.map((r) => (
-          <li key={r.key}>
-            <details className="group">
-              <summary className="hover:bg-surface flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                <VenuePhoto url={venuePhotoUrls(r.photos)[0]} className="size-10 shrink-0 rounded-md" />
-                <span className="min-w-0 flex-1">
-                  <span className="text-fg block truncate text-body">{r.name}</span>
-                  <span className="text-fg-subtle block truncate text-meta">{r.meta}</span>
-                </span>
-                <span className="text-fg-subtle text-meta tabular-nums">
-                  {r.photos.length}/{MAX_PHOTOS}
-                </span>
-              </summary>
-              <div className="px-4 pt-1 pb-4">
-                <PhotoManager
-                  venueId={r.key}
-                  venueName={r.name}
-                  photos={r.photos.flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))}
-                  actions={ACTIONS}
-                />
-              </div>
-            </details>
-          </li>
+          <PhotoCard key={r.key} id={r.key} name={r.name} meta={r.meta} photos={r.photos.flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))} />
         ))}
       </ul>
     </section>
