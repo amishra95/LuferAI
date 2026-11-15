@@ -1521,6 +1521,8 @@ export type Database = {
       concierge_requests: {
         Row: {
           company_id: string | null
+          accepted_by: string | null
+          accepted_at: string | null
           created_at: string
           details: string | null
           event_date: string | null
@@ -1529,6 +1531,9 @@ export type Database = {
           kind: string
           note: string | null
           partner_venue_id: string | null
+          quoted_at: string | null
+          quote_total_inr: number | null
+          quote_note: string | null
           per_head_inr: number | null
           requested_by: string | null
           requester_email: string
@@ -1539,6 +1544,8 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          accepted_by?: string | null
+          accepted_at?: string | null
           created_at?: string
           details?: string | null
           event_date?: string | null
@@ -1547,6 +1554,9 @@ export type Database = {
           kind: string
           note?: string | null
           partner_venue_id?: string | null
+          quoted_at?: string | null
+          quote_total_inr?: number | null
+          quote_note?: string | null
           per_head_inr?: number | null
           requested_by?: string | null
           requester_email: string
@@ -1557,6 +1567,8 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          accepted_by?: string | null
+          accepted_at?: string | null
           created_at?: string
           details?: string | null
           event_date?: string | null
@@ -1565,6 +1577,9 @@ export type Database = {
           kind?: string
           note?: string | null
           partner_venue_id?: string | null
+          quoted_at?: string | null
+          quote_total_inr?: number | null
+          quote_note?: string | null
           per_head_inr?: number | null
           requested_by?: string | null
           requester_email?: string
@@ -2620,6 +2635,7 @@ export type Database = {
           booking_invoice_id: string | null
           captured_at: string | null
           catalog_order_id: string | null
+          concierge_request_id: string | null
           created_at: string
           currency: string
           deposit_rate: number
@@ -2643,6 +2659,7 @@ export type Database = {
           booking_invoice_id?: string | null
           captured_at?: string | null
           catalog_order_id?: string | null
+          concierge_request_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate: number
@@ -2666,6 +2683,7 @@ export type Database = {
           booking_invoice_id?: string | null
           captured_at?: string | null
           catalog_order_id?: string | null
+          concierge_request_id?: string | null
           created_at?: string
           currency?: string
           deposit_rate?: number

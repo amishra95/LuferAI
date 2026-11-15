@@ -19,8 +19,8 @@ import { validCheckoutSignature, validWebhookSignature } from "./rules";
 
 export interface DepositCheckoutInput {
   paymentId: string;
-  /** What's being paid for: a booking deposit, or a catalogue order in full. */
-  subject: { kind: "booking" | "order"; id: string };
+  /** What's being paid for: a booking deposit, a catalogue order in full, or an accepted concierge quote. */
+  subject: { kind: "booking" | "order" | "request"; id: string };
   amountPaise: number;
   description: string;
   customerEmail: string | null;
@@ -29,7 +29,8 @@ export interface DepositCheckoutInput {
   /** B2B tax details for the deposit, carried to the provider for reconciliation. */
   billing: {
     customerLegalName: string;
-    invoice: TaxInvoicePayload;
+    /** Absent for a concierge quote: an all-in total with no GST snapshot on Lufer's side. */
+    invoice?: TaxInvoicePayload;
     depositInr: number;
   };
 }
@@ -164,6 +165,16 @@ const rupees = (n: number) => n.toFixed(2);
  */
 export function razorpayNotes(input: DepositCheckoutInput): RazorpayNotes {
   const { invoice, customerLegalName, depositInr } = input.billing;
+  if (!invoice) {
+    const plain: RazorpayNotes = {
+      payment_id: input.paymentId,
+      ...(input.subject.kind === "request" ? { concierge_request_id: input.subject.id, purpose: "concierge_event" } : { [`${input.subject.kind}_id`]: input.subject.id }),
+      customer_legal_name: customerLegalName,
+      amount_inr: rupees(depositInr),
+      ...(input.customerEmail ? { billing_email: input.customerEmail } : {}),
+    };
+    return Object.fromEntries(Object.entries(plain).map(([k, v]) => [k, v.slice(0, MAX_NOTE_LENGTH)]));
+  }
   const { cgst, sgst, igst } = invoice.tax_breakup;
   const notes: RazorpayNotes = {
     payment_id: input.paymentId,
@@ -413,7 +424,7 @@ function stripeGateway(secretKey: string): PaymentGateway {
     name: "stripe",
 
     async createDepositCheckout(input) {
-      const metadata = { payment_id: input.paymentId, [input.subject.kind === "booking" ? "booking_id" : "catalog_order_id"]: input.subject.id };
+      const metadata = { payment_id: input.paymentId, [input.subject.kind === "booking" ? "booking_id" : input.subject.kind === "order" ? "catalog_order_id" : "concierge_request_id"]: input.subject.id };
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         client_reference_id: input.paymentId,

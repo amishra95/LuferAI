@@ -41,8 +41,8 @@ import { refundRefusal } from "@/lib/payments/rules";
 import { notifyOps } from "@/lib/services/notifications";
 import { sendTelegram } from "@/lib/services/telegram";
 import { LEGAL } from "@/lib/legal";
-import { getConciergeRequest, withdrawConciergeRequest } from "@/lib/concierge/request-store";
-import { isWithdrawable, mayWithdrawRequest, requestSummary } from "@/lib/concierge/requests";
+import { acceptConciergeQuote, getConciergeRequest, withdrawConciergeRequest } from "@/lib/concierge/request-store";
+import { acceptedAlert, acceptRefusal, isWithdrawable, mayWithdrawRequest, requestSummary } from "@/lib/concierge/requests";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -823,6 +823,35 @@ export async function cancelBookingAction(input: CancelInput): Promise<ActionRes
     revalidateBookingViews();
     revalidatePath(`/client/events/${booking.id}`);
     return { mode, refund };
+  });
+}
+
+/**
+ * Accepts the quote on a concierge request (Home → Requests): it becomes
+ * Booked at the quoted total, payable in the app, and Lufer is told to confirm
+ * with the venue. The requester or an Approver accepts. `totalInr` is the
+ * total the member saw, so a quote that changed meanwhile isn't accepted blind.
+ */
+export async function acceptQuoteAction(input: { requestId: string; totalInr: number }): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("client/acceptQuote", async () => {
+    const member = await requirePortal("/client");
+    if (!/^[0-9a-f-]{36}$/i.test(input.requestId) || !Number.isFinite(input.totalInr)) throw new ActionError("Request not found.");
+    const request = await getConciergeRequest(input.requestId);
+    if (!request || (member.role !== "ADMIN" && request.company_id !== member.companyId)) throw new ActionError("Request not found.");
+    const refusal = acceptRefusal(member, { ...request, quote_total_inr: request.quote_total_inr == null ? null : Number(request.quote_total_inr) });
+    if (refusal) throw new ActionError(refusal);
+    if (Number(request.quote_total_inr) !== input.totalInr) throw new ActionError("The quote changed. Check the new total and accept again.");
+    const accepted = await acceptConciergeQuote(request.id, input.totalInr, member.userId);
+    if (!accepted) throw new ActionError("The quote changed or was already accepted. Reload and check it.");
+
+    const company = (await listCompanies()).find((c) => c.id === accepted.company_id);
+    const message = acceptedAlert(accepted, { companyName: company?.legal_name ?? "A company", email: member.email ?? accepted.requester_email });
+    const [sent, tg] = await Promise.all([notifyOps(message, member.email ?? undefined), sendTelegram([message.subject, ...message.lines].join("\n"))]);
+    if (sent.status !== "sent") console.warn("accept quote: ops email not sent", "reason" in sent ? sent.reason : sent.error);
+    if (tg.status === "failed") console.error("accept quote: Telegram alert failed", tg.error);
+    revalidatePath("/client");
+    revalidatePath("/admin/requests");
+    return { ok: true as const };
   });
 }
 

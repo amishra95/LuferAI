@@ -249,6 +249,16 @@ export async function notifyInvoiceIssued(
   }
 }
 
+/** A plain message to someone who sent a concierge request (their quote is in). Replies go to Lufer ops. Never throws. */
+export async function sendRequesterEmail(to: string, message: { subject: string; lines: string[] }): Promise<NotifyOutcome> {
+  try {
+    const replyTo = process.env.CONCIERGE_EMAIL?.trim();
+    return await sendEmail({ to, subject: message.subject, text: message.lines.join("\n"), html: plainHtml(message.lines), ...(replyTo && { replyTo }) });
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /** A message to Lufer ops (CONCIERGE_EMAIL), reply-to whoever it's about. Never throws. */
 export async function notifyOps(message: { subject: string; lines: string[] }, replyTo?: string): Promise<NotifyOutcome> {
   const to = process.env.CONCIERGE_EMAIL?.trim();

@@ -49,7 +49,7 @@ import { partyStateCode, roundInr, todayInIndia } from "@/lib/gst-engine";
 import { listOrderSettlements, orderPaymentsEnabled } from "@/lib/marketplace/service";
 import { STAGE_LABEL as SETTLEMENT_LABEL } from "@/lib/marketplace/settlement";
 import { isOrderStatus, ORDER_STAGE_LABEL } from "@/lib/catalog/orders";
-import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
+import { latestPayments, paymentsEnabled, requestPayments } from "@/lib/payments/service";
 import { contractsForBookings } from "@/lib/services/contracts/contractStore";
 import { STATUS_LABEL as CONTRACT_STATUS_LABEL } from "@/lib/services/contracts/lifecycle";
 import { IssueContractButton } from "@/components/contracts/contract-actions";
@@ -74,7 +74,7 @@ import { VenueExplorer } from "./_components/venue-explorer";
 import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
 import { listDirectory } from "@/lib/venues/directory";
 import { RequestList } from "@/components/concierge/request-list";
-import { isWithdrawable, mayWithdrawRequest } from "@/lib/concierge/requests";
+import { isPayableRequest, isWithdrawable, mayAcceptQuote, mayWithdrawRequest } from "@/lib/concierge/requests";
 import { listCompanyRequests } from "@/lib/concierge/request-store";
 import { venueSignals } from "@/lib/venues/signals";
 import { venueResponseHours } from "@/lib/venues/signals-store";
@@ -207,6 +207,11 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   // "Booked by 3 coworkers", "Company favorite", "Usually confirms within 2 h" on venue cards.
   const signals = Object.fromEntries(venueSignals(bookings, member.role === "CLIENT" ? member.userId : null, { responseHours, ratings }));
   const canPay = paymentsEnabled();
+  // Accepted concierge quotes that are already paid (lib/payments/service.ts createRequestCheckout).
+  const paidRequests = await requestPayments(requests.filter((r) => r.status === "booked").map((r) => r.id)).catch((err) => {
+    console.error("client: could not load request payments", err);
+    return new Map<string, never>();
+  });
   const setup = hierarchy
     ? setupGaps({
         hasGstin: Boolean(company.gstin),
@@ -658,7 +663,13 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
 
           {setup && activeTab === "bookings" ? <SetupChecklist items={setup} /> : null}
 
-          <RequestList requests={requests} withdrawable={requests.filter((r) => isWithdrawable(r.status) && mayWithdrawRequest(member, r)).map((r) => r.id)} />
+          <RequestList
+            requests={requests}
+            withdrawable={requests.filter((r) => isWithdrawable(r.status) && mayWithdrawRequest(member, r)).map((r) => r.id)}
+            acceptable={requests.filter((r) => r.status === "quoted" && mayAcceptQuote(member, r)).map((r) => r.id)}
+            payable={canPay && canRequest ? requests.filter((r) => isPayableRequest(r)).map((r) => r.id) : []}
+            paid={[...paidRequests.keys()]}
+          />
 
           {canRequest ? (
             <div className="mb-10 space-y-10">

@@ -13,6 +13,9 @@ import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
 import { getCheckoutGateway, getGateway, type DepositCheckout, type NormalizedEvent, type RefundUpdate } from "./gateways";
 import { afterRefund, afterRefundFailed, invoiceOutstanding, refundRefusal } from "./rules";
+import { isPayableRequest, paidAlert } from "@/lib/concierge/requests";
+import { notifyOps } from "@/lib/services/notifications";
+import { sendTelegram } from "@/lib/services/telegram";
 import { listedGstin } from "@/lib/venues/gstin";
 import { billableGstin } from "@/lib/companies/gstin";
 
@@ -274,6 +277,69 @@ export async function createBalanceCheckout(
   return { checkout, amountInr: balance.outstanding };
 }
 
+/**
+ * Pays an accepted concierge quote in full (lib/concierge/requests.ts). The
+ * company has already agreed the price with Lufer, so the authorisation is
+ * captured as soon as the provider reports it. There is no booking and no GST
+ * snapshot: the venue has no account here, and the company gets a payment
+ * receipt (lib/finance/request-receipt.ts).
+ */
+export async function createRequestCheckout(requestId: string, member: Member, origin: string): Promise<{ checkout: DepositCheckout; amountInr: number }> {
+  const gateway = getCheckoutGateway();
+  if (dataSource() !== "supabase" || !gateway) throw new PaymentError(503, "Payments are not configured.");
+
+  const db = createAdminClient();
+  const { data: request } = await db.from("concierge_requests").select("*").eq("id", requestId).maybeSingle();
+  if (!request) throw new PaymentError(404, "Request not found.");
+  const company = request.company_id ? (await db.from("companies").select("legal_name, primary_contact_email").eq("id", request.company_id).maybeSingle()).data : null;
+  if (member.role !== "ADMIN" && (!request.company_id || request.company_id !== member.companyId)) throw new PaymentError(403, "This request belongs to another company.");
+  if (!isPayableRequest(request)) throw new PaymentError(409, request.status === "quoted" ? "Accept the quote first." : "There is no accepted quote to pay on this request.");
+
+  const { data: live } = await db.from("payments").select("status").eq("concierge_request_id", requestId).in("status", ["authorized", "captured"]).maybeSingle();
+  if (live) throw new PaymentError(409, live.status === "captured" ? "This quote is already paid." : "A payment is already being processed for this quote.");
+
+  const total = roundInr(Number(request.quote_total_inr));
+  const paymentId = crypto.randomUUID();
+  const checkout = await gateway.createDepositCheckout({
+    paymentId,
+    subject: { kind: "request", id: requestId },
+    amountPaise: toPaise(total),
+    description: `${request.venue_name ?? "Event"} · ${request.event_date ?? ""}`.trim(),
+    customerEmail: member.email ?? company?.primary_contact_email ?? request.requester_email,
+    successUrl: `${origin}/client?payment=success`,
+    cancelUrl: `${origin}/client?payment=cancelled`,
+    billing: { customerLegalName: company?.legal_name ?? request.requester_email, depositInr: total },
+  });
+
+  const { error } = await db.from("payments").insert({
+    id: paymentId,
+    concierge_request_id: requestId,
+    purpose: "request",
+    provider: gateway.name,
+    amount_inr: total,
+    deposit_rate: 1,
+    provider_order_id: checkout.orderId,
+    // What was agreed, as it stood when the payment started.
+    invoice: { concierge_quote: { venue_name: request.venue_name, event_date: request.event_date, guests: request.guests, total_inr: total, note: request.quote_note, accepted_at: request.accepted_at } } as unknown as Json,
+  });
+  if (error) throw error;
+  return { checkout, amountInr: total };
+}
+
+/** Tells Lufer ops a concierge quote was paid. Never throws. */
+async function alertRequestPaid(requestId: string, paymentRef: string | null) {
+  try {
+    const db = createAdminClient();
+    const { data: request } = await db.from("concierge_requests").select("*").eq("id", requestId).maybeSingle();
+    if (!request) return;
+    const company = request.company_id ? (await db.from("companies").select("legal_name").eq("id", request.company_id).maybeSingle()).data : null;
+    const message = paidAlert(request, { companyName: company?.legal_name ?? request.requester_email }, paymentRef);
+    await Promise.all([notifyOps(message), sendTelegram([message.subject, ...message.lines].join("\n"))]);
+  } catch (err) {
+    console.error(`concierge: paid alert for request ${requestId} failed`, err);
+  }
+}
+
 /** An instalment's or balance payment's authorisation is captured at once: there's no venue decision left to wait for. */
 async function captureInstalment(paymentId: string) {
   const db = createAdminClient();
@@ -284,6 +350,7 @@ async function captureInstalment(paymentId: string) {
     if (!gateway) throw new Error(`${payment.provider} is not configured`);
     await gateway.capture(payment.provider_payment_id, toPaise(Number(payment.amount_inr)));
     await db.from("payments").update({ status: "captured", captured_at: new Date().toISOString(), last_error: null }).eq("id", payment.id);
+    if (payment.concierge_request_id) await alertRequestPaid(payment.concierge_request_id, payment.provider_payment_id);
   } catch (err) {
     console.error(`Instalment capture failed for payment ${payment.id}`, err);
     await db.from("payments").update({ last_error: `capture failed: ${err instanceof Error ? err.message : String(err)}` }).eq("id", payment.id);
@@ -383,7 +450,7 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
   // A catalogue order's payment moving (e.g. authorised after the supplier
   // already confirmed) may mean capturing and paying out now.
   if (payment?.catalog_order_id && outcome === "applied") await syncOrderSettlement(payment.catalog_order_id);
-  if ((payment?.booking_invoice_id || payment?.purpose === "balance") && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
+  if ((payment?.booking_invoice_id || payment?.purpose === "balance" || payment?.purpose === "request") && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
   // A deposit the provider captured (seen by webhook first): its receipt voucher.
   if (payment?.purpose === "deposit" && payment.booking_id && !payment.booking_invoice_id && outcome === "applied" && event.status === "captured") {
     await issueReceiptVoucher(payment.id).catch((err) => console.error(`receipt voucher for payment ${payment.id} failed`, err));
@@ -517,7 +584,9 @@ export async function confirmCheckout(member: Member, input: { orderId: string; 
   if (member.role !== "ADMIN") {
     const owner = payment.booking_id
       ? (await db.from("bookings").select("company_id").eq("id", payment.booking_id).maybeSingle()).data?.company_id
-      : (await db.from("catalog_orders").select("tenant_id").eq("id", payment.catalog_order_id!).maybeSingle()).data?.tenant_id;
+      : payment.concierge_request_id
+        ? (await db.from("concierge_requests").select("company_id").eq("id", payment.concierge_request_id).maybeSingle()).data?.company_id
+        : (await db.from("catalog_orders").select("tenant_id").eq("id", payment.catalog_order_id!).maybeSingle()).data?.tenant_id;
     if (!owner || owner !== member.companyId) throw new PaymentError(403, "This payment belongs to another company.");
   }
 
@@ -696,4 +765,16 @@ export async function listRefunds(bookingId: string): Promise<{ id: string; amou
   if (error?.code === "42P01" || error?.code === "PGRST205") return [];
   if (error) throw error;
   return (data ?? []).map((r) => ({ ...r, amount_inr: Number(r.amount_inr) }));
+}
+
+/** Captured payments for these concierge requests, by request id (Home → Requests, the receipt). */
+export async function requestPayments(requestIds: string[]): Promise<Map<string, Payment>> {
+  const out = new Map<string, Payment>();
+  if (dataSource() !== "supabase" || requestIds.length === 0) return out;
+  const { data, error } = await createAdminClient().from("payments").select("*").in("concierge_request_id", requestIds).eq("status", "captured");
+  // Before migration 20261119000000 the column doesn't exist: nothing is paid.
+  if (error?.code === "42703" || error?.code === "PGRST204") return out;
+  if (error) throw error;
+  for (const p of data ?? []) if (p.concierge_request_id) out.set(p.concierge_request_id, p);
+  return out;
 }
