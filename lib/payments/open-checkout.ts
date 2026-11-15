@@ -46,8 +46,13 @@ export async function openCheckout(
     config: checkout.config,
     notes: checkout.notes,
     prefill: checkout.prefill,
-    // The webhook is the source of truth; callers refresh to pick up its status.
-    handler: onPaid,
+    // Confirm with the server at once (it checks the signature and reads the payment
+    // from Razorpay); the webhook covers a closed tab or a failed call.
+    handler: (response: unknown) => {
+      void fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(response) })
+        .catch(() => null)
+        .finally(onPaid);
+    },
     modal: { ondismiss: onDismiss },
   });
   rzp.on("payment.failed", (resp) => onFailed(resp.error.description));

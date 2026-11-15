@@ -1451,7 +1451,7 @@ export async function getTaxInvoiceDocument(bookingId: string): Promise<TaxInvoi
 }
 
 export type TaxInvoiceOutcome =
-  | { status: "rendered"; invoice_number: string; issued_on: string; advance_inr: number; receipt_voucher_number: string | null; html: string; html_sha256: string }
+  | { status: "rendered"; invoice_number: string; issued_on: string; advance_inr: number; receipt_voucher_number: string | null; html: string; html_sha256: string; data?: unknown }
   | { status: "failed" | "dead_lettered"; error: string };
 
 /** An issued invoice (numbered) is final. Older unnumbered drafts, rendered at confirmation, aren't. */
@@ -1475,6 +1475,7 @@ export async function recordTaxInvoiceDocument(bookingId: string, tenantId: stri
           receipt_voucher_number: outcome.receipt_voucher_number,
           html: outcome.html,
           html_sha256: outcome.html_sha256,
+          data: (outcome.data ?? null) as Json,
           rendered_at: now,
           error: null,
         }
@@ -1489,7 +1490,7 @@ export async function recordTaxInvoiceDocument(bookingId: string, tenantId: stri
         Object.assign(current, values, { attempts: current.attempts + (counts ? 1 : 0), updated_at: now });
         return { ...current };
       }
-      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, issued_on: null, advance_inr: 0, receipt_voucher_number: null, html: null, html_sha256: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
+      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, issued_on: null, advance_inr: 0, receipt_voucher_number: null, html: null, html_sha256: null, data: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
       db.taxInvoiceDocuments.push(row);
       return { ...row };
     });

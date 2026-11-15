@@ -36,7 +36,8 @@ import { alertVenueBookingRequest, alertVenueCancellation } from "@/lib/venues/a
 import { bookingReference, CancelInput, cancelModeFor, cancelRefusal, opsCancellationEmail, refundEstimate, refundLine, venueCancellationEmail, type CancelMode, type CancellationNotice } from "@/lib/bookings/cancellation";
 import { recordCancellationRequest, saveCancellationReason, venueCancellationTerms } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
-import { settleDeposit } from "@/lib/payments/service";
+import { capturedDeposit, PaymentError, refundPayment, settleDeposit } from "@/lib/payments/service";
+import { refundRefusal } from "@/lib/payments/rules";
 import { notifyOps } from "@/lib/services/notifications";
 import { sendTelegram } from "@/lib/services/telegram";
 import { LEGAL } from "@/lib/legal";
@@ -745,14 +746,15 @@ export interface CancelOutcome {
  * Before the venue confirms: cancelled at once, the hold released and any
  * deposit authorisation voided; the venue is told if it had the request.
  * After it confirms: the cancellation is requested; Lufer ops and the venue
- * are emailed, and Lufer settles the refund by hand. Admins cancel outright.
+ * are emailed, and Lufer settles the refund. Admins cancel outright, sending
+ * back the part of the captured deposit they enter through the payment provider.
  */
 export async function cancelBookingAction(input: CancelInput): Promise<ActionResult<CancelOutcome>> {
   return serverDispatch("client/cancelBooking", async () => {
     const member = await requirePortal("/client");
     const parsed = CancelInput.safeParse(input);
     if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
-    const { bookingId, reason } = parsed.data;
+    const { bookingId, reason, refundInr } = parsed.data;
     const admin = member.role === "ADMIN";
     if (!admin && !member.companyId) throw new ActionError("Booking not found.");
 
@@ -778,9 +780,22 @@ export async function cancelBookingAction(input: CancelInput): Promise<ActionRes
 
     if (mode === "cancel") {
       const venueKnew = booking.status !== "PENDING_APPROVAL";
+      // Admin closing a confirmed booking: the refund goes first, so a refund the provider refuses leaves the booking as it was.
+      if (refundInr && refundInr > 0) {
+        if (!admin) throw new ActionError("Only Lufer can send a refund.");
+        const deposit = await capturedDeposit(booking.id);
+        const refusal = refundRefusal(deposit, refundInr);
+        if (refusal || !deposit) throw new ActionError(refusal ?? "There is no captured deposit to refund.");
+        try {
+          await refundPayment(deposit.id, refundInr, { userId: member.userId, reason });
+        } catch (err) {
+          if (err instanceof PaymentError) throw new ActionError(err.message);
+          throw err;
+        }
+      }
       // The bookings_sync_inventory_holds trigger releases the date hold.
       await updateBookingStatus(booking.id, "CANCELLED", { companyId: booking.company_id });
-      // An authorised deposit is released in full; a captured one (confirmed, admin) is refunded by hand.
+      // An authorised deposit is released in full; a captured one was refunded above, as far as the admin chose.
       await settleDeposit(booking.id, "void");
       if (reason) await saveCancellationReason(booking.id, reason);
       await publishBooking(booking.id, booking.venue_id, "CANCELLED", "request", booking.company_id);

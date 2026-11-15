@@ -6,11 +6,13 @@ import { calculateGst, roundInr, splitCommission, type TaxInvoicePayload } from 
 import { applyTransferUpdate, syncOrderSettlement } from "@/lib/marketplace/service";
 import { depositFor } from "@/lib/quotes";
 import { depositRateFor } from "@/lib/rates/venue-pricing";
-import { issueReceiptVoucher } from "@/lib/finance/billing-store";
+import { issueReceiptVoucher, issueRefundVoucher } from "@/lib/finance/billing-store";
+import { getTaxInvoiceDocument, isIssuedInvoice, listBookings } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getVenuePricing } from "@/lib/venues/pricing-store";
 import type { Json, Payment, PaymentProvider, PaymentStatus } from "@/lib/supabase/database.types";
-import { getCheckoutGateway, getGateway, type DepositCheckout, type NormalizedEvent } from "./gateways";
+import { getCheckoutGateway, getGateway, type DepositCheckout, type NormalizedEvent, type RefundUpdate } from "./gateways";
+import { afterRefund, afterRefundFailed, invoiceOutstanding, refundRefusal } from "./rules";
 import { listedGstin } from "@/lib/venues/gstin";
 import { billableGstin } from "@/lib/companies/gstin";
 
@@ -109,6 +111,7 @@ export async function createDepositCheckout(
   const { error } = await db.from("payments").insert({
     id: paymentId,
     booking_id: bookingId,
+    purpose: "deposit",
     provider: gateway.name,
     amount_inr: deposit,
     deposit_rate: depositRate,
@@ -173,6 +176,7 @@ export async function createInvoiceCheckout(
     id: paymentId,
     booking_id: booking.id,
     booking_invoice_id: invoiceId,
+    purpose: "instalment",
     provider: gateway.name,
     amount_inr: total,
     // The instalment's share of the booking's invoice.
@@ -184,7 +188,93 @@ export async function createInvoiceCheckout(
   return { checkout, invoice: gst };
 }
 
-/** An instalment's authorisation is captured at once: there's no venue decision left to wait for. */
+/** Balance payments captured for a booking, net of refunds. */
+async function balancePaid(bookingId: string): Promise<number> {
+  const { data, error } = await createAdminClient().from("payments").select("amount_inr, refunded_inr").eq("booking_id", bookingId).eq("purpose", "balance").eq("status", "captured");
+  if (error) throw error;
+  return roundInr((data ?? []).reduce((sum, p) => sum + Number(p.amount_inr) - Number(p.refunded_inr), 0));
+}
+
+/**
+ * What a booking's issued tax invoice still has to pay (null: no issued
+ * invoice, e.g. the event hasn't happened or it's billed by contract).
+ */
+export async function invoiceBalance(bookingId: string): Promise<{ invoiceNumber: string; total: number; advance: number; paid: number; outstanding: number } | null> {
+  if (dataSource() !== "supabase") return null;
+  const doc = await getTaxInvoiceDocument(bookingId);
+  if (!isIssuedInvoice(doc)) return null;
+  const [booking] = await listBookings({ ids: [bookingId] });
+  if (!booking) return null;
+  const total = booking.invoice.invoice_total;
+  const advance = Number(doc!.advance_inr);
+  const paid = await balancePaid(bookingId);
+  return { invoiceNumber: doc!.invoice_number!, total, advance, paid, outstanding: invoiceOutstanding(total, advance, paid) };
+}
+
+/**
+ * Pays what's left on a booking's issued tax invoice (invoice total less the
+ * deposit set against it). The event has happened, so the authorisation is
+ * captured as soon as the provider reports it, like a contract instalment.
+ */
+export async function createBalanceCheckout(
+  bookingId: string,
+  member: Member,
+  origin: string
+): Promise<{ checkout: DepositCheckout; amountInr: number }> {
+  const gateway = getCheckoutGateway();
+  if (dataSource() !== "supabase" || !gateway) throw new PaymentError(503, "Payments are not configured.");
+
+  const db = createAdminClient();
+  const { data: booking } = await db
+    .from("bookings")
+    .select("*, company:companies(legal_name, gstin, primary_contact_email), venue:venues(name, gstin)")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (!booking) throw new PaymentError(404, "Booking not found.");
+  if (member.role !== "ADMIN" && booking.company_id !== member.companyId) throw new PaymentError(403, "This booking belongs to another company.");
+  if (booking.status === "CANCELLED") throw new PaymentError(409, "This booking was cancelled.");
+
+  const balance = await invoiceBalance(bookingId);
+  if (!balance) throw new PaymentError(409, "The balance is paid against the tax invoice, which is issued after the event.");
+  if (balance.outstanding <= 0) throw new PaymentError(409, "This invoice is already paid in full.");
+
+  const { data: live } = await db.from("payments").select("id").eq("booking_id", bookingId).eq("purpose", "balance").eq("status", "authorized").maybeSingle();
+  if (live) throw new PaymentError(409, "A balance payment is already being processed for this booking.");
+
+  const gst = calculateGst({
+    total_amount: Number(booking.total_amount_inr),
+    company_gstin: booking.billing_gstin ?? billableGstin(booking.company!),
+    venue_gstin: listedGstin(booking.venue!),
+    booking_id: booking.id,
+    invoice_date: booking.event_date,
+  });
+  const paymentId = crypto.randomUUID();
+  const checkout = await gateway.createDepositCheckout({
+    paymentId,
+    subject: { kind: "booking", id: bookingId },
+    amountPaise: toPaise(balance.outstanding),
+    description: `Invoice ${balance.invoiceNumber} · balance · ${booking.venue!.name} · ${booking.event_date}`,
+    customerEmail: member.email ?? booking.company!.primary_contact_email,
+    successUrl: `${origin}/client/events/${bookingId}?payment=success`,
+    cancelUrl: `${origin}/client/events/${bookingId}?payment=cancelled`,
+    billing: { customerLegalName: booking.company!.legal_name, invoice: gst, depositInr: balance.outstanding },
+  });
+
+  const { error } = await db.from("payments").insert({
+    id: paymentId,
+    booking_id: bookingId,
+    purpose: "balance",
+    provider: gateway.name,
+    amount_inr: balance.outstanding,
+    deposit_rate: Math.min(1, Math.max(0.0001, Math.round((balance.outstanding / balance.total) * 10_000) / 10_000)),
+    provider_order_id: checkout.orderId,
+    invoice: { ...gst, balance: { invoice_number: balance.invoiceNumber, advance_inr: balance.advance, amount_inr: balance.outstanding } } as unknown as Json,
+  });
+  if (error) throw error;
+  return { checkout, amountInr: balance.outstanding };
+}
+
+/** An instalment's or balance payment's authorisation is captured at once: there's no venue decision left to wait for. */
 async function captureInstalment(paymentId: string) {
   const db = createAdminClient();
   const { data: payment } = await db.from("payments").select("*").eq("id", paymentId).maybeSingle();
@@ -256,6 +346,11 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
     await recordEvent(provider, event);
     return outcome;
   }
+  if (event.refund) {
+    const outcome = await applyRefundUpdate(provider, event.paymentRef, event.refund);
+    await recordEvent(provider, event);
+    return outcome;
+  }
 
   const payment = await findPayment(provider, event);
   let outcome: "applied" | "ignored" = "ignored";
@@ -288,7 +383,11 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
   // A catalogue order's payment moving (e.g. authorised after the supplier
   // already confirmed) may mean capturing and paying out now.
   if (payment?.catalog_order_id && outcome === "applied") await syncOrderSettlement(payment.catalog_order_id);
-  if (payment?.booking_invoice_id && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
+  if ((payment?.booking_invoice_id || payment?.purpose === "balance") && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
+  // A deposit the provider captured (seen by webhook first): its receipt voucher.
+  if (payment?.purpose === "deposit" && payment.booking_id && !payment.booking_invoice_id && outcome === "applied" && event.status === "captured") {
+    await issueReceiptVoucher(payment.id).catch((err) => console.error(`receipt voucher for payment ${payment.id} failed`, err));
+  }
 
   // Recorded after applying, so a failed apply is retried by the provider.
   await recordEvent(provider, event);
@@ -382,7 +481,7 @@ export async function settleDeposit(bookingId: string, action: "capture" | "void
 // Reads
 // ----------------------------------------------------------------------------
 
-/** Latest payment per booking, for the client bookings table. */
+/** Latest deposit per booking, for the client bookings table. */
 export async function latestPayments(bookingIds: string[]): Promise<Map<string, Payment>> {
   const out = new Map<string, Payment>();
   if (dataSource() !== "supabase" || bookingIds.length === 0) return out;
@@ -390,8 +489,211 @@ export async function latestPayments(bookingIds: string[]): Promise<Map<string, 
     .from("payments")
     .select("*")
     .in("booking_id", bookingIds)
+    .eq("purpose", "deposit")
     .order("created_at", { ascending: true });
   if (error) throw error;
   for (const p of data) if (p.booking_id) out.set(p.booking_id, p);
   return out;
+}
+
+// ----------------------------------------------------------------------------
+// Checkout confirmation (the browser's success callback)
+// ----------------------------------------------------------------------------
+
+/**
+ * Confirms a Razorpay Checkout from the browser's success callback, so the
+ * page shows the payment at once instead of waiting for the webhook. The
+ * signature proves the callback is genuine for our order; the payment's state
+ * is then read from the provider and applied exactly as its webhook would be
+ * (same transitions, same idempotency), so whichever arrives first wins and
+ * the other is a no-op.
+ */
+export async function confirmCheckout(member: Member, input: { orderId: string; paymentRef: string; signature: string }): Promise<{ status: PaymentStatus }> {
+  if (dataSource() !== "supabase") throw new PaymentError(503, "Payments are not configured.");
+  const db = createAdminClient();
+  const { data: payment } = await db.from("payments").select("*").eq("provider_order_id", input.orderId).maybeSingle();
+  if (!payment) throw new PaymentError(404, "Payment not found.");
+
+  if (member.role !== "ADMIN") {
+    const owner = payment.booking_id
+      ? (await db.from("bookings").select("company_id").eq("id", payment.booking_id).maybeSingle()).data?.company_id
+      : (await db.from("catalog_orders").select("tenant_id").eq("id", payment.catalog_order_id!).maybeSingle()).data?.tenant_id;
+    if (!owner || owner !== member.companyId) throw new PaymentError(403, "This payment belongs to another company.");
+  }
+
+  const gateway = getGateway(payment.provider);
+  if (!gateway) throw new PaymentError(503, "Payments are not configured.");
+  // Signed over the order id we stored, not one the browser chose.
+  if (gateway.verifyCheckout(payment.provider_order_id, input.paymentRef, input.signature) !== true) {
+    throw new PaymentError(400, "We couldn't verify this payment. If money left your account, it will show here shortly.");
+  }
+
+  const remote = await gateway.fetchPayment(input.paymentRef);
+  if (remote.orderId !== payment.provider_order_id || remote.amountPaise !== toPaise(Number(payment.amount_inr))) {
+    throw new PaymentError(400, "This payment doesn't match the order.");
+  }
+  if (remote.status !== "created") {
+    await applyWebhookEvent(payment.provider, {
+      eventId: `checkout:${remote.ref}:${remote.status}`,
+      type: `checkout.${remote.status}`,
+      paymentId: payment.id,
+      orderId: payment.provider_order_id,
+      paymentRef: remote.ref,
+      status: remote.status,
+      error: remote.error,
+      payload: { source: "checkout", payment: remote.ref, order: payment.provider_order_id, status: remote.status },
+    });
+  }
+  const { data: after } = await db.from("payments").select("status").eq("id", payment.id).maybeSingle();
+  return { status: after?.status ?? payment.status };
+}
+
+// ----------------------------------------------------------------------------
+// Refunds
+// ----------------------------------------------------------------------------
+
+/** The booking's captured deposit (the payment a cancellation refunds), or null. */
+export async function capturedDeposit(bookingId: string): Promise<Payment | null> {
+  if (dataSource() !== "supabase") return null;
+  const { data, error } = await createAdminClient().from("payments").select("*").eq("booking_id", bookingId).eq("purpose", "deposit").is("booking_invoice_id", null).eq("status", "captured").maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export interface RefundResult {
+  refundId: string;
+  providerRef: string;
+  amountInr: number;
+  status: "pending" | "processed";
+  /** The refund voucher, when one was issued (no tax invoice yet). */
+  voucherNumber: string | null;
+}
+
+/**
+ * Sends all or part of a captured payment back through its provider. The
+ * refund is reserved on the payment first (so two admins can't refund the same
+ * money twice), then requested; if the provider refuses, the reservation is
+ * undone and the error is thrown. A refunded deposit gets a refund voucher.
+ */
+export async function refundPayment(paymentId: string, amountInr: number, by: { userId: string | null; reason: string | null }): Promise<RefundResult> {
+  if (dataSource() !== "supabase") throw new PaymentError(503, "Payments are not configured.");
+  const db = createAdminClient();
+  const { data: payment } = await db.from("payments").select("*").eq("id", paymentId).maybeSingle();
+  const refusal = refundRefusal(payment ?? null, amountInr);
+  if (refusal || !payment) throw new PaymentError(409, refusal ?? "Payment not found.");
+  const gateway = getGateway(payment.provider);
+  if (!gateway || !payment.provider_payment_id) throw new PaymentError(503, `${payment.provider} is not configured.`);
+
+  const amount = roundInr(amountInr);
+  const next = afterRefund(payment, amount);
+  // Reserve: only succeeds if nobody else changed the refunded total meanwhile.
+  const { data: reserved, error: reserveError } = await db
+    .from("payments")
+    .update({ refunded_inr: next.refunded_inr })
+    .eq("id", payment.id)
+    .eq("status", "captured")
+    .eq("refunded_inr", Number(payment.refunded_inr))
+    .select("id");
+  if (reserveError) throw reserveError;
+  if (!reserved?.length) throw new PaymentError(409, "This payment changed just now. Reload and try again.");
+
+  const refundId = crypto.randomUUID();
+  const { error: rowError } = await db.from("payment_refunds").insert({ id: refundId, payment_id: payment.id, amount_inr: amount, status: "pending", reason: by.reason, created_by: by.userId });
+  if (rowError) {
+    await db.from("payments").update({ refunded_inr: Number(payment.refunded_inr) }).eq("id", payment.id);
+    throw rowError;
+  }
+
+  let sent: { ref: string; status: "pending" | "processed" | "failed" };
+  try {
+    sent = await gateway.refund({
+      paymentRef: payment.provider_payment_id,
+      amountPaise: toPaise(amount),
+      refundId,
+      notes: { payment_id: payment.id, ...(payment.booking_id ? { booking_id: payment.booking_id } : {}) },
+    });
+    if (sent.status === "failed") throw new Error("the provider declined the refund");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await db.from("payment_refunds").update({ status: "failed", error: message.slice(0, 500) }).eq("id", refundId);
+    // Give back only this reservation: another refund may have been made meanwhile.
+    const { data: now } = await db.from("payments").select("amount_inr, refunded_inr").eq("id", payment.id).maybeSingle();
+    await db.from("payments").update({ refunded_inr: afterRefundFailed(now ?? payment, amount).refunded_inr, last_error: `refund failed: ${message}`.slice(0, 500) }).eq("id", payment.id);
+    throw new PaymentError(409, `The refund didn't go through: ${message}`);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .from("payment_refunds")
+    .update({ provider_refund_id: sent.ref, status: sent.status, ...(sent.status === "processed" && { processed_at: now }) })
+    .eq("id", refundId);
+  await db.from("payments").update({ status: next.status, refunded_at: now, last_error: null }).eq("id", payment.id);
+
+  let voucherNumber: string | null = null;
+  try {
+    const voucher = await issueRefundVoucher(refundId);
+    if (voucher.status !== "skipped") voucherNumber = voucher.voucherNumber;
+  } catch (err) {
+    console.error(`refund voucher for refund ${refundId} failed`, err);
+  }
+  console.info(JSON.stringify({ audit: "payment_refund", at: now, payment_id: payment.id, refund_id: refundId, provider_refund_id: sent.ref, amount_inr: amount, by: by.userId }));
+  return { refundId, providerRef: sent.ref, amountInr: amount, status: sent.status, voucherNumber };
+}
+
+/**
+ * A refund.* webhook. For a refund made from the app it settles the row
+ * (processed, or failed: the money didn't leave, so the payment gets it back).
+ * A refund made in the provider's dashboard is unknown here: it's recorded
+ * when it's processed, so the payment and its documents stay true.
+ */
+async function applyRefundUpdate(provider: PaymentProvider, paymentRef: string | null, update: RefundUpdate): Promise<"applied" | "ignored"> {
+  const db = createAdminClient();
+  const amount = update.amountPaise / 100;
+  let row = update.refundId ? (await db.from("payment_refunds").select("*").eq("id", update.refundId).maybeSingle()).data : null;
+  row ??= (await db.from("payment_refunds").select("*").eq("provider_refund_id", update.ref).maybeSingle()).data;
+
+  if (row) {
+    if (row.status === update.status || row.status === "failed" || (row.status === "processed" && update.status === "pending")) {
+      if (!row.provider_refund_id) await db.from("payment_refunds").update({ provider_refund_id: update.ref }).eq("id", row.id);
+      return "ignored";
+    }
+    const now = new Date().toISOString();
+    await db
+      .from("payment_refunds")
+      .update({ provider_refund_id: update.ref, status: update.status, ...(update.status === "processed" && { processed_at: now }), ...(update.status === "failed" && { error: "The provider reported the refund failed." }) })
+      .eq("id", row.id);
+    if (update.status === "failed") {
+      const { data: payment } = await db.from("payments").select("*").eq("id", row.payment_id).maybeSingle();
+      if (payment) await db.from("payments").update({ ...afterRefundFailed(payment, Number(row.amount_inr)), last_error: "A refund failed at the provider; nothing was returned." }).eq("id", payment.id);
+    }
+    return "applied";
+  }
+
+  // Unknown refund: made outside the app. Record it once it has been processed.
+  if (update.status !== "processed" || !paymentRef) return "ignored";
+  const { data: payment } = await db.from("payments").select("*").eq("provider", provider).eq("provider_payment_id", paymentRef).maybeSingle();
+  if (!payment || (payment.status !== "captured" && payment.status !== "refunded")) return "ignored";
+  const now = new Date().toISOString();
+  const { data: inserted, error } = await db
+    .from("payment_refunds")
+    .insert({ payment_id: payment.id, provider_refund_id: update.ref, amount_inr: amount, status: "processed", reason: "Refunded in the provider's dashboard", processed_at: now })
+    .select("id")
+    .maybeSingle();
+  if (error?.code === "23505") return "ignored";
+  if (error) throw error;
+  await db.from("payments").update({ ...afterRefund(payment, amount), refunded_at: now }).eq("id", payment.id);
+  if (inserted) await issueRefundVoucher(inserted.id).catch((err) => console.error(`refund voucher for refund ${inserted.id} failed`, err));
+  return "applied";
+}
+
+/** A booking's refunds, newest first, for the event page. */
+export async function listRefunds(bookingId: string): Promise<{ id: string; amount_inr: number; status: string; created_at: string }[]> {
+  if (dataSource() !== "supabase") return [];
+  const db = createAdminClient();
+  const { data: payments } = await db.from("payments").select("id").eq("booking_id", bookingId);
+  if (!payments?.length) return [];
+  const { data, error } = await db.from("payment_refunds").select("id, amount_inr, status, created_at").in("payment_id", payments.map((p) => p.id)).neq("status", "failed").order("created_at", { ascending: false });
+  if (error?.code === "42P01" || error?.code === "PGRST205") return [];
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ ...r, amount_inr: Number(r.amount_inr) }));
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getTaxInvoiceDocument, isIssuedInvoice, listBookings, listCompanies, recordTaxInvoiceDocument } from "@/lib/data";
-import { BILLABLE_STATUSES, invoiceWaitingReason } from "@/lib/finance/billing-rules";
+import { balanceDue, BILLABLE_STATUSES, invoiceWaitingReason } from "@/lib/finance/billing-rules";
 import { advanceFor, billedByContract, takeInvoiceNumber, venueAddress } from "@/lib/finance/billing-store";
 import { renderTaxInvoice } from "@/lib/finance/tax-invoice-document";
 import { todayInIndia } from "@/lib/gst-engine";
@@ -79,6 +79,7 @@ export async function issueTaxInvoiceDocument(bookingId: string, today = todayIn
       receipt_voucher_number: advance.voucherNumber,
       html: doc.html,
       html_sha256: doc.sha256,
+      data: doc.model,
     });
     if (row.invoice_number !== number) {
       // A parallel run issued it first; this number goes unused.
@@ -86,7 +87,7 @@ export async function issueTaxInvoiceDocument(bookingId: string, today = todayIn
       return { status: "unchanged", sha256: row.html_sha256 ?? doc.sha256 };
     }
     audit({ booking_id: bookingId, tenant_id: tenantId, status: "rendered", invoice_number: number, attempts: row.attempts, html_sha256: row.html_sha256 });
-    const sent = await notifyInvoiceIssued(booking, { invoiceNumber: number, html: doc.html });
+    const sent = await notifyInvoiceIssued(booking, { invoiceNumber: number, html: doc.html, model: doc.model, balance: advance.amount > 0 ? balanceDue(booking.invoice.invoice_total, advance.amount) : booking.invoice.invoice_total });
     if (sent.status !== "sent") console.warn(`tax invoice ${number}: email ${sent.status}`, "reason" in sent ? sent.reason : sent.error);
     return { status: "rendered", sha256: row.html_sha256 ?? doc.sha256 };
   } catch (err) {

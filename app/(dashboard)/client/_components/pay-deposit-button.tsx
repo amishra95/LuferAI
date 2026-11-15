@@ -20,12 +20,15 @@ export function PayDepositButton({
   bookingId,
   orderId,
   invoiceId,
+  balanceFor,
   label,
 }: { label: string } & (
-  | { bookingId: string; orderId?: never; invoiceId?: never }
-  | { orderId: string; bookingId?: never; invoiceId?: never }
+  | { bookingId: string; orderId?: never; invoiceId?: never; balanceFor?: never }
+  | { orderId: string; bookingId?: never; invoiceId?: never; balanceFor?: never }
   /** A contract instalment (deposit or balance invoice), captured on authorisation. */
-  | { invoiceId: string; bookingId?: never; orderId?: never }
+  | { invoiceId: string; bookingId?: never; orderId?: never; balanceFor?: never }
+  /** The balance on a booking's issued tax invoice (booking id), captured on authorisation. */
+  | { balanceFor: string; bookingId?: never; orderId?: never; invoiceId?: never }
 )) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -39,16 +42,19 @@ export function PayDepositButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // A catalogue order is paid in full and split to the supplier (Razorpay Route).
-        body: JSON.stringify(invoiceId ? { invoiceId } : orderId ? { orderId } : { bookingId }),
+        body: JSON.stringify(balanceFor ? { balanceFor } : invoiceId ? { invoiceId } : orderId ? { orderId } : { bookingId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not start checkout");
       const checkout = json.checkout as DepositCheckout;
 
       await openCheckout(checkout, {
-        description: invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
-        // The webhook is the source of truth; refresh to pick up its status.
-        onPaid: () => setTimeout(() => router.refresh(), 1500),
+        description: balanceFor ? "Invoice balance" : invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
+        // Confirmed with the server before this runs (lib/payments/open-checkout.ts).
+        onPaid: () => {
+          setPending(false);
+          router.refresh();
+        },
         onDismiss: () => setPending(false),
         onFailed: setError,
       });

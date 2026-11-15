@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { getCurrentMember } from "@/lib/auth/session";
 import { createOrderCheckout, MarketplaceError } from "@/lib/marketplace/service";
-import { createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/lib/payments/service";
+import { createBalanceCheckout, createDepositCheckout, createInvoiceCheckout, PaymentError } from "@/lib/payments/service";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -16,8 +16,11 @@ import { siteUrl } from "@/lib/site-url";
  *
  * POST { invoiceId } → pay an issued instalment invoice of an executed contract
  * (deposit or balance); captured as soon as it's authorised.
+ *
+ * POST { balanceFor } → pay what's left on a booking's issued tax invoice
+ * (after the event); captured as soon as it's authorised.
  */
-const Body = z.union([z.object({ bookingId: z.uuid() }), z.object({ orderId: z.uuid() }), z.object({ invoiceId: z.uuid() })]);
+const Body = z.union([z.object({ bookingId: z.uuid() }), z.object({ orderId: z.uuid() }), z.object({ invoiceId: z.uuid() }), z.object({ balanceFor: z.uuid() })]);
 
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
@@ -37,7 +40,9 @@ export async function POST(request: NextRequest) {
         ? await createOrderCheckout(body.orderId, member, origin)
         : "invoiceId" in body
           ? await createInvoiceCheckout(body.invoiceId, member, origin)
-          : await createDepositCheckout(body.bookingId, member, origin);
+          : "balanceFor" in body
+            ? await createBalanceCheckout(body.balanceFor, member, origin)
+            : await createDepositCheckout(body.bookingId, member, origin);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof PaymentError || err instanceof MarketplaceError) return NextResponse.json({ error: err.message }, { status: err.status });

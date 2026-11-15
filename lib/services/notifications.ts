@@ -1,6 +1,8 @@
 import "server-only";
 
 import { dataSource, listBookings, listCompanies } from "@/lib/data";
+import { renderDocumentPdf } from "@/lib/finance/document-pdf";
+import type { BillDocument } from "@/lib/finance/tax-invoice-document";
 import { bookingAcceptedMessage } from "@/lib/notifications/booking-accepted";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,7 +17,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type NotifyOutcome = { status: "sent"; to: string } | { status: "skipped"; reason: string } | { status: "failed"; error: string };
 
-type Attachment = { filename: string; content: string; contentType: string };
+type Attachment = { filename: string; content: string | Uint8Array; contentType: string };
 
 async function sendEmail(message: { to: string; subject: string; text: string; html: string; replyTo?: string; attachments?: Attachment[] }): Promise<NotifyOutcome> {
   const key = process.env.RESEND_API_KEY;
@@ -39,7 +41,7 @@ async function sendEmail(message: { to: string; subject: string; text: string; h
         ...(message.replyTo && { reply_to: message.replyTo }),
         // Resend takes attachment content base64-encoded.
         ...(message.attachments?.length && {
-          attachments: message.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content, "utf8").toString("base64"), content_type: a.contentType })),
+          attachments: message.attachments.map((a) => ({ filename: a.filename, content: (typeof a.content === "string" ? Buffer.from(a.content, "utf8") : Buffer.from(a.content)).toString("base64"), content_type: a.contentType })),
         }),
       }),
       signal: AbortSignal.timeout(10_000),
@@ -199,12 +201,12 @@ export async function notifyConciergeRequest(
 
 /**
  * The tax invoice, issued after the event: to the requester and the company's
- * primary contact, with the invoice attached (print-ready HTML; open it and
- * Save as PDF) and a link to the event. Never throws.
+ * primary contact, with the invoice attached as a PDF (the HTML page too when
+ * the PDF can't be made), what's left to pay, and a link to the event. Never throws.
  */
 export async function notifyInvoiceIssued(
   booking: { id: string; company_id: string; requested_by?: string | null; event_date: string; venue: { name: string }; company: { legal_name: string }; invoice: { invoice_total: number } },
-  doc: { invoiceNumber: string; html: string }
+  doc: { invoiceNumber: string; html: string; model?: BillDocument; balance?: number }
 ): Promise<NotifyOutcome> {
   try {
     const requester = await recipientFor(booking);
@@ -216,11 +218,20 @@ export async function notifyInvoiceIssued(
       `Tax invoice ${doc.invoiceNumber} for your event at ${booking.venue.name} on ${booking.event_date} is attached.`,
       "",
       `Invoice total: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(booking.invoice.invoice_total)}`,
-      `It's also on the event in Lufer: ${link}`,
-      "",
-      "Open the attachment in a browser and choose Print → Save as PDF for your records.",
+      ...(doc.balance !== undefined
+        ? [doc.balance > 0 ? `Balance payable: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(doc.balance)}` : "Paid in full by your deposit."]
+        : []),
+      `${doc.balance ? "Pay the balance and download the invoice" : "It's also on the event"} in Lufer: ${link}`,
     ];
-    const filename = `${doc.invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "-")}.html`;
+    const base = `tax-invoice-${doc.invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "-")}`;
+    let attachment: Attachment = { filename: `${base}.html`, content: doc.html, contentType: "text/html" };
+    if (doc.model) {
+      try {
+        attachment = { filename: `${base}.pdf`, content: await renderDocumentPdf(doc.model), contentType: "application/pdf" };
+      } catch (err) {
+        console.error(`tax invoice ${doc.invoiceNumber}: PDF failed, sending HTML`, err);
+      }
+    }
     let last: NotifyOutcome = { status: "skipped", reason: "No recipient." };
     for (const address of to) {
       last = await sendEmail({
@@ -228,7 +239,7 @@ export async function notifyInvoiceIssued(
         subject: `Tax invoice ${doc.invoiceNumber} · ${booking.venue.name}, ${booking.event_date}`,
         text: lines.join("\n"),
         html: plainHtml(lines),
-        attachments: [{ filename, content: doc.html, contentType: "text/html" }],
+        attachments: [attachment],
       });
       if (last.status !== "sent") return last;
     }

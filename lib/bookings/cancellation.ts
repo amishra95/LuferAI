@@ -17,8 +17,9 @@ import { describeCancellation, refundFor, type CancellationTier } from "../venue
  *
  * The requester (bookings.requested_by) and any Approver of the company may
  * cancel; Finance viewers can't. Lufer admins may too, and for them a confirmed
- * booking cancels outright: that's how ops close one once the refund is
- * settled. Pure: tests import it.
+ * booking cancels outright, sending back whatever part of the captured deposit
+ * they enter (through the payment provider, with a refund voucher). Pure:
+ * tests import it.
  */
 
 export type CancelMode = "cancel" | "request";
@@ -61,6 +62,8 @@ export const CancelInput = z.object({
     .max(500, "Keep the reason under 500 characters.")
     .optional()
     .transform((v) => v || null),
+  /** Lufer admins only: how much of the captured deposit to send back through the payment provider (0 or absent: none). */
+  refundInr: z.number().min(0).max(100_000_000).optional(),
 });
 export type CancelInput = z.input<typeof CancelInput>;
 
@@ -120,7 +123,7 @@ export function opsCancellationEmail(n: CancellationNotice): { subject: string; 
       `Refund due: ${n.refund ?? "check the venue's terms"}`,
       ...(n.reason ? [`Reason: ${n.reason}`] : []),
       "",
-      "Next: confirm with the venue, refund through Razorpay, then open the event as admin and choose Cancel booking.",
+      "Next: confirm with the venue, then open the event as admin and choose Cancel booking; the refund you enter there goes back through Razorpay.",
     ],
   };
 }

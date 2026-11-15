@@ -1,11 +1,11 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 
 import type { TaxInvoicePayload } from "@/lib/gst-engine";
 import { transferStatus, type TransferOutcome } from "@/lib/marketplace/settlement";
 import type { PaymentProvider } from "@/lib/supabase/database.types";
+import { validCheckoutSignature, validWebhookSignature } from "./rules";
 
 /**
  * Payment provider adapter. Both providers authorise a deposit at checkout and
@@ -57,6 +57,8 @@ export interface NormalizedEvent {
   type: string;
   /** Razorpay Route transfer events (transfer.*), for vendor_payouts. */
   transfer?: TransferUpdate;
+  /** Razorpay refund events (refund.*), for payment_refunds. */
+  refund?: RefundUpdate;
   /** Our payments.id when the provider echoes it back (metadata/notes). */
   paymentId: string | null;
   orderId: string | null;
@@ -74,6 +76,32 @@ export interface TransferUpdate {
   error: string | null;
 }
 
+export interface RefundUpdate {
+  /** rfnd_… */
+  ref: string;
+  /** Our payment_refunds.id when the refund was made from the app (notes.refund_id). */
+  refundId: string | null;
+  amountPaise: number;
+  status: "pending" | "processed" | "failed";
+}
+
+/** A payment as the provider has it now. */
+export interface ProviderPayment {
+  ref: string;
+  orderId: string | null;
+  status: NormalizedStatus | "created";
+  amountPaise: number;
+  error: string | null;
+}
+
+export interface RefundInput {
+  paymentRef: string;
+  amountPaise: number;
+  /** Our payment_refunds.id, echoed back on refund webhooks. */
+  refundId: string;
+  notes?: Record<string, string>;
+}
+
 export class WebhookSignatureError extends Error {}
 
 export interface PaymentGateway {
@@ -82,6 +110,12 @@ export interface PaymentGateway {
   capture(paymentRef: string, amountPaise: number): Promise<void>;
   /** Releases an authorisation. Returns false when the provider can only let it lapse. */
   void(paymentRef: string): Promise<boolean>;
+  /** Sends back all or part of a captured payment. Returns the provider's refund reference and its state. */
+  refund(input: RefundInput): Promise<{ ref: string; status: "pending" | "processed" | "failed" }>;
+  /** The payment's current state at the provider (used to confirm a checkout without waiting for the webhook). */
+  fetchPayment(paymentRef: string): Promise<ProviderPayment>;
+  /** True when the browser's success callback for this order is genuine. Null: the provider has no such callback. */
+  verifyCheckout(orderId: string, paymentRef: string, signature: string): boolean | null;
   /** Verifies the signature (throws WebhookSignatureError) and normalises the event. */
   parseWebhook(rawBody: string, headers: Headers): NormalizedEvent;
 }
@@ -212,20 +246,43 @@ function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
       return false;
     },
 
+    async refund(input) {
+      const res = await api<{ id: string; status?: string }>(`/payments/${encodeURIComponent(input.paymentRef)}/refund`, {
+        amount: input.amountPaise,
+        speed: "optimum",
+        notes: { ...input.notes, refund_id: input.refundId },
+        // Our reference on the refund; double refunds are prevented on our side (payment_refunds).
+        receipt: input.refundId,
+      });
+      return { ref: res.id, status: res.status === "processed" ? "processed" : res.status === "failed" ? "failed" : "pending" };
+    },
+
+    async fetchPayment(paymentRef) {
+      const p = await api<{ id: string; order_id: string | null; status: string; amount: number; error_description?: string | null }>(
+        `/payments/${encodeURIComponent(paymentRef)}`,
+        undefined,
+        "GET"
+      );
+      const status: Record<string, ProviderPayment["status"]> = { created: "created", authorized: "authorized", captured: "captured", refunded: "refunded", failed: "failed" };
+      return { ref: p.id, orderId: p.order_id, status: status[p.status] ?? "created", amountPaise: p.amount, error: p.error_description ?? null };
+    },
+
+    verifyCheckout(orderId, paymentRef, signature) {
+      return validCheckoutSignature(orderId, paymentRef, signature, keySecret);
+    },
+
     parseWebhook(rawBody, headers) {
       const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
       const signature = headers.get("x-razorpay-signature") ?? "";
       if (!secret) throw new WebhookSignatureError("RAZORPAY_WEBHOOK_SECRET is not set");
-      const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-      const a = Buffer.from(signature);
-      const b = Buffer.from(expected);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) throw new WebhookSignatureError("Bad Razorpay signature");
+      if (!validWebhookSignature(rawBody, signature, secret)) throw new WebhookSignatureError("Bad Razorpay signature");
 
       const event = JSON.parse(rawBody) as {
         event: string;
         payload?: {
           payment?: { entity?: { id: string; order_id: string | null; notes?: Record<string, string>; error_description?: string | null } };
           transfer?: { entity?: { id: string; on_hold?: boolean; settlement_status?: string | null; error?: { description?: string | null } | null } };
+          refund?: { entity?: { id: string; payment_id: string; amount: number; status?: string; notes?: Record<string, string> | unknown[] } };
         };
       };
       const eventId = headers.get("x-razorpay-event-id") ?? null;
@@ -238,6 +295,22 @@ function razorpayGateway(keyId: string, keySecret: string): PaymentGateway {
           paymentId: null,
           orderId: null,
           paymentRef: null,
+          status: null,
+          error: null,
+          payload: event,
+        };
+      }
+      const refund = event.payload?.refund?.entity;
+      if (event.event.startsWith("refund.") && refund) {
+        const outcome = event.event === "refund.processed" ? "processed" : event.event === "refund.failed" ? "failed" : "pending";
+        const notes = refund.notes && !Array.isArray(refund.notes) ? (refund.notes as Record<string, string>) : {};
+        return {
+          eventId: eventId ?? `${event.event}:${refund.id}`,
+          type: event.event,
+          refund: { ref: refund.id, refundId: notes.refund_id ?? null, amountPaise: refund.amount, status: outcome },
+          paymentId: null,
+          orderId: null,
+          paymentRef: refund.payment_id,
           status: null,
           error: null,
           payload: event,
@@ -367,6 +440,26 @@ function stripeGateway(secretKey: string): PaymentGateway {
     async void(paymentRef) {
       await stripe.paymentIntents.cancel(paymentRef);
       return true;
+    },
+
+    async refund(input) {
+      const res = await stripe.refunds.create(
+        { payment_intent: input.paymentRef, amount: input.amountPaise, metadata: { ...input.notes, refund_id: input.refundId } },
+        { idempotencyKey: input.refundId }
+      );
+      return { ref: res.id, status: res.status === "succeeded" ? "processed" : res.status === "failed" || res.status === "canceled" ? "failed" : "pending" };
+    },
+
+    async fetchPayment(paymentRef) {
+      const pi = await stripe.paymentIntents.retrieve(paymentRef);
+      const status: ProviderPayment["status"] =
+        pi.status === "requires_capture" ? "authorized" : pi.status === "succeeded" ? "captured" : pi.status === "canceled" ? "voided" : "created";
+      return { ref: pi.id, orderId: null, status, amountPaise: pi.amount, error: pi.last_payment_error?.message ?? null };
+    },
+
+    // Stripe Checkout redirects back; its webhooks are the only confirmation.
+    verifyCheckout() {
+      return null;
     },
 
     parseWebhook(rawBody, headers) {

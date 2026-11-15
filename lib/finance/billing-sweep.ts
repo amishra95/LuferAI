@@ -3,7 +3,7 @@ import "server-only";
 import { dataSource } from "@/lib/data";
 import { readDb } from "@/lib/data/local-store";
 import { invoiceDue } from "@/lib/finance/billing-rules";
-import { depositsWithoutVoucher, issueReceiptVoucher } from "@/lib/finance/billing-store";
+import { depositsWithoutVoucher, issueReceiptVoucher, issueRefundVoucher, refundsWithoutVoucher } from "@/lib/finance/billing-store";
 import { issueTaxInvoiceDocument } from "@/lib/finance/tax-invoice";
 import { todayInIndia } from "@/lib/gst-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -70,6 +70,15 @@ export async function runDocumentSweep(today = todayInIndia(), companyId?: strin
       } catch (err) {
         result.failed++;
         console.error(`billing sweep: receipt voucher for payment ${paymentId} failed`, err);
+      }
+    }
+    // Refund vouchers a refund didn't get at the time (before any invoice in this run, which would rule them out).
+    for (const refundId of (await refundsWithoutVoucher()).slice(0, MAX_PER_RUN)) {
+      try {
+        if ((await issueRefundVoucher(refundId, today)).status === "issued") result.vouchers++;
+      } catch (err) {
+        result.failed++;
+        console.error(`billing sweep: refund voucher for refund ${refundId} failed`, err);
       }
     }
   }

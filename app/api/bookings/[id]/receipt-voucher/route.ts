@@ -1,13 +1,13 @@
 import { getCurrentMember } from "@/lib/auth/session";
-import { listBookings } from "@/lib/data";
 import { listReceiptVouchers } from "@/lib/finance/billing-store";
-import { DOCUMENT_POLICY } from "@/lib/security-headers";
+import { documentBooking, documentResponse } from "@/lib/finance/document-response";
+import type { BillDocument } from "@/lib/finance/tax-invoice-document";
 
 /**
  * GET /api/bookings/<id>/receipt-voucher: the receipt voucher for the booking's
- * deposit (lib/finance/billing-store.ts), a print-ready HTML page. ?download=1
- * sends it as an attachment. Only the booking's company, its venue and admins
- * can open it.
+ * deposit (lib/finance/billing-store.ts), a print-ready HTML page.
+ * ?format=pdf downloads it as a PDF. Only the booking's company, its venue and
+ * admins can open it.
  */
 export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id]/receipt-voucher">) {
   const member = await getCurrentMember();
@@ -15,25 +15,13 @@ export async function GET(request: Request, ctx: RouteContext<"/api/bookings/[id
   const { id } = await ctx.params;
 
   try {
-    const scope = member.role === "ADMIN" ? {} : member.role === "CLIENT" && member.companyId ? { companyId: member.companyId } : member.role === "PROPERTY" && member.venueId ? { venueId: member.venueId } : null;
-    const [booking] = scope ? await listBookings({ ...scope, ids: [id] }) : [];
+    const booking = await documentBooking(member, id);
     if (!booking) return Response.json({ error: "not_found" }, { status: 404 });
     const [voucher] = await listReceiptVouchers(id);
     if (!voucher) return Response.json({ error: "not_issued" }, { status: 404 });
-
-    const download = new URL(request.url).searchParams.get("download") === "1";
-    const filename = `receipt-voucher-${voucher.voucher_number}`.replace(/[^A-Za-z0-9._-]/g, "-");
-    return new Response(voucher.html, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "private, no-store",
-        "Content-Security-Policy": DOCUMENT_POLICY,
-        "X-Content-Type-Options": "nosniff",
-        ...(download ? { "Content-Disposition": `attachment; filename="${filename}.html"` } : {}),
-      },
-    });
+    return documentResponse(request, { html: voucher.html, model: (voucher.data as BillDocument | null) ?? null, title: `Receipt Voucher ${voucher.voucher_number}` });
   } catch (err) {
     console.error("api/bookings/receipt-voucher: failed", err);
-    return Response.json({ error: "Could not load the receipt voucher." }, { status: 500 });
+    return Response.json({ error: "Could not load the document." }, { status: 500 });
   }
 }
