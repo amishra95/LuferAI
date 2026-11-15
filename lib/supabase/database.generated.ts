@@ -2497,6 +2497,7 @@ export type Database = {
           min_spend_inr: number
           name: string
           partner_id: string
+          photos: string[]
           private_dining: boolean
           ref: string
           status: string
@@ -2514,6 +2515,7 @@ export type Database = {
           min_spend_inr?: number
           name: string
           partner_id: string
+          photos?: string[]
           private_dining?: boolean
           ref: string
           status?: string
@@ -2531,6 +2533,7 @@ export type Database = {
           min_spend_inr?: number
           name?: string
           partner_id?: string
+          photos?: string[]
           private_dining?: boolean
           ref?: string
           status?: string

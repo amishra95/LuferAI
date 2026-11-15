@@ -4,6 +4,7 @@ import { PARTNER_ROLES, wouldOrphanPartner, type PartnerRole } from "@/lib/auth/
 import { dataSource } from "@/lib/data";
 import { todayInIndia } from "@/lib/gst-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import type { Json, Partner, PartnerAuditEntry, PartnerRateCard, PartnerVenue } from "@/lib/supabase/database.types";
 import { fromPerHead, overlappingRates, type ListingInput, type RateCardInput } from "./validation";
 
@@ -305,6 +306,8 @@ export interface ExtranetListing {
   longitude: number | null;
   /** Cheapest per-head rate active today, if the partner published one. */
   fromPerHeadInr: number | null;
+  /** Cover photo URL (admins add them on /admin/photos), or null. */
+  photoUrl: string | null;
 }
 
 /** Active listings of active partners, for the venue directory and the concierge's searchVenues tool. */
@@ -333,5 +336,6 @@ export async function listExtranetListings(): Promise<ExtranetListing[]> {
     latitude: v.latitude == null ? null : Number(v.latitude),
     longitude: v.longitude == null ? null : Number(v.longitude),
     fromPerHeadInr: fromPerHead(windows, v.id, today),
+    photoUrl: venuePhotoUrls(v.photos)[0] ?? null,
   }));
 }

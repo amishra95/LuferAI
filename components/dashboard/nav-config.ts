@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileSignature,
+  Image as ImageIcon,
   Inbox,
   Landmark,
   LayoutDashboard,
@@ -140,6 +141,7 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
         items: [
           { href: "/venues", label: "Venues", icon: MapPinned },
           { href: "/admin/new-venue", label: "Add venue", icon: Store },
+          { href: "/admin/photos", label: "Venue photos", icon: ImageIcon },
           { href: "/agents", label: "Agents", icon: Bot },
           { href: "/chat", label: "Chat", icon: MessageSquare },
         ],
@@ -247,6 +249,7 @@ const PATH_LABEL: Record<string, string> = {
   "/admin/managers": "Venue managers",
   "/admin/requests": "Concierge queue",
   "/admin/new-venue": "Add venue",
+  "/admin/photos": "Venue photos",
   // Shared pages: neutral names, since their sidebar label differs by side.
   "/venues": "Venues",
   "/chat": "Chat",
