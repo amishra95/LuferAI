@@ -1147,6 +1147,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          billing_address: string | null
           contracts_required: boolean
           created_at: string
           expense_provider: string
@@ -1162,6 +1163,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_address?: string | null
           contracts_required?: boolean
           created_at?: string
           expense_provider?: string
@@ -1177,6 +1179,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_address?: string | null
           contracts_required?: boolean
           created_at?: string
           expense_provider?: string
@@ -2626,6 +2629,9 @@ export type Database = {
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_order_id: string
           provider_payment_id: string | null
+          purpose: string
+          refunded_at: string | null
+          refunded_inr: number
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
           voided_at: string | null
@@ -2646,6 +2652,9 @@ export type Database = {
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_order_id: string
           provider_payment_id?: string | null
+          purpose?: string
+          refunded_at?: string | null
+          refunded_inr?: number
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           voided_at?: string | null
@@ -2666,6 +2675,9 @@ export type Database = {
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_order_id?: string
           provider_payment_id?: string | null
+          purpose?: string
+          refunded_at?: string | null
+          refunded_inr?: number
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           voided_at?: string | null
@@ -3321,41 +3333,176 @@ export type Database = {
           },
         ]
       }
+      payment_refunds: {
+        Row: {
+          amount_inr: number
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          payment_id: string
+          processed_at: string | null
+          provider_refund_id: string | null
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          amount_inr: number
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          payment_id: string
+          processed_at?: string | null
+          provider_refund_id?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          amount_inr?: number
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          payment_id?: string
+          processed_at?: string | null
+          provider_refund_id?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      refund_vouchers: {
+        Row: {
+          amount_inr: number
+          booking_id: string
+          created_at: string
+          data: Json | null
+          html: string
+          html_sha256: string
+          issued_on: string
+          refund_id: string
+          tenant_id: string
+          venue_id: string
+          voucher_number: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_id: string
+          created_at?: string
+          data?: Json | null
+          html: string
+          html_sha256: string
+          issued_on: string
+          refund_id: string
+          tenant_id: string
+          venue_id: string
+          voucher_number: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_id?: string
+          created_at?: string
+          data?: Json | null
+          html?: string
+          html_sha256?: string
+          issued_on?: string
+          refund_id?: string
+          tenant_id?: string
+          venue_id?: string
+          voucher_number?: string
+        }
+        Relationships: []
+      }
+      receipt_vouchers: {
+        Row: {
+          amount_inr: number
+          booking_id: string
+          created_at: string
+          data: Json | null
+          html: string
+          html_sha256: string
+          issued_on: string
+          payment_id: string
+          tenant_id: string
+          venue_id: string
+          voucher_number: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_id: string
+          created_at?: string
+          data?: Json | null
+          html: string
+          html_sha256: string
+          issued_on: string
+          payment_id: string
+          tenant_id: string
+          venue_id: string
+          voucher_number: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_id?: string
+          created_at?: string
+          data?: Json | null
+          html?: string
+          html_sha256?: string
+          issued_on?: string
+          payment_id?: string
+          tenant_id?: string
+          venue_id?: string
+          voucher_number?: string
+        }
+        Relationships: []
+      }
       tax_invoice_documents: {
         Row: {
+          advance_inr: number
           attempts: number
           booking_id: string
           created_at: string
+          data: Json | null
           error: string | null
           html: string | null
           html_sha256: string | null
           invoice_number: string | null
+          issued_on: string | null
+          receipt_voucher_number: string | null
           rendered_at: string | null
           status: string
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          advance_inr?: number
           attempts?: number
           booking_id: string
           created_at?: string
+          data?: Json | null
           error?: string | null
           html?: string | null
           html_sha256?: string | null
           invoice_number?: string | null
+          issued_on?: string | null
+          receipt_voucher_number?: string | null
           rendered_at?: string | null
           status: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          advance_inr?: number
           attempts?: number
           booking_id?: string
           created_at?: string
+          data?: Json | null
           error?: string | null
           html?: string | null
           html_sha256?: string | null
           invoice_number?: string | null
+          issued_on?: string | null
+          receipt_voucher_number?: string | null
           rendered_at?: string | null
           status?: string
           tenant_id?: string
@@ -4355,6 +4502,9 @@ export type Database = {
       escalate_overdue_approvals: { Args: never; Returns: number }
       gstin_checksum: { Args: { p_first14: string }; Returns: string }
       indian_fiscal_year: { Args: { d: string }; Returns: string }
+      take_refund_voucher_number: { Args: { p_on: string; p_venue_id: string }; Returns: string }
+      take_receipt_voucher_number: { Args: { p_on: string; p_venue_id: string }; Returns: string }
+      take_venue_invoice_number: { Args: { p_on: string; p_venue_id: string }; Returns: string }
       is_platform_admin: { Args: never; Returns: boolean }
       is_valid_gstin: { Args: { p_gstin: string }; Returns: boolean }
       match_booking_memories: {

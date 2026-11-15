@@ -210,6 +210,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
   const setup = hierarchy
     ? setupGaps({
         hasGstin: Boolean(company.gstin),
+        hasBillingAddress: Boolean(company.billing_address),
         hasOffice: office !== null,
         approvers: hierarchy.length,
         hasPerHeadTiers: policy?.auto_approval_limit_per_head != null || policy?.manager_approval_limit_per_head != null || policy?.max_budget_per_head != null,

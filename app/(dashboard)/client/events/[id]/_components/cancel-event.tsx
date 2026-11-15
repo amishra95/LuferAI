@@ -22,6 +22,7 @@ export function CancelEvent({
   terms,
   requestedOn,
   admin,
+  deposit,
 }: {
   bookingId: string;
   mode: CancelMode;
@@ -32,9 +33,14 @@ export function CancelEvent({
   /** Set once a cancellation was requested (shown instead of the button). */
   requestedOn: string | null;
   admin: boolean;
+  /** Admin only: the captured deposit that can be sent back, and what the venue's terms suggest. */
+  deposit?: { refundable: number; suggested: number; terms: string | null } | null;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
+  const [refundInput, setRefundInput] = useState(deposit ? String(deposit.suggested) : "");
+  const refundInr = deposit ? Number(refundInput || 0) : 0;
+  const refundInvalid = deposit ? !Number.isFinite(refundInr) || refundInr < 0 || refundInr > deposit.refundable : false;
   const act = useAction<{ mode: CancelMode; refund?: string }>();
   const router = useRouter();
 
@@ -48,11 +54,11 @@ export function CancelEvent({
 
   const label = mode === "cancel" ? (admin ? "Cancel booking" : "Cancel request") : "Request cancellation";
   const submit = async () => {
-    const outcome = await act.run(() => cancelBookingAction({ bookingId, reason }), {
+    const outcome = await act.run(() => cancelBookingAction({ bookingId, reason, ...(deposit && refundInr > 0 ? { refundInr } : {}) }), {
       failure: mode === "cancel" ? "Couldn't cancel" : "Couldn't request cancellation",
       success: (r) =>
         r.mode === "cancel"
-          ? { tone: "success", title: "Cancelled", description: "The date is released and any deposit hold is returned in full." }
+          ? { tone: "success", title: "Cancelled", description: deposit && refundInr > 0 ? `The date is released and ₹${refundInr.toLocaleString("en-IN")} is on its way back.` : "The date is released and any deposit hold is returned in full." }
           : { tone: "success", title: "Cancellation requested", description: "Lufer will confirm with the venue and settle the refund." },
     });
     if (outcome?.ok) {
@@ -63,7 +69,7 @@ export function CancelEvent({
 
   return (
     <div className="grid gap-3">
-      {requestedOn ? <p className="text-fg text-meta">The company asked to cancel on {requestedOn}. Refund any captured deposit in Razorpay first.</p> : null}
+      {requestedOn ? <p className="text-fg text-meta">The company asked to cancel on {requestedOn}.</p> : null}
       {mode === "request" ? (
         <dl className="grid gap-2 text-meta">
           <div>
@@ -78,7 +84,7 @@ export function CancelEvent({
           ) : null}
         </dl>
       ) : requestedOn ? null : (
-        <p className="text-fg-subtle text-meta">{admin ? "Any deposit hold is released. Refund a captured deposit in Razorpay first." : "The date is released and any deposit hold is returned in full."}</p>
+        <p className="text-fg-subtle text-meta">{admin ? (deposit ? "The refund below goes back through the payment provider when you cancel." : "Any deposit hold is released.") : "The date is released and any deposit hold is returned in full."}</p>
       )}
 
       {confirming ? (
@@ -100,11 +106,32 @@ export function CancelEvent({
               className="field-sizing-content min-h-11 resize-none rounded-md border border-line bg-surface px-3 py-2 text-body text-fg placeholder:text-fg-faint focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             />
           </div>
+          {deposit ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor={`cancel-refund-${bookingId}`}>Refund (₹)</Label>
+              <input
+                id={`cancel-refund-${bookingId}`}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={deposit.refundable}
+                step="0.01"
+                value={refundInput}
+                onChange={(e) => setRefundInput(e.target.value)}
+                aria-invalid={refundInvalid}
+                className="min-h-11 rounded-md border border-line bg-surface px-3 py-2 font-mono text-body text-fg tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-9"
+              />
+              <p className={refundInvalid ? "text-destructive text-caption" : "text-fg-subtle text-caption"}>
+                Deposit paid: ₹{deposit.refundable.toLocaleString("en-IN")}
+                {deposit.terms ? ` · ${deposit.terms}` : ""}
+              </p>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
             <Button type="button" variant="outline" className="min-h-11 sm:min-h-9" onClick={() => setConfirming(false)} disabled={act.pending}>
               Keep event
             </Button>
-            <Button type="submit" variant="destructive" className="min-h-11 sm:min-h-9" disabled={act.pending}>
+            <Button type="submit" variant="destructive" className="min-h-11 sm:min-h-9" disabled={act.pending || refundInvalid}>
               {act.pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {label}
             </Button>

@@ -114,6 +114,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         canManage={canManage && dataSource() === "supabase"}
         initial={{
           gstin: company.gstin,
+          billingAddress: company.billing_address,
           officeArea: officeAreaKeyOf(company),
           autoApprovePerHead: policy?.auto_approval_limit_per_head ?? null,
           managerPerHead: policy?.manager_approval_limit_per_head ?? null,
