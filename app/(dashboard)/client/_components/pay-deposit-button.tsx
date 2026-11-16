@@ -21,14 +21,17 @@ export function PayDepositButton({
   orderId,
   invoiceId,
   balanceFor,
+  requestId,
   label,
 }: { label: string } & (
-  | { bookingId: string; orderId?: never; invoiceId?: never; balanceFor?: never }
-  | { orderId: string; bookingId?: never; invoiceId?: never; balanceFor?: never }
+  | { bookingId: string; orderId?: never; invoiceId?: never; balanceFor?: never; requestId?: never }
+  | { orderId: string; bookingId?: never; invoiceId?: never; balanceFor?: never; requestId?: never }
   /** A contract instalment (deposit or balance invoice), captured on authorisation. */
-  | { invoiceId: string; bookingId?: never; orderId?: never; balanceFor?: never }
+  | { invoiceId: string; bookingId?: never; orderId?: never; balanceFor?: never; requestId?: never }
   /** The balance on a booking's issued tax invoice (booking id), captured on authorisation. */
-  | { balanceFor: string; bookingId?: never; orderId?: never; invoiceId?: never }
+  | { balanceFor: string; bookingId?: never; orderId?: never; invoiceId?: never; requestId?: never }
+  /** An accepted concierge quote (request id), paid in full and captured on authorisation. */
+  | { requestId: string; bookingId?: never; orderId?: never; invoiceId?: never; balanceFor?: never }
 )) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -42,14 +45,14 @@ export function PayDepositButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // A catalogue order is paid in full and split to the supplier (Razorpay Route).
-        body: JSON.stringify(balanceFor ? { balanceFor } : invoiceId ? { invoiceId } : orderId ? { orderId } : { bookingId }),
+        body: JSON.stringify(requestId ? { requestId } : balanceFor ? { balanceFor } : invoiceId ? { invoiceId } : orderId ? { orderId } : { bookingId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not start checkout");
       const checkout = json.checkout as DepositCheckout;
 
       await openCheckout(checkout, {
-        description: balanceFor ? "Invoice balance" : invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
+        description: requestId ? "Event payment" : balanceFor ? "Invoice balance" : invoiceId ? "Contract instalment" : orderId ? "Order payment · captured when the supplier confirms" : "Event deposit · refunded if the venue declines",
         // Confirmed with the server before this runs (lib/payments/open-checkout.ts).
         onPaid: () => {
           setPending(false);

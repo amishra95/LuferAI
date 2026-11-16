@@ -332,6 +332,51 @@ export function paymentReceiptModel(r: PaymentReceiptSubject): BillDocument {
   };
 }
 
+export interface RequestReceiptSubject {
+  /** Who took the money: Lufer's entity name. */
+  receivedBy: string;
+  requestId: string;
+  paidOn: string;
+  venueName: string;
+  eventDate: string | null;
+  guests: number | null;
+  companyName: string;
+  companyGstin: string | null;
+  companyAddress: string | null;
+  paid: number;
+  /** What the quote covered, in Lufer's words. */
+  quoteNote: string | null;
+  paymentRef: string | null;
+}
+
+/**
+ * The receipt for a concierge quote paid through Lufer. Not a tax invoice and
+ * not a GST document: the venue has no account or GSTIN here, so the tax
+ * invoice for the event comes separately.
+ */
+export function requestReceiptModel(r: RequestReceiptSubject): BillDocument {
+  const event = [`Event at ${r.venueName}`, r.eventDate ? `on ${r.eventDate}` : null, r.guests ? `${r.guests} guests` : null].filter(Boolean).join(" · ");
+  return {
+    kind: "payment_receipt",
+    heading: "Payment Receipt",
+    title: `Payment Receipt · ${r.venueName}${r.eventDate ? ` ${r.eventDate}` : ""}`,
+    meta: [`received ${r.paidOn}`, `request ${r.requestId}`, ...(r.paymentRef ? [`payment ${r.paymentRef}`] : [])],
+    parties: [
+      { heading: "Received by", lines: [r.receivedBy, `For ${r.venueName}`] },
+      { heading: "Received from", lines: [r.companyName, r.companyAddress, r.companyGstin ? `GSTIN ${r.companyGstin}` : null].filter((l): l is string => Boolean(l)) },
+    ],
+    columns: [{ label: "Description" }, { label: "Amount", num: true }],
+    rows: [{ cells: [event, money(r.paid)] }, { cells: ["Amount received", money(r.paid)], total: true }],
+    words: amountInWords(r.paid),
+    notes: [
+      ...(r.quoteNote ? [`Quote: ${r.quoteNote}`] : []),
+      "The amount includes all taxes and charges quoted for the event. This is a receipt for payment, not a tax invoice; the tax invoice for the event is issued separately. Amounts in INR.",
+    ],
+    signFor: r.receivedBy,
+    footer: "Computer-generated receipt.",
+  };
+}
+
 export function renderPaymentReceipt(r: PaymentReceiptSubject): { html: string; sha256: string; model: BillDocument } {
   return rendered(paymentReceiptModel(r));
 }
