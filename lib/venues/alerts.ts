@@ -86,3 +86,9 @@ export function alertVenueRfp(venueId: string, rfp: { venueName: string; company
   if (dataSource() !== "supabase") return;
   runAfter(deliver(venueId, (concierge) => rfpAlert(rfp, link, concierge)).catch((err) => console.error(`venue RFP alert for ${venueId} failed`, err)));
 }
+
+/** A company cancelled, or asked to cancel, a booking at the venue (lib/bookings/cancellation.ts). */
+export function alertVenueCancellation(venueId: string, message: { subject: string; lines: string[] }): void {
+  if (dataSource() !== "supabase" || !venueId) return;
+  runAfter(deliver(venueId, () => message).catch((err) => console.error(`venue cancellation alert for ${venueId} failed`, err)));
+}

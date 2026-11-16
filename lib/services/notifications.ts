@@ -1,6 +1,8 @@
 import "server-only";
 
 import { dataSource, listBookings, listCompanies } from "@/lib/data";
+import { renderDocumentPdf } from "@/lib/finance/document-pdf";
+import type { BillDocument } from "@/lib/finance/tax-invoice-document";
 import { bookingAcceptedMessage } from "@/lib/notifications/booking-accepted";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,7 +17,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type NotifyOutcome = { status: "sent"; to: string } | { status: "skipped"; reason: string } | { status: "failed"; error: string };
 
-async function sendEmail(message: { to: string; subject: string; text: string; html: string; replyTo?: string }): Promise<NotifyOutcome> {
+type Attachment = { filename: string; content: string | Uint8Array; contentType: string };
+
+async function sendEmail(message: { to: string; subject: string; text: string; html: string; replyTo?: string; attachments?: Attachment[] }): Promise<NotifyOutcome> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFY_FROM_EMAIL;
   if (!key || !from) {
@@ -28,7 +32,18 @@ async function sendEmail(message: { to: string; subject: string; text: string; h
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ from, to: [message.to], subject: message.subject, text: message.text, html: message.html, ...(message.replyTo && { reply_to: message.replyTo }) }),
+      body: JSON.stringify({
+        from,
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+        ...(message.replyTo && { reply_to: message.replyTo }),
+        // Resend takes attachment content base64-encoded.
+        ...(message.attachments?.length && {
+          attachments: message.attachments.map((a) => ({ filename: a.filename, content: (typeof a.content === "string" ? Buffer.from(a.content, "utf8") : Buffer.from(a.content)).toString("base64"), content_type: a.contentType })),
+        }),
+      }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return { status: "failed", error: `Resend ${res.status}: ${(await res.text()).slice(0, 200)}` };
@@ -182,6 +197,77 @@ export async function notifyConciergeRequest(
   const receipt = await sendEmail({ to: requester.email, subject: requester.subject, text: requester.lines.join("\n"), html: plainHtml(requester.lines) });
   if (receipt.status !== "sent") console.warn("notify: concierge receipt not sent", "reason" in receipt ? receipt.reason : receipt.error);
   return { delivered: true };
+}
+
+/**
+ * The tax invoice, issued after the event: to the requester and the company's
+ * primary contact, with the invoice attached as a PDF (the HTML page too when
+ * the PDF can't be made), what's left to pay, and a link to the event. Never throws.
+ */
+export async function notifyInvoiceIssued(
+  booking: { id: string; company_id: string; requested_by?: string | null; event_date: string; venue: { name: string }; company: { legal_name: string }; invoice: { invoice_total: number } },
+  doc: { invoiceNumber: string; html: string; model?: BillDocument; balance?: number }
+): Promise<NotifyOutcome> {
+  try {
+    const requester = await recipientFor(booking);
+    const company = (await listCompanies()).find((c) => c.id === booking.company_id);
+    const to = [...new Set([requester?.email, company?.primary_contact_email].filter((e): e is string => Boolean(e)))];
+    if (!to.length) return { status: "skipped", reason: "No email for the company." };
+    const link = new URL(`/client/events/${booking.id}`, siteUrl("https://lufer.app")).toString();
+    const lines = [
+      `Tax invoice ${doc.invoiceNumber} for your event at ${booking.venue.name} on ${booking.event_date} is attached.`,
+      "",
+      `Invoice total: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(booking.invoice.invoice_total)}`,
+      ...(doc.balance !== undefined
+        ? [doc.balance > 0 ? `Balance payable: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(doc.balance)}` : "Paid in full by your deposit."]
+        : []),
+      `${doc.balance ? "Pay the balance and download the invoice" : "It's also on the event"} in Lufer: ${link}`,
+    ];
+    const base = `tax-invoice-${doc.invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "-")}`;
+    let attachment: Attachment = { filename: `${base}.html`, content: doc.html, contentType: "text/html" };
+    if (doc.model) {
+      try {
+        attachment = { filename: `${base}.pdf`, content: await renderDocumentPdf(doc.model), contentType: "application/pdf" };
+      } catch (err) {
+        console.error(`tax invoice ${doc.invoiceNumber}: PDF failed, sending HTML`, err);
+      }
+    }
+    let last: NotifyOutcome = { status: "skipped", reason: "No recipient." };
+    for (const address of to) {
+      last = await sendEmail({
+        to: address,
+        subject: `Tax invoice ${doc.invoiceNumber} · ${booking.venue.name}, ${booking.event_date}`,
+        text: lines.join("\n"),
+        html: plainHtml(lines),
+        attachments: [attachment],
+      });
+      if (last.status !== "sent") return last;
+    }
+    return last;
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** A plain message to someone who sent a concierge request (their quote is in). Replies go to Lufer ops. Never throws. */
+export async function sendRequesterEmail(to: string, message: { subject: string; lines: string[] }): Promise<NotifyOutcome> {
+  try {
+    const replyTo = process.env.CONCIERGE_EMAIL?.trim();
+    return await sendEmail({ to, subject: message.subject, text: message.lines.join("\n"), html: plainHtml(message.lines), ...(replyTo && { replyTo }) });
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** A message to Lufer ops (CONCIERGE_EMAIL), reply-to whoever it's about. Never throws. */
+export async function notifyOps(message: { subject: string; lines: string[] }, replyTo?: string): Promise<NotifyOutcome> {
+  const to = process.env.CONCIERGE_EMAIL?.trim();
+  if (!to) return { status: "skipped", reason: "CONCIERGE_EMAIL is not set." };
+  try {
+    return await sendEmail({ to, subject: message.subject, text: message.lines.join("\n"), html: plainHtml(message.lines), ...(replyTo && { replyTo }) });
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /** A venue alert (lib/venues/alerts.ts). Never throws. */

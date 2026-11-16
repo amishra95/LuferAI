@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 
 import { requireWorkspace } from "@/lib/auth/session";
@@ -8,6 +9,7 @@ import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/
 import { CompanySetupInput } from "@/lib/companies/setup";
 import { saveCompanySetup } from "@/lib/companies/setup-store";
 import { addCompanyGstin, dataSource, listCompanies } from "@/lib/data";
+import { issueWaitingInvoices } from "@/lib/finance/billing-sweep";
 import { GSTIN_TAKEN } from "@/lib/companies/gstin";
 import { validateGstin } from "@/lib/gst-engine";
 import { TeamInvite } from "@/lib/companies/team";
@@ -111,7 +113,10 @@ export async function companySetupAction(companyId: string | null, input: Compan
       const added = await addCompanyGstin(company, parsed.data.gstin);
       if (added === "taken") throw new ActionError(GSTIN_TAKEN);
     }
+    const hadAddress = Boolean((await listCompanies()).find((c) => c.id === company)?.billing_address);
     await saveCompanySetup(company, parsed.data);
+    // Invoices waiting for the address go out now rather than at the next daily sweep.
+    if (!hadAddress && parsed.data.billingAddress) after(() => issueWaitingInvoices(company));
     revalidateGovernance();
     revalidatePath("/venues");
     return { ok: true as const };

@@ -32,7 +32,17 @@ import { isEventType, type PolicyCheck, type PolicyStatus } from "@/lib/policies
 import type { VenueOption } from "./_components/event-request-form";
 import { toVenueOption } from "./_components/venue-options";
 import { ReviewError, saveReview } from "@/lib/venues/review-store";
-import { alertVenueBookingRequest } from "@/lib/venues/alerts";
+import { alertVenueBookingRequest, alertVenueCancellation } from "@/lib/venues/alerts";
+import { bookingReference, CancelInput, cancelModeFor, cancelRefusal, opsCancellationEmail, refundEstimate, refundLine, venueCancellationEmail, type CancelMode, type CancellationNotice } from "@/lib/bookings/cancellation";
+import { recordCancellationRequest, saveCancellationReason, venueCancellationTerms } from "@/lib/data";
+import { todayInIndia } from "@/lib/gst-engine";
+import { capturedDeposit, PaymentError, refundPayment, settleDeposit } from "@/lib/payments/service";
+import { refundRefusal } from "@/lib/payments/rules";
+import { notifyOps } from "@/lib/services/notifications";
+import { sendTelegram } from "@/lib/services/telegram";
+import { LEGAL } from "@/lib/legal";
+import { acceptConciergeQuote, getConciergeRequest, withdrawConciergeRequest } from "@/lib/concierge/request-store";
+import { acceptedAlert, acceptRefusal, isWithdrawable, mayWithdrawRequest, requestSummary } from "@/lib/concierge/requests";
 
 export interface BookingRequestState {
   status: "idle" | "success" | "error";
@@ -723,4 +733,149 @@ export async function saveReviewAction(_prev: ReviewState, formData: FormData): 
   revalidatePath("/venues");
   revalidatePath("/property");
   return { status: "success", message: "Thanks. Your review helps colleagues and other teams choose." };
+}
+
+export interface CancelOutcome {
+  mode: CancelMode;
+  /** For "request": the refund the venue's terms give at this notice (one line). */
+  refund?: string;
+}
+
+/**
+ * Cancels an event from the company side (lib/bookings/cancellation.ts).
+ * Before the venue confirms: cancelled at once, the hold released and any
+ * deposit authorisation voided; the venue is told if it had the request.
+ * After it confirms: the cancellation is requested; Lufer ops and the venue
+ * are emailed, and Lufer settles the refund. Admins cancel outright, sending
+ * back the part of the captured deposit they enter through the payment provider.
+ */
+export async function cancelBookingAction(input: CancelInput): Promise<ActionResult<CancelOutcome>> {
+  return serverDispatch("client/cancelBooking", async () => {
+    const member = await requirePortal("/client");
+    const parsed = CancelInput.safeParse(input);
+    if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
+    const { bookingId, reason, refundInr } = parsed.data;
+    const admin = member.role === "ADMIN";
+    if (!admin && !member.companyId) throw new ActionError("Booking not found.");
+
+    const [booking] = await listBookings({ ids: [bookingId], ...(!admin && { companyId: member.companyId! }) });
+    if (!booking) throw new ActionError("Booking not found.");
+    const today = todayInIndia();
+    const refusal = cancelRefusal(member, booking, today);
+    if (refusal) throw new ActionError(refusal);
+    const mode = cancelModeFor(booking, today, { admin })!;
+
+    const notice = (refund: string | null): CancellationNotice => ({
+      kind: mode,
+      reference: bookingReference(booking.id),
+      venueName: booking.venue.name,
+      companyName: booking.company.legal_name,
+      eventDate: booking.event_date,
+      guests: booking.party_size,
+      total: booking.total_amount_inr,
+      by: member.email ?? "Someone",
+      reason,
+      refund,
+    });
+
+    if (mode === "cancel") {
+      const venueKnew = booking.status !== "PENDING_APPROVAL";
+      // Admin closing a confirmed booking: the refund goes first, so a refund the provider refuses leaves the booking as it was.
+      if (refundInr && refundInr > 0) {
+        if (!admin) throw new ActionError("Only Lufer can send a refund.");
+        const deposit = await capturedDeposit(booking.id);
+        const refusal = refundRefusal(deposit, refundInr);
+        if (refusal || !deposit) throw new ActionError(refusal ?? "There is no captured deposit to refund.");
+        try {
+          await refundPayment(deposit.id, refundInr, { userId: member.userId, reason });
+        } catch (err) {
+          if (err instanceof PaymentError) throw new ActionError(err.message);
+          throw err;
+        }
+      }
+      // The bookings_sync_inventory_holds trigger releases the date hold.
+      await updateBookingStatus(booking.id, "CANCELLED", { companyId: booking.company_id });
+      // An authorised deposit is released in full; a captured one was refunded above, as far as the admin chose.
+      await settleDeposit(booking.id, "void");
+      if (reason) await saveCancellationReason(booking.id, reason);
+      await publishBooking(booking.id, booking.venue_id, "CANCELLED", "request", booking.company_id);
+      if (venueKnew) alertVenueCancellation(booking.venue_id, venueCancellationEmail(notice(null)));
+      revalidateBookingViews();
+      revalidatePath(`/client/events/${booking.id}`);
+      revalidatePath("/governance");
+      return { mode };
+    }
+
+    const estimate = refundEstimate(await venueCancellationTerms(booking.venue_id), booking, today);
+    const refund = refundLine(estimate);
+    // Lufer must hear about it, or the request would sit unseen: email ops (and Telegram when set up) first.
+    const ops = opsCancellationEmail(notice(refund));
+    const [sent, tg] = await Promise.all([notifyOps(ops, member.email ?? undefined), sendTelegram([ops.subject, ...ops.lines].join("\n"))]);
+    if (sent.status !== "sent") console.error("cancel: ops email not sent", "reason" in sent ? sent.reason : sent.error);
+    if (tg.status === "failed") console.error("cancel: Telegram alert failed", tg.error);
+    if (sent.status !== "sent" && tg.status !== "sent") {
+      throw new ActionError(`We couldn't reach the Lufer team just now. Email ${LEGAL.supportEmail} with booking ${bookingReference(booking.id)} to cancel.`);
+    }
+    if (!(await recordCancellationRequest(booking.id, booking.company_id, member.userId, reason))) {
+      throw new ActionError("Cancellation was already requested. Lufer will be in touch.");
+    }
+    alertVenueCancellation(booking.venue_id, venueCancellationEmail(notice(null)));
+    revalidateBookingViews();
+    revalidatePath(`/client/events/${booking.id}`);
+    return { mode, refund };
+  });
+}
+
+/**
+ * Accepts the quote on a concierge request (Home → Requests): it becomes
+ * Booked at the quoted total, payable in the app, and Lufer is told to confirm
+ * with the venue. The requester or an Approver accepts. `totalInr` is the
+ * total the member saw, so a quote that changed meanwhile isn't accepted blind.
+ */
+export async function acceptQuoteAction(input: { requestId: string; totalInr: number }): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("client/acceptQuote", async () => {
+    const member = await requirePortal("/client");
+    if (!/^[0-9a-f-]{36}$/i.test(input.requestId) || !Number.isFinite(input.totalInr)) throw new ActionError("Request not found.");
+    const request = await getConciergeRequest(input.requestId);
+    if (!request || (member.role !== "ADMIN" && request.company_id !== member.companyId)) throw new ActionError("Request not found.");
+    const refusal = acceptRefusal(member, { ...request, quote_total_inr: request.quote_total_inr == null ? null : Number(request.quote_total_inr) });
+    if (refusal) throw new ActionError(refusal);
+    if (Number(request.quote_total_inr) !== input.totalInr) throw new ActionError("The quote changed. Check the new total and accept again.");
+    const accepted = await acceptConciergeQuote(request.id, input.totalInr, member.userId);
+    if (!accepted) throw new ActionError("The quote changed or was already accepted. Reload and check it.");
+
+    const company = (await listCompanies()).find((c) => c.id === accepted.company_id);
+    const message = acceptedAlert(accepted, { companyName: company?.legal_name ?? "A company", email: member.email ?? accepted.requester_email });
+    const [sent, tg] = await Promise.all([notifyOps(message, member.email ?? undefined), sendTelegram([message.subject, ...message.lines].join("\n"))]);
+    if (sent.status !== "sent") console.warn("accept quote: ops email not sent", "reason" in sent ? sent.reason : sent.error);
+    if (tg.status === "failed") console.error("accept quote: Telegram alert failed", tg.error);
+    revalidatePath("/client");
+    revalidatePath("/admin/requests");
+    return { ok: true as const };
+  });
+}
+
+/**
+ * Withdraws a concierge request (Home → Requests) while it's still open: it
+ * closes with "Withdrawn by the company", and Lufer is told to stop working it.
+ */
+export async function withdrawRequestAction(requestId: string): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("client/withdrawRequest", async () => {
+    const member = await requirePortal("/client");
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw new ActionError("Request not found.");
+    const request = await getConciergeRequest(requestId);
+    if (!request || (member.role !== "ADMIN" && request.company_id !== member.companyId)) throw new ActionError("Request not found.");
+    if (!mayWithdrawRequest(member, request)) throw new ActionError("Only the person who sent this request, or an Approver, can withdraw it.");
+    if (!isWithdrawable(request.status) || !(await withdrawConciergeRequest(requestId))) {
+      throw new ActionError("This request is already booked or closed. Email support to change it.");
+    }
+    const lines = [`${member.email ?? "The company"} withdrew a request: ${requestSummary(request)}.`, "Stop working on it; it's closed in /admin/requests."];
+    const subject = `Request withdrawn: ${requestSummary(request)}`;
+    const [sent, tg] = await Promise.all([notifyOps({ subject, lines }, member.email ?? undefined), sendTelegram([subject, ...lines].join("\n"))]);
+    if (sent.status !== "sent") console.warn("withdraw: ops email not sent", "reason" in sent ? sent.reason : sent.error);
+    if (tg.status === "failed") console.error("withdraw: Telegram alert failed", tg.error);
+    revalidatePath("/client");
+    revalidatePath("/admin/requests");
+    return { ok: true as const };
+  });
 }

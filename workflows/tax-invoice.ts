@@ -4,18 +4,23 @@ import { backoffMs, MAX_RETRIES } from "@/lib/jobs/retry-policy";
 import { deadLetterTaxInvoice, issueTaxInvoiceDocument } from "@/lib/finance/tax-invoice";
 
 /**
- * Durable rendering of a confirmed booking's GST tax invoice (print-ready HTML
- * with its SHA-256; lib/finance/tax-invoice-document.ts), started when the
- * booking is confirmed (lib/finance/tax-invoice-queue.ts).
+ * Durable issuing of a booking's GST tax invoice (print-ready HTML with its
+ * SHA-256; lib/finance/tax-invoice.ts), started when the venue marks the event
+ * complete, and by the daily billing sweep for events whose date has passed
+ * (lib/finance/tax-invoice-queue.ts, lib/finance/billing-sweep.ts).
  *
- *   1. render       render and store the document; idempotent. Up to 5
+ *   1. render       issue and store the document; idempotent. Up to 5
  *                   attempts with exponential backoff (lib/jobs/retry-policy.ts);
- *                   an unknown or unconfirmed booking stops at once.
+ *                   an unknown or unconfirmed booking stops at once. Not due
+ *                   yet, or billed by contract: returns without retrying.
  *   2. dead-letter  when every attempt failed: tax_invoice_documents.status
  *                   becomes 'dead_lettered' with the last error.
  */
 
-export type TaxInvoiceResult = { bookingId: string; status: "rendered" | "unchanged"; sha256: string } | { bookingId: string; status: "dead_lettered"; error: string };
+export type TaxInvoiceResult =
+  | { bookingId: string; status: "rendered" | "unchanged"; sha256: string }
+  | { bookingId: string; status: "waiting" | "skipped"; reason: string }
+  | { bookingId: string; status: "dead_lettered"; error: string };
 
 const messageOf = (err: unknown) =>
   typeof err === "object" && err !== null && "message" in err && typeof err.message === "string" ? err.message : "Rendering failed";
@@ -33,7 +38,7 @@ export async function taxInvoiceWorkflow(bookingId: string): Promise<TaxInvoiceR
   }
 }
 
-export async function renderInvoice(bookingId: string): Promise<{ status: "rendered" | "unchanged"; sha256: string }> {
+export async function renderInvoice(bookingId: string): Promise<{ status: "rendered" | "unchanged"; sha256: string } | { status: "waiting" | "skipped"; reason: string }> {
   "use step";
   const outcome = await issueTaxInvoiceDocument(bookingId);
   if (outcome.status !== "failed") return outcome;
