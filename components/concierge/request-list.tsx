@@ -2,11 +2,10 @@ import { PayDepositButton } from "@/app/(dashboard)/client/_components/pay-depos
 import { Pill } from "@/components/portal/pills";
 import { AcceptQuote } from "./accept-quote";
 import { WithdrawRequest } from "./withdraw-request";
-import { quoteLine, REQUEST_STATUS_LABEL, REQUEST_STATUS_TONE, requestSummary, statusOf } from "@/lib/concierge/requests";
+import { inr2 as inr, quoteLine, REQUEST_STATUS_LABEL, REQUEST_STATUS_TONE, requestSummary, statusOf } from "@/lib/concierge/requests";
 import type { ConciergeRequest } from "@/lib/supabase/database.types";
 
 const sentOn = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 /**
  * A company's quote requests and briefs on Home, with where each stands and

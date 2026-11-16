@@ -6,13 +6,14 @@ import { Loader2 } from "lucide-react";
 
 import { acceptQuoteAction } from "@/app/(dashboard)/client/actions";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
+import { inr2 } from "@/lib/concierge/requests";
 
 /** Accept on a quoted concierge request (Home → Requests): asks once, naming the total, then books it. */
 export function AcceptQuote({ requestId, totalInr }: { requestId: string; totalInr: number }) {
   const [confirming, setConfirming] = useState(false);
   const act = useAction<{ ok: true }>();
   const router = useRouter();
-  const total = `₹${totalInr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const total = inr2(totalInr);
 
   const accept = async () => {
     const outcome = await act.run(() => acceptQuoteAction({ requestId, totalInr }), {

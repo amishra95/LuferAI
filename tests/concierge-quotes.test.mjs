@@ -77,6 +77,7 @@ test("the quote in words: total, guests and per head; emails to the company and 
   const r = { venue_name: "Vesparo", event_date: "2026-12-12", guests: 40, quote_total_inr: 94400, quote_note: "Set menu, soft drinks" };
   assert.equal(quoteLine(r), "₹94,400 for 40 guests (₹2,360 a head)");
   assert.equal(quoteLine({ quote_total_inr: 50000, guests: null }), "₹50,000");
+  assert.equal(quoteLine({ quote_total_inr: 59000.5, guests: 25 }), "₹59,000.50 for 25 guests (₹2,360 a head)");
   assert.equal(quoteLine({ quote_total_inr: null, guests: 40 }), null);
 
   const mail = quoteEmail(r, "https://lufer.app/client");

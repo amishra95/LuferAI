@@ -156,7 +156,8 @@ export function acceptRefusal(who: Who, request: QuotedRequest): string | null {
 export const isPayableRequest = (r: { status: string; quote_total_inr: number | null; accepted_at: string | null }) =>
   r.status === "booked" && r.quote_total_inr != null && r.accepted_at != null;
 
-const inr2 = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+/** "₹94,400", or "₹59,000.50" when there are paise (never "₹59,000.5"). */
+export const inr2 = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 /** "₹94,400 for 40 guests (₹2,360 a head)": the quote in one line. */
 export function quoteLine(r: { quote_total_inr: number | null; guests: number | null }): string | null {

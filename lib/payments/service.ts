@@ -353,7 +353,8 @@ async function captureInstalment(paymentId: string) {
     if (payment.concierge_request_id) await alertRequestPaid(payment.concierge_request_id, payment.provider_payment_id);
   } catch (err) {
     console.error(`Instalment capture failed for payment ${payment.id}`, err);
-    await db.from("payments").update({ last_error: `capture failed: ${err instanceof Error ? err.message : String(err)}` }).eq("id", payment.id);
+    // Only while it's still uncaptured: a second report of the same authorisation loses the race harmlessly.
+    await db.from("payments").update({ last_error: `capture failed: ${err instanceof Error ? err.message : String(err)}` }).eq("id", payment.id).eq("status", "authorized");
   }
 }
 
@@ -450,7 +451,11 @@ export async function applyWebhookEvent(provider: PaymentProvider, event: Normal
   // A catalogue order's payment moving (e.g. authorised after the supplier
   // already confirmed) may mean capturing and paying out now.
   if (payment?.catalog_order_id && outcome === "applied") await syncOrderSettlement(payment.catalog_order_id);
-  if ((payment?.booking_invoice_id || payment?.purpose === "balance" || payment?.purpose === "request") && outcome === "applied" && event.status === "authorized") await captureInstalment(payment.id);
+  // Not only when this event did the authorising: the webhook and the checkout
+  // confirmation both report it, and if the first one stopped short of capturing,
+  // the second must finish the job. captureInstalment re-reads the payment and
+  // does nothing unless it's still only authorised.
+  if ((payment?.booking_invoice_id || payment?.purpose === "balance" || payment?.purpose === "request") && event.status === "authorized") await captureInstalment(payment.id);
   // A deposit the provider captured (seen by webhook first): its receipt voucher.
   if (payment?.purpose === "deposit" && payment.booking_id && !payment.booking_invoice_id && outcome === "applied" && event.status === "captured") {
     await issueReceiptVoucher(payment.id).catch((err) => console.error(`receipt voucher for payment ${payment.id} failed`, err));
