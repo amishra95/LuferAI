@@ -51,7 +51,7 @@ export function CompanySetup({
       <span className="text-fg text-meta font-medium">{label}</span>
       <div className="relative">
         <span className="text-fg-subtle pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-meta">₹</span>
-        <input type="number" inputMode="numeric" min={0} step={50} value={values[key]} onChange={set(key)} disabled={!canManage} className="field pl-7 font-mono" placeholder="No limit" />
+        <input type="number" inputMode="numeric" min={0} step={1} value={values[key]} onChange={set(key)} disabled={!canManage} className="field pl-7 font-mono" placeholder="No limit" />
       </div>
     </label>
   );
@@ -111,7 +111,7 @@ export function CompanySetup({
           <label className="grid gap-1.5">
             <span className="text-fg text-meta font-medium">Max distance from office</span>
             <div className="relative">
-              <input type="number" inputMode="decimal" min={0} step={1} value={values.maxDistanceKm} onChange={set("maxDistanceKm")} disabled={!canManage} className="field pr-10 font-mono" placeholder="No limit" />
+              <input type="number" inputMode="decimal" min={0.1} step={0.1} value={values.maxDistanceKm} onChange={set("maxDistanceKm")} disabled={!canManage} className="field pr-10 font-mono" placeholder="No limit" />
               <span className="text-fg-subtle pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-meta">km</span>
             </div>
           </label>

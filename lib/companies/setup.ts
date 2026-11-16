@@ -39,7 +39,10 @@ export const CompanySetupInput = z
     autoApprovePerHead: rupees,
     managerPerHead: rupees,
     maxPerHead: rupees,
-    maxDistanceKm: z.union([z.literal(""), z.coerce.number().min(0).max(200)]).transform((v) => (v === "" ? null : v)),
+    // companies need max_office_distance_km > 0 (one decimal); 0 isn't a limit anyone means.
+    maxDistanceKm: z
+      .union([z.literal(""), z.coerce.number().gt(0, "Distance must be more than 0 km, or blank for no limit.").max(200, "Distance can be at most 200 km.")])
+      .transform((v) => (v === "" ? null : Math.round(v * 10) / 10)),
     /** The "Bill to" address on tax invoices (street, city, PIN); invoices wait until it's set. */
     billingAddress: z
       .string()

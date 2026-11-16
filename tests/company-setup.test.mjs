@@ -40,3 +40,16 @@ test("billing address: trimmed, lines joined with commas, blank means none, 10â€
   assert.equal(short.success, false);
   assert.match(short.error.issues[0].message, /street, city and PIN/);
 });
+
+test("any whole-rupee limit is accepted (no multiples-of-50 rule)", () => {
+  const r = CompanySetupInput.parse({ ...blank, autoApprovePerHead: "1234", managerPerHead: "2999", maxPerHead: "4321" });
+  assert.deepEqual([r.autoApprovePerHead, r.managerPerHead, r.maxPerHead], [1234, 2999, 4321]);
+});
+
+test("max distance: more than 0 km (the database refuses 0), one decimal", () => {
+  const zero = CompanySetupInput.safeParse({ ...blank, maxDistanceKm: "0" });
+  assert.equal(zero.success, false);
+  assert.match(zero.error.issues[0].message, /more than 0 km/);
+  assert.equal(CompanySetupInput.parse({ ...blank, maxDistanceKm: "7.25" }).maxDistanceKm, 7.3);
+  assert.equal(CompanySetupInput.safeParse({ ...blank, maxDistanceKm: "250" }).success, false);
+});
