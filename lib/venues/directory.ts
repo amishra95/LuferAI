@@ -38,6 +38,7 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
       bookable: false,
       latitude: l.latitude,
       longitude: l.longitude,
+      photo_url: l.photoUrl,
     }));
   } catch (err) {
     console.error("directory: extranet listings unavailable", err);

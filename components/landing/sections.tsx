@@ -328,14 +328,6 @@ export function FinalCta() {
 }
 
 // Rooted (/#…) so they also work from the legal pages, which share this footer.
-const FOOTER_LINKS = [
-  { href: "/#how-it-works", label: "How it works" },
-  { href: "/#finance", label: "Finance" },
-  { href: "/#venues", label: "Venues" },
-  { href: "/#faq", label: "FAQ" },
-  { href: "/login", label: "Sign in" },
-];
-
 const LEGAL_LINKS = [
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
@@ -346,17 +338,8 @@ const LEGAL_LINKS = [
 export function SiteFooter() {
   return (
     <footer className="border-ink border-t-[3px] border-double">
-      <div className="container-public flex flex-col items-center justify-between gap-6 py-10 sm:flex-row">
-        <div className="text-center sm:text-left">
-          <Logo size="sm" tagline={false} className="sm:items-start" />
-        </div>
-        <nav aria-label="Footer" className="text-ink/75 flex flex-wrap justify-center gap-x-5 gap-y-2 text-meta">
-          {FOOTER_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-ink">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+      <div className="container-public flex justify-center py-10 sm:justify-start">
+        <Logo size="sm" tagline={false} className="sm:items-start" />
       </div>
       <div className="border-cream-line border-t">
         <div className="container-public flex flex-col items-center justify-between gap-3 py-5 sm:flex-row">

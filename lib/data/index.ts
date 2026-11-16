@@ -40,7 +40,8 @@ import type { EventType, PolicyStatus, PolicyViolationCode } from "@/lib/policie
 import type { Json } from "@/lib/supabase/database.generated";
 import type { Department } from "@/lib/supabase/database.types";
 import { isRedisConfigured, mutateDb, readDb } from "./local-store";
-import { BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
+import { BOOKING_CANCELLATION_DEFAULTS, BOOKING_CRM_DEFAULTS, BOOKING_ITC_DEFAULTS, mockGstType, VENUE_PROFILE_DEFAULTS, type MockDb } from "./mock-store";
+import { parseCancellationTerms, type CancellationTier } from "@/lib/venues/profile";
 import { summariseItc, type ItcSummary as ItcStatusSummary } from "@/lib/finance/itc";
 import { listedGstin } from "@/lib/venues/gstin";
 import { billableGstin } from "@/lib/companies/gstin";
@@ -504,6 +505,7 @@ export async function createBookingRequest(
       ...row,
       ...BOOKING_ITC_DEFAULTS,
       ...BOOKING_CRM_DEFAULTS,
+      ...BOOKING_CANCELLATION_DEFAULTS,
       total_amount_inr: total,
       sac_code: "998596",
       gst_type: mockGstType(db, input.company_id, input.venue_id, row.billing_gstin),
@@ -806,6 +808,55 @@ export async function updateBookingStatus(id: string, next: BookingStatus, scope
   const { data, error } = await query.select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("Booking not found");
+}
+
+/**
+ * Records a company's request to cancel a confirmed booking (migration
+ * 20261115000000), once: false if it was already requested or the booking
+ * isn't the company's. The booking stays CONFIRMED until Lufer settles it.
+ */
+export async function recordCancellationRequest(id: string, companyId: string, by: string, reason: string | null): Promise<boolean> {
+  const at = new Date().toISOString();
+  if (local()) {
+    let recorded = false;
+    await mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id && x.company_id === companyId);
+      if (!b || b.cancellation_requested_at) return;
+      Object.assign(b, { cancellation_requested_at: at, cancellation_requested_by: by, cancellation_reason: reason, updated_at: at });
+      recorded = true;
+    });
+    return recorded;
+  }
+  const { data, error } = await createAdminClient()
+    .from("bookings")
+    .update({ cancellation_requested_at: at, cancellation_requested_by: by, cancellation_reason: reason })
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .is("cancellation_requested_at", null)
+    .select("id");
+  if (error) throw error;
+  return data.length > 0;
+}
+
+/** Saves why a booking was cancelled outright (optional; the status change carries the rest). */
+export async function saveCancellationReason(id: string, reason: string): Promise<void> {
+  if (local()) {
+    await mutateDb((db) => {
+      const b = db.bookings.find((x) => x.id === id);
+      if (b) b.cancellation_reason = reason;
+    });
+    return;
+  }
+  const { error } = await createAdminClient().from("bookings").update({ cancellation_reason: reason }).eq("id", id);
+  if (error) throw error;
+}
+
+/** A venue's cancellation tiers (most notice first); empty when it set none. */
+export async function venueCancellationTerms(venueId: string): Promise<CancellationTier[]> {
+  if (local()) return parseCancellationTerms((await readDb()).venues.find((v) => v.id === venueId)?.cancellation_terms ?? []);
+  const { data, error } = await createAdminClient().from("venues").select("cancellation_terms").eq("id", venueId).maybeSingle();
+  if (error) throw error;
+  return parseCancellationTerms(data?.cancellation_terms ?? []);
 }
 
 /** Sets a booking's cost centre (expense metadata), scoped to its company. */
@@ -1400,38 +1451,53 @@ export async function getTaxInvoiceDocument(bookingId: string): Promise<TaxInvoi
 }
 
 export type TaxInvoiceOutcome =
-  | { status: "rendered"; invoice_number: string | null; html: string; html_sha256: string }
+  | { status: "rendered"; invoice_number: string; issued_on: string; advance_inr: number; receipt_voucher_number: string | null; html: string; html_sha256: string; data?: unknown }
   | { status: "failed" | "dead_lettered"; error: string };
 
+/** An issued invoice (numbered) is final. Older unnumbered drafts, rendered at confirmation, aren't. */
+export const isIssuedInvoice = (d: Pick<TaxInvoiceDocument, "status" | "invoice_number"> | null | undefined) => d?.status === "rendered" && d.invoice_number !== null;
+
 /**
- * Records a render attempt for a booking's tax invoice, one row per booking:
- * the document, or the failure (attempts + 1). A rendered document is final, so
- * a later failure or dead-letter never overwrites it. Returns the row.
+ * Records an attempt to issue a booking's tax invoice, one row per booking:
+ * the document, or the failure (attempts + 1). An issued (numbered) invoice is
+ * final, so nothing overwrites it; an unnumbered draft from the old
+ * render-at-confirmation flow is replaced when the invoice is issued. Returns the row.
  */
 export async function recordTaxInvoiceDocument(bookingId: string, tenantId: string, outcome: TaxInvoiceOutcome): Promise<TaxInvoiceDocument> {
   const now = new Date().toISOString();
   const values =
     outcome.status === "rendered"
-      ? { status: "rendered", invoice_number: outcome.invoice_number, html: outcome.html, html_sha256: outcome.html_sha256, rendered_at: now, error: null }
+      ? {
+          status: "rendered",
+          invoice_number: outcome.invoice_number,
+          issued_on: outcome.issued_on,
+          advance_inr: outcome.advance_inr,
+          receipt_voucher_number: outcome.receipt_voucher_number,
+          html: outcome.html,
+          html_sha256: outcome.html_sha256,
+          data: (outcome.data ?? null) as Json,
+          rendered_at: now,
+          error: null,
+        }
       : { status: outcome.status, error: outcome.error.slice(0, 500) };
   // Dead-lettering closes out the attempts already counted; it isn't one itself.
   const counts = outcome.status !== "dead_lettered";
   if (local()) {
     return mutateDb((db) => {
       const current = db.taxInvoiceDocuments.find((d) => d.booking_id === bookingId);
-      if (current?.status === "rendered") return { ...current };
+      if (isIssuedInvoice(current)) return { ...current! };
       if (current) {
         Object.assign(current, values, { attempts: current.attempts + (counts ? 1 : 0), updated_at: now });
         return { ...current };
       }
-      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, html: null, html_sha256: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
+      const row: TaxInvoiceDocument = { booking_id: bookingId, tenant_id: tenantId, invoice_number: null, issued_on: null, advance_inr: 0, receipt_voucher_number: null, html: null, html_sha256: null, data: null, rendered_at: null, ...values, attempts: 1, created_at: now, updated_at: now };
       db.taxInvoiceDocuments.push(row);
       return { ...row };
     });
   }
   const db = createAdminClient();
   const current = await getTaxInvoiceDocument(bookingId);
-  if (current?.status === "rendered") return current;
+  if (isIssuedInvoice(current)) return current!;
   if (!current) {
     const { data, error } = await db.from("tax_invoice_documents").insert({ booking_id: bookingId, tenant_id: tenantId, ...values }).select("*").single();
     // Another attempt inserted first: record against its row.
@@ -1443,7 +1509,7 @@ export async function recordTaxInvoiceDocument(bookingId: string, tenantId: stri
     .from("tax_invoice_documents")
     .update({ ...values, attempts: current.attempts + (counts ? 1 : 0) })
     .eq("booking_id", bookingId)
-    .neq("status", "rendered")
+    .or("status.neq.rendered,invoice_number.is.null")
     .select("*")
     .maybeSingle();
   if (error) throw error;
@@ -2433,6 +2499,7 @@ export async function decideSignupApplication(applicationId: string, decision: "
             monthly_spend_limit_inr: 0,
             expense_provider: "webhook",
             contracts_required: false,
+            billing_address: null,
             office_latitude: null,
             office_longitude: null,
             office_label: "office",

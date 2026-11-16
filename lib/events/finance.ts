@@ -66,16 +66,20 @@ export function invoiceLines(b: BookingMoney): InvoiceLine[] {
 export type Readiness = { tone: "done" | "pending" | "waiting" | "none" | "problem"; label: string; hint: string };
 
 /** The deposit's state, from the latest payment row (if any). */
-export function depositReadiness(bookingStatus: string, payment: { status: string; amount_inr: number } | null, paymentsEnabled: boolean): Readiness {
+export function depositReadiness(bookingStatus: string, payment: { status: string; amount_inr: number; refunded_inr?: number | null } | null, paymentsEnabled: boolean): Readiness {
   if (payment) {
     const amount = inr(Number(payment.amount_inr));
+    const refunded = Number(payment.refunded_inr ?? 0);
     switch (payment.status) {
       case "captured":
+        if (refunded > 0) return { tone: "done", label: `Deposit paid · ${amount}`, hint: `${inr(refunded)} of it was refunded.` };
         return { tone: "done", label: `Deposit paid · ${amount}`, hint: "Captured when the venue confirmed." };
+      case "refunded":
+        if (refunded > 0) return { tone: "none", label: `Deposit refunded · ${inr(refunded)}`, hint: "Sent back to the account it was paid from; banks take 5–7 working days." };
+        return { tone: "none", label: `Deposit released · ${amount}`, hint: "The hold was released; nothing was charged." };
       case "authorized":
         return { tone: "pending", label: `Deposit authorised · ${amount}`, hint: "Held on the card; captured when the venue confirms." };
       case "voided":
-      case "refunded":
         return { tone: "none", label: `Deposit released · ${amount}`, hint: "The hold was released; nothing was charged." };
       case "failed":
         return { tone: "problem", label: "Deposit failed", hint: "The payment didn't go through. Try again from the bookings table." };
@@ -94,7 +98,34 @@ export function depositReadiness(bookingStatus: string, payment: { status: strin
 export function receiptReadiness(bookingStatus: string, exportStatus: string | null): Readiness {
   if (exportStatus === "failed" || exportStatus === "dead_lettered") return { tone: "problem", label: "Receipt export failed", hint: "The receipt couldn't reach your expense system. An Approver can retry the sync." };
   if (exportStatus) return { tone: "done", label: "Receipt ready", hint: "The structured receipt was exported to finance." };
+  if (bookingStatus === "CANCELLED") return { tone: "none", label: "No receipt", hint: "Cancelled, so nothing was exported." };
+  if (["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Receipt export pending", hint: "Confirmed; the receipt hasn't been exported to finance yet." };
+  return { tone: "waiting", label: "Receipt on confirmation", hint: "The structured receipt goes to your expense system when the venue confirms." };
+}
+
+/**
+ * The GST tax invoice (lib/finance/tax-invoice.ts): issued after the event,
+ * numbered, once the company's billing address is in. `waiting` is
+ * lib/finance/billing-rules.ts invoiceWaitingReason.
+ */
+export function taxInvoiceReadiness(
+  bookingStatus: string,
+  issued: { invoiceNumber: string } | null,
+  waiting: "event" | "address" | null,
+  billedByContract = false
+): Readiness {
+  if (issued) return { tone: "done", label: `Tax invoice ${issued.invoiceNumber}`, hint: "Issued after the event and emailed to your company." };
   if (bookingStatus === "CANCELLED") return { tone: "none", label: "No invoice", hint: "Cancelled, so no invoice was issued." };
-  if (["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Invoice issued · receipt pending", hint: "Confirmed; the receipt hasn't been exported to finance yet." };
-  return { tone: "waiting", label: "Invoice on confirmation", hint: "The tax invoice and receipt are issued when the venue confirms." };
+  if (billedByContract) return { tone: "none", label: "Billed by contract", hint: "The instalment invoices are on the contract." };
+  if (waiting === "address") return { tone: "problem", label: "Add your billing address", hint: "The tax invoice is ready to issue once your billing address is in company setup." };
+  if (waiting === null && ["CONFIRMED", "COMPLETED", "SETTLED"].includes(bookingStatus)) return { tone: "pending", label: "Invoice being issued", hint: "It's due now and will appear here shortly." };
+  return { tone: "waiting", label: "Invoice after the event", hint: "The tax invoice is issued once the event has happened." };
+}
+
+/** What's left on the issued tax invoice (lib/payments/service.ts invoiceBalance), for the event page. */
+export function balanceReadiness(balance: { advance: number; paid: number; outstanding: number } | null): Readiness | null {
+  if (!balance) return null;
+  if (balance.outstanding > 0) return { tone: "pending", label: `Balance due · ${inr(balance.outstanding)}`, hint: balance.advance > 0 ? `Invoice total less your ${inr(balance.advance)} deposit.` : "The invoice total." };
+  if (balance.paid > 0) return { tone: "done", label: `Balance paid · ${inr(balance.paid)}`, hint: "The invoice is paid in full." };
+  return { tone: "done", label: "Paid in full", hint: "Your deposit covered the invoice." };
 }

@@ -142,11 +142,11 @@ test("depositReadiness and receiptReadiness name each state", () => {
   assert.equal(depositReadiness("PENDING", null, false).label, "No online deposit");
   assert.equal(depositReadiness("CONFIRMED", { status: "failed", amount_inr: 1 }, true).tone, "problem");
 
-  assert.equal(receiptReadiness("PENDING", null).label, "Invoice on confirmation");
-  assert.equal(receiptReadiness("CONFIRMED", null).label, "Invoice issued · receipt pending");
+  assert.equal(receiptReadiness("PENDING", null).label, "Receipt on confirmation");
+  assert.equal(receiptReadiness("CONFIRMED", null).label, "Receipt export pending");
   assert.equal(receiptReadiness("CONFIRMED", "delivered").label, "Receipt ready");
   assert.equal(receiptReadiness("CONFIRMED", "failed").tone, "problem");
-  assert.equal(receiptReadiness("CANCELLED", null).label, "No invoice");
+  assert.equal(receiptReadiness("CANCELLED", null).label, "No receipt");
 });
 
 // --- dietary summary -------------------------------------------------------------------

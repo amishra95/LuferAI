@@ -10,10 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePortal } from "@/lib/auth/session";
 import { dataSource, findExpenseExport, getEventPlan, getEventRoom, listEventCheckins, listPortalUsers } from "@/lib/data";
 import { seedActivity } from "@/lib/events/activity";
-import { depositReadiness, invoiceLines, receiptReadiness, type Readiness } from "@/lib/events/finance";
+import { balanceReadiness, depositReadiness, invoiceLines, receiptReadiness, taxInvoiceReadiness, type Readiness } from "@/lib/events/finance";
+import { getTaxInvoiceDocument, isIssuedInvoice, listCompanies } from "@/lib/data";
+import { invoiceWaitingReason } from "@/lib/finance/billing-rules";
+import { billedByContract, listReceiptVouchers, listRefundVouchers } from "@/lib/finance/billing-store";
+import { refundable, suggestedRefund } from "@/lib/payments/rules";
+import { PayDepositButton } from "../../_components/pay-deposit-button";
 import { checkInBlocker, planStatus } from "@/lib/events/plan";
 import { todayInIndia } from "@/lib/gst-engine";
-import { latestPayments, paymentsEnabled } from "@/lib/payments/service";
+import { capturedDeposit, invoiceBalance, latestPayments, paymentsEnabled } from "@/lib/payments/service";
 import { listVenuePackages } from "@/lib/rfp/service";
 import { eventTitle, venueLine } from "@/lib/events/invite";
 import { displayName } from "@/lib/events/presence";
@@ -24,6 +29,9 @@ import { ActivityTicker, EventRoom, RoomPresence, SectionPresence } from "./_com
 import { EventPlanEditor, PlanStatusBadge, SignOffButton, SignOffTrail } from "./_components/event-plan";
 import { GuestList, type GuestRow } from "./_components/guest-list";
 import { ScheduleForm } from "./_components/schedule-form";
+import { CancelEvent } from "./_components/cancel-event";
+import { cancelModeFor, mayCancel, refundEstimate, refundLine } from "@/lib/bookings/cancellation";
+import { venueCancellationTerms } from "@/lib/data";
 
 const time = (t: string) => t.slice(0, 5);
 
@@ -69,6 +77,10 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
     latestPayments([booking.id]),
     findExpenseExport(booking.id, "booking.confirmed"),
   ]);
+  // Cancelling (lib/bookings/cancellation.ts): the requester or an Approver; admins close confirmed ones.
+  const cancelMode = mayCancel(member, booking) ? cancelModeFor(booking, today, { admin: member.role === "ADMIN" }) : null;
+  const cancelTerms = cancelMode === "request" ? await venueCancellationTerms(booking.venue_id) : null;
+  const cancelEstimate = cancelTerms ? refundEstimate(cancelTerms, booking, today) : null;
   const people = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const activity = seedActivity({ attendees, workspace, people });
 
@@ -77,8 +89,29 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
   const stage = planStatus(plan).stage;
   const payment = payments.get(booking.id) ?? null;
   const lines = invoiceLines(booking);
-  const deposit = depositReadiness(booking.status, payment ? { status: payment.status, amount_inr: Number(payment.amount_inr) } : null, paymentsEnabled());
+  const deposit = depositReadiness(booking.status, payment ? { status: payment.status, amount_inr: Number(payment.amount_inr), refunded_inr: Number(payment.refunded_inr) } : null, paymentsEnabled());
   const receipt = receiptReadiness(booking.status, receiptExport?.status ?? null);
+  // Tax invoice after the event; receipt voucher for a deposit (lib/finance/tax-invoice.ts, billing-store.ts).
+  const [taxDoc, vouchers, refundVouchers, balance, contractBilled, companyRow] = await Promise.all([
+    getTaxInvoiceDocument(booking.id),
+    listReceiptVouchers(booking.id),
+    listRefundVouchers(booking.id),
+    invoiceBalance(booking.id),
+    billedByContract(booking.id),
+    listCompanies().then((cs) => cs.find((c) => c.id === booking.company_id)),
+  ]);
+  const issued = isIssuedInvoice(taxDoc) ? { invoiceNumber: taxDoc!.invoice_number! } : null;
+  const taxInvoice = taxInvoiceReadiness(booking.status, issued, invoiceWaitingReason(booking, { billing_address: companyRow?.billing_address ?? null }, today), contractBilled);
+  const voucher = vouchers[0] ?? null;
+  const balanceRow = booking.status === "CANCELLED" ? null : balanceReadiness(balance);
+  const canPayBalance = canPlan && paymentsEnabled() && Boolean(balance && balance.outstanding > 0) && booking.status !== "CANCELLED";
+  // Lufer closing a confirmed booking can send the captured deposit back (lib/payments/service.ts refundPayment).
+  const adminDeposit = member.role === "ADMIN" && cancelMode === "cancel" && booking.status === "CONFIRMED" ? await capturedDeposit(booking.id) : null;
+  const adminTerms = adminDeposit ? refundEstimate(await venueCancellationTerms(booking.venue_id), booking, today) : null;
+  const refundChoice =
+    adminDeposit && refundable(adminDeposit) > 0
+      ? { refundable: refundable(adminDeposit), suggested: adminTerms?.known ? suggestedRefund(adminTerms.refundPct, adminDeposit) : 0, terms: adminTerms?.known ? adminTerms.terms : null }
+      : null;
   const dietary = summarizeDietary(attendees);
   const checkInReason = checkInBlocker(booking.status, booking.event_date, today);
   const canCheckIn = canPlan && checkins.ready && checkInReason === null;
@@ -233,6 +266,41 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 </dl>
                 <ul className="grid gap-2 text-meta">
                   <ReadinessRow item={deposit} badge={payment ? <PaymentStatusBadge status={payment.status} /> : null} />
+                  {voucher ? (
+                    <ReadinessRow
+                      item={{ tone: "done", label: `Receipt voucher ${voucher.voucher_number}`, hint: `Deposit of ${formatINR(voucher.amount_inr)} received on ${formatDate(voucher.issued_on)}.` }}
+                      action={<DocLinks href={`/api/bookings/${booking.id}/receipt-voucher`} pdf={Boolean(voucher.data)} />}
+                    />
+                  ) : null}
+                  {refundVouchers.map((r) => (
+                    <ReadinessRow
+                      key={r.refund_id}
+                      item={{ tone: "done", label: `Refund voucher ${r.voucher_number}`, hint: `${formatINR(r.amount_inr)} refunded on ${formatDate(r.issued_on)}.` }}
+                      action={<DocLinks href={`/api/bookings/${booking.id}/refund-voucher?refund=${r.refund_id}`} pdf={Boolean(r.data)} />}
+                    />
+                  ))}
+                  <ReadinessRow
+                    item={taxInvoice}
+                    action={
+                      issued ? (
+                        <DocLinks href={`/api/bookings/${booking.id}/tax-invoice`} pdf={Boolean(taxDoc?.data)} />
+                      ) : taxInvoice.label === "Add your billing address" && role === "APPROVER" ? (
+                        <Link href="/governance#setup" className="text-fg hover:underline">Add</Link>
+                      ) : null
+                    }
+                  />
+                  {balanceRow ? (
+                    <ReadinessRow
+                      item={balanceRow}
+                      action={
+                        canPayBalance ? (
+                          <PayDepositButton balanceFor={booking.id} label={`Pay ${formatINR(balance!.outstanding, true)}`} />
+                        ) : balance && balance.paid > 0 ? (
+                          <DocLinks href={`/api/bookings/${booking.id}/payment-receipt`} pdf />
+                        ) : null
+                      }
+                    />
+                  ) : null}
                   <ReadinessRow item={receipt} action={receiptExport ? <a href={`/api/exports/${receiptExport.id}`} download className="text-fg hover:underline">Download</a> : null} />
                 </ul>
               </CardContent>
@@ -278,6 +346,25 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                 </a>
               </CardContent>
             </Card>
+
+            {cancelMode ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{cancelMode === "request" ? "Cancel booking" : "Cancel"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CancelEvent
+                    bookingId={booking.id}
+                    mode={cancelMode}
+                    refund={cancelEstimate ? refundLine(cancelEstimate) : null}
+                    terms={cancelEstimate?.known ? cancelEstimate.terms : null}
+                    requestedOn={booking.cancellation_requested_at ? formatDate(booking.cancellation_requested_at.slice(0, 10)) : null}
+                    admin={member.role === "ADMIN"}
+                    deposit={refundChoice}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         </div>
       </EventRoom>
@@ -291,6 +378,22 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
       <dt className="label-mono">{label}</dt>
       <dd className="text-fg mt-1 text-body">{children}</dd>
     </div>
+  );
+}
+
+/** Open the document page, or download it as a PDF. */
+function DocLinks({ href, pdf }: { href: string; pdf: boolean }) {
+  return (
+    <span className="flex shrink-0 gap-3">
+      <a href={href} target="_blank" rel="noopener" className="text-fg hover:underline">
+        Open
+      </a>
+      {pdf ? (
+        <a href={`${href}${href.includes("?") ? "&" : "?"}format=pdf`} className="text-fg hover:underline">
+          PDF
+        </a>
+      ) : null}
+    </span>
   );
 }
 

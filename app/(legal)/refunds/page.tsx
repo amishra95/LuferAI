@@ -35,8 +35,9 @@ export default function RefundsPage() {
       <h3>After confirmation</h3>
       <ul>
         <li>
-          <strong>You cancel:</strong> you get back the share set by the venue&apos;s terms for the notice you gave. To cancel, email{" "}
-          <a href={`mailto:${LEGAL.supportEmail}`}>{LEGAL.supportEmail}</a> with your booking reference; the time we receive your email is the time used.
+          <strong>You cancel:</strong> you get back the share set by the venue&apos;s terms for the notice you gave. To cancel, choose Request cancellation
+          on the event in your Lufer workspace, or email <a href={`mailto:${LEGAL.supportEmail}`}>{LEGAL.supportEmail}</a> with your booking reference; the
+          time we receive your request is the time used.
         </li>
         <li>
           <strong>The venue cancels or can&apos;t deliver:</strong> you get a full refund of everything paid for the booking, and we&apos;ll help you find an

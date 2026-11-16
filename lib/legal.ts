@@ -23,7 +23,7 @@ export const LEGAL = {
   grievanceOfficer: { name: PENDING as string | null, email: "grievance@lufer.app" },
   /** Courts with jurisdiction under the Terms. */
   jurisdictionCity: "Bengaluru",
-  lastUpdated: "26 October 2026",
+  lastUpdated: "11 November 2026",
 } as const;
 
 /** The entity name for sentences: the legal name once known, the brand until then. */

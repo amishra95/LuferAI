@@ -84,6 +84,7 @@ export async function createOrderCheckout(orderId: string, member: Member, origi
   const { error } = await db.from("payments").insert({
     id: paymentId,
     catalog_order_id: orderId,
+    purpose: "order",
     provider: "razorpay",
     amount_inr: invoice.invoice_total,
     deposit_rate: 1,

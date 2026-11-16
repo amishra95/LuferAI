@@ -6,10 +6,10 @@ import { issueTaxInvoiceDocument } from "@/lib/finance/tax-invoice";
 import { taxInvoiceWorkflow } from "@/workflows/tax-invoice";
 
 /**
- * Starts rendering a confirmed booking's tax invoice document in the durable
- * workflow (workflows/tax-invoice.ts). If the workflow can't be started, renders
- * inline once instead. Never throws: callers must not fail a confirmation over
- * its invoice document.
+ * Starts issuing a booking's tax invoice in the durable workflow
+ * (workflows/tax-invoice.ts), once its event has happened. If the workflow
+ * can't be started, issues inline once instead. Never throws: callers must not
+ * fail a status change over its invoice.
  */
 export async function queueTaxInvoice(bookingId: string): Promise<void> {
   try {

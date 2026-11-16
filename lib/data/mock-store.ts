@@ -53,6 +53,7 @@ const companies: Company[] = [
     monthly_spend_limit_inr: 500000,
     expense_provider: "ramp",
     contracts_required: false,
+    billing_address: "4th Floor, Prestige Tech Park, Outer Ring Road, Bengaluru 560103",
     office_latitude: 12.9539,
     office_longitude: 77.6413,
     office_label: "HQ",
@@ -68,6 +69,7 @@ const companies: Company[] = [
     monthly_spend_limit_inr: 1200000,
     expense_provider: "concur",
     contracts_required: false,
+    billing_address: "7th Floor, Statesman House, Barakhamba Road, Connaught Place, New Delhi 110001",
     office_latitude: 28.6304,
     office_longitude: 77.2177,
     office_label: "Delhi office",
@@ -198,6 +200,9 @@ export const BOOKING_ITC_DEFAULTS = { itc_decision: null, itc_decided_by: null, 
 /** bookings.crm_deal_id (20261111000000_crm_deals.sql): deals are Supabase-only, so local bookings never link one. */
 export const BOOKING_CRM_DEFAULTS = { crm_deal_id: null } satisfies Partial<Booking>;
 
+/** Migration 20261115000000: no cancellation requested yet. */
+export const BOOKING_CANCELLATION_DEFAULTS = { cancellation_reason: null, cancellation_requested_at: null, cancellation_requested_by: null } satisfies Partial<Booking>;
+
 export const BOOKING_POLICY_DEFAULTS = { event_type: null, event_start_time: null, policy_status: null, policy_violation_reasons: [] } satisfies Partial<Booking>;
 
 const bookings: Booking[] = [
@@ -227,6 +232,7 @@ const bookings: Booking[] = [
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
     ...BOOKING_CRM_DEFAULTS,
+    ...BOOKING_CANCELLATION_DEFAULTS,
     status: "CONFIRMED",
     event_date: "2026-10-16",
     notes: "Q3 engineering offsite dinner, PDR required",
@@ -259,6 +265,7 @@ const bookings: Booking[] = [
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
     ...BOOKING_CRM_DEFAULTS,
+    ...BOOKING_CANCELLATION_DEFAULTS,
     status: "COMPLETED",
     event_date: "2026-09-18",
     notes: "Bengaluru LP roadshow cocktail evening",
@@ -291,6 +298,7 @@ const bookings: Booking[] = [
     ...BOOKING_POLICY_DEFAULTS,
     ...BOOKING_ITC_DEFAULTS,
     ...BOOKING_CRM_DEFAULTS,
+    ...BOOKING_CANCELLATION_DEFAULTS,
     status: "PENDING",
     event_date: "2026-11-06",
     notes: "Annual sales kickoff, live music preferred",

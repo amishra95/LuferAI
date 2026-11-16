@@ -8,10 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import type { SignInProviders } from "@/lib/supabase/providers";
 import { sendMagicLink, signInWithGoogle, signInWithPassword, signInWithSso, type MagicLinkState, type PasswordState, type SsoState } from "../actions";
 
-/** `email`: prefilled from /login?email=… (team invite emails link there). */
-export function LoginForm({ next, email }: { next: string; email?: string }) {
+/**
+ * `email`: prefilled from /login?email=… (team invite emails link there).
+ * `providers`: which of Google and company SSO are enabled in Supabase; a button only shows when its provider is on.
+ */
+export function LoginForm({ next, email, providers = { google: false, sso: false } }: { next: string; email?: string; providers?: SignInProviders }) {
+  const { google, sso: ssoEnabled } = providers;
   const [state, linkAction, linkPending] = useActionState<MagicLinkState, FormData>(sendMagicLink, { status: "idle" });
   const [pw, passwordAction, pwPending] = useActionState<PasswordState, FormData>(signInWithPassword, { status: "idle" });
   const busy = linkPending || pwPending;
@@ -26,14 +31,16 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
 
   return (
     <div className="grid gap-6">
-      <form action={signInWithGoogle}>
-        <input type="hidden" name="next" value={next} />
-        <Button type="submit" variant="outline" className="w-full">
-          Continue with Google
-        </Button>
-      </form>
+      {google ? (
+        <form action={signInWithGoogle}>
+          <input type="hidden" name="next" value={next} />
+          <Button type="submit" variant="outline" className="w-full">
+            Continue with Google
+          </Button>
+        </form>
+      ) : null}
 
-      {ssoOpen ? (
+      {!ssoEnabled ? null : ssoOpen ? (
         <form action={ssoAction} className="grid gap-2">
           <input type="hidden" name="next" value={next} />
           <Label htmlFor="sso-email">Work email for single sign-on</Label>
@@ -47,16 +54,18 @@ export function LoginForm({ next, email }: { next: string; email?: string }) {
           {sso.status === "error" ? <p className="text-destructive text-caption">{sso.message}</p> : null}
         </form>
       ) : (
-        <Button type="button" variant="outline" className="-mt-3 w-full" onClick={() => setSsoOpen(true)}>
+        <Button type="button" variant="outline" className={google ? "-mt-3 w-full" : "w-full"} onClick={() => setSsoOpen(true)}>
           <Building2 className="size-4" aria-hidden /> Continue with company SSO
         </Button>
       )}
 
-      <div className="text-muted-foreground flex items-center gap-3 text-caption">
-        <span className="bg-border h-px flex-1" />
-        or
-        <span className="bg-border h-px flex-1" />
-      </div>
+      {google || ssoEnabled ? (
+        <div className="text-muted-foreground flex items-center gap-3 text-caption">
+          <span className="bg-border h-px flex-1" />
+          or
+          <span className="bg-border h-px flex-1" />
+        </div>
+      ) : null}
 
       {state.status === "sent" ? (
         <div className="grid gap-5">
