@@ -51,7 +51,7 @@ export function CompanySetup({
       <span className="text-fg text-meta font-medium">{label}</span>
       <div className="relative">
         <span className="text-fg-subtle pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-meta">₹</span>
-        <input type="number" inputMode="numeric" min={0} step={50} value={values[key]} onChange={set(key)} disabled={!canManage} className="field pl-7 font-mono" placeholder="No limit" />
+        <input type="number" inputMode="numeric" min={0} step={1} value={values[key]} onChange={set(key)} disabled={!canManage} className="field pl-7 font-mono" placeholder="No limit" />
       </div>
     </label>
   );
@@ -68,14 +68,21 @@ export function CompanySetup({
             {initial.gstin ? (
               <input value={initial.gstin} readOnly disabled className="field font-mono" />
             ) : (
-              <input
-                value={values.gstin}
-                onChange={(e) => setValues((v) => ({ ...v, gstin: e.target.value.toUpperCase() }))}
-                disabled={!canManage}
-                maxLength={15}
-                autoCapitalize="characters"
-                className="field font-mono uppercase"
-              />
+              <>
+                <input
+                  value={values.gstin}
+                  onChange={(e) => setValues((v) => ({ ...v, gstin: e.target.value.toUpperCase() }))}
+                  disabled={!canManage}
+                  maxLength={15}
+                  autoCapitalize="characters"
+                  placeholder="e.g. 29ABCDE1234F1Z5"
+                  aria-describedby="gstin-hint"
+                  className="field font-mono uppercase"
+                />
+                <span id="gstin-hint" className="text-fg-subtle text-caption">
+                  Needed before your first booking
+                </span>
+              </>
             )}
           </label>
           <label className="grid gap-1.5 sm:col-span-2">
@@ -104,14 +111,15 @@ export function CompanySetup({
           <label className="grid gap-1.5">
             <span className="text-fg text-meta font-medium">Max distance from office</span>
             <div className="relative">
-              <input type="number" inputMode="decimal" min={0} step={1} value={values.maxDistanceKm} onChange={set("maxDistanceKm")} disabled={!canManage} className="field pr-10 font-mono" placeholder="No limit" />
+              <input type="number" inputMode="decimal" min={0.1} step={0.1} value={values.maxDistanceKm} onChange={set("maxDistanceKm")} disabled={!canManage} className="field pr-10 font-mono" placeholder="No limit" />
               <span className="text-fg-subtle pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-meta">km</span>
             </div>
           </label>
         </div>
 
-        <fieldset className="grid gap-4 sm:grid-cols-3">
-          <legend className="label-mono mb-3">Per head, before GST</legend>
+        {/* More space above the group's label than below it, so it heads its three fields. */}
+        <fieldset className="mt-3 grid gap-4 sm:grid-cols-3">
+          <legend className="label-mono mb-2">Per head, before GST</legend>
           {money("autoApprovePerHead", "Auto-approved up to")}
           {money("managerPerHead", "Manager approval up to")}
           {money("maxPerHead", "Never above")}
