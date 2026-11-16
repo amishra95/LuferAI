@@ -1,0 +1,83 @@
+# Nightly backup of the production Supabase database, free (the Supabase free
+# plan has no downloadable backups).
+#
+#   03:00 IST every night, or on demand (Actions → DB backup → Run workflow).
+#   Dumps roles, schema and data with the Supabase CLI, encrypts the bundle with
+#   AES-256 (gpg, symmetric) and keeps it as a workflow artifact for 30 days.
+#
+# The repo is public, so artifacts are downloadable by any signed-in GitHub
+# user: nothing leaves this job unencrypted. Without the passphrase a backup is
+# useless, so keep BACKUP_PASSPHRASE in a password manager as well.
+#
+# Secrets (GitHub → Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL     Supabase → Connect → Session pooler URI (IPv4; runners can't reach
+#                       the IPv6-only direct host), with the database password filled in.
+#   BACKUP_PASSPHRASE   a long random string, e.g. `openssl rand -base64 32`.
+#
+# Restore:
+#   gh run download <run-id> -n db-backup-<date>
+#   gpg -d lufer-db-<date>.tar.gz.gpg | tar xz
+#   psql "$TARGET_DB_URL" -f roles.sql -f schema.sql -f data.sql   (into an empty project)
+name: DB backup
+
+on:
+  schedule:
+    - cron: "30 21 * * *" # 03:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Set the SUPABASE_DB_URL and BACKUP_PASSPHRASE repository secrets (see the header of this workflow)."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump roles, schema and data
+        run: |
+          mkdir -p dump
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f dump/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f dump/data.sql
+          # A dump that's suspiciously small means something went wrong; fail loudly.
+          for f in roles schema data; do
+            size=$(stat -c %s "dump/$f.sql")
+            echo "$f.sql: $size bytes"
+            [ "$size" -gt 100 ] || { echo "::error::$f.sql is empty"; exit 1; }
+          done
+
+      - name: Encrypt
+        run: |
+          stamp=$(date -u +%Y-%m-%d)
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+          tar czf - -C dump . | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+            -o "lufer-db-$stamp.tar.gz.gpg" 3<<<"$BACKUP_PASSPHRASE"
+          rm -rf dump
+          ls -l "lufer-db-$stamp.tar.gz.gpg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: lufer-db-${{ env.STAMP }}.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
