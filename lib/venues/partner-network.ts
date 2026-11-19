@@ -5,6 +5,8 @@
  */
 import { z } from "zod";
 
+import type { VenueCategory } from "./category.ts";
+
 export type VenueTier = "internal" | "partner";
 
 /** One row of the unified directory, whichever tier it comes from. */
@@ -31,6 +33,12 @@ export interface DirectoryVenue {
   longitude?: number | null;
   /** Cover photo URL; null or absent when the venue has none. */
   photo_url?: string | null;
+  /** Every photo, cover first (Lufer-kept listings). */
+  photo_urls?: string[];
+  /** Cheapest per-head rate active today, when the listing has a rate card. */
+  from_per_head_inr?: number | null;
+  /** What kind of place it is (Lufer-kept listings). */
+  category?: VenueCategory | null;
 }
 
 /** What a supplier network's directory feed must provide per venue. */

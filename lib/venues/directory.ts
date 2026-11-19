@@ -39,6 +39,9 @@ async function extranetVenues(): Promise<DirectoryVenue[]> {
       latitude: l.latitude,
       longitude: l.longitude,
       photo_url: l.photoUrl,
+      photo_urls: l.photoUrls,
+      from_per_head_inr: l.fromPerHeadInr,
+      category: l.category,
     }));
   } catch (err) {
     console.error("directory: extranet listings unavailable", err);

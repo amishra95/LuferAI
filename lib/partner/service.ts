@@ -6,6 +6,7 @@ import { todayInIndia } from "@/lib/gst-engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import type { Json, Partner, PartnerAuditEntry, PartnerRateCard, PartnerVenue } from "@/lib/supabase/database.types";
+import { isVenueCategory, type VenueCategory } from "@/lib/venues/category";
 import { fromPerHead, overlappingRates, type ListingInput, type RateCardInput } from "./validation";
 
 /**
@@ -308,6 +309,9 @@ export interface ExtranetListing {
   fromPerHeadInr: number | null;
   /** Cover photo URL (admins add them on /admin/photos), or null. */
   photoUrl: string | null;
+  /** Every photo, cover first. */
+  photoUrls: string[];
+  category: VenueCategory | null;
 }
 
 /** Active listings of active partners, for the venue directory and the concierge's searchVenues tool. */
@@ -337,5 +341,7 @@ export async function listExtranetListings(): Promise<ExtranetListing[]> {
     longitude: v.longitude == null ? null : Number(v.longitude),
     fromPerHeadInr: fromPerHead(windows, v.id, today),
     photoUrl: venuePhotoUrls(v.photos)[0] ?? null,
+    photoUrls: venuePhotoUrls(v.photos),
+    category: isVenueCategory(v.category) ? v.category : null,
   }));
 }

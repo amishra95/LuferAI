@@ -29,6 +29,8 @@ export const listingSchema = z.object({
   capacity: z.coerce.number().int("Whole guests only").min(1, "At least 1 guest").max(5000, "At most 5,000 guests"),
   min_spend_inr: z.coerce.number().min(0, "Can't be negative").max(1e9, "Too large"),
   private_dining: z.boolean().default(false),
+  /** Venue card tag and the /venues "Space" filter; empty = not set. */
+  category: z.preprocess((v) => (v === "" || v === undefined ? null : v), z.enum(["hotel", "fine_dining", "casual_dining", "bar"], "Choose a type from the list").nullable()).default(null),
   /** For the venue map; both or neither (partner_venues_coordinates_paired). */
   latitude: coordinate(90, "Latitude"),
   longitude: coordinate(180, "Longitude"),

@@ -102,6 +102,7 @@ export async function saveListingAction(_prev: PartnerFormState, form: FormData)
       capacity: str(form, "capacity"),
       min_spend_inr: str(form, "min_spend_inr") || "0",
       private_dining: form.get("private_dining") === "on",
+      category: str(form, "category"),
       latitude: str(form, "latitude"),
       longitude: str(form, "longitude"),
     });

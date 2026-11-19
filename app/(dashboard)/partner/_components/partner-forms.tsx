@@ -12,6 +12,7 @@ import { PARTNER_ROLE_LABEL, PARTNER_ROLES } from "@/lib/auth/partner-rbac";
 import { useToast } from "@/components/dashboard/toast";
 import { submitWithoutReset } from "@/lib/form-submit";
 import { cn } from "@/lib/utils";
+import { VENUE_CATEGORIES } from "@/lib/venues/category";
 import {
   changeMemberAction,
   deleteListingAction,
@@ -75,6 +76,7 @@ export interface ListingValues {
   capacity: number;
   min_spend_inr: number;
   private_dining: boolean;
+  category?: string | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -110,6 +112,18 @@ export function ListingForm({ partnerId, listing, ratesHref }: { partnerId: stri
         <Field id={key} label="Address" name="address" defaultValue={listing?.address} maxLength={200} className="sm:col-span-2" error={err.address} />
         <Field id={key} label="Capacity (guests)" name="capacity" type="number" min={1} max={5000} defaultValue={listing?.capacity} required error={err.capacity} />
         <Field id={key} label="Minimum spend (₹, pre-GST)" name="min_spend_inr" type="number" min={0} step="1" defaultValue={listing?.min_spend_inr ?? 0} error={err.min_spend_inr} />
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${key}-category`}>Type</Label>
+          <NativeSelect id={`${key}-category`} name="category" defaultValue={listing?.category ?? ""} aria-invalid={Boolean(err.category)}>
+            <option value="">Not set</option>
+            {Object.entries(VENUE_CATEGORIES).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </NativeSelect>
+          {err.category ? <p className="text-rose text-caption">{err.category}</p> : null}
+        </div>
         <label className="text-fg flex items-center gap-2 self-end pb-2 text-meta">
           <input type="checkbox" name="private_dining" defaultChecked={listing?.private_dining} className="accent-fg size-4" />
           Private dining room
