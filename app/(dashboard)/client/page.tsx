@@ -72,6 +72,7 @@ import { PoLedger, type LedgerBooking } from "./_components/po-ledger";
 import { RfpBroadcastForm } from "./_components/rfp-broadcast-form";
 import { VenueExplorer } from "./_components/venue-explorer";
 import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
+import { toConciergeCards } from "@/lib/venues/concierge-cards";
 import { listDirectory } from "@/lib/venues/directory";
 import { RequestList } from "@/components/concierge/request-list";
 import { isPayableRequest, isWithdrawable, mayAcceptQuote, mayWithdrawRequest } from "@/lib/concierge/requests";
@@ -702,7 +703,7 @@ export default async function ClientPage({ searchParams }: PageProps<"/client">)
                 signals={signals}
               />
               ) : conciergeVenues.length > 0 ? (
-                <ConciergeVenueGrid venues={conciergeVenues} heading="Venues" limit={6} moreHref="/venues" />
+                <ConciergeVenueGrid venues={toConciergeCards(conciergeVenues, policy, office)} heading="Venues" limit={6} moreHref="/venues" />
               ) : null}
             </div>
           ) : null}

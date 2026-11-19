@@ -2504,6 +2504,7 @@ export type Database = {
           address: string
           area: string
           capacity: number
+          category: string | null
           city: string
           created_at: string
           id: string
@@ -2522,6 +2523,7 @@ export type Database = {
           address?: string
           area: string
           capacity: number
+          category?: string | null
           city?: string
           created_at?: string
           id?: string
@@ -2540,6 +2542,7 @@ export type Database = {
           address?: string
           area?: string
           capacity?: number
+          category?: string | null
           city?: string
           created_at?: string
           id?: string

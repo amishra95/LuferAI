@@ -1,41 +1,37 @@
 import { Page, PageHeader } from "@/components/dashboard/page-header";
-import { LoadingRegion, Skeleton, TableSkeleton } from "@/components/portal/skeletons";
+import { LoadingRegion, Skeleton } from "@/components/portal/skeletons";
 
-/** Shown while the directory (own venues + partner network) loads; same frame as the page. */
+/** Shown while venues load: the filter row and venue cards, the same frame as the company view. */
 export default function Loading() {
   return (
     <Page>
-      <PageHeader
-        title="Venues"
-      />
+      <PageHeader title="Venues" />
       <LoadingRegion label="Loading venues…">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {/* Search, area, tier, PDR, min guests, Apply: the same widths as the form. */}
-          <Skeleton className="h-9 w-full sm:w-64" />
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-9 w-36" delay={i * 80} />
-          ))}
-          <Skeleton className="h-9 w-28" delay={240} />
-          <Skeleton className="h-9 w-16" delay={320} />
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-64" delay={60} />
+          <Skeleton className="h-8 w-36" delay={120} />
+          <Skeleton className="ml-auto h-8 w-40" delay={180} />
         </div>
-        <section className="panel overflow-hidden">
-          {/* Phones: stacked rows, like the page. */}
-          <div className="md:hidden">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="border-line grid gap-2 border-b px-4 py-3.5 last:border-b-0">
-                <div className="flex justify-between gap-3">
-                  <Skeleton className="h-3.5 w-40" delay={i * 110} />
-                  <Skeleton className="h-3.5 w-16" delay={i * 110} />
+        <ul className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <li key={i} className="bg-surface border-frame overflow-hidden rounded-[var(--radius-card)] border">
+              <Skeleton className="aspect-video w-full rounded-none" delay={i * 80} />
+              <div className="grid gap-2 p-4">
+                <Skeleton className="h-4 w-40" delay={i * 80} />
+                <Skeleton className="h-3 w-28" delay={i * 80} />
+                <div className="mt-1 flex gap-1.5">
+                  <Skeleton className="h-6 w-28 rounded-full" delay={i * 80} />
+                  <Skeleton className="h-6 w-20 rounded-full" delay={i * 80} />
                 </div>
-                <Skeleton className="h-3 w-56" delay={i * 110} />
               </div>
-            ))}
-          </div>
-          <TableSkeleton rows={8} columns={6} className="hidden md:block" />
-          <div className="border-line border-t px-5 py-3">
-            <Skeleton className="h-3 w-24" />
-          </div>
-        </section>
+              <div className="border-line flex items-center justify-between border-t px-4 py-3">
+                <Skeleton className="h-3.5 w-24" delay={i * 80} />
+                <Skeleton className="h-8 w-32" delay={i * 80} />
+              </div>
+            </li>
+          ))}
+        </ul>
       </LoadingRegion>
     </Page>
   );

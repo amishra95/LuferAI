@@ -11,7 +11,8 @@ import { EmptyState } from "@/components/portal/empty-state";
 import { segmentClass } from "@/components/portal/segment";
 import { VenueMapView, type MapVenueCard } from "@/components/venues/venue-map-view";
 import { VenuePhoto } from "@/components/venues/venue-photo";
-import { ConciergeVenueGrid, conciergeListings } from "@/components/venues/concierge-venue-grid";
+import { ConciergeVenueExplorer } from "@/components/venues/concierge-venue-explorer";
+import { parseConciergeFilters, toConciergeCards } from "@/lib/venues/concierge-cards";
 import { ManualBookingModal } from "@/components/bookings/manual-booking-modal";
 import { ChatDrawerTrigger } from "@/components/ui/chat-drawer";
 import { InspectButton, InspectableRow } from "@/components/workspace/inspect";
@@ -142,15 +143,23 @@ export default async function VenuesPage({ searchParams }: PageProps<"/venues">)
   // distance and the request form; partner listings below, quoted through the concierge.
   const explorer = await loadVenueExplorer(member ?? null);
   if (explorer) {
-    const partnerVenues = conciergeListings(directory.venues);
+    const partnerVenues = toConciergeCards(directory.venues, explorer.policy, explorer.office);
+    const cities = [...new Set([...partnerVenues.map((v) => v.city), ...explorer.venues.map((v) => v.city)])].sort();
+    const count = partnerVenues.length + explorer.venues.length;
     return (
       <Page>
-        <PageHeader title="Venues" />
+        <PageHeader title="Venues" meta={count > 0 ? `${count} ${count === 1 ? "venue" : "venues"} in ${cities.join(", ")}` : undefined} />
         {explorer.venues.length > 0 || partnerVenues.length === 0 ? (
           <VenueExplorer {...explorer} heading={partnerVenues.length > 0 ? "Book directly" : null} />
         ) : null}
         {partnerVenues.length > 0 ? (
-          <ConciergeVenueGrid venues={partnerVenues} heading={explorer.venues.length > 0 ? "Request a quote" : null} className={explorer.venues.length > 0 ? "mt-12" : undefined} />
+          <div className={explorer.venues.length > 0 ? "mt-12" : undefined}>
+            <ConciergeVenueExplorer
+              venues={partnerVenues}
+              initial={parseConciergeFilters(await searchParams, [...new Set(partnerVenues.map((v) => v.city))].sort())}
+              heading={explorer.venues.length > 0 ? "Request a quote" : null}
+            />
+          </div>
         ) : null}
       </Page>
     );

@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { QuoteRequestButton } from "@/components/venues/quote-request-button";
-import { VenuePhoto } from "@/components/venues/venue-photo";
-import type { DirectoryVenue } from "@/lib/venues/directory";
+import { ConciergeVenueCard } from "@/components/venues/concierge-card";
+import type { ConciergeCard } from "@/lib/venues/concierge-cards";
 
-const compact = (n: number) => (n >= 100000 ? `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}L` : `₹${Math.round(n / 1000)}k`);
-
-/** Listings kept in Lufer (partner_venues), quoted through the concierge: "Request a quote" can name them. */
-export const conciergeListings = (venues: readonly DirectoryVenue[]) => venues.filter((v) => v.tier === "partner" && v.id.startsWith("extranet:"));
+export { conciergeListings } from "@/lib/venues/concierge-cards";
 
 /**
- * Venue cards that ask Lufer's concierge for a quote (/venues, and Home while
- * nothing is bookable directly). With `limit`, the first few and a link to all.
+ * A few concierge venue cards and a link to all of them (Home, while nothing
+ * is bookable directly). /venues uses ConciergeVenueExplorer, with filters.
  */
 export function ConciergeVenueGrid({
   venues,
@@ -21,7 +17,7 @@ export function ConciergeVenueGrid({
   moreHref,
   className,
 }: {
-  venues: readonly DirectoryVenue[];
+  venues: readonly ConciergeCard[];
   /** Visible heading; null keeps it for screen readers only. */
   heading: string | null;
   limit?: number;
@@ -41,29 +37,9 @@ export function ConciergeVenueGrid({
           </Link>
         ) : null}
       </div>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
         {shown.map((v) => (
-          <li key={v.id} className="panel flex flex-col gap-2 p-5">
-            {/* No placeholder: a wall of empty photo boxes reads as unfinished. */}
-            {v.photo_url ? <VenuePhoto url={v.photo_url} className="aspect-[16/9] w-full rounded-md" /> : null}
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-fg truncate text-body font-medium">{v.name}</p>
-                <p className="text-fg-subtle truncate text-caption">
-                  {v.neighborhood} · {v.city}
-                </p>
-              </div>
-              {v.min_spend_inr > 0 ? (
-                <span className="text-fg shrink-0 font-mono text-meta tabular-nums" title="Minimum spend">
-                  {compact(v.min_spend_inr)} min
-                </span>
-              ) : null}
-            </div>
-            <p className="text-fg-subtle text-caption">
-              Up to {v.capacity_max} guests{v.pdr_available ? " · private room" : ""}
-            </p>
-            <QuoteRequestButton venue={{ id: v.id.replace(/^extranet:/, ""), name: v.name }} className="mt-auto self-start" />
-          </li>
+          <ConciergeVenueCard key={v.id} venue={v} />
         ))}
       </ul>
     </section>
