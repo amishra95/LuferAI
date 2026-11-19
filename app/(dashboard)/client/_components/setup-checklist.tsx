@@ -25,7 +25,7 @@ export function SetupChecklist({ items }: { items: readonly { key: string; label
         {items.map((i) => (
           <li key={i.key}>
             <Link
-              href={i.key === "approvers" ? "/governance" : "/governance#setup"}
+              href={i.key === "approvers" ? "/governance?tab=approvals" : i.key === "limits" ? "/governance?tab=rules" : "/governance?tab=company"}
               className={cn("hover:bg-surface-hover -mx-2 flex items-center gap-3 rounded-md px-2 py-2 text-meta", i.done ? "text-fg-subtle" : "text-fg")}
             >
               <span

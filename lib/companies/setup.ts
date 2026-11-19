@@ -29,45 +29,20 @@ export const officeArea = (key: string) => OFFICE_AREAS.find((a) => a.key === ke
 export const officeAreaKeyOf = (company: { office_latitude?: unknown; office_label?: string | null }) =>
   company.office_latitude == null ? null : (OFFICE_AREAS.find((a) => a.label === company.office_label)?.key ?? null);
 
-const rupees = z
-  .union([z.literal(""), z.coerce.number().int().min(0).max(10_000_000)])
-  .transform((v) => (v === "" ? null : v));
-
-export const CompanySetupInput = z
-  .object({
-    officeArea: z.union([z.literal(""), z.enum(OFFICE_AREAS.map((a) => a.key) as [OfficeAreaKey, ...OfficeAreaKey[]])]),
-    autoApprovePerHead: rupees,
-    managerPerHead: rupees,
-    maxPerHead: rupees,
-    // companies need max_office_distance_km > 0 (one decimal); 0 isn't a limit anyone means.
-    maxDistanceKm: z
-      .union([z.literal(""), z.coerce.number().gt(0, "Distance must be more than 0 km, or blank for no limit.").max(200, "Distance can be at most 200 km.")])
-      .transform((v) => (v === "" ? null : Math.round(v * 10) / 10)),
-    /** The "Bill to" address on tax invoices (street, city, PIN); invoices wait until it's set. */
-    billingAddress: z
-      .string()
-      .optional()
-      .transform((v) => (v ?? "").trim().replace(/\s*\n\s*/g, ", ").replace(/\s{2,}/g, " ") || null)
-      .refine((v) => v === null || (v.length >= 10 && v.length <= 500), "Enter the full billing address: street, city and PIN (10–500 characters)."),
-    /** Added once, if the company signed up without it (checked and saved by the action). */
-    gstin: z
-      .string()
-      .optional()
-      .transform((v) => (v ?? "").replace(/\s/g, "").toUpperCase() || null),
-  })
-  .superRefine((v, ctx) => {
-    const order: [keyof typeof v, number | null][] = [
-      ["autoApprovePerHead", v.autoApprovePerHead],
-      ["managerPerHead", v.managerPerHead],
-      ["maxPerHead", v.maxPerHead],
-    ];
-    const set = order.filter(([, n]) => n != null) as [string, number][];
-    for (let i = 1; i < set.length; i++) {
-      if (set[i][1] < set[i - 1][1]) {
-        ctx.addIssue({ code: "custom", path: [set[i][0]], message: "Each limit must be at least the one before it." });
-      }
-    }
-  });
+export const CompanySetupInput = z.object({
+  officeArea: z.union([z.literal(""), z.enum(OFFICE_AREAS.map((a) => a.key) as [OfficeAreaKey, ...OfficeAreaKey[]])]),
+  /** The "Bill to" address on tax invoices (street, city, PIN); invoices wait until it's set. */
+  billingAddress: z
+    .string()
+    .optional()
+    .transform((v) => (v ?? "").trim().replace(/\s*\n\s*/g, ", ").replace(/\s{2,}/g, " ") || null)
+    .refine((v) => v === null || (v.length >= 10 && v.length <= 500), "Enter the full billing address: street, city and PIN (10–500 characters)."),
+  /** Added once, if the company signed up without it (checked and saved by the action). */
+  gstin: z
+    .string()
+    .optional()
+    .transform((v) => (v ?? "").replace(/\s/g, "").toUpperCase() || null),
+});
 
 export type CompanySetupInput = z.input<typeof CompanySetupInput>;
 export type CompanySetup = z.output<typeof CompanySetupInput>;
@@ -79,6 +54,6 @@ export function setupGaps(state: { hasGstin: boolean; hasBillingAddress?: boolea
     { key: "address", label: "Add your billing address", done: state.hasBillingAddress ?? true },
     { key: "office", label: "Set your office area", done: state.hasOffice },
     { key: "approvers", label: "Add an approver", done: state.approvers > 0 },
-    { key: "limits", label: "Set per-head approval limits", done: state.hasPerHeadTiers },
+    { key: "limits", label: "Set your booking rules", done: state.hasPerHeadTiers },
   ] as const;
 }
