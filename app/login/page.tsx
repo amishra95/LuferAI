@@ -23,15 +23,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const email = typeof emailParam === "string" && /^[^\s@]+@[^\s@]+$/.test(emailParam) ? emailParam.slice(0, 254) : undefined;
   const next = safeNextPath(typeof nextParam === "string" ? nextParam : null);
 
+  // Both lookups are independent network calls: run them side by side.
+  const [member, providers] = await Promise.all([getCurrentMember(), signInProviders()]);
+
   // Already signed in with a portal role → skip the form.
-  const member = await getCurrentMember();
   if (member) {
     const nextPortal = next ? portalFor(next.split("?")[0]) : null;
     redirect(next && (!nextPortal || canAccess(member.role, nextPortal)) ? next : homeFor(member.role));
   }
 
   const errorMessage = typeof error === "string" ? ERRORS[error] : undefined;
-  const providers = await signInProviders();
 
   return (
     <AuthShell>
