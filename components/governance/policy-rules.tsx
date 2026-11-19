@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { policyRulesAction } from "@/app/(dashboard)/governance/actions";
+import { ApprovalChecker } from "@/components/governance/approval-checker";
 import { segmentClass } from "@/components/portal/segment";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { EVENT_TYPES, type EventType } from "@/lib/policies/evaluate-booking-policy";
@@ -45,7 +46,18 @@ const toForm = (r: PolicyRules): Form => ({
  * the numbers in them, a preset to start from, and the rules read back in
  * plain words. Blank = no limit.
  */
-export function PolicyRulesEditor({ companyId, initial, canManage }: { companyId: string | null; initial: PolicyRules; canManage: boolean }) {
+export function PolicyRulesEditor({
+  companyId,
+  initial,
+  canManage,
+  checker,
+}: {
+  companyId: string | null;
+  initial: PolicyRules;
+  canManage: boolean;
+  /** What the "Will this need approval?" checker needs besides the rules. */
+  checker: Omit<React.ComponentProps<typeof ApprovalChecker>, "rules">;
+}) {
   const [saved, setSaved] = useState(() => toForm(initial));
   const [form, setForm] = useState(saved);
   const act = useAction<{ ok: true }>();
@@ -179,7 +191,8 @@ export function PolicyRulesEditor({ companyId, initial, canManage }: { companyId
         ) : null}
       </div>
 
-      <aside className="panel p-5 lg:sticky lg:top-6" aria-labelledby="rules-summary-heading" aria-live="polite">
+      <div className="grid gap-6 lg:sticky lg:top-6">
+      <aside className="panel p-5" aria-labelledby="rules-summary-heading" aria-live="polite">
         <h3 id="rules-summary-heading" className="label-mono mb-3">
           {dirty ? "Your rules, after saving" : "Your rules"}
         </h3>
@@ -198,6 +211,8 @@ export function PolicyRulesEditor({ companyId, initial, canManage }: { companyId
           </ul>
         )}
       </aside>
+      <ApprovalChecker {...checker} rules={parsed.success ? parsed.data : null} />
+      </div>
     </form>
   );
 }
