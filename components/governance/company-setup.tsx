@@ -8,14 +8,13 @@ import { SectionLabel } from "@/components/dashboard/page-header";
 import { useAction } from "@/components/workspace/use-optimistic-mutation";
 import { OFFICE_AREAS, type OfficeAreaKey } from "@/lib/companies/setup";
 
-type Values = { gstin: string; billingAddress: string; officeArea: OfficeAreaKey | ""; autoApprovePerHead: string; managerPerHead: string; maxPerHead: string; maxDistanceKm: string };
-
-const str = (n: number | null | undefined) => (n == null ? "" : String(n));
+type Values = { gstin: string; billingAddress: string; officeArea: OfficeAreaKey | "" };
 
 /**
  * The company's GSTIN (added once, if it signed up without one: bookings need
- * it), billing address (the "Bill to" on tax invoices, which wait for it), office area (distance on venue cards, the distance rule) and per-head
- * approval tiers (the policy badge on venue cards). Blank = no limit.
+ * it), billing address (the "Bill to" on tax invoices, which wait for it) and
+ * office area (distance on venue cards, the distance rule). Booking rules are
+ * on the Rules tab (policy-rules.tsx).
  */
 export function CompanySetup({
   companyId,
@@ -23,17 +22,13 @@ export function CompanySetup({
   canManage,
 }: {
   companyId: string | null;
-  initial: { gstin: string | null; billingAddress: string | null; officeArea: string | null; autoApprovePerHead: number | null; managerPerHead: number | null; maxPerHead: number | null; maxDistanceKm: number | null };
+  initial: { gstin: string | null; billingAddress: string | null; officeArea: string | null };
   canManage: boolean;
 }) {
   const [values, setValues] = useState<Values>({
     gstin: "",
     billingAddress: initial.billingAddress ?? "",
     officeArea: (initial.officeArea ?? "") as OfficeAreaKey | "",
-    autoApprovePerHead: str(initial.autoApprovePerHead),
-    managerPerHead: str(initial.managerPerHead),
-    maxPerHead: str(initial.maxPerHead),
-    maxDistanceKm: str(initial.maxDistanceKm),
   });
   const act = useAction<{ ok: true }>();
   const set = (key: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setValues((v) => ({ ...v, [key]: e.target.value }) as Values);
@@ -41,25 +36,15 @@ export function CompanySetup({
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     await act.run(() => companySetupAction(companyId, values), {
-      failure: "Couldn't save company setup",
-      success: () => ({ tone: "success", title: "Company setup saved" }),
+      failure: "Couldn't save company details",
+      success: () => ({ tone: "success", title: "Company details saved" }),
     });
   };
-
-  const money = (key: "autoApprovePerHead" | "managerPerHead" | "maxPerHead", label: string) => (
-    <label className="grid gap-1.5">
-      <span className="text-fg text-meta font-medium">{label}</span>
-      <div className="relative">
-        <span className="text-fg-subtle pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-meta">₹</span>
-        <input type="number" inputMode="numeric" min={0} step={1} value={values[key]} onChange={set(key)} disabled={!canManage} className="field pl-7 font-mono" placeholder="No limit" />
-      </div>
-    </label>
-  );
 
   return (
     <section id="setup" aria-labelledby="setup-heading" className="mb-10">
       <SectionLabel>
-        <span id="setup-heading">Company setup</span>
+        <span id="setup-heading">Company details</span>
       </SectionLabel>
       <form onSubmit={save} className="panel grid gap-5 p-5">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -108,22 +93,7 @@ export function CompanySetup({
               ))}
             </select>
           </label>
-          <label className="grid gap-1.5">
-            <span className="text-fg text-meta font-medium">Max distance from office</span>
-            <div className="relative">
-              <input type="number" inputMode="decimal" min={0.1} step={0.1} value={values.maxDistanceKm} onChange={set("maxDistanceKm")} disabled={!canManage} className="field pr-10 font-mono" placeholder="No limit" />
-              <span className="text-fg-subtle pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-meta">km</span>
-            </div>
-          </label>
         </div>
-
-        {/* More space above the group's label than below it, so it heads its three fields. */}
-        <fieldset className="mt-3 grid gap-4 sm:grid-cols-3">
-          <legend className="label-mono mb-2">Per head, before GST</legend>
-          {money("autoApprovePerHead", "Auto-approved up to")}
-          {money("managerPerHead", "Manager approval up to")}
-          {money("maxPerHead", "Never above")}
-        </fieldset>
 
         {canManage ? (
           <div>

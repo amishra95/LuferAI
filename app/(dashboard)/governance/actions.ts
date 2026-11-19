@@ -8,6 +8,8 @@ import { ActionError, serverDispatch, type ActionResult } from "@/lib/mutations/
 import { canManageGovernance, governedCompany } from "@/lib/services/enterprise/access";
 import { CompanySetupInput } from "@/lib/companies/setup";
 import { saveCompanySetup } from "@/lib/companies/setup-store";
+import { PolicyRulesInput, type PolicyRulesFormInput } from "@/lib/policies/policy-rules";
+import { savePolicyRules } from "@/lib/policies/policy-rules-store";
 import { addCompanyGstin, dataSource, listCompanies } from "@/lib/data";
 import { issueWaitingInvoices } from "@/lib/finance/billing-sweep";
 import { GSTIN_TAKEN } from "@/lib/companies/gstin";
@@ -117,6 +119,21 @@ export async function companySetupAction(companyId: string | null, input: Compan
     await saveCompanySetup(company, parsed.data);
     // Invoices waiting for the address go out now rather than at the next daily sweep.
     if (!hadAddress && parsed.data.billingAddress) after(() => issueWaitingInvoices(company));
+    revalidateGovernance();
+    revalidatePath("/venues");
+    return { ok: true as const };
+  });
+}
+
+/** Booking rules (components/governance/policy-rules.tsx): every rule the booking check enforces. */
+export async function policyRulesAction(companyId: string | null, input: PolicyRulesFormInput): Promise<ActionResult<{ ok: true }>> {
+  return serverDispatch("governance/policy-rules", async () => {
+    const { member, company } = await scope(companyId);
+    if (!canManageGovernance(member)) throw new ActionError("Only Approvers and platform admins can change the rules.");
+    if (dataSource() !== "supabase") throw new ActionError("Rules need the live database.");
+    const parsed = PolicyRulesInput.safeParse(input);
+    if (!parsed.success) throw new ActionError(parsed.error.issues[0]?.message ?? "Check the rules and try again.");
+    await savePolicyRules(company, parsed.data);
     revalidateGovernance();
     revalidatePath("/venues");
     return { ok: true as const };

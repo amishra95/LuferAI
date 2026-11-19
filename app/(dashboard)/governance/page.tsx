@@ -5,6 +5,9 @@ import { notFound } from "next/navigation";
 import { NoticePill, Page, PageHeader } from "@/components/dashboard/page-header";
 import { BudgetManager } from "@/components/governance/budget-manager";
 import { CompanySetup } from "@/components/governance/company-setup";
+import { PolicyRulesEditor } from "@/components/governance/policy-rules";
+import { segmentClass } from "@/components/portal/segment";
+import { rulesFromRows } from "@/lib/policies/policy-rules";
 import { TeamManager } from "@/components/governance/team-manager";
 import { listTeam } from "@/lib/companies/team-store";
 import { officeAreaKeyOf } from "@/lib/companies/setup";
@@ -29,9 +32,14 @@ export const metadata: Metadata = { title: "Policies" };
 
 const shortName = (legal: string) => legal.replace(" Private Limited", "");
 
+const TABS = { rules: "Rules", approvals: "Approvals", budgets: "Budgets", team: "Team", company: "Company" } as const;
+type Tab = keyof typeof TABS;
+const isTab = (v: unknown): v is Tab => typeof v === "string" && Object.hasOwn(TABS, v);
+
 export default async function GovernancePage({ searchParams }: PageProps<"/governance">) {
   const member = await requireWorkspace("/governance");
-  const { company: companyParam } = await searchParams;
+  const { company: companyParam, tab: tabParam } = await searchParams;
+  const tab: Tab = isTab(tabParam) ? tabParam : "rules";
 
   const all = await listCompanies();
   const companies = member.role === "ADMIN" ? all : all.filter((c) => c.id === member.companyId);
@@ -82,6 +90,14 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
     { label: "Budgets near or over", value: atRisk, warn: atRisk > 0 },
   ];
 
+  const tabHref = (t: Tab) => {
+    const q = new URLSearchParams();
+    if (admin && companies.length > 1) q.set("company", company.id);
+    if (t !== "rules") q.set("tab", t);
+    const qs = q.toString();
+    return qs ? `/governance?${qs}` : "/governance";
+  };
+
   return (
     <Page>
       <PageHeader
@@ -99,7 +115,7 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
           {companies.map((c) => (
             <Link
               key={c.id}
-              href={`/governance?company=${c.id}`}
+              href={`/governance?company=${c.id}${tab !== "rules" ? `&tab=${tab}` : ""}`}
               aria-current={c.id === company.id ? "page" : undefined}
               className={cn("pill min-h-8", c.id === company.id && "border-fg text-fg")}
             >
@@ -109,91 +125,104 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
         </nav>
       ) : null}
 
-      <CompanySetup
-        companyId={admin ? company.id : null}
-        canManage={canManage && dataSource() === "supabase"}
-        initial={{
-          gstin: company.gstin,
-          billingAddress: company.billing_address,
-          officeArea: officeAreaKeyOf(company),
-          autoApprovePerHead: policy?.auto_approval_limit_per_head ?? null,
-          managerPerHead: policy?.manager_approval_limit_per_head ?? null,
-          maxPerHead: policy?.max_budget_per_head ?? null,
-          maxDistanceKm: policy?.max_office_distance_km ?? null,
-        }}
-      />
-
-      {team ? <TeamManager companyId={admin ? company.id : null} team={team} selfId={member.userId} canManage={canManage} /> : null}
-
-      {/* Counts only once there's something to count. The one that needs someone leads, wider and larger. */}
-      {stats.some((s) => s.value > 0) ? (
-      <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-5">
-        {stats.map((s, i) => (
-          <div key={s.label} className={cn("panel p-5", i === 0 && "col-span-2")}>
-            <dt className="label-mono">{s.label}</dt>
-            <dd className={cn("figure text-fg mt-1", i === 0 ? "text-title" : "text-section", s.warn && "text-warn")}>{s.value}</dd>
-          </div>
+      <nav aria-label="Policies sections" className="border-line -mx-1 mb-8 flex gap-1 overflow-x-auto border-b px-1 pb-2">
+        {(Object.keys(TABS) as Tab[]).map((t) => (
+          <Link key={t} href={tabHref(t)} scroll={false} aria-current={t === tab ? "page" : undefined} className={cn(segmentClass(t === tab), "shrink-0")}>
+            {TABS[t]}
+            {t === "approvals" && pending.length > 0 ? <span className="bg-accent text-on-accent ml-1.5 rounded-full px-1.5 font-mono text-caption tabular-nums">{pending.length}</span> : null}
+          </Link>
         ))}
-      </dl>
+      </nav>
+
+      {tab === "rules" ? (
+        <PolicyRulesEditor companyId={admin ? company.id : null} initial={rulesFromRows(policy, company.monthly_spend_limit_inr)} canManage={canManage && dataSource() === "supabase"} />
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <HierarchyEditor
-          companyId={member.role === "ADMIN" ? company.id : null}
-          tiers={hierarchy}
-          candidates={users.filter((u) => u.role === "APPROVER").map((u) => ({ id: u.id, name: u.name }))}
-          canManage={canManage && !unavailable}
-          warning={shortChain ? `Your rules ask for up to ${levelsNeeded(rules)} levels, but the chain has ${hierarchy.length}. Requests in those bands can't be submitted until you add approvers.` : null}
-        />
-        <RuleManager
-          companyId={member.role === "ADMIN" ? company.id : null}
-          rules={rules}
+      {tab === "approvals" ? (
+        <>
+          {/* Counts only once there's something to count. The one that needs someone leads, wider and larger. */}
+          {stats.some((s) => s.value > 0) ? (
+            <dl className="mb-8 grid grid-cols-2 gap-6 sm:grid-cols-5">
+              {stats.map((s, i) => (
+                <div key={s.label} className={cn("panel p-5", i === 0 && "col-span-2")}>
+                  <dt className="label-mono">{s.label}</dt>
+                  <dd className={cn("figure text-fg mt-1", i === 0 ? "text-title" : "text-section", s.warn && "text-warn")}>{s.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+
+          <RequestBoard
+            companyId={admin ? company.id : null}
+            pending={pending}
+            recent={requests.filter((r) => r.outcome !== "pending").slice(0, 8)}
+            canEscalate={canManage && dataSource() === "supabase"}
+            now={now.toISOString()}
+          />
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <HierarchyEditor
+              companyId={admin ? company.id : null}
+              tiers={hierarchy}
+              candidates={users.filter((u) => u.role === "APPROVER").map((u) => ({ id: u.id, name: u.name }))}
+              canManage={canManage && !unavailable}
+              warning={shortChain ? `Your rules ask for up to ${levelsNeeded(rules)} levels, but the chain has ${hierarchy.length}. Requests in those bands can't be submitted until you add approvers.` : null}
+            />
+            <RuleManager
+              companyId={admin ? company.id : null}
+              rules={rules}
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+              canManage={canManage && !unavailable}
+            />
+          </div>
+        </>
+      ) : null}
+
+      {tab === "budgets" ? (
+        <BudgetManager
+          companyId={admin ? company.id : null}
+          budgets={budgets.budgets}
           departments={departments.map((d) => ({ id: d.id, name: d.name }))}
           canManage={canManage && !unavailable}
+          today={now.toISOString().slice(0, 10)}
         />
-      </div>
-
-      <BudgetManager
-        companyId={member.role === "ADMIN" ? company.id : null}
-        budgets={budgets.budgets}
-        departments={departments.map((d) => ({ id: d.id, name: d.name }))}
-        canManage={canManage && !unavailable}
-        today={now.toISOString().slice(0, 10)}
-      />
-
-      <ContractRequirement
-        companyId={member.role === "ADMIN" ? company.id : null}
-        required={company.contracts_required}
-        canManage={canManage && dataSource() === "supabase"}
-      />
-
-      {/* SSO and punchout are set up by Lufer: companies see them once connected. */}
-      {admin || sso.connections.length > 0 ? (
-      <SsoConnections
-        companyId={member.role === "ADMIN" ? company.id : null}
-        connections={sso.connections}
-        canManage={member.role === "ADMIN"}
-        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !sso.ready ? "needs migration 20261108000000" : null}
-      />
       ) : null}
 
-      <RequestBoard
-        companyId={member.role === "ADMIN" ? company.id : null}
-        pending={pending}
-        recent={requests.filter((r) => r.outcome !== "pending").slice(0, 8)}
-        canEscalate={canManage && dataSource() === "supabase"}
-        now={now.toISOString()}
-      />
+      {tab === "team" ? (
+        team ? <TeamManager companyId={admin ? company.id : null} team={team} selfId={member.userId} canManage={canManage} /> : <p className="text-fg-subtle text-body">The team is managed on the live database.</p>
+      ) : null}
 
-      {admin || punchout.connections.length > 0 ? (
-      <PunchoutConnections
-        companyId={member.role === "ADMIN" ? company.id : null}
-        connections={punchout.connections}
-        orders={punchout.orders}
-        endpoints={{ setup: `${site}/api/punchout/setup`, order: `${site}/api/punchout/order` }}
-        canManage={member.role === "ADMIN"}
-        unavailable={dataSource() !== "supabase" ? "needs Supabase" : !punchout.ready ? "needs migration 20261109000000" : null}
-      />
+      {tab === "company" ? (
+        <>
+          <CompanySetup
+            companyId={admin ? company.id : null}
+            canManage={canManage && dataSource() === "supabase"}
+            initial={{ gstin: company.gstin, billingAddress: company.billing_address, officeArea: officeAreaKeyOf(company) }}
+          />
+
+          <ContractRequirement companyId={admin ? company.id : null} required={company.contracts_required} canManage={canManage && dataSource() === "supabase"} />
+
+          {/* SSO and punchout are set up by Lufer: companies see them once connected. */}
+          {admin || sso.connections.length > 0 ? (
+            <SsoConnections
+              companyId={admin ? company.id : null}
+              connections={sso.connections}
+              canManage={admin}
+              unavailable={dataSource() !== "supabase" ? "needs Supabase" : !sso.ready ? "needs migration 20261108000000" : null}
+            />
+          ) : null}
+
+          {admin || punchout.connections.length > 0 ? (
+            <PunchoutConnections
+              companyId={admin ? company.id : null}
+              connections={punchout.connections}
+              orders={punchout.orders}
+              endpoints={{ setup: `${site}/api/punchout/setup`, order: `${site}/api/punchout/order` }}
+              canManage={admin}
+              unavailable={dataSource() !== "supabase" ? "needs Supabase" : !punchout.ready ? "needs migration 20261109000000" : null}
+            />
+          ) : null}
+        </>
       ) : null}
     </Page>
   );

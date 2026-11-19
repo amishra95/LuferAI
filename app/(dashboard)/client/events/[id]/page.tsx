@@ -285,7 +285,7 @@ export default async function EventWorkspacePage({ params }: PageProps<"/client/
                       issued ? (
                         <DocLinks href={`/api/bookings/${booking.id}/tax-invoice`} pdf={Boolean(taxDoc?.data)} />
                       ) : taxInvoice.label === "Add your billing address" && role === "APPROVER" ? (
-                        <Link href="/governance#setup" className="text-fg hover:underline">Add</Link>
+                        <Link href="/governance?tab=company" className="text-fg hover:underline">Add</Link>
                       ) : null
                     }
                   />

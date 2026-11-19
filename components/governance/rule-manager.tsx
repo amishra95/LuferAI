@@ -81,7 +81,7 @@ export function RuleManager({
   return (
     <section aria-labelledby="rules-heading">
       <SectionLabel>
-        <span id="rules-heading">Approval rules</span>
+        <span id="rules-heading">Spending bands</span>
       </SectionLabel>
 
       {sorted.length === 0 ? (

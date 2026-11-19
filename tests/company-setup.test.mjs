@@ -3,21 +3,11 @@ import test from "node:test";
 
 import { CompanySetupInput, officeArea, officeAreaKeyOf, setupGaps } from "../lib/companies/setup.ts";
 
-const blank = { officeArea: "", autoApprovePerHead: "", managerPerHead: "", maxPerHead: "", maxDistanceKm: "" };
+const blank = { officeArea: "" };
 
-test("blank fields mean no limit and no office", () => {
+test("blank fields mean no office, address or GSTIN", () => {
   const r = CompanySetupInput.parse(blank);
-  assert.deepEqual(r, { officeArea: "", autoApprovePerHead: null, managerPerHead: null, maxPerHead: null, maxDistanceKm: null, billingAddress: null, gstin: null });
-});
-
-test("per-head limits parse from form strings and must not decrease", () => {
-  const ok = CompanySetupInput.parse({ ...blank, autoApprovePerHead: "1500", managerPerHead: "3000", maxPerHead: "5000", maxDistanceKm: "10" });
-  assert.equal(ok.autoApprovePerHead, 1500);
-  assert.equal(ok.maxDistanceKm, 10);
-  assert.equal(CompanySetupInput.safeParse({ ...blank, autoApprovePerHead: "3000", managerPerHead: "1500" }).success, false);
-  // A gap in the middle still compares the ones that are set.
-  assert.equal(CompanySetupInput.safeParse({ ...blank, autoApprovePerHead: "3000", maxPerHead: "2000" }).success, false);
-  assert.equal(CompanySetupInput.safeParse({ ...blank, managerPerHead: "-1" }).success, false);
+  assert.deepEqual(r, { officeArea: "", billingAddress: null, gstin: null });
 });
 
 test("office areas are presets only", () => {
@@ -33,23 +23,9 @@ test("setup checklist", () => {
 });
 
 test("billing address: trimmed, lines joined with commas, blank means none, 10–500 characters", () => {
-  const blank = { officeArea: "", autoApprovePerHead: "", managerPerHead: "", maxPerHead: "", maxDistanceKm: "" };
   assert.equal(CompanySetupInput.parse({ ...blank, billingAddress: "   " }).billingAddress, null);
   assert.equal(CompanySetupInput.parse({ ...blank, billingAddress: " 4th Floor, Prestige Tech Park\n  Outer Ring Road\nBengaluru 560103 " }).billingAddress, "4th Floor, Prestige Tech Park, Outer Ring Road, Bengaluru 560103");
   const short = CompanySetupInput.safeParse({ ...blank, billingAddress: "Blr" });
   assert.equal(short.success, false);
   assert.match(short.error.issues[0].message, /street, city and PIN/);
-});
-
-test("any whole-rupee limit is accepted (no multiples-of-50 rule)", () => {
-  const r = CompanySetupInput.parse({ ...blank, autoApprovePerHead: "1234", managerPerHead: "2999", maxPerHead: "4321" });
-  assert.deepEqual([r.autoApprovePerHead, r.managerPerHead, r.maxPerHead], [1234, 2999, 4321]);
-});
-
-test("max distance: more than 0 km (the database refuses 0), one decimal", () => {
-  const zero = CompanySetupInput.safeParse({ ...blank, maxDistanceKm: "0" });
-  assert.equal(zero.success, false);
-  assert.match(zero.error.issues[0].message, /more than 0 km/);
-  assert.equal(CompanySetupInput.parse({ ...blank, maxDistanceKm: "7.25" }).maxDistanceKm, 7.3);
-  assert.equal(CompanySetupInput.safeParse({ ...blank, maxDistanceKm: "250" }).success, false);
 });
