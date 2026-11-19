@@ -8,6 +8,7 @@ import { CompanySetup } from "@/components/governance/company-setup";
 import { PolicyRulesEditor } from "@/components/governance/policy-rules";
 import { segmentClass } from "@/components/portal/segment";
 import { rulesFromRows } from "@/lib/policies/policy-rules";
+import { committedByMonth } from "@/lib/policies/approval-check";
 import { TeamManager } from "@/components/governance/team-manager";
 import { listTeam } from "@/lib/companies/team-store";
 import { officeAreaKeyOf } from "@/lib/companies/setup";
@@ -19,7 +20,7 @@ import { RuleManager } from "@/components/governance/rule-manager";
 import { SsoConnections } from "@/components/governance/sso-connections";
 import { listSsoConnections } from "@/lib/auth/sso-store";
 import { requireWorkspace } from "@/lib/auth/session";
-import { dataSource, getCorporatePolicy, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
+import { dataSource, getCorporatePolicy, listBookings, listCatalogOrders, listCompanies, listDepartments, listPortalUsers } from "@/lib/data";
 import { budgetTone } from "@/lib/procurement/po-ledger";
 import { canManageGovernance } from "@/lib/services/enterprise/access";
 import { isOverdue, levelsNeeded } from "@/lib/services/enterprise/approvalEngine";
@@ -135,7 +136,18 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
       </nav>
 
       {tab === "rules" ? (
-        <PolicyRulesEditor companyId={admin ? company.id : null} initial={rulesFromRows(policy, company.monthly_spend_limit_inr)} canManage={canManage && dataSource() === "supabase"} />
+        <PolicyRulesEditor
+          companyId={admin ? company.id : null}
+          initial={rulesFromRows(policy, company.monthly_spend_limit_inr)}
+          canManage={canManage && dataSource() === "supabase"}
+          checker={{
+            companyId: company.id,
+            bands: rules,
+            chain: hierarchy.map((t) => ({ tier: t.tier, name: t.name })),
+            departments: departments.map((d) => ({ id: d.id, name: d.name })),
+            committed: committedByMonth(await committedSpend(company.id)),
+          }}
+        />
       ) : null}
 
       {tab === "approvals" ? (
@@ -226,4 +238,13 @@ export default async function GovernancePage({ searchParams }: PageProps<"/gover
       ) : null}
     </Page>
   );
+}
+
+/** Bookings and catalogue orders that count against the monthly limit (as spendLimitFor counts them). */
+async function committedSpend(companyId: string) {
+  const [bookings, orders] = await Promise.all([listBookings({ companyId }), listCatalogOrders({ tenantId: companyId })]);
+  return [
+    ...bookings.map((b) => ({ event_date: b.event_date, status: b.status, total_amount_inr: b.total_amount_inr })),
+    ...orders.map((o) => ({ event_date: o.event_date ?? o.needed_by ?? o.created_at.slice(0, 10), status: o.status, total_amount_inr: o.total_amount_inr })),
+  ];
 }
