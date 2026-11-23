@@ -169,7 +169,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   return (
     <PortalShell
       portal="/property"
-      actions={live ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} rules={guardrails.rules} rulesReady={guardrails.ready} platformCap={platform.maxDiscountPct} /> : null}
+      // The negotiator works RFPs, which only reach a listed venue; until then its limits live on the Listing tab.
+      actions={live && (venue.is_active || member.role === "ADMIN") ? <NegotiatorDrawer key={venue.id} venueId={venue.id} venueName={venue.name} rules={guardrails.rules} rulesReady={guardrails.ready} platformCap={platform.maxDiscountPct} /> : null}
       title={venue.name}
       meta={`${venue.neighborhood}, ${venue.city}`}
     >
@@ -606,60 +607,88 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
             title="Pricing controls need the live database"
           />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Photos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PhotoManager
-                    key={`photos-${venue.id}`}
-                    venueId={venue.id}
-                    venueName={venue.name}
-                    photos={(venue.photos ?? []).flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))}
-                  />
-                </CardContent>
-              </Card>
+          <div className="grid gap-10">
+            {/* What companies see on the venue's card and in quotes, in the order the setup checklist asks for it. */}
+            <section aria-labelledby="listing-public" className="grid gap-4">
+              <div>
+                <h2 id="listing-public" className="text-fg text-card-title font-semibold">Your listing</h2>
+                <p className="text-fg-subtle text-meta">What companies see when they find {venue.name}.</p>
+              </div>
+              <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+                <div className="grid gap-6">
+                  <Card id="photos" className="scroll-mt-6">
+                    <CardHeader>
+                      <CardTitle>Photos</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <PhotoManager
+                        key={`photos-${venue.id}`}
+                        venueId={venue.id}
+                        venueName={venue.name}
+                        photos={(venue.photos ?? []).flatMap((ref) => venuePhotoUrls([ref]).map((url) => ({ ref, url })))}
+                      />
+                    </CardContent>
+                  </Card>
+                  <Card id="packages" className="scroll-mt-6">
+                    <CardHeader>
+                      <CardTitle>Food &amp; beverage packages</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="divide-line divide-y">
+                        {packages.map((p) => (
+                          <li key={p.id}>
+                            <PackageEditor venueId={venue.id} pkg={p} locked={pricing.lockedPackageIds.includes(p.id)} ready={venuePricing.ready} />
+                          </li>
+                        ))}
+                        <li>
+                          <PackageEditor key={`new-${venue.id}-${packages.length}`} venueId={venue.id} pkg={null} locked={false} ready={venuePricing.ready} />
+                        </li>
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="grid gap-6">
+                  <Card id="minimum" className="scroll-mt-6">
+                    <CardHeader>
+                      <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <MinimumSpendForm
+                        key={`min-${venue.id}`}
+                        venueId={venue.id}
+                        minSpend={Number(venue.min_spend_inr)}
+                        minPerHead={Number(venue.min_spend_per_head_inr)}
+                        tiers={pricing.tiers}
+                        lockMinSpend={pricing.lockMinSpend}
+                        ready={venuePricing.ready}
+                      />
+                    </CardContent>
+                  </Card>
+                  <Card id="terms" className="scroll-mt-6">
+                    <CardHeader>
+                      <CardTitle>Deposit &amp; cancellation</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <TermsForm
+                        key={`terms-${venue.id}`}
+                        venueId={venue.id}
+                        depositPct={pricing.depositPct}
+                        defaultDepositPct={DEPOSIT_RATE * 100}
+                        cancellation={parseCancellationTerms(venue.cancellation_terms)}
+                        ready={venuePricing.ready}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </section>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Minimum spend &amp; guest-count tiers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MinimumSpendForm
-                    key={`min-${venue.id}`}
-                    venueId={venue.id}
-                    minSpend={Number(venue.min_spend_inr)}
-                    minPerHead={Number(venue.min_spend_per_head_inr)}
-                    tiers={pricing.tiers}
-                    lockMinSpend={pricing.lockMinSpend}
-                    ready={venuePricing.ready}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Food &amp; beverage packages</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-line divide-y">
-                    {packages.map((p) => (
-                      <li key={p.id}>
-                        <PackageEditor venueId={venue.id} pkg={p} locked={pricing.lockedPackageIds.includes(p.id)} ready={venuePricing.ready} />
-                      </li>
-                    ))}
-                    <li>
-                      <PackageEditor key={`new-${venue.id}-${packages.length}`} venueId={venue.id} pkg={null} locked={false} ready={venuePricing.ready} />
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-6">
-              <Card>
+            <section aria-labelledby="listing-dates" className="grid gap-4">
+              <div>
+                <h2 id="listing-dates" className="text-fg text-card-title font-semibold">Pricing by date</h2>
+                <p className="text-fg-subtle text-meta">Weekend, season and one-off surcharges on top of your packages.</p>
+              </div>
+              <Card id="calendar" className="scroll-mt-6">
                 <CardHeader>
                   <CardTitle>Rate calendar</CardTitle>
                 </CardHeader>
@@ -688,32 +717,25 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
                   <AddRateForm key={`rate-${venue.id}-${pricing.multipliers.length}`} venueId={venue.id} today={today} disabledReason={venuePricing.ready ? undefined : "The rate calendar needs database migration 0027."} />
                 </CardContent>
               </Card>
+            </section>
 
-              <Card>
+            {/* Never shown to companies: the limits counters, direct quotes and the AI negotiator work within. */}
+            <section aria-labelledby="listing-private" className="grid gap-4">
+              <div>
+                <h2 id="listing-private" className="text-fg inline-flex items-center gap-2 text-card-title font-semibold">
+                  <Lock className="size-4" aria-hidden /> Negotiation (private)
+                </h2>
+                <p className="text-fg-subtle text-meta">Only you and the AI negotiator use these.</p>
+              </div>
+              <Card id="limits" className="scroll-mt-6">
                 <CardHeader>
-                  <CardTitle>Discount limits</CardTitle>
+                  <CardTitle>Negotiation limits</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <GuardrailsForm key={`rules-${venue.id}`} venueId={venue.id} rules={guardrails.rules} ready={guardrails.ready} platformCap={platform.maxDiscountPct} />
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Deposit &amp; cancellation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TermsForm
-                    key={`terms-${venue.id}`}
-                    venueId={venue.id}
-                    depositPct={pricing.depositPct}
-                    defaultDepositPct={DEPOSIT_RATE * 100}
-                    cancellation={parseCancellationTerms(venue.cancellation_terms)}
-                    ready={venuePricing.ready}
-                  />
-                </CardContent>
-              </Card>
-            </div>
+            </section>
           </div>
         )
       ) : bookings.length === 0 ? (

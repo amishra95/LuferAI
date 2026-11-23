@@ -7,12 +7,14 @@ import {
   removeOpenAIKey,
   saveOpenAISettings,
   savePreferences,
+  testAiProviderKeys,
   testOpenAIConnection,
   testSupabaseConnection,
   type FormState,
 } from "@/app/(dashboard)/settings/actions";
 import { useToast } from "@/components/dashboard/toast";
 import { submitWithoutReset } from "@/lib/form-submit";
+import type { KeyCheck } from "@/lib/ai/key-check";
 import type { OpenAIStatus } from "@/lib/settings/status";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +181,51 @@ export function SupabaseTest({ configured }: { configured: boolean }) {
       <div aria-live="polite">
         <Feedback state={result} pending={busy} pendingText="Pinging Supabase…" />
       </div>
+    </div>
+  );
+}
+
+const PROVIDER_LABEL: Record<KeyCheck["provider"], string> = { google: "Google Gemini", openai: "OpenAI", anthropic: "Anthropic", groq: "Groq" };
+
+/** Checks each AI provider's key with the provider itself; a rejected key is the usual cause of failed AI runs. */
+export function AiKeysTest() {
+  const [results, setResults] = useState<KeyCheck[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, start] = useTransition();
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            start(async () => {
+              setFailed(false);
+              try {
+                setResults(await testAiProviderKeys());
+              } catch (err) {
+                console.error(err);
+                setFailed(true);
+              }
+            })
+          }
+          className="btn"
+        >
+          {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null} Check AI keys
+        </button>
+        {failed ? <p className="text-rose text-meta">{UNREACHABLE.message}</p> : null}
+      </div>
+      {results ? (
+        <ul className="divide-line divide-y" aria-live="polite" aria-label="AI provider keys">
+          {results.map((r) => (
+            <li key={r.provider} className="flex items-center gap-3 py-2 text-meta">
+              {r.state === "ok" ? <Check className="text-sage size-4" aria-label="OK" /> : <X className={cn("size-4", r.state === "missing" ? "text-fg-faint" : "text-rose")} aria-label={r.state} />}
+              <span className="text-fg w-32 font-medium">{PROVIDER_LABEL[r.provider]}</span>
+              <span className={cn(r.state === "rejected" || r.state === "error" ? "text-rose" : "text-fg-subtle")}>{r.detail}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

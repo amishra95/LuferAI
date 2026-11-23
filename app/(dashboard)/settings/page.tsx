@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { Page, PageHeader } from "@/components/dashboard/page-header";
 import { PanelErrorBoundary } from "@/components/dashboard/error-boundary";
 import { ChannelCard } from "@/components/settings/channel-card";
-import { OpenAIForm, PreferencesForm, SupabaseTest } from "@/components/settings/settings-forms";
+import { AiKeysTest, OpenAIForm, PreferencesForm, SupabaseTest } from "@/components/settings/settings-forms";
 import { CHANNEL_ENV, env, isChannelConfigured } from "@/lib/channels/config";
 import { channelStore } from "@/lib/channels/store";
 import { listCompanies, listPortalUsers } from "@/lib/data";
@@ -140,6 +140,13 @@ export default async function SettingsPage() {
           {openai.source === "environment" && (
             <p className="text-fg-subtle mt-4 text-meta">This key comes from the process environment, not .env.local, so it can&apos;t be removed here.</p>
           )}
+        </Section>
+
+        <Section
+          title="AI provider keys"
+          description="Checks each provider's key with the provider (no tokens used). A rejected key makes agents fall back to the next provider, or fail when none is left."
+        >
+          <AiKeysTest />
         </Section>
 
         <Section
