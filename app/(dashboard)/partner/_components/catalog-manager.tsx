@@ -179,7 +179,7 @@ function GstinBanner({ partnerId, canSet }: { partnerId: string | null; canSet: 
           }}
           className="mt-2 flex gap-2"
         >
-          <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={15} placeholder="29ABCDE1234F1Z5" className="field h-8 max-w-56 font-mono uppercase" aria-label="GSTIN" />
+          <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={15} placeholder="e.g. 29ABCDE1234F1Z5" className="field h-8 max-w-56 font-mono uppercase placeholder:normal-case" aria-label="GSTIN" />
           <button type="submit" disabled={save.pending} className="btn btn-secondary h-8 px-3 text-caption">
             {save.pending && <Loader2 className="size-3 animate-spin" aria-hidden />} Save
           </button>

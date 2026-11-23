@@ -50,6 +50,7 @@ import { AddRateForm, MinimumSpendForm, PackageEditor, TermsForm } from "./_comp
 import { PhotoManager } from "./_components/photo-manager";
 import { venuePhotoUrls } from "@/lib/venues/photo-store";
 import { RateCalendar } from "./_components/rate-calendar";
+import { venueSetupSteps } from "@/lib/venues/setup-steps";
 import { ReviewList } from "./_components/review-list";
 import { convertVenueHold, releaseVenueHold, removeRateMultiplierAction, respondToBooking, unblockDateAction } from "./actions";
 
@@ -138,6 +139,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
   const holdsByDate = [...liveHolds].sort((a, b) => a.event_date.localeCompare(b.event_date));
   const payouts = computeMonthlyPayouts(bookings);
   const readyToQuote = inquiries.filter((i) => i.status === "qualified").length;
+  const setupSteps = venueSetupSteps(venue, packages);
+  const setupLeft = setupSteps.filter((st) => !st.done && st.key !== "verified");
   // The venue's corporate book of business, and the next step with each client.
   const accounts = venueAccounts(bookings, today);
   const opportunities = accountOpportunities(accounts, today);
@@ -182,7 +185,8 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
       ) : null}
 
       {!venue.is_active ? (
-        <p role="note" className="badge-warn mb-8 rounded-md px-4 py-3 text-body">
+        // Information, not an error: verification is routine and the venue has nothing to fix.
+        <p role="note" className="border-line bg-surface text-fg-muted mb-8 rounded-md border px-4 py-3 text-body">
           {member.role === "ADMIN" ? "Unlisted: companies can't find or book this venue until you publish it from Account approvals." : "Your venue isn't listed yet. We're verifying it, usually within one working day; meanwhile, add photos, pricing and packages so it's ready when companies find it."}{" "}
           {member.role === "ADMIN" ? null : (
             <Link href="/property/welcome" className="text-link underline-offset-2 hover:underline">
@@ -192,12 +196,46 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
         </p>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-6 lg:grid-cols-4" aria-label="Summary">
-        <StatCard label="Awaiting your response" value={String(incoming.length)} />
-        <StatCard label="Typical reply time" value={replyTimeLabel(replyHours)} hint={replyHours != null && replyHours <= FAST_RESPONSE_HOURS ? `Companies see “Usually confirms within ${replyHours} h”` : `Reply within ${FAST_RESPONSE_HOURS} h to show companies a fast-reply badge`} />
-        <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
-        <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} />
-      </section>
+      {setupLeft.length > 0 && bookings.length === 0 && member.role !== "ADMIN" ? (
+        // A new venue has nothing to count yet: show what's left to set up instead of four zeros.
+        <section className="panel p-4 sm:p-5" aria-label="Setup">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-fg text-card-title font-semibold">Finish setting up · {setupSteps.length - setupLeft.length} of {setupSteps.length} done</h2>
+              <p className="text-fg-subtle mt-1 text-meta">Next: {setupLeft[0].title.charAt(0).toLowerCase() + setupLeft[0].title.slice(1)}</p>
+            </div>
+            {setupLeft[0].href ? (
+              <Link href={setupLeft[0].href} className="btn h-8 shrink-0 px-3 text-meta">
+                Continue setup
+              </Link>
+            ) : null}
+          </div>
+          <div role="meter" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={setupSteps.length} aria-valuenow={setupSteps.length - setupLeft.length} className="bg-surface-raised mt-4 h-1.5 overflow-hidden rounded-full">
+            <div className="bg-accent h-full rounded-full" style={{ width: `${((setupSteps.length - setupLeft.length) / setupSteps.length) * 100}%` }} />
+          </div>
+          <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-meta">
+            {setupSteps.map((st) => (
+              <li key={st.key} className={cn("inline-flex items-center gap-1.5", st.done ? "text-fg-subtle" : "text-fg")}>
+                {st.done ? <Check className="text-sage size-3.5" aria-label="Done" /> : <span aria-label="To do" className="border-line-strong size-3 rounded-full border" />}
+                {st.href && !st.done ? (
+                  <Link href={st.href} className="hover:underline underline-offset-2">
+                    {st.title}
+                  </Link>
+                ) : (
+                  st.title
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <section className="grid grid-cols-2 gap-6 lg:grid-cols-4" aria-label="Summary">
+          <StatCard label="Awaiting your response" value={String(incoming.length)} />
+          <StatCard label="Typical reply time" value={replyTimeLabel(replyHours)} hint={replyHours != null && replyHours <= FAST_RESPONSE_HOURS ? `Companies see “Usually confirms within ${replyHours} h”` : `Reply within ${FAST_RESPONSE_HOURS} h to show companies a fast-reply badge`} />
+          <StatCard label="Confirmed upcoming" value={String(upcoming.length)} />
+          <StatCard label="Payout pipeline" value={formatINR(payouts.reduce((s, p) => s + p.payout, 0))} />
+        </section>
+      )}
 
       <NavBadges
         badges={{
@@ -258,11 +296,19 @@ export default async function PropertyPage({ searchParams }: PageProps<"/propert
           // Nothing pending anywhere: one card with the two things a host can do, not four empty boxes.
           <EmptyState
             icon={Inbox}
-            title="Nothing needs you right now"
+            title={venue.is_active ? "Nothing needs you right now" : "No requests yet"}
+            // Quoting needs a company that has booked or sent an RFP: say so once, rather than show a disabled button.
+            description={
+              companies.length === 0
+                ? venue.is_active
+                  ? "Booking requests, RFPs and leads from companies show up here."
+                  : "Once your venue is verified and listed, booking requests, RFPs and leads from companies show up here."
+                : undefined
+            }
             action={
               <>
                 {blockDates(true)}
-                {directQuote("sm")}
+                {companies.length > 0 ? directQuote("sm") : null}
               </>
             }
           />
