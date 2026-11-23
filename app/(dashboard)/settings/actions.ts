@@ -1,6 +1,7 @@
 "use server";
 
 import { requireWorkspace } from "@/lib/auth/session";
+import { checkAllProviderKeys, type KeyCheck } from "@/lib/ai/key-check";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -60,6 +61,12 @@ export async function testOpenAIConnection(): Promise<FormState> {
   } catch {
     return { status: "error", message: "Couldn't reach api.openai.com." };
   }
+}
+
+/** Checks every AI provider's key against the provider (free list-models calls); never returns a key. */
+export async function testAiProviderKeys(): Promise<KeyCheck[]> {
+  await requireWorkspace("/settings");
+  return checkAllProviderKeys();
 }
 
 /** Re-runs the Supabase ping on demand (the page also checks on load). */

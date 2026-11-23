@@ -108,24 +108,24 @@ export function GuardrailsForm({ venueId, rules, ready, platformCap = MAX_DISCOU
     <form action={action} className="grid gap-6">
       <input type="hidden" name="venue_id" value={venueId} />
       <p className="text-fg-subtle text-meta leading-5">
-        Hard limits for every offer from this venue: your counters, direct quotes and the AI&apos;s proposals. Leave a field blank for no limit.
+        Caps on every offer from this venue (your counters, direct quotes and the AI&apos;s proposals). Leave a field blank for no limit.
       </p>
 
       <label className="grid gap-1.5">
-        <span className="label-mono">Minimum spend floor</span>
+        <span className="label-mono">Lowest total you&apos;ll accept</span>
         <span className="relative">
           <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-meta" aria-hidden>
             ₹
           </span>
-          <Input name="min_spend_floor" inputMode="numeric" defaultValue={rules.minSpendFloor ?? ""} placeholder="40,000" className="pl-7 font-mono" />
+          <Input name="min_spend_floor" inputMode="numeric" defaultValue={rules.minSpendFloor ?? ""} placeholder="No limit" className="pl-7 font-mono placeholder:font-sans" />
         </span>
-        <span className="text-fg-subtle text-caption">No counter or quote below this pre-GST total, and the AI can&apos;t set your minimum spend lower.</span>
+        <span className="text-fg-subtle text-caption">No counter or quote below this pre-GST total. Your listed minimum spend is what companies see; this is how far you&apos;ll go when negotiating.</span>
       </label>
 
       <label className="grid gap-1.5">
         <span className="label-mono">Maximum discount</span>
         <span className="relative max-w-40">
-          <Input name="max_discount_pct" inputMode="decimal" defaultValue={rules.maxDiscountPct ?? ""} placeholder="10" className="pr-7 font-mono" />
+          <Input name="max_discount_pct" inputMode="decimal" defaultValue={rules.maxDiscountPct ?? ""} placeholder="No limit" className="pr-7 font-mono placeholder:font-sans" />
           <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-meta" aria-hidden>
             %
           </span>
@@ -141,15 +141,15 @@ export function GuardrailsForm({ venueId, rules, ready, platformCap = MAX_DISCOU
         <label className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3">
           <input type="checkbox" name="auto_counter" checked={autoCounter} onChange={(e) => setAutoCounter(e.target.checked)} className="accent-fg mt-0.5 size-3.5" />
           <span>
-            <span className="text-fg block text-meta">Counter within guardrails</span>
-            <span className="text-fg-subtle block text-meta">When a new RFP&apos;s budget is under your instant quote but inside your floor and discount, counter at the client&apos;s budget automatically.</span>
+            <span className="text-fg block text-meta">Counter automatically</span>
+            <span className="text-fg-subtle block text-meta">When a new RFP&apos;s budget is under your instant quote but inside these limits, counter at the client&apos;s budget automatically.</span>
           </span>
         </label>
         <label className="border-line has-checked:border-fg/40 has-checked:bg-fg/[0.04] flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3">
           <input type="checkbox" name="auto_decline" checked={autoDecline} onChange={(e) => setAutoDecline(e.target.checked)} className="accent-fg mt-0.5 size-3.5" />
           <span>
-            <span className="text-fg block text-meta">Decline below the floor</span>
-            <span className="text-fg-subtle block text-meta">When a new RFP&apos;s budget can&apos;t reach your minimum spend floor, decline it automatically with a note.</span>
+            <span className="text-fg block text-meta">Decline automatically below your lowest total</span>
+            <span className="text-fg-subtle block text-meta">When a new RFP&apos;s budget can&apos;t reach your lowest total, decline it automatically with a note.</span>
           </span>
         </label>
       </fieldset>
@@ -162,7 +162,7 @@ export function GuardrailsForm({ venueId, rules, ready, platformCap = MAX_DISCOU
 
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
-          {pending ? <Loader2 className="animate-spin" aria-hidden /> : <ShieldCheck aria-hidden />} Save guardrails
+          {pending ? <Loader2 className="animate-spin" aria-hidden /> : <ShieldCheck aria-hidden />} Save limits
         </Button>
       </div>
     </form>

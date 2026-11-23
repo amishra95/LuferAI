@@ -31,7 +31,7 @@ function Money({ name, label, hint, defaultValue }: { name: string; label: strin
         <span className="text-fg-subtle pointer-events-none absolute inset-y-0 left-3 flex items-center text-meta" aria-hidden>
           ₹
         </span>
-        <Input name={name} inputMode="numeric" defaultValue={defaultValue || ""} placeholder="0" className="pl-7 font-mono" />
+        <Input name={name} inputMode="numeric" defaultValue={defaultValue || ""} placeholder="None" className="pl-7 font-mono placeholder:font-sans" />
       </span>
       <span className="text-fg-subtle text-caption">{hint}</span>
     </label>
@@ -93,8 +93,8 @@ export function MinimumSpendForm({
     <form action={action} className="grid gap-5">
       <input type="hidden" name="venue_id" value={venueId} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Money name="min_spend_inr" label="Minimum spend" defaultValue={minSpend} hint="Pre-GST total every quote is lifted to." />
-        <Money name="min_spend_per_head_inr" label="Minimum per guest" defaultValue={minPerHead} hint="Booking requests below this per head are refused. Blank or 0 for none." />
+        <Money name="min_spend_inr" label="Minimum spend" defaultValue={minSpend} hint="Companies see this. Every quote is lifted to at least this pre-GST total." />
+        <Money name="min_spend_per_head_inr" label="Minimum per guest" defaultValue={minPerHead} hint="Booking requests below this per head are refused. Blank for none." />
       </div>
 
       <fieldset className="grid gap-2" disabled={!ready}>
@@ -278,7 +278,7 @@ export function TermsForm({
       <label className="grid gap-1.5">
         <span className="label-mono">Deposit</span>
         <span className="relative max-w-40">
-          <Input name="deposit_pct" inputMode="decimal" defaultValue={depositPct ?? ""} placeholder={String(defaultDepositPct)} disabled={!ready} className="pr-7 font-mono" />
+          <Input name="deposit_pct" inputMode="decimal" defaultValue={depositPct ?? ""} placeholder={`${defaultDepositPct} (default)`} disabled={!ready} className="pr-7 font-mono placeholder:font-sans" />
           <span className="text-fg-subtle pointer-events-none absolute inset-y-0 right-3 flex items-center text-meta" aria-hidden>
             %
           </span>
