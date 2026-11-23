@@ -9,6 +9,7 @@ import { currentApplication, requirePortal } from "@/lib/auth/session";
 import { dataSource, getVenue } from "@/lib/data";
 import { listVenuePackages } from "@/lib/rfp/service";
 import { cn } from "@/lib/utils";
+import { venueSetupSteps } from "@/lib/venues/setup-steps";
 import { GstinForm } from "../_components/gstin-form";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -28,18 +29,7 @@ export default async function PropertyWelcomePage() {
   if (!venue) redirect("/property");
   const first = application?.full_name.split(" ")[0];
 
-  const pricing = "/property?tab=pricing";
-  const steps: { done: boolean; title: string; href?: string; form?: React.ReactNode }[] = [
-    { done: true, title: "Create your account" },
-    // Optional at signup, needed before listing: bookings are invoiced on it.
-    { done: Boolean(venue.gstin), title: "Add your GSTIN", form: <GstinForm /> },
-    // A package's per-head price is what companies see on the venue's card and what instant quotes use.
-    { done: packages.some((p) => p.is_active), title: "Add a menu package with a price per head", href: pricing },
-    { done: venue.photos.length > 0, title: "Add photos", href: pricing },
-    { done: Number(venue.min_spend_inr) > 0 || Number(venue.min_spend_per_head_inr) > 0, title: "Set your minimum spend", href: pricing },
-    // Verification is ours to do (GSTIN and address, about one working day); the venue only waits.
-    { done: venue.is_active, title: venue.is_active ? "Verified" : "Verification in progress" },
-  ];
+  const steps = venueSetupSteps(venue, packages).map((s) => ({ ...s, href: s.key === "gstin" ? undefined : s.href, form: s.key === "gstin" ? <GstinForm /> : null }));
   const left = steps.filter((s) => !s.done).length;
 
   return (
@@ -54,7 +44,7 @@ export default async function PropertyWelcomePage() {
           <CardContent>
             <ol className="grid gap-1">
               {steps.map((s) => (
-                <li key={s.title} className="grid gap-2 rounded-md px-2 py-2">
+                <li key={s.key} className="grid gap-2 rounded-md px-2 py-2">
                   <div className="flex min-h-8 items-center gap-3">
                   {s.done ? <CheckCircle2 className="text-sage size-5 shrink-0" aria-label="Done" /> : <Circle className="text-fg-faint size-5 shrink-0" aria-label="To do" />}
                   <p className={cn("min-w-0 flex-1 text-body font-medium", s.done && "text-fg-subtle")}>{s.title}</p>

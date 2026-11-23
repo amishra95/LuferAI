@@ -91,10 +91,11 @@ export const SIDES: Record<Side, { label: string; sections: NavSection[] }> = {
       },
       // Partner suppliers (the extranet).
       {
-        title: "Listings",
+        title: "What you sell",
         items: [
-          { href: "/partner", label: "Listings", icon: Store },
-          { href: "/partner?tab=rates", label: "Rate cards", icon: Tags },
+          // Venue listings and their rate cards: only partners that list venues (service suppliers sell from the Catalogue).
+          { href: "/partner?tab=listings", label: "Listings", icon: Store, gated: true, also: ["/partner"] },
+          { href: "/partner?tab=rates", label: "Rate cards", icon: Tags, gated: true },
           { href: "/partner?tab=catalog", label: "Catalogue", icon: Package },
         ],
       },
@@ -162,6 +163,16 @@ const SIDE_PATHS: Record<Side, readonly string[]> = {
   operator: ["/dashboard", "/admin", "/agents", "/settings"],
 };
 
+/**
+ * A side's heading for this user. The venue side holds two kinds of business: venue
+ * managers (/property) and suppliers (/partner); name the one the user is.
+ */
+export function sideLabel(side: Side, sections: readonly NavSection[]): string {
+  if (side !== "venue") return SIDES[side].label;
+  const paths = new Set(sections.flatMap((s) => s.items.map((i) => pathOf(i.href))));
+  return paths.has("/property") ? (paths.has("/partner") ? "For venues & suppliers" : "For venues") : paths.has("/partner") ? "For suppliers" : SIDES[side].label;
+}
+
 export function sideForPath(pathname: string): Side | null {
   return SIDE_ORDER.find((s) => SIDE_PATHS[s].some((p) => isActive(pathname, p))) ?? null;
 }
@@ -222,7 +233,8 @@ export function isItemActive(href: string, pathname: string, tab: string | null,
   if (also.some((a) => isItemActive(a, pathname, tab, allHrefs))) return true;
   const path = pathOf(href);
   if (pathname === path) return tabOf(href) === tab;
-  return isActive(pathname, path) && !allHrefs.some((h) => pathOf(h).length > path.length && isActive(pathname, pathOf(h)));
+  // A page below (/property/welcome) lights up only the page's default item, not every ?tab= item of it.
+  return !tabOf(href) && isActive(pathname, path) && !allHrefs.some((h) => pathOf(h).length > path.length && isActive(pathname, pathOf(h)));
 }
 
 /** Every nav item once, for the command palette. */

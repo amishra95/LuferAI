@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { allSides, isItemActive, sideForPath, sideForRole, sideHome, sideSections, visibleSides } from "../components/dashboard/nav-config.ts";
+import { allSides, isItemActive, sideForPath, sideForRole, sideHome, sideLabel, sideSections, visibleSides } from "../components/dashboard/nav-config.ts";
 
 const hrefs = (side, allowed) => sideSections(side, allowed).flatMap((s) => s.items.map((i) => i.href));
 
@@ -32,11 +32,16 @@ test("each role sees one side, and only its own items there", () => {
   assert.ok(hrefs("venue", property).every((h) => h.startsWith("/property") || h === "/contracts"), "no partner items for a property manager");
 
   // Partner staff: no team, activity or payouts unless their role grants them.
-  const staff = ["/partner"];
-  assert.deepEqual(hrefs("venue", staff), ["/partner", "/partner?tab=rates", "/partner?tab=catalog", "/partner?tab=orders"]);
+  const staff = ["/partner", "/partner?tab=listings", "/partner?tab=rates"];
+  assert.deepEqual(hrefs("venue", staff), ["/partner?tab=listings", "/partner?tab=rates", "/partner?tab=catalog", "/partner?tab=orders"]);
   const owner = ["/partner", "/partner?tab=payouts", "/partner?tab=team", "/partner?tab=activity"];
   assert.ok(hrefs("venue", owner).includes("/partner?tab=team"));
-  assert.equal(sideHome("venue", staff), "/partner");
+  assert.equal(sideHome("venue", staff), "/partner?tab=listings");
+
+  // A service supplier (caterer, decor…) lists no venues: no Listings or Rate cards, and it starts at its Catalogue.
+  const supplier = ["/partner"];
+  assert.deepEqual(hrefs("venue", supplier), ["/partner?tab=catalog", "/partner?tab=orders"]);
+  assert.equal(sideHome("venue", supplier), "/partner?tab=catalog");
 });
 
 test("admins can view every side", () => {
@@ -47,13 +52,13 @@ test("admins can view every side", () => {
 });
 
 test("admins get every side in one sidebar, each page listed once", () => {
-  const admin = ["/client", "/property", "/partner", "/admin", "/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts", "/client/approvals", "/admin/approvals", "/admin/managers", "/admin/analytics", "/partner?tab=payouts", "/partner?tab=team", "/partner?tab=activity"];
+  const admin = ["/client", "/property", "/partner", "/admin", "/dashboard", "/settings", "/agents", "/chat", "/venues", "/governance", "/contracts", "/client/approvals", "/admin/approvals", "/admin/managers", "/admin/analytics", "/partner?tab=listings", "/partner?tab=rates", "/partner?tab=payouts", "/partner?tab=team", "/partner?tab=activity"];
   const groups = allSides(visibleSides(admin), admin);
   assert.deepEqual(groups.map((g) => g.side), ["operator", "company", "venue"]);
   const all = groups.flatMap((g) => g.sections.flatMap((s) => s.items.map((i) => i.href)));
   assert.equal(new Set(all).size, all.length, "no page twice");
   // Every portal and page from before is reachable.
-  for (const h of ["/client", "/client/approvals", "/governance", "/property", "/partner", "/admin", "/admin/approvals", "/admin/managers", "/admin/analytics", "/dashboard", "/chat", "/agents", "/venues", "/settings", "/contracts"]) {
+  for (const h of ["/client", "/client/approvals", "/governance", "/property", "/partner?tab=listings", "/partner?tab=catalog", "/admin", "/admin/approvals", "/admin/managers", "/admin/analytics", "/dashboard", "/chat", "/agents", "/venues", "/settings", "/contracts"]) {
     assert.ok(all.includes(h), h);
   }
 });
@@ -67,6 +72,10 @@ test("the item for the current section is highlighted, tabs included", () => {
   assert.equal(isItemActive("/client", "/client/events/abc", null, all), true);
   // …unless a more specific item owns it.
   assert.equal(isItemActive("/client", "/client/approvals", null, all), false);
+  // A page below lights only the default item, not every ?tab= item of the same page.
+  const venue = ["/property", "/property?tab=briefs", "/property?tab=pricing"];
+  assert.equal(isItemActive("/property", "/property/welcome", null, venue), true);
+  assert.equal(isItemActive("/property?tab=pricing", "/property/welcome", null, venue), false);
   assert.equal(isItemActive("/client/approvals", "/client/approvals", null, all), true);
 });
 
@@ -93,4 +102,11 @@ test("venue sidebar: Requests (with inquiries), Events, Listing, Clients, Payout
   const all = hrefs("venue", venue).concat("/property?tab=inquiries");
   assert.equal(isItemActive("/property", "/property", "inquiries", all, ["/property?tab=inquiries"]), true);
   assert.equal(isItemActive("/property", "/property", "pricing", all, ["/property?tab=inquiries"]), false);
+});
+
+test("the venue side is named for who's signed in", () => {
+  assert.equal(sideLabel("venue", sideSections("venue", ["/property"])), "For venues");
+  assert.equal(sideLabel("venue", sideSections("venue", ["/partner"])), "For suppliers");
+  assert.equal(sideLabel("venue", sideSections("venue", ["/property", "/partner"])), "For venues & suppliers");
+  assert.equal(sideLabel("company", sideSections("company", ["/client"])), "For companies");
 });

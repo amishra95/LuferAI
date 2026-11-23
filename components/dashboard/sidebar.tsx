@@ -6,7 +6,7 @@ import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 import { DiyaMark } from "@/components/brand/logo";
 import { useNavBadges } from "@/components/dashboard/nav-badges";
-import { SIDES, allSides, isItemActive, sideHome, sideSections } from "@/components/dashboard/nav-config";
+import { allSides, isItemActive, sideHome, sideLabel, sideSections } from "@/components/dashboard/nav-config";
 import { cn } from "@/lib/utils";
 import type { Side } from "@/types/navigation";
 
@@ -96,11 +96,11 @@ export function Sidebar({
           <div key={groupSide} className={cn(g > 0 && "border-line mt-5 border-t pt-4")}>
             {/* Which side of the marketplace these items are for. */}
             {collapsed ? (
-              <span className={cn("mx-auto mb-2 block size-1.5 rounded-full", SIDE_ACCENT[groupSide])} title={SIDES[groupSide].label} aria-label={SIDES[groupSide].label} role="img" />
+              <span className={cn("mx-auto mb-2 block size-1.5 rounded-full", SIDE_ACCENT[groupSide])} title={sideLabel(groupSide, sections)} aria-label={sideLabel(groupSide, sections)} role="img" />
             ) : (
               <p className={cn("mb-2 flex items-center gap-2 px-2.5", groups.length > 1 ? "text-fg text-meta font-semibold" : "text-fg-muted text-caption font-medium")}>
                 <span aria-hidden className={cn("size-1.5 rounded-full", SIDE_ACCENT[groupSide])} />
-                {SIDES[groupSide].label}
+                {sideLabel(groupSide, sections)}
               </p>
             )}
             {sections.map((section, i) => (

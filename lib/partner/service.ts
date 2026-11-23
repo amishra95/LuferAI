@@ -97,6 +97,16 @@ export async function listPartnerVenues(partnerId: string): Promise<PartnerVenue
   return data;
 }
 
+/**
+ * Whether a partner lists venues (the Listings and Rate cards sections). Self-serve
+ * suppliers (caterers, decor, AV…) sell from the Catalogue and have none.
+ */
+export async function partnerListsVenues(partnerId: string): Promise<boolean> {
+  const { count, error } = await db().from("partner_venues").select("id", { count: "exact", head: true }).eq("partner_id", partnerId);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 function listingError(error: { code?: string; message: string }): never {
   if (error.code === "23505") throw new PartnerError("You already have a listing with this reference.", "ref");
   throw error;

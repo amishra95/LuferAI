@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { partnerPermissions } from "@/lib/auth/partner-rbac";
+import { partnerListsVenues } from "@/lib/partner/service";
 import { getAgent, syncAgentConfigs } from "@/lib/agents/store";
 import { getLanguageModel } from "@/lib/ai/model";
 import { canAccess, canAccessWorkspace, PORTALS, WORKSPACE_ROUTES } from "@/lib/auth/roles";
@@ -23,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ...(member.canApprove || member.role === "ADMIN" ? ["/client/approvals"] : []),
         ...(member.role === "ADMIN" ? ["/admin/requests", "/admin/approvals", "/admin/managers", "/admin/analytics", "/admin/new-venue"] : []),
         // Extranet sections gated by the partner's role (team, activity, payouts).
-        ...(canAccess(member.role, "/partner") ? partnerSectionHrefs(member) : []),
+        ...(canAccess(member.role, "/partner") ? await partnerSectionHrefs(member) : []),
       ]
     : [];
   // The in-page concierge drawer runs the same workspace chat as /chat, with the same checks.
@@ -53,9 +54,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
 }
 
 /** The extranet sections this partner user may open, as sidebar hrefs (mirrors the tabs in partner/page.tsx). */
-function partnerSectionHrefs(member: Parameters<typeof partnerPermissions>[0]): string[] {
+async function partnerSectionHrefs(member: Parameters<typeof partnerPermissions>[0] & { partnerId: string | null }): Promise<string[]> {
   const can = partnerPermissions(member);
+  // Admins see every section; a partner sees Listings and Rate cards only once it lists venues.
+  const listsVenues =
+    member.role === "ADMIN" ||
+    (member.partnerId
+      ? await partnerListsVenues(member.partnerId).catch((err) => {
+          console.error("layout: could not check partner listings", err);
+          return true;
+        })
+      : false);
   return [
+    listsVenues ? "/partner?tab=listings" : null,
+    listsVenues ? "/partner?tab=rates" : null,
     can.has("payouts.view") ? "/partner?tab=payouts" : null,
     can.has("team.manage") ? "/partner?tab=team" : null,
     can.has("audit.view") ? "/partner?tab=activity" : null,

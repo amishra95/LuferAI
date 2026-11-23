@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Building, CalendarRange, CheckCircle2, History, Plus, Store, Tag, Users } from "lucide-react";
+import { ArrowLeft, CalendarRange, CheckCircle2, History, Plus, Store, Tag, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PARTNER_ROLE_LABEL, partnerPermissions } from "@/lib/auth/partner-rbac";
+import { redirect } from "next/navigation";
+
 import { requirePortal } from "@/lib/auth/session";
 import { todayInIndia } from "@/lib/gst-engine";
 import { getPartner, listAudit, listPartnerMembers, listPartnerRateCards, listPartners, listPartnerVenues } from "@/lib/partner/service";
@@ -29,9 +31,10 @@ import { LowStock, PartnerCatalog, PartnerOrders, type FulfilOrder } from "./_co
 import { PartnerPayouts } from "./_components/payouts";
 import { listOrderSettlements, listPartnerTcs, orderPaymentsEnabled, type OrderSettlement } from "@/lib/marketplace/service";
 
+// `venues`: sections for partners that list venues; service suppliers (caterers, decor, AV…) sell from the Catalogue.
 const TABS = [
-  { key: "listings", label: "Listings", permission: "partner.view" },
-  { key: "rates", label: "Rate cards", permission: "partner.view" },
+  { key: "listings", label: "Listings", permission: "partner.view", venues: true },
+  { key: "rates", label: "Rate cards", permission: "partner.view", venues: true },
   { key: "catalog", label: "Catalogue", permission: "partner.view" },
   { key: "orders", label: "Orders", permission: "partner.view" },
   { key: "payouts", label: "Payouts", permission: "payouts.view" },
@@ -70,27 +73,34 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
 
   // Forms send partner_id only for admins; the server ignores it for partner users anyway.
   const formPartnerId = isAdmin ? partner.id : null;
-  const visibleTabs = TABS.filter((t) => can.has(t.permission));
-  const activeTab = visibleTabs.find((t) => t.key === tab)?.key ?? "listings";
+  const listings = await listPartnerVenues(partner.id);
+  // Admins see every section; a partner sees Listings and Rate cards once it lists a venue.
+  const listsVenues = isAdmin || listings.length > 0;
+  const visibleTabs = TABS.filter((t) => can.has(t.permission) && (listsVenues || !("venues" in t)));
+  const homeTab = listsVenues ? "listings" : "catalog";
+  const activeTab = visibleTabs.find((t) => t.key === tab)?.key ?? homeTab;
   const href = (t: string, extra: Record<string, string> = {}) => {
     const q = new URLSearchParams();
     if (isAdmin) q.set("partner", partner.id);
-    if (t !== "listings") q.set("tab", t);
+    if (t !== "listings" || !listsVenues) q.set("tab", t);
     for (const [k, v] of Object.entries(extra)) q.set(k, v);
     return q.size ? `/partner?${q}` : "/partner";
   };
   /** One listing, opened inside the Rate cards tab. */
   const listingHref = (id: string) => href("rates", { listing: id });
-  const canAddListing = can.has("listing.edit");
+  const canAddListing = can.has("listing.edit") && listsVenues;
+  // A supplier's bare /partner is its Catalogue: say so in the URL, so the sidebar lights it up.
+  // A section it doesn't have (an old Listings link): its home section instead.
+  if ((!listsVenues && tab === undefined) || (typeof tab === "string" && !visibleTabs.some((t) => t.key === tab))) redirect(href(homeTab));
 
   const today = todayInIndia();
-  const [listings, rates, members, audit, catalogItems, orders] = await Promise.all([
-    listPartnerVenues(partner.id),
-    listPartnerRateCards(partner.id),
+  const [rates, members, audit, catalogItems, orders] = await Promise.all([
+    listsVenues ? listPartnerRateCards(partner.id) : Promise.resolve([]),
     activeTab === "team" ? listPartnerMembers(partner.id) : Promise.resolve([]),
     activeTab === "activity" ? listAudit(partner.id) : Promise.resolve([]),
-    activeTab === "catalog" || activeTab === "orders" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
-    activeTab === "orders" || activeTab === "payouts" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
+    // Suppliers' summary counts catalogue items and orders on every tab.
+    !listsVenues || activeTab === "catalog" || activeTab === "orders" ? listCatalogItems({ partnerId: partner.id, includePaused: true }) : Promise.resolve([]),
+    !listsVenues || activeTab === "orders" || activeTab === "payouts" ? listCatalogOrders({ partnerId: partner.id }) : Promise.resolve([]),
   ]);
   const [settlements, tcs] = await Promise.all([
     activeTab === "orders" || activeTab === "payouts" ? listOrderSettlements(orders) : Promise.resolve(new Map<string, OrderSettlement>()),
@@ -108,7 +118,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
     <PortalShell
       portal="/partner"
       title={partner.name}
-      meta={partner.status === "suspended" ? "Suspended · hidden from search" : undefined}
+      meta={[partner.status === "suspended" ? "Suspended · hidden from search" : null, roleLabel || null].filter(Boolean).join(" · ") || undefined}
       actions={
         canAddListing ? (
           <Link href={`${href("listings")}#add-listing`} className="btn btn-secondary h-8 px-3 text-meta">
@@ -128,11 +138,18 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
         </div>
       ) : null}
 
-      <section className="mb-6 grid gap-6 sm:grid-cols-3" aria-label="Summary">
-        <StatCard label="Live listings" value={String(listings.filter((l) => l.status === "active").length)} hint={`${listings.length} total`} icon={Store} />
-        <StatCard label="Rates in effect" value={String(rates.filter((r) => isRateActiveOn(r, today)).length)} hint={`${liveRates.length} current or upcoming`} icon={CalendarRange} />
-        <StatCard label="Your role" value={roleLabel} icon={can.has("team.manage") ? Users : Building} />
-      </section>
+      {/* Nothing to count yet: the empty tab below says what to do, so skip a row of zeros. */}
+      {listsVenues ? (
+        <section className="mb-6 grid gap-6 sm:grid-cols-2" aria-label="Summary">
+          <StatCard label="Live listings" value={String(listings.filter((l) => l.status === "active").length)} hint={`${listings.length} total`} icon={Store} />
+          <StatCard label="Rates in effect" value={String(rates.filter((r) => isRateActiveOn(r, today)).length)} hint={`${liveRates.length} current or upcoming`} icon={CalendarRange} />
+        </section>
+      ) : catalogItems.length > 0 || orders.length > 0 ? (
+        <section className="mb-6 grid gap-6 sm:grid-cols-2" aria-label="Summary">
+          <StatCard label="Live catalogue items" value={String(catalogItems.filter((i) => i.status === "active").length)} hint={`${catalogItems.length} total`} />
+          <StatCard label="Orders to fulfil" value={String(orders.filter((o) => o.status === "PLACED" || o.status === "CONFIRMED").length)} hint={`${orders.length} all time`} />
+        </section>
+      ) : null}
 
       <nav className="border-line mb-6 flex gap-1 overflow-x-auto border-b" aria-label="Partner sections">
         {visibleTabs.map((t) => (
@@ -141,7 +158,7 @@ export default async function PartnerPage({ searchParams }: PageProps<"/partner"
             href={href(t.key)}
             aria-current={activeTab === t.key ? "page" : undefined}
             className={cn(
-              "relative -mb-px inline-flex h-10 items-center px-3 text-meta transition-colors",
+              "relative -mb-px inline-flex h-10 shrink-0 items-center px-3 text-meta whitespace-nowrap transition-colors",
               activeTab === t.key ? "text-fg font-medium" : "text-fg-subtle hover:text-fg"
             )}
           >
